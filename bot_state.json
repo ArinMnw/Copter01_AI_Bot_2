@@ -1,0 +1,188 @@
+{
+  "saved_at": "2026-04-21 14:23:47",
+  "symbol": "XAUUSD.iux",
+  "auto_volume": 0.01,
+  "scan_interval": 1,
+  "entry_candle_mode": "close_percentage",
+  "entry_close_reverse_market": false,
+  "entry_close_reverse_limit": false,
+  "tg_queue_debug": false,
+  "sltp_audit_debug": false,
+  "trade_debug": false,
+  "opposite_order_mode": "sl_protect",
+  "limit_guard": true,
+  "limit_guard_points": 100,
+  "limit_guard_tf_mode": "separate",
+  "engulf_min_points": 100,
+  "limit_break_cancel": true,
+  "limit_break_cancel_tf": {
+    "M1": true,
+    "M5": true,
+    "M15": true,
+    "M30": true,
+    "H1": true,
+    "H4": true,
+    "H12": true,
+    "D1": true
+  },
+  "trail_sl_immediate": true,
+  "trail_sl_enabled": false,
+  "entry_candle_enabled": false,
+  "opposite_order_enabled": false,
+  "limit_sweep": true,
+  "delay_sl_mode": "off",
+  "fvg_normal": true,
+  "fvg_parallel": true,
+  "last_traded_per_tf": {
+    "D1": 1776556800,
+    "H12": 1776643200,
+    "M30": 1776745800,
+    "H1": 1776744000,
+    "M15": 1776753900,
+    "H4": 1776744000,
+    "M1": 1776759720,
+    "M5": 1776759300
+  },
+  "last_traded_sid_tf": {
+    "M1": {
+      "2": 1776759000,
+      "4": 1776759000,
+      "1": 1776759240,
+      "3": 1776758100,
+      "8": 1776674340,
+      "2": 1776759720
+    },
+    "M5": {
+      "4": 1776733800,
+      "2": 1776759300,
+      "1": 1776759000,
+      "3": 1776758700,
+      "8": 1776674100
+    },
+    "M15": {
+      "1": 1776748500,
+      "2": 1776745800,
+      "4": 1776690000,
+      "3": 1776753900,
+      "8": 1776672900
+    },
+    "H1": {
+      "1": 1776744000,
+      "2": 1776740400,
+      "8": 1776668400,
+      "3": 1776736800,
+      "4": 1776625200
+    },
+    "M30": {
+      "3": 1776711600,
+      "2": 1776745800,
+      "1": 1776738600,
+      "8": 1776672000,
+      "4": 1776690000
+    },
+    "H12": {
+      "1": 1776643200,
+      "2": 1776556800,
+      "4": 1775606400,
+      "8": 1776600000,
+      "3": 1775908800
+    },
+    "H4": {
+      "8": 1776657600,
+      "1": 1776744000,
+      "2": 1776744000,
+      "3": 1776614400,
+      "4": 1776441600
+    },
+    "D1": {
+      "8": 1776556800,
+      "1": 1776038400,
+      "2": 1776124800,
+      "3": 1776384000
+    }
+  },
+  "pending_order_tf": {
+    "510767530": {
+      "tf": "H4",
+      "gap_bot": 4807.7,
+      "gap_top": 4810.45,
+      "final_gap_bot": 4807.7,
+      "final_gap_top": 4810.45,
+      "detect_bar_time": 1776744000,
+      "signal": "SELL",
+      "sid": 2,
+      "pattern": "ท่าที่ 2 FVG 🔴 SELL — แดงกลืนกิน",
+      "c3_type": "แดงกลืนกิน"
+    },
+    "510780003": {
+      "tf": "M5",
+      "gap_bot": 4770.76,
+      "gap_top": 4785.34,
+      "detect_bar_time": 1776759000,
+      "signal": "BUY",
+      "sid": 1,
+      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน"
+    },
+    "510785117": {
+      "tf": "M1",
+      "gap_bot": 4782.33,
+      "gap_top": 4783.36,
+      "final_gap_bot": 4782.33,
+      "final_gap_top": 4783.36,
+      "detect_bar_time": 1776759720,
+      "signal": "SELL",
+      "sid": 2,
+      "pattern": "ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา",
+      "c3_type": "ปฏิเสธราคา",
+      "cancel_bars": 1
+    }
+  },
+  "position_tf": {
+    "510767530": "H4",
+    "510777195": "M1",
+    "510780001": "M5",
+    "510780003": "M5",
+    "510782945": "M5",
+    "510785117": "M1"
+  },
+  "position_sid": {
+    "510767530": 2,
+    "510777195": 2,
+    "510780003": 1,
+    "510782945": 2,
+    "510785117": 2
+  },
+  "position_pattern": {
+    "510767530": "ท่าที่ 2 FVG SELL [H4]",
+    "510777195": "ท่าที่ 2 FVG BUY [M1]",
+    "510780001": "ท่าที่ 3 DM SP — Marubozu BUY",
+    "510780003": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน",
+    "510782945": "ท่าที่ 2 FVG BUY [M5]",
+    "510785117": "ท่าที่ 2 FVG SELL [M1]"
+  },
+  "entry_state": {},
+  "trail_state": {},
+  "fvg_order_tickets": {
+    "510767530": {
+      "tf": "H4",
+      "signal": "SELL",
+      "checked": false
+    },
+    "510777195": {
+      "tf": "M1",
+      "signal": "BUY",
+      "checked": false
+    },
+    "510782945": {
+      "tf": "M5",
+      "signal": "BUY",
+      "checked": false
+    },
+    "510785117": {
+      "tf": "M1",
+      "signal": "SELL",
+      "checked": false
+    }
+  },
+  "s8_fill_sl": {}
+}

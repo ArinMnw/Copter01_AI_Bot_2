@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Copter/Downloads/TD/main/copter_gold -type f -name *.md -o -name .env* -o -name *.txt -o -name requirements*)",
+      "Bash(wc -l /c/Users/Copter/Downloads/TD/main/copter_gold/*.py)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('scanner.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('config.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -m json.tool)",
+      "Bash(python -m py_compile trailing.py)"
+    ]
+  }
+}
