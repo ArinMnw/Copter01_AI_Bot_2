@@ -1,5 +1,18 @@
 from config import *
+import config
 from mt5_utils import get_structure, find_swing_tp
+
+
+_s4_debug_last: dict[str, str] = {}
+
+
+def _s4_debug(group: str, signature: str, message: str) -> None:
+    if not getattr(config, "TRADE_DEBUG", False):
+        return
+    if _s4_debug_last.get(group) == signature:
+        return
+    _s4_debug_last[group] = signature
+    print(message)
 
 
 def _in_body(price: float, bar) -> bool:
@@ -226,6 +239,7 @@ def strategy_4(rates):
     sl_z = ms["swing_low"]
     now  = now_bkk().strftime("%H:%M:%S")
     engulf_gap = engulf_min_price()
+    bar_time = int(rates[-1]["time"])
 
     # ── BUY ───────────────────────────────────────────────────
     # [1] เขียว + High[1] > High[2] (FVG เกิด)
@@ -236,7 +250,11 @@ def strategy_4(rates):
         sh_info = _find_prev_swing_high(rates)
         prev_sh  = sh_info["price"] if sh_info else None
         swing_in_gap = prev_sh is not None and h2 < prev_sh < l0
-        print(f"[{now}] S4 BUY check: gap=({h2:.2f}-{l0:.2f}) swing={prev_sh if prev_sh is not None else 'None'} in_gap={swing_in_gap}")
+        _s4_debug(
+            "buy_check",
+            f"{bar_time}|{h2:.2f}|{l0:.2f}|{prev_sh if prev_sh is not None else 'None'}|{swing_in_gap}",
+            f"[{now}] S4 BUY check: gap=({h2:.2f}-{l0:.2f}) swing={prev_sh if prev_sh is not None else 'None'} in_gap={swing_in_gap}",
+        )
         # [0] ต้องอยู่เหนือ Swing High (Low[0] > Swing High) → Gap ยังเปิด
         gap_open = prev_sh and l0 > prev_sh
 
@@ -269,18 +287,30 @@ def strategy_4(rates):
             }
 
         if not sh_info:
-            print(f"[{now}] S4 BUY wait: no previous swing high")
+            _s4_debug("buy_wait_no_previous_swing_high", f"{bar_time}|none", f"[{now}] S4 BUY wait: no previous swing high")
             return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🟢 BUY",
                     "reason": "⚠️ ไม่พบ Swing High ก่อนหน้า"}
         if prev_sh and cl1 <= prev_sh + engulf_gap:
-            print(f"[{now}] S4 BUY wait: close_not_break swing={prev_sh:.2f} close1={cl1:.2f} gap_min={engulf_gap:.2f}")
+            _s4_debug(
+                "buy_wait_close_not_break",
+                f"{bar_time}|{prev_sh:.2f}|{cl1:.2f}|{engulf_gap:.2f}",
+                f"[{now}] S4 BUY wait: close_not_break swing={prev_sh:.2f} close1={cl1:.2f} gap_min={engulf_gap:.2f}",
+            )
             return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🟢 BUY",
                     "reason": f"⚠️ [1] Close:{cl1:.2f} ยังไม่ห่าง Swing High:{prev_sh:.2f} ขั้นต่ำ {engulf_gap:.2f}"}
         if prev_sh and not swing_in_gap:
-            print(f"[{now}] S4 BUY wait: swing_outside_gap swing={prev_sh:.2f} gap=({h2:.2f}-{l0:.2f})")
+            _s4_debug(
+                "buy_wait_swing_outside_gap",
+                f"{bar_time}|{prev_sh:.2f}|{h2:.2f}|{l0:.2f}",
+                f"[{now}] S4 BUY wait: swing_outside_gap swing={prev_sh:.2f} gap=({h2:.2f}-{l0:.2f})",
+            )
             return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🟢 BUY",
                     "reason": f"⚠️ Swing High:{prev_sh:.2f} อยู่นอก FVG gap ({h2:.2f} - {l0:.2f})"}
-        print(f"[{now}] S4 BUY wait: gap_closed low0={l0:.2f} swing={prev_sh:.2f}")
+        _s4_debug(
+            "buy_wait_gap_closed",
+            f"{bar_time}|{l0:.2f}|{prev_sh:.2f}",
+            f"[{now}] S4 BUY wait: gap_closed low0={l0:.2f} swing={prev_sh:.2f}",
+        )
         return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🟢 BUY",
                 "reason": f"⏳ [0] Low[0]:{l0:.2f} ≤ Swing High:{prev_sh:.2f} Gap ปิดแล้ว รอ setup ใหม่"}
 
@@ -293,7 +323,11 @@ def strategy_4(rates):
         sl_info = _find_prev_swing_low(rates)
         prev_sl  = sl_info["price"] if sl_info else None
         swing_in_gap = prev_sl is not None and h0 < prev_sl < l2
-        print(f"[{now}] S4 SELL check: gap=({h0:.2f}-{l2:.2f}) swing={prev_sl if prev_sl is not None else 'None'} in_gap={swing_in_gap}")
+        _s4_debug(
+            "sell_check",
+            f"{bar_time}|{h0:.2f}|{l2:.2f}|{prev_sl if prev_sl is not None else 'None'}|{swing_in_gap}",
+            f"[{now}] S4 SELL check: gap=({h0:.2f}-{l2:.2f}) swing={prev_sl if prev_sl is not None else 'None'} in_gap={swing_in_gap}",
+        )
         # [0] ต้องอยู่ใต้ Swing Low (High[0] < Swing Low) → Gap ยังเปิด
         gap_open = prev_sl and h0 < prev_sl
 
@@ -326,18 +360,30 @@ def strategy_4(rates):
             }
 
         if not sl_info:
-            print(f"[{now}] S4 SELL wait: no previous swing low")
+            _s4_debug("sell_wait_no_previous_swing_low", f"{bar_time}|none", f"[{now}] S4 SELL wait: no previous swing low")
             return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
                     "reason": "⚠️ ไม่พบ Swing Low ก่อนหน้า"}
         if prev_sl and cl1 >= prev_sl - engulf_gap:
-            print(f"[{now}] S4 SELL wait: close_not_break swing={prev_sl:.2f} close1={cl1:.2f} gap_min={engulf_gap:.2f}")
+            _s4_debug(
+                "sell_wait_close_not_break",
+                f"{bar_time}|{prev_sl:.2f}|{cl1:.2f}|{engulf_gap:.2f}",
+                f"[{now}] S4 SELL wait: close_not_break swing={prev_sl:.2f} close1={cl1:.2f} gap_min={engulf_gap:.2f}",
+            )
             return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
                     "reason": f"⚠️ [1] Close:{cl1:.2f} ยังไม่ห่าง Swing Low:{prev_sl:.2f} ขั้นต่ำ {engulf_gap:.2f}"}
         if prev_sl and not swing_in_gap:
-            print(f"[{now}] S4 SELL wait: swing_outside_gap swing={prev_sl:.2f} gap=({h0:.2f}-{l2:.2f})")
+            _s4_debug(
+                "sell_wait_swing_outside_gap",
+                f"{bar_time}|{prev_sl:.2f}|{h0:.2f}|{l2:.2f}",
+                f"[{now}] S4 SELL wait: swing_outside_gap swing={prev_sl:.2f} gap=({h0:.2f}-{l2:.2f})",
+            )
             return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
                     "reason": f"⚠️ Swing Low:{prev_sl:.2f} อยู่นอก FVG gap ({h0:.2f} - {l2:.2f})"}
-        print(f"[{now}] S4 SELL wait: gap_closed high0={h0:.2f} swing={prev_sl:.2f}")
+        _s4_debug(
+            "sell_wait_gap_closed",
+            f"{bar_time}|{h0:.2f}|{prev_sl:.2f}",
+            f"[{now}] S4 SELL wait: gap_closed high0={h0:.2f} swing={prev_sl:.2f}",
+        )
         return {"signal": "WAIT", "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
                 "reason": f"⏳ [0] High[0]:{h0:.2f} ≥ Swing Low:{prev_sl:.2f} Gap ปิดแล้ว รอ setup ใหม่"}
 

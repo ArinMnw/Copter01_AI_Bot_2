@@ -1,5 +1,7 @@
 import logging
+import MetaTrader5 as mt5
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 
@@ -7,10 +9,41 @@ TZ_OFFSET = 7
 LOG_DIR = "logs"
 BOT_LOG_FILE = os.path.join(LOG_DIR, "bot.log")
 SYSTEM_LOG_FILE = os.path.join(LOG_DIR, "system.log")
+LOG_RETENTION_DAYS = 7
+
+_TS_LINE_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+_MONTHLY_LOG_RE = re.compile(r"^bot-\d{4}-\d{2}\.log$")
 
 
 def _now_bkk() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET)
+    try:
+        import config as _config
+        symbols = []
+        current_symbol = getattr(_config, "SYMBOL", "")
+        if current_symbol:
+            symbols.append(current_symbol)
+        for sym in getattr(_config, "SYMBOL_CONFIG", {}).keys():
+            if sym not in symbols:
+                symbols.append(sym)
+
+        best_ts = None
+        for sym in symbols:
+            try:
+                tick = mt5.symbol_info_tick(sym)
+            except Exception:
+                tick = None
+            ts = int(getattr(tick, "time", 0) or 0) if tick else 0
+            if ts > 0 and (best_ts is None or ts > best_ts):
+                best_ts = ts
+
+        if best_ts is not None:
+            dt = _config.mt5_ts_to_bkk(best_ts)
+            if dt is not None:
+                return dt
+    except Exception:
+        pass
+    server_tz = getattr(locals().get("_config", None), "MT5_SERVER_TZ", 1) if "_config" in locals() else 1
+    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET - server_tz)
 
 
 def _sanitize(value) -> str:
@@ -67,3 +100,74 @@ def log_event(kind: str, message: str = "", **fields) -> None:
 
 def log_block(kind: str, text: str, **fields) -> None:
     log_event(kind, text, **fields)
+
+
+def _parse_log_line_ts(line: str):
+    m = _TS_LINE_RE.match(line)
+    if not m:
+        return None
+    try:
+        return datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def cleanup_old_logs(retention_days: int = LOG_RETENTION_DAYS) -> dict:
+    """ลบบรรทัด log ที่เก่าเกิน retention_days ออกจากไฟล์ใน LOG_DIR
+    ถ้าเป็น monthly log (bot-YYYY-MM.log) และไม่มีบรรทัดเหลือ จะลบทั้งไฟล์
+    """
+    _ensure_log_dir()
+    cutoff = _now_bkk().replace(tzinfo=None) - timedelta(days=retention_days)
+    summary: dict = {"trimmed": [], "deleted": [], "skipped": [], "retention_days": retention_days}
+    try:
+        entries = os.listdir(LOG_DIR)
+    except FileNotFoundError:
+        return summary
+
+    for name in entries:
+        if not name.endswith(".log"):
+            continue
+        path = os.path.join(LOG_DIR, name)
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+        except OSError:
+            summary["skipped"].append(name)
+            continue
+
+        kept: list[str] = []
+        last_ts = None
+        for line in lines:
+            ts = _parse_log_line_ts(line)
+            if ts is not None:
+                last_ts = ts
+            effective_ts = ts if ts is not None else last_ts
+            if effective_ts is None or effective_ts >= cutoff:
+                kept.append(line)
+
+        if _MONTHLY_LOG_RE.match(name) and not kept:
+            try:
+                os.remove(path)
+                summary["deleted"].append(name)
+            except OSError:
+                summary["skipped"].append(name)
+            continue
+
+        if len(kept) == len(lines):
+            continue
+
+        removed = len(lines) - len(kept)
+        tmp_path = path + ".tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.writelines(kept)
+            os.replace(tmp_path, path)
+            summary["trimmed"].append((name, removed))
+        except OSError:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+            summary["skipped"].append(name)
+
+    return summary

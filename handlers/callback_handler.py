@@ -7,9 +7,11 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     build_lot_keyboard,
     build_trail_menu, build_trail_engulf_keyboard,
     show_main_settings_menu, show_debug_menu, build_debug_keyboard,
-    show_entry_candle_mode_menu, show_profit_summary,
+    show_entry_candle_mode_menu, show_profit_summary, show_profit_strategy_detail,
     show_limit_break_menu, show_engulf_menu,
-    show_limit_guard_menu, show_opposite_menu)
+    show_limit_guard_menu, show_opposite_menu,
+    show_trail_focus_menu, show_entry_focus_menu,
+    show_trend_filter_menu)
 
 async def handle_callback(update, ctx):
     global SCAN_INTERVAL, TF_CURRENT, TF_ACTIVE, active_strategies
@@ -64,6 +66,30 @@ async def handle_callback(update, ctx):
             if "not modified" not in str(e).lower():
                 pass
         await query.answer()
+
+    elif data == "reset_config_prompt":
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("✅ ยืนยัน Reset", callback_data="confirm_reset_config"),
+            InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings"),
+        ]])
+        try:
+            await query.edit_message_text(
+                "♻️ *Reset Config*\n"
+                "━━━━━━━━━━━━━━━━━\n"
+                "จะรีเซทค่าตั้งค่าทั้งหมดให้กลับไปตรงกับค่าเริ่มต้นใน `config.py`\n"
+                "และบันทึกทับ state ปัจจุบันทันที\n\n"
+                "ยืนยันหรือไม่?",
+                parse_mode="Markdown",
+                reply_markup=kb
+            )
+        except Exception:
+            pass
+        await query.answer()
+
+    elif data == "confirm_reset_config":
+        config.reset_runtime_config_to_defaults(save_state=True)
+        await show_main_settings_menu(query, is_query=True)
+        await query.answer("รีเซท config ตาม config.py แล้ว")
 
     elif data == "lot_custom_input":
         # เข้าสู่ mode รับ input lot สำหรับ auto
@@ -491,6 +517,122 @@ async def handle_callback(update, ctx):
             pass
         await query.answer(f"Trail ทันที: {imm_status}")
 
+    elif data == "open_trail_focus_menu":
+        await show_trail_focus_menu(query, is_query=True)
+        await query.answer()
+
+    elif data == "toggle_trail_focus_new":
+        config.TRAIL_SL_FOCUS_NEW_ENABLED = not config.TRAIL_SL_FOCUS_NEW_ENABLED
+        if config.TRAIL_SL_FOCUS_NEW_ENABLED:
+            from trailing import reset_focus_frozen_side
+            reset_focus_frozen_side("trail_sl")
+        save_runtime_state()
+        await show_trail_focus_menu(query, is_query=True)
+        await query.answer(f"Trail Focus: {'ON' if config.TRAIL_SL_FOCUS_NEW_ENABLED else 'OFF'}")
+
+    elif data == "toggle_tfn_tf_mode":
+        config.TRAIL_SL_FOCUS_NEW_TF_MODE = (
+            "combined" if config.TRAIL_SL_FOCUS_NEW_TF_MODE == "separate" else "separate"
+        )
+        save_runtime_state()
+        await show_trail_focus_menu(query, is_query=True)
+        tf_desc = "รวมทุก TF" if config.TRAIL_SL_FOCUS_NEW_TF_MODE == "combined" else "แยกตาม TF"
+        await query.answer(f"Trail Focus TF: {tf_desc}")
+
+    elif data.startswith("set_tfn_pts_"):
+        pts = int(data.replace("set_tfn_pts_", ""))
+        config.TRAIL_SL_FOCUS_NEW_POINTS = pts
+        save_runtime_state()
+        await show_trail_focus_menu(query, is_query=True)
+        await query.answer(f"Trail Focus Threshold: {pts} จุด")
+
+    elif data == "open_entry_focus_menu":
+        await show_entry_focus_menu(query, is_query=True)
+        await query.answer()
+
+    elif data == "toggle_entry_focus_new":
+        config.ENTRY_CANDLE_FOCUS_NEW_ENABLED = not config.ENTRY_CANDLE_FOCUS_NEW_ENABLED
+        if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED:
+            from trailing import reset_focus_frozen_side
+            reset_focus_frozen_side("entry_candle")
+        save_runtime_state()
+        await show_entry_focus_menu(query, is_query=True)
+        await query.answer(f"Entry Focus: {'ON' if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED else 'OFF'}")
+
+    elif data == "toggle_efn_tf_mode":
+        config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE = (
+            "combined" if config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE == "separate" else "separate"
+        )
+        save_runtime_state()
+        await show_entry_focus_menu(query, is_query=True)
+        tf_desc = "รวมทุก TF" if config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE == "combined" else "แยกตาม TF"
+        await query.answer(f"Entry Focus TF: {tf_desc}")
+
+    elif data.startswith("set_efn_pts_"):
+        pts = int(data.replace("set_efn_pts_", ""))
+        config.ENTRY_CANDLE_FOCUS_NEW_POINTS = pts
+        save_runtime_state()
+        await show_entry_focus_menu(query, is_query=True)
+        await query.answer(f"Entry Focus Threshold: {pts} จุด")
+
+    elif data == "open_trend_filter_menu":
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer()
+
+    elif data.startswith("toggle_trend_filter_per_tf_"):
+        tf = data.replace("toggle_trend_filter_per_tf_", "")
+        if tf == "ALL":
+            all_on = all(config.TREND_FILTER_PER_TF.values())
+            for t in config.TREND_FILTER_PER_TF:
+                config.TREND_FILTER_PER_TF[t] = not all_on
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await query.answer("ยกเลิกทุก TF" if all_on else "เลือกทุก TF")
+        elif tf in config.TREND_FILTER_PER_TF:
+            config.TREND_FILTER_PER_TF[tf] = not config.TREND_FILTER_PER_TF[tf]
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await query.answer(f"Per-TF {tf}: {'ON' if config.TREND_FILTER_PER_TF[tf] else 'OFF'}")
+        else:
+            await query.answer("TF ไม่ถูกต้อง")
+
+    elif data == "noop_trend_filter":
+        await query.answer()
+
+    elif data == "toggle_trend_filter_higher_tf":
+        config.TREND_FILTER_HIGHER_TF_ENABLED = not config.TREND_FILTER_HIGHER_TF_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Trend Filter Higher TF: {'ON' if config.TREND_FILTER_HIGHER_TF_ENABLED else 'OFF'}")
+
+    elif data == "toggle_trend_filter_trail_sl_override":
+        config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = not config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(
+            f"Trend Filter Trail SL Override: {'ON' if config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED else 'OFF'}"
+        )
+
+    elif data.startswith("set_trend_filter_higher_tf_"):
+        tf = data.replace("set_trend_filter_higher_tf_", "")
+        if tf in TF_OPTIONS:
+            config.TREND_FILTER_HIGHER_TF = tf
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await query.answer(f"Higher TF: {tf}")
+        else:
+            await query.answer("TF ไม่ถูกต้อง")
+
+    elif data.startswith("set_trend_filter_mode_"):
+        mode = data.replace("set_trend_filter_mode_", "")
+        if mode in ("basic", "breakout"):
+            config.TREND_FILTER_MODE = mode
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await query.answer(f"Trend Filter Mode: {mode}")
+        else:
+            await query.answer("Mode ไม่ถูกต้อง")
+
     elif data.startswith("toggle_strategy_"):
         sid = int(data.split("_")[-1])
         if sid in active_strategies:
@@ -678,12 +820,25 @@ async def handle_callback(update, ctx):
         await show_engulf_menu(query, is_query=True)
         await query.answer(f"Engulf ขั้นต่ำ: {pts} จุด")
 
+    elif data.startswith("profit_sid_"):
+        # format: profit_sid_{year}_{month}_{sid}_{trend_filter}
+        # trend_filter อาจมี underscore (bull_strong, bear_weak ฯลฯ) ต้อง join ส่วนที่เหลือ
+        parts = data.split("_")
+        year = int(parts[2])
+        month = int(parts[3])
+        sid = int(parts[4])
+        trend_filter_key = "_".join(parts[5:]) if len(parts) > 5 else "all"
+        await show_profit_strategy_detail(query, year, month, sid, trend_filter_key, is_query=True)
+        await query.answer()
+
     elif data.startswith("profit_"):
-        # format: profit_{year}_{month}
+        # format: profit_{year}_{month}_{trend_filter}
+        # trend_filter อาจมี underscore (bull_strong, bear_weak ฯลฯ) ต้อง join ส่วนที่เหลือ
         parts = data.split("_")
         year = int(parts[1])
         month = int(parts[2])
-        await show_profit_summary(query, year, month, is_query=True)
+        trend_filter_key = "_".join(parts[3:]) if len(parts) > 3 else "all"
+        await show_profit_summary(query, year, month, trend_filter_key, is_query=True)
         await query.answer()
 
     elif data.startswith("buy_") or data.startswith("sell_"):

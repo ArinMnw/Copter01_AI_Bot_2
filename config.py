@@ -1,5 +1,6 @@
 import MetaTrader5 as mt5
 import asyncio
+import copy
 import json
 import os
 import sys
@@ -14,8 +15,48 @@ TZ_OFFSET = 7   # UTC+7 Bangkok
 MT5_SERVER_TZ = 1  # MT5 server UTC offset (IUXMarkets = UTC+1) — ลบออกจาก bar time ก่อนแปลง
 
 def now_bkk() -> datetime:
-    """คืน datetime ปัจจุบันตาม Bangkok UTC+7 เสมอ"""
-    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET)
+    """คืนเวลา Bangkok โดยยึด MT5 server time ก่อน แล้วค่อย fallback เป็น MT5->BKK"""
+    try:
+        symbols = []
+        if globals().get("SYMBOL"):
+            symbols.append(SYMBOL)
+        for sym in SYMBOL_CONFIG.keys():
+            if sym not in symbols:
+                symbols.append(sym)
+
+        best_ts = None
+        for sym in symbols:
+            try:
+                tick = mt5.symbol_info_tick(sym)
+            except Exception:
+                tick = None
+            ts = int(getattr(tick, "time", 0) or 0) if tick else 0
+            if ts > 0 and (best_ts is None or ts > best_ts):
+                best_ts = ts
+
+        if best_ts is not None:
+            dt = mt5_ts_to_bkk(best_ts)
+            if dt is not None:
+                return dt
+    except Exception:
+        pass
+    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET - MT5_SERVER_TZ)
+
+
+def mt5_ts_to_bkk(ts: int | float | None) -> datetime | None:
+    """แปลง MT5 server timestamp เป็นเวลา Bangkok ตามส่วนต่าง server -> BKK"""
+    try:
+        if ts is None:
+            return None
+        return datetime.fromtimestamp(int(ts), tz=timezone.utc) + timedelta(hours=TZ_OFFSET - MT5_SERVER_TZ)
+    except Exception:
+        return None
+
+
+def fmt_mt5_bkk_ts(ts: int | float | None, fmt: str = "%H:%M:%S %d/%m/%Y") -> str:
+    """format MT5 server timestamp เป็นเวลา Bangkok"""
+    dt = mt5_ts_to_bkk(ts)
+    return dt.strftime(fmt) if dt is not None else "-"
 
 
 def set_runtime_symbol(new_symbol: str):
@@ -260,6 +301,7 @@ active_strategies = {
     6: True,   # ท่าที่ 6: 2 High 2 Low (ต่อเนื่องท่า 2/3)
     7: True,   # ท่าที่ 6i: 2 High 2 Low อิสระ (scan swing + ตั้ง order)
     8: False,  # ท่าที่ 8: กินไส้ Swing (limit ที่ swing high/low)
+    9: True,  # ท่าที่ 9: RSI Divergence
 }
 
 STRATEGY_NAMES = {
@@ -271,13 +313,27 @@ STRATEGY_NAMES = {
     6: "ท่าที่ 6: 2H2L",
     7: "ท่าที่ 6i: 2H2L อิสระ",
     8: "ท่าที่ 8: กินไส้ Swing",
+    9: "ท่าที่ 9: RSI Divergence",
 }
+
+# ── Strategy 9: RSI Divergence ──────────────────────────────
+# default ตาม indicator ในรูป: RSI 14 / close / pivot 5-5 / range 5-60
+RSI9_PERIOD = 14
+RSI9_APPLIED_PRICE = "close"
+RSI9_PIVOT_LOOKBACK_RIGHT = 5
+RSI9_PIVOT_LOOKBACK_LEFT = 5
+RSI9_LOOKBACK_RANGE_MAX = 60
+RSI9_LOOKBACK_RANGE_MIN = 5
+RSI9_PLOT_BULLISH = True
+RSI9_PLOT_HIDDEN_BULLISH = False
+RSI9_PLOT_BEARISH = True
+RSI9_PLOT_HIDDEN_BEARISH = False
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
 # FVG_PARALLEL = True → กรอง FVG ซ้ำจาก TF คู่ขนาน (ต้อง ≥2 TF ซ้อนทับ)
 # เปิดทั้งคู่ได้: parallel จะรวม gap ถ้าเจอ ≥2 TF, ปกติจะ order TF เดี่ยวที่ parallel ไม่ได้จับ
-FVG_NORMAL = False
+FVG_NORMAL = True
 FVG_PARALLEL = True
 
 # ── Trail SL > Engulf Mode ───────────────────────────────────
@@ -308,7 +364,7 @@ OPPOSITE_ORDER_MODE = "sl_protect"
 LIMIT_GUARD = True
 LIMIT_GUARD_POINTS = 300  # จำนวนจุด (point) ที่ถือว่าห่างเกินไป
 LIMIT_GUARD_TF_MODE = "combined"  # "separate" = เฉพาะ TF เดียวกัน | "combined" = ดูทุก TF
-ENGULF_MIN_POINTS = 300  # จำนวนจุดขั้นต่ำที่ close ต้องทะลุ high/low เดิมเพื่อถือว่า "กลืนกิน"
+ENGULF_MIN_POINTS = 100  # จำนวนจุดขั้นต่ำที่ close ต้องทะลุ high/low เดิมเพื่อถือว่า "กลืนกิน"
 
 # ลบ LIMIT เมื่อแท่งยืนยันทะลุ TP/SL ตาม TF ที่เลือก
 LIMIT_BREAK_CANCEL = True
@@ -327,18 +383,18 @@ LIMIT_BREAK_CANCEL_TF = {
 # เมื่อ position ถูก fill แล้วแท่งจบสวนทาง (BUY→แดง close<prevLow / SELL→เขียว close>prevHigh)
 # → ปิด position + ยกเลิก limit ทั้งหมดใน TF นั้น เหลือเฉพาะตัวใกล้ LL/HH
 # → ถ้าไม่มี limit ใกล้ LL/HH → ตั้ง S8 ที่ LL/HH
-LIMIT_SWEEP = True
+LIMIT_SWEEP = False
 
 # ── Delay SL ────────────────────────────────────────────────
 # "off"   = ตั้ง SL ทันทีตอนส่ง order (ยกเว้น S8 ที่รอ breakout เสมอ)
 # "time"  = ส่ง order SL=0 แล้วตั้ง SL ใน 10% สุดท้ายของ TF (M1=6วิ, M5=30วิ, …)
 # "price" = ส่ง order SL=0 แล้วตั้ง SL เมื่อ BUY: ask>entry+spread / SELL: bid<entry-spread
-DELAY_SL_MODE = "time"
+DELAY_SL_MODE = "off"
 
 # ── Trail SL Immediate ───────────────────────────────────────
 # True  = Trail SL ทำงานทันทีหลัง fill (ไม่รอ entry candle done)
 # False = รอ entry candle quality = "done" ก่อน (default)
-TRAIL_SL_IMMEDIATE = False
+TRAIL_SL_IMMEDIATE = True
 
 # ── เปิด/ปิดฟังก์ชันหลักแยกกัน (toggle จาก Telegram) ────────
 # True  = เปิดใช้งาน (default)
@@ -346,6 +402,55 @@ TRAIL_SL_IMMEDIATE = False
 TRAIL_SL_ENABLED = True
 ENTRY_CANDLE_ENABLED = True
 OPPOSITE_ORDER_ENABLED = True
+
+# ── Trail SL Focus New Opposite ─────────────────────────────
+# เมื่อ BUY position กำไร > threshold + spread → ไม่ trail BUY นั้น
+# ให้ trail เฉพาะ SELL ฝั่งตรงข้าม (position หรือ pending limit) ที่พึ่งเปิดแทน
+# ฝั่ง SELL ทำงานสลับกัน
+TRAIL_SL_FOCUS_NEW_ENABLED = True
+TRAIL_SL_FOCUS_NEW_POINTS = 100  # 100 | 200 | 300 | 500
+TRAIL_SL_FOCUS_NEW_TF_MODE = "combined"  # "separate" = จับคู่ TF เดียวกัน | "combined" = ข้าม TF
+
+# ── Entry Candle Focus New Opposite ─────────────────────────
+# เงื่อนไขเดียวกับ Trail SL Focus New แต่ใช้กับ check_entry_candle_quality
+# BUY position กำไร > threshold + spread + มี opposite SELL → ข้าม ECM ของ BUY นั้น
+# SELL ทำงานสลับกัน
+ENTRY_CANDLE_FOCUS_NEW_ENABLED = True
+ENTRY_CANDLE_FOCUS_NEW_POINTS = 100  # 100 | 200 | 300 | 500
+ENTRY_CANDLE_FOCUS_NEW_TF_MODE = "combined"  # "separate" | "combined"
+
+# ── Trend Filter (Scan Trend) ───────────────────────────────
+# กรอง signal ตาม trend ที่คำนวณจาก swing H/L
+# per-TF  = checklist ของ TF ที่เปิด filter "ของใครของมัน"
+#           (signal TF X ติ๊กไว้ → filter ด้วย trend ของ TF X เอง)
+# higher  = เลือก 1 TF — ทุก signal filter ด้วย trend ของ TF นั้น
+# เปิดทั้งคู่ได้ (signal ต้องผ่านทั้ง 2 ถ้ามีผล)
+# กฎ (strong trend เท่านั้น — tentative/sideway ผ่านหมด):
+#   BULL + ไม่ break down → BUY only
+#   BULL + break down     → both
+#   BEAR + ไม่ break up   → SELL only
+#   BEAR + break up       → both
+TREND_FILTER_PER_TF = {
+    "M1":  True,
+    "M5":  True,
+    "M15": True,
+    "M30": True,
+    "H1":  True,
+    "H4":  True,
+    "H12": True,
+    "D1":  True,
+}
+TREND_FILTER_HIGHER_TF_ENABLED = False
+TREND_FILTER_HIGHER_TF = "H4"   # M15 | M30 | H1 | H4 | H12 | D1
+TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = True
+
+# Mode ตัดสิน signal:
+#   "basic"    — ทิศ trend ล้วน ๆ (BULL→BUY only, BEAR→SELL only, SW→both) ทุก strength
+#   "breakout" — เฉพาะ strong + มี exception ตอน breakout
+#                BULL strong + ไม่ break_down → BUY only / + break_down → ผ่านทั้งคู่
+#                BEAR strong + ไม่ break_up   → SELL only / + break_up   → ผ่านทั้งคู่
+#                weak / sideway / unknown → ผ่านทั้งคู่
+TREND_FILTER_MODE = "basic"
 
 # กลุ่ม TF คู่ขนาน — ถ้า gap ของ TF เล็กอยู่ใน gap ของ TF ใหญ่
 # ให้ใช้ TF เล็กเป็นหลัก (entry แม่นกว่า) และยกเลิก TF อื่นในกลุ่ม
@@ -412,6 +517,47 @@ C_TP    = "\033[38;5;46m"    # เขียว  — TP
 
 STATE_FILE = "bot_state.json"
 
+_RUNTIME_DEFAULTS = {
+    "AUTO_VOLUME": AUTO_VOLUME,
+    "SCAN_INTERVAL": SCAN_INTERVAL,
+    "TG_QUEUE_DEBUG": TG_QUEUE_DEBUG,
+    "SLTP_AUDIT_DEBUG": SLTP_AUDIT_DEBUG,
+    "TRADE_DEBUG": TRADE_DEBUG,
+    "active_strategies": copy.deepcopy(active_strategies),
+    "FVG_NORMAL": FVG_NORMAL,
+    "FVG_PARALLEL": FVG_PARALLEL,
+    "ENTRY_CANDLE_MODE": ENTRY_CANDLE_MODE,
+    "ENTRY_CLOSE_REVERSE_MARKET": ENTRY_CLOSE_REVERSE_MARKET,
+    "ENTRY_CLOSE_REVERSE_LIMIT": ENTRY_CLOSE_REVERSE_LIMIT,
+    "ENTRY_CANDLE_UPDATE_TP": ENTRY_CANDLE_UPDATE_TP,
+    "OPPOSITE_ORDER_MODE": OPPOSITE_ORDER_MODE,
+    "LIMIT_GUARD": LIMIT_GUARD,
+    "LIMIT_GUARD_POINTS": LIMIT_GUARD_POINTS,
+    "LIMIT_GUARD_TF_MODE": LIMIT_GUARD_TF_MODE,
+    "ENGULF_MIN_POINTS": ENGULF_MIN_POINTS,
+    "LIMIT_BREAK_CANCEL": LIMIT_BREAK_CANCEL,
+    "LIMIT_BREAK_CANCEL_TF": copy.deepcopy(LIMIT_BREAK_CANCEL_TF),
+    "LIMIT_SWEEP": LIMIT_SWEEP,
+    "DELAY_SL_MODE": DELAY_SL_MODE,
+    "TRAIL_SL_IMMEDIATE": TRAIL_SL_IMMEDIATE,
+    "TRAIL_SL_ENABLED": TRAIL_SL_ENABLED,
+    "ENTRY_CANDLE_ENABLED": ENTRY_CANDLE_ENABLED,
+    "OPPOSITE_ORDER_ENABLED": OPPOSITE_ORDER_ENABLED,
+    "TRAIL_SL_FOCUS_NEW_ENABLED": TRAIL_SL_FOCUS_NEW_ENABLED,
+    "TRAIL_SL_FOCUS_NEW_POINTS": TRAIL_SL_FOCUS_NEW_POINTS,
+    "TRAIL_SL_FOCUS_NEW_TF_MODE": TRAIL_SL_FOCUS_NEW_TF_MODE,
+    "ENTRY_CANDLE_FOCUS_NEW_ENABLED": ENTRY_CANDLE_FOCUS_NEW_ENABLED,
+    "ENTRY_CANDLE_FOCUS_NEW_POINTS": ENTRY_CANDLE_FOCUS_NEW_POINTS,
+    "ENTRY_CANDLE_FOCUS_NEW_TF_MODE": ENTRY_CANDLE_FOCUS_NEW_TF_MODE,
+    "TREND_FILTER_PER_TF": copy.deepcopy(TREND_FILTER_PER_TF),
+    "TREND_FILTER_HIGHER_TF_ENABLED": TREND_FILTER_HIGHER_TF_ENABLED,
+    "TREND_FILTER_HIGHER_TF": TREND_FILTER_HIGHER_TF,
+    "TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
+    "TREND_FILTER_MODE": TREND_FILTER_MODE,
+    "TF_ACTIVE": copy.deepcopy(TF_ACTIVE),
+    "TF_CURRENT": TF_CURRENT,
+}
+
 fvg_pending       = {}   # {key: {tf, signal, entry, sl, tp, gap_top, gap_bot, candle_key}}
 pb_pending        = {}   # {key: {tf, signal, entry, sl, tp, candle_key}} Pattern B วิธี 2
 s3_maru_pending   = {}   # {key: {tf, direction, entry, sl, tp, candle_time}} ท่า3 Marubozu รอยืนยัน
@@ -430,6 +576,48 @@ def _int_key_dict(d):
     return out
 
 
+def _sync_runtime_exports():
+    sync_modules = [
+        "main",
+        "scanner",
+        "pending",
+        "trailing",
+        "notifications",
+        "handlers.keyboard",
+        "handlers.callback_handler",
+        "handlers.text_handler",
+        "handlers.btn_price",
+        "handlers.btn_balance",
+        "handlers.btn_buy",
+        "handlers.btn_sell",
+        "handlers.btn_order",
+    ]
+    for module_name in sync_modules:
+        module = sys.modules.get(module_name)
+        if not module:
+            continue
+        for key in _RUNTIME_DEFAULTS:
+            if hasattr(module, key):
+                setattr(module, key, globals()[key])
+
+
+def reset_runtime_config_to_defaults(save_state: bool = True):
+    """รีเซทค่า config runtime กลับไปตามค่าเริ่มต้นในไฟล์ config.py"""
+    for key, default in _RUNTIME_DEFAULTS.items():
+        current = globals().get(key)
+        if isinstance(default, dict) and isinstance(current, dict):
+            current.clear()
+            current.update(copy.deepcopy(default))
+        elif isinstance(default, list) and isinstance(current, list):
+            current[:] = copy.deepcopy(default)
+        else:
+            globals()[key] = copy.deepcopy(default)
+
+    _sync_runtime_exports()
+    if save_state:
+        save_runtime_state()
+
+
 def engulf_min_price() -> float:
     """แปลงจำนวน point ของ engulf ขั้นต่ำเป็นหน่วยราคา"""
     try:
@@ -445,13 +633,15 @@ def save_runtime_state():
     try:
         from trailing import (
             fvg_order_tickets, pending_order_tf, position_tf, position_sid,
-            position_pattern, _entry_state, _trail_state, _s8_fill_sl
+            position_pattern, position_trend_filter, _entry_state, _trail_state, _s8_fill_sl,
+            _focus_frozen_side
         )
 
         state = {
             "saved_at": now_bkk().strftime("%Y-%m-%d %H:%M:%S"),
             "symbol": SYMBOL,
             "auto_volume": AUTO_VOLUME,
+            "active_strategies": active_strategies,
             "scan_interval": SCAN_INTERVAL,
             "entry_candle_mode": ENTRY_CANDLE_MODE,
             "entry_close_reverse_market": ENTRY_CLOSE_REVERSE_MARKET,
@@ -468,6 +658,17 @@ def save_runtime_state():
             "limit_break_cancel_tf": LIMIT_BREAK_CANCEL_TF,
             "trail_sl_immediate": TRAIL_SL_IMMEDIATE,
             "trail_sl_enabled": TRAIL_SL_ENABLED,
+            "trail_sl_focus_new_enabled": TRAIL_SL_FOCUS_NEW_ENABLED,
+            "trail_sl_focus_new_points": TRAIL_SL_FOCUS_NEW_POINTS,
+            "trail_sl_focus_new_tf_mode": TRAIL_SL_FOCUS_NEW_TF_MODE,
+            "entry_candle_focus_new_enabled": ENTRY_CANDLE_FOCUS_NEW_ENABLED,
+            "entry_candle_focus_new_points": ENTRY_CANDLE_FOCUS_NEW_POINTS,
+            "entry_candle_focus_new_tf_mode": ENTRY_CANDLE_FOCUS_NEW_TF_MODE,
+            "trend_filter_per_tf": TREND_FILTER_PER_TF,
+            "trend_filter_higher_tf_enabled": TREND_FILTER_HIGHER_TF_ENABLED,
+            "trend_filter_higher_tf": TREND_FILTER_HIGHER_TF,
+            "trend_filter_trail_sl_override_enabled": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
+            "trend_filter_mode": TREND_FILTER_MODE,
             "entry_candle_enabled": ENTRY_CANDLE_ENABLED,
             "opposite_order_enabled": OPPOSITE_ORDER_ENABLED,
             "limit_sweep": LIMIT_SWEEP,
@@ -480,10 +681,13 @@ def save_runtime_state():
             "position_tf": position_tf,
             "position_sid": position_sid,
             "position_pattern": position_pattern,
+            "position_trend_filter": position_trend_filter,
             "entry_state": _entry_state,
             "trail_state": _trail_state,
             "fvg_order_tickets": fvg_order_tickets,
             "s8_fill_sl": _s8_fill_sl,
+            "trail_sl_frozen_side": _focus_frozen_side.get("trail_sl"),
+            "entry_candle_frozen_side": _focus_frozen_side.get("entry_candle"),
         }
 
         tmp_path = STATE_FILE + ".tmp"
@@ -508,7 +712,8 @@ def restore_runtime_state():
     try:
         from trailing import (
             fvg_order_tickets, pending_order_tf, position_tf, position_sid,
-            position_pattern, _entry_state, _trail_state, _s8_fill_sl
+            position_pattern, position_trend_filter, _entry_state, _trail_state, _s8_fill_sl,
+            _focus_frozen_side
         )
 
         positions = mt5.positions_get(symbol=SYMBOL) or []
@@ -528,6 +733,12 @@ def restore_runtime_state():
             global AUTO_VOLUME
             AUTO_VOLUME = round(float(saved_auto_volume), 2)
 
+        saved_active_strategies = state.get("active_strategies", {})
+        if isinstance(saved_active_strategies, dict):
+            for sid in active_strategies:
+                if sid in saved_active_strategies or str(sid) in saved_active_strategies:
+                    active_strategies[sid] = bool(saved_active_strategies.get(sid, saved_active_strategies.get(str(sid))))
+
         global TG_QUEUE_DEBUG, SLTP_AUDIT_DEBUG, TRADE_DEBUG, OPPOSITE_ORDER_MODE
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
         global LIMIT_GUARD, LIMIT_GUARD_POINTS, LIMIT_GUARD_TF_MODE, ENGULF_MIN_POINTS
@@ -535,11 +746,15 @@ def restore_runtime_state():
         global DELAY_SL_MODE
         global FVG_NORMAL, FVG_PARALLEL
         global TRAIL_SL_ENABLED, ENTRY_CANDLE_ENABLED, OPPOSITE_ORDER_ENABLED
+        global TRAIL_SL_FOCUS_NEW_ENABLED, TRAIL_SL_FOCUS_NEW_POINTS, TRAIL_SL_FOCUS_NEW_TF_MODE
+        global ENTRY_CANDLE_FOCUS_NEW_ENABLED, ENTRY_CANDLE_FOCUS_NEW_POINTS, ENTRY_CANDLE_FOCUS_NEW_TF_MODE
+        global TREND_FILTER_HIGHER_TF_ENABLED, TREND_FILTER_HIGHER_TF, TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
+        global TREND_FILTER_MODE
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
         saved_entry_mode = state.get("entry_candle_mode")
-        if saved_entry_mode in ("close", "classic"):
+        if saved_entry_mode in ("close", "classic", "close_percentage"):
             ENTRY_CANDLE_MODE = saved_entry_mode
         ENTRY_CLOSE_REVERSE_MARKET = bool(state.get("entry_close_reverse_market", ENTRY_CLOSE_REVERSE_MARKET))
         ENTRY_CLOSE_REVERSE_LIMIT = bool(state.get("entry_close_reverse_limit", ENTRY_CLOSE_REVERSE_LIMIT))
@@ -564,6 +779,35 @@ def restore_runtime_state():
                     LIMIT_BREAK_CANCEL_TF[tf_name] = bool(saved_lbc_tf[tf_name])
         TRAIL_SL_IMMEDIATE = bool(state.get("trail_sl_immediate", TRAIL_SL_IMMEDIATE))
         TRAIL_SL_ENABLED = bool(state.get("trail_sl_enabled", TRAIL_SL_ENABLED))
+        TRAIL_SL_FOCUS_NEW_ENABLED = bool(state.get("trail_sl_focus_new_enabled", TRAIL_SL_FOCUS_NEW_ENABLED))
+        saved_tfn_pts = state.get("trail_sl_focus_new_points")
+        if isinstance(saved_tfn_pts, (int, float)) and int(saved_tfn_pts) >= 0:
+            TRAIL_SL_FOCUS_NEW_POINTS = int(saved_tfn_pts)
+        saved_tfn_tfm = state.get("trail_sl_focus_new_tf_mode")
+        if saved_tfn_tfm in ("separate", "combined"):
+            TRAIL_SL_FOCUS_NEW_TF_MODE = saved_tfn_tfm
+        ENTRY_CANDLE_FOCUS_NEW_ENABLED = bool(state.get("entry_candle_focus_new_enabled", ENTRY_CANDLE_FOCUS_NEW_ENABLED))
+        saved_efn_pts = state.get("entry_candle_focus_new_points")
+        if isinstance(saved_efn_pts, (int, float)) and int(saved_efn_pts) >= 0:
+            ENTRY_CANDLE_FOCUS_NEW_POINTS = int(saved_efn_pts)
+        saved_efn_tfm = state.get("entry_candle_focus_new_tf_mode")
+        if saved_efn_tfm in ("separate", "combined"):
+            ENTRY_CANDLE_FOCUS_NEW_TF_MODE = saved_efn_tfm
+        saved_tf_ptf = state.get("trend_filter_per_tf", {})
+        if isinstance(saved_tf_ptf, dict):
+            for tf_name in TREND_FILTER_PER_TF:
+                if tf_name in saved_tf_ptf:
+                    TREND_FILTER_PER_TF[tf_name] = bool(saved_tf_ptf[tf_name])
+        TREND_FILTER_HIGHER_TF_ENABLED = bool(state.get("trend_filter_higher_tf_enabled", TREND_FILTER_HIGHER_TF_ENABLED))
+        saved_tf_ht = state.get("trend_filter_higher_tf")
+        if saved_tf_ht in TF_OPTIONS:
+            TREND_FILTER_HIGHER_TF = saved_tf_ht
+        TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = bool(
+            state.get("trend_filter_trail_sl_override_enabled", TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED)
+        )
+        saved_tf_mode = state.get("trend_filter_mode")
+        if saved_tf_mode in ("basic", "breakout"):
+            TREND_FILTER_MODE = saved_tf_mode
         ENTRY_CANDLE_ENABLED = bool(state.get("entry_candle_enabled", ENTRY_CANDLE_ENABLED))
         OPPOSITE_ORDER_ENABLED = bool(state.get("opposite_order_enabled", OPPOSITE_ORDER_ENABLED))
         LIMIT_SWEEP = bool(state.get("limit_sweep", LIMIT_SWEEP))
@@ -597,6 +841,12 @@ def restore_runtime_state():
             if t in valid_tickets
         })
 
+        position_trend_filter.clear()
+        position_trend_filter.update({
+            t: v for t, v in _int_key_dict(state.get("position_trend_filter", {})).items()
+            if t in valid_tickets
+        })
+
         _entry_state.clear()
         _entry_state.update({
             t: v for t, v in _int_key_dict(state.get("entry_state", {})).items()
@@ -620,6 +870,13 @@ def restore_runtime_state():
             t: float(v) for t, v in _int_key_dict(state.get("s8_fill_sl", {})).items()
             if t in valid_tickets
         })
+
+        for feature_key, state_key in (
+            ("trail_sl", "trail_sl_frozen_side"),
+            ("entry_candle", "entry_candle_frozen_side"),
+        ):
+            saved_side = state.get(state_key)
+            _focus_frozen_side[feature_key] = saved_side if saved_side in ("BUY", "SELL") else None
 
         return {
             "restored": True,
@@ -781,7 +1038,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         text=(
             f"{sig_e} *{result['pattern']}*\n"
             f"━━━━━━━━━━━━━━━━━\n"
-            f"🕐 {datetime.now().strftime('%H:%M %d/%m/%Y')}\n"
+            f"🕐 {now_bkk().strftime('%H:%M %d/%m/%Y')}\n"
             f"📊 *Timeframe: {tf_name}*\n\n"
             f"{candle_txt}\n"
             f"📈 Swing High:`{result['swing_high']:.2f}` | Low:`{result['swing_low']:.2f}`\n\n"

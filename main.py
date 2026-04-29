@@ -2,7 +2,7 @@ import MetaTrader5 as mt5
 import asyncio
 import time as _time
 from datetime import datetime
-from bot_log import log_event, setup_python_logging
+from bot_log import log_event, setup_python_logging, cleanup_old_logs
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -115,6 +115,17 @@ def main():
         """บันทึก state สำคัญเป็นระยะ เพื่อลดปัญหา pattern/state หายหลัง restart"""
         save_runtime_state()
 
+    async def cleanup_logs_job():
+        """ลบ log ที่เก่าเกิน 7 วัน — รันเที่ยงคืน BKK"""
+        summary = cleanup_old_logs()
+        log_event(
+            "LOG_CLEANUP",
+            "ลบ log เก่าเกิน 7 วัน",
+            trimmed=len(summary.get("trimmed") or []),
+            deleted=len(summary.get("deleted") or []),
+            skipped=len(summary.get("skipped") or []),
+        )
+
     from datetime import timezone as _tz2
 
     # ตรวจสลับ symbol ทุก 1 นาที
@@ -172,6 +183,18 @@ def main():
         next_run_time=datetime.now(_tz.utc)
     )
 
+    # ลบ log เก่าเกิน 7 วัน — รันเที่ยงคืน BKK ทุกวัน
+    scheduler.add_job(
+        cleanup_logs_job,
+        'cron',
+        hour=0,
+        minute=0,
+        timezone='Asia/Bangkok',
+        id="log_cleanup_job",
+        max_instances=1,
+        coalesce=True,
+    )
+
     async def post_init(application):
         wrap_bot(application)   # ← เพิ่มเวลานำหน้าทุก Telegram message
         application.bot_data["scheduler"] = scheduler
@@ -185,16 +208,21 @@ def main():
             restore_info = restore_runtime_state()
             info = mt5.account_info()
             acc_txt = f"Account: {info.login} | Balance: {info.balance:.2f}" if info else ""
-            log_msg = f"✅ [{now}] MT5 เชื่อมต่อสำเร็จ | {acc_txt}"
+            mt5_to_bkk_hours = TZ_OFFSET - MT5_SERVER_TZ
+            tz_txt = f"MT5 Server=UTC+{MT5_SERVER_TZ} | MT5->BKK=+{mt5_to_bkk_hours} | Display=BKK"
+            log_msg = f"[{now}] MT5 connect ok | {acc_txt} | {tz_txt}"
             tg_msg  = (
                 f"✅ *MT5 เชื่อมต่อสำเร็จ!*\n"
                 f"━━━━━━━━━━━━━━━━━\n"
                 f"🤖 Bot เริ่มทำงาน\n"
                 + (f"💰 Account: `{info.login}`\n📊 Balance: `{info.balance:.2f}`\n" if info else "")
                 + f"📈 SYMBOL: `{SYMBOL}`\n"
-                + f"⏰ Scan ทุก {SCAN_INTERVAL} นาที\n"
-                f"📋 Strategy: {', '.join(STRATEGY_NAMES[k] for k,v in active_strategies.items() if v)}\n"
-                f"🕐 TF: {', '.join(tf for tf,on in TF_ACTIVE.items() if on) or 'ยังไม่ได้เลือก'}"
+                + f"⏰ Scan ทุก 5 วินาที\n"
+                + f"🕒 Time Mode: `MT5->BKK +{mt5_to_bkk_hours}`\n"
+                + f"🕒 MT5 Server: `UTC+{MT5_SERVER_TZ}`\n"
+                + f"🕒 Display: `BKK`\n"
+                + f"📋 Strategy: {", ".join(STRATEGY_NAMES[k] for k,v in active_strategies.items() if v)}\n"
+                + f"🕐 TF: {", ".join(tf for tf,on in TF_ACTIVE.items() if on) or 'ยังไม่ได้เลือก'}"
             )
 
             if restore_info.get("restored"):

@@ -61,6 +61,13 @@ async def check_fvg_pending(app):
         touched = (signal == "BUY"  and ask <= entry + 0.1) or                   (signal == "SELL" and bid >= entry - 0.1)
 
         if touched:
+            from scanner import trend_allows_signal
+            _ok, _why = trend_allows_signal(tf, signal)
+            if not _ok:
+                print(f"🧭 [{now}] FVG [{tf}] trend filter block {signal} ({_why})")
+                log_event("TREND_FILTER_BLOCK", f"block FVG {signal} ({_why})", tf=tf, sid=2, signal=signal)
+                to_remove.append(key)
+                continue
             sig_e = "🟢" if signal == "BUY" else "🔴"
             print(f"🎯 [{now}] {tf}: FVG ราคาแตะ Entry {entry}!")
             await tg(app, (
@@ -94,10 +101,17 @@ async def check_fvg_pending(app):
                         "sid": 2,
                         "pattern": f"FVG {signal} [{tf}]",
                     }
+                    from scanner import _trend_filter_state_keys
+                    _trend_keys = _trend_filter_state_keys(tf)
+                    if _trend_keys:
+                        pending_order_tf[order["ticket"]]["trend_filter"] = ",".join(_trend_keys)
                     position_tf[order["ticket"]] = tf
                     position_sid[order["ticket"]] = 2
                     from trailing import position_pattern as _pos_pat
                     _pos_pat[order["ticket"]] = f"FVG {signal} [{tf}]"
+                    if _trend_keys:
+                        from trailing import position_trend_filter as _pos_trend
+                        _pos_trend[order["ticket"]] = ",".join(_trend_keys)
                     log_event(
                         "ORDER_CREATED",
                         f"FVG {signal} [{tf}]",
@@ -109,6 +123,7 @@ async def check_fvg_pending(app):
                         tp=fvg_tp,
                         ticket=order["ticket"],
                         order_type=ot_name,
+                        trend_filter=",".join(_trend_keys) if _trend_keys else "",
                     )
                 await tg(app, (
                         f"\u2705 *{ot_name} FVG \u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08!*\n"
@@ -183,6 +198,13 @@ async def check_pb_pending(app):
         touched = (signal == "BUY"  and ask <= entry) or                   (signal == "SELL" and bid >= entry)
 
         if touched:
+            from scanner import trend_allows_signal
+            _ok, _why = trend_allows_signal(tf, signal)
+            if not _ok:
+                print(f"🧭 [{now}] PB [{tf}] trend filter block {signal} ({_why})")
+                log_event("TREND_FILTER_BLOCK", f"block PB {signal} ({_why})", tf=tf, sid=1, signal=signal)
+                to_remove.append(key)
+                continue
             sig_e = "🟢" if signal == "BUY" else "🔴"
             print(f"🎯 [{now}] {tf}: Pattern B วิธี 2 — ราคาแตะ Entry {entry}!")
             await tg(app, f"{sig_e} *Pattern B \u2014 \u0e15\u0e33\u0e2b\u0e19\u0e34 (\u0e27\u0e34\u0e18\u0e35 2)*\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\U0001f4ca [{tf}] \u0e23\u0e32\u0e04\u0e32\u0e41\u0e15\u0e30 50% Body[1] \u0e02\u0e13\u0e30\u0e41\u0e17\u0e48\u0e07[0] \u0e27\u0e34\u0e48\u0e07!\n\U0001f4cc \u0e15\u0e31\u0e49\u0e07 Limit \u0e17\u0e35\u0e48: `{entry}`\n\U0001f6d1 SL: `{p['sl']}` | \U0001f3af TP: `{p['tp']}`\n\n\u23f3 \u0e01\u0e33\u0e25\u0e31\u0e07\u0e15\u0e31\u0e49\u0e07 Limit Order...")
@@ -201,10 +223,19 @@ async def check_pb_pending(app):
                         "sid": 1,
                         "pattern": f"Pattern B {signal} [{tf}]",
                     }
+                    from scanner import _trend_filter_state_keys
+                    _trend_keys = _trend_filter_state_keys(tf)
+                    if _trend_keys:
+                        pending_order_tf[order["ticket"]]["trend_filter"] = ",".join(_trend_keys)
                     position_tf[order["ticket"]] = tf
                     position_sid[order["ticket"]] = 1
                     from trailing import position_pattern as _pos_pat
                     _pos_pat[order["ticket"]] = f"Pattern B {signal} [{tf}]"
+                    if _trend_keys:
+                        from trailing import position_trend_filter as _pos_trend
+                        _pos_trend[order["ticket"]] = ",".join(_trend_keys)
+                else:
+                    _trend_keys = []
                 ot_name = order.get("order_type", "LIMIT")
                 log_event(
                     "ORDER_CREATED",
@@ -217,6 +248,7 @@ async def check_pb_pending(app):
                     tp=pb_tp,
                     ticket=order.get("ticket"),
                     order_type=ot_name,
+                    trend_filter=",".join(_trend_keys) if _trend_keys else "",
                 )
                 await tg(app, f"✅ *{ot_name} สำเร็จ! (วิธี 2)*\n{sig_e} {ot_name} {SYMBOL} [{tf}]\n📌 Entry: `{order['price']}`\n🔖 Ticket: `{order['ticket']}`")
             else:

@@ -66,6 +66,15 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         delay_sl_suffix = "🟢ON | ช่วงท้าย TF"
     else:
         delay_sl_suffix = "🟢ON | ราคาผ่าน Entry"
+    tf_parts = []
+    per_tf_on_list = [t for t, on in config.TREND_FILTER_PER_TF.items() if on]
+    if per_tf_on_list:
+        tf_parts.append(f"Per-TF({len(per_tf_on_list)})")
+    if config.TREND_FILTER_HIGHER_TF_ENABLED:
+        tf_parts.append(f"Higher({config.TREND_FILTER_HIGHER_TF})")
+    if config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED:
+        tf_parts.append("TrailSL")
+    trend_filter_suffix = f"🟢ON | {' + '.join(tf_parts)}" if tf_parts else "🔴OFF"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 เลือก Strategy", callback_data="open_strategy_menu")],
         [InlineKeyboardButton(f"📐 Trail SL: {trail_suffix}", callback_data="open_trail_menu")],
@@ -77,10 +86,12 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         [InlineKeyboardButton(f"🧯 Limit TP/SL Break: {lbc_label}", callback_data="open_limit_break_menu")],
         [InlineKeyboardButton(f"🛡 Limit Guard: {lg_label}", callback_data="open_limit_guard_menu")],
         [InlineKeyboardButton(f"📏 Engulf ขั้นต่ำ: {engulf_label}", callback_data="open_engulf_menu")],
+        [InlineKeyboardButton(f"🧭 Trend Filter: {trend_filter_suffix}", callback_data="open_trend_filter_menu")],
         [InlineKeyboardButton("🧪 Debug", callback_data="open_debug_menu")],
         [InlineKeyboardButton("⏰ ตั้งค่า Scan", callback_data="open_scan_menu")],
         [InlineKeyboardButton("🕐 เลือก Timeframe", callback_data="open_tf_menu")],
         [InlineKeyboardButton(f"📦 Lot Size Auto: {config.AUTO_VOLUME}", callback_data="open_lot_menu")],
+        [InlineKeyboardButton("♻️ Reset Config", callback_data="reset_config_prompt")],
         [InlineKeyboardButton("🔙 กลับ", callback_data="close_settings")],
     ])
     text = (
@@ -97,6 +108,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         f"🧯 Limit TP/SL Break: *{lbc_label}*\n"
         f"🛡 Limit Guard: *{lg_label}*\n"
         f"📏 Engulf ขั้นต่ำ: *{engulf_label}*\n"
+        f"🧭 Trend Filter: *{trend_filter_suffix}*\n"
         f"🧪 Debug: *Queue {'ON' if config.TG_QUEUE_DEBUG else 'OFF'} | SLTP {'ON' if config.SLTP_AUDIT_DEBUG else 'OFF'} | Trade {'ON' if config.TRADE_DEBUG else 'OFF'}*\n"
         f"⏰ Scan: *ทุก {config.SCAN_INTERVAL} นาที*\n"
         f"🕐 Timeframe: *{tf_summary}*\n"
@@ -128,10 +140,13 @@ def build_trail_menu():
     trail_label = f"Engulf / {mode_label} ✅" if config.TRAIL_SL_MODE == "engulf" else f"Engulf / {mode_label}"
     imm_label = "🟢 Trail ทันที (ไม่รอ done)" if config.TRAIL_SL_IMMEDIATE else "⬜ Trail ทันที (ไม่รอ done)"
     en_label = "🟢 เปิดใช้งาน Trail SL" if config.TRAIL_SL_ENABLED else "🔴 ปิดใช้งาน Trail SL"
+    focus_status = f"🟢ON | {config.TRAIL_SL_FOCUS_NEW_POINTS}pt" if config.TRAIL_SL_FOCUS_NEW_ENABLED else "🔴OFF"
+    focus_label = f"🎯 Focus Opposite ใหม่: {focus_status}"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(en_label, callback_data="toggle_trail_sl_enabled")],
         [InlineKeyboardButton(trail_label, callback_data="open_trail_engulf_menu")],
         [InlineKeyboardButton(imm_label, callback_data="toggle_trail_immediate")],
+        [InlineKeyboardButton(focus_label, callback_data="open_trail_focus_menu")],
         [InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")],
     ])
 
@@ -150,6 +165,57 @@ def build_trail_engulf_keyboard():
         ],
         [InlineKeyboardButton("🔙 กลับ", callback_data="open_trail_menu")],
     ])
+
+
+def build_trail_focus_keyboard():
+    toggle_label = (
+        "🟢 เปิด Trail Focus Opposite ใหม่"
+        if config.TRAIL_SL_FOCUS_NEW_ENABLED
+        else "🔴 ปิด Trail Focus Opposite ใหม่"
+    )
+    tf_mode = config.TRAIL_SL_FOCUS_NEW_TF_MODE
+    tf_label = "🔀 รวม TF" if tf_mode == "combined" else "📌 แยก TF"
+    pts = config.TRAIL_SL_FOCUS_NEW_POINTS
+    pt_options = [0, 100, 200, 300, 500]
+    pt_row = [
+        InlineKeyboardButton(
+            f"{'🔵' if pts == p else '⬜'} {p}pt",
+            callback_data=f"set_tfn_pts_{p}"
+        )
+        for p in pt_options
+    ]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(toggle_label, callback_data="toggle_trail_focus_new")],
+        [InlineKeyboardButton(tf_label, callback_data="toggle_tfn_tf_mode")],
+        pt_row,
+        [InlineKeyboardButton("🔙 กลับ", callback_data="open_trail_menu")],
+    ])
+
+
+async def show_trail_focus_menu(update_or_query, is_query=False):
+    status = f"🟢ON | {config.TRAIL_SL_FOCUS_NEW_POINTS}pt" if config.TRAIL_SL_FOCUS_NEW_ENABLED else "🔴OFF"
+    tf_desc = "รวมทุก TF" if config.TRAIL_SL_FOCUS_NEW_TF_MODE == "combined" else "แยกตาม TF"
+    text = (
+        "🎯 *Trail Focus Opposite ใหม่*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{status}*\n"
+        f"โหมด TF: *{tf_desc}*\n\n"
+        "เมื่อ BUY position กำไร > threshold + spread\n"
+        "และมี SELL ฝั่งตรงข้าม (position/pending limit)\n"
+        "→ ไม่ trail BUY ตัวนั้น trail เฉพาะ SELL ที่พึ่งเปิด\n"
+        "(ฝั่ง SELL ทำงานสลับกัน)\n\n"
+        "📌 แยก TF = จับคู่เฉพาะ TF เดียวกัน\n"
+        "🔀 รวม TF = จับคู่ข้าม TF ได้\n\n"
+        "เลือก toggle / TF mode / threshold:"
+    )
+    keyboard = build_trail_focus_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
 
 def build_debug_keyboard():
@@ -345,6 +411,8 @@ def build_entry_candle_mode_keyboard():
     close_label = "🟢 Close" if config.ENTRY_CANDLE_MODE == "close" else "⚪ Close"
     close_pct_label = "🟢 Close Percentage" if config.ENTRY_CANDLE_MODE == "close_percentage" else "⚪ Close Percentage"
     en_label = "🟢 เปิดใช้งาน Entry Candle" if config.ENTRY_CANDLE_ENABLED else "🔴 ปิดใช้งาน Entry Candle"
+    focus_status = f"🟢ON | {config.ENTRY_CANDLE_FOCUS_NEW_POINTS}pt" if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED else "🔴OFF"
+    focus_label = f"🎯 Focus Opposite ใหม่: {focus_status}"
     rows = [
         [InlineKeyboardButton(en_label, callback_data="toggle_entry_candle_enabled")],
         [InlineKeyboardButton(classic_label, callback_data="set_entry_candle_mode_classic")],
@@ -356,8 +424,60 @@ def build_entry_candle_mode_keyboard():
         limit_label = "🟢 Close -> Limit" if config.ENTRY_CLOSE_REVERSE_LIMIT else "⚪ Close -> Limit"
         rows.append([InlineKeyboardButton(market_label, callback_data="toggle_entry_close_reverse_market")])
         rows.append([InlineKeyboardButton(limit_label, callback_data="toggle_entry_close_reverse_limit")])
+    rows.append([InlineKeyboardButton(focus_label, callback_data="open_entry_focus_menu")])
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
+
+
+def build_entry_focus_keyboard():
+    toggle_label = (
+        "🟢 เปิด Entry Focus Opposite ใหม่"
+        if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED
+        else "🔴 ปิด Entry Focus Opposite ใหม่"
+    )
+    tf_mode = config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE
+    tf_label = "🔀 รวม TF" if tf_mode == "combined" else "📌 แยก TF"
+    pts = config.ENTRY_CANDLE_FOCUS_NEW_POINTS
+    pt_options = [0, 100, 200, 300, 500]
+    pt_row = [
+        InlineKeyboardButton(
+            f"{'🔵' if pts == p else '⬜'} {p}pt",
+            callback_data=f"set_efn_pts_{p}"
+        )
+        for p in pt_options
+    ]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(toggle_label, callback_data="toggle_entry_focus_new")],
+        [InlineKeyboardButton(tf_label, callback_data="toggle_efn_tf_mode")],
+        pt_row,
+        [InlineKeyboardButton("🔙 กลับ", callback_data="open_entry_candle_mode_menu")],
+    ])
+
+
+async def show_entry_focus_menu(update_or_query, is_query=False):
+    status = f"🟢ON | {config.ENTRY_CANDLE_FOCUS_NEW_POINTS}pt" if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED else "🔴OFF"
+    tf_desc = "รวมทุก TF" if config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE == "combined" else "แยกตาม TF"
+    text = (
+        "🎯 *Entry Focus Opposite ใหม่*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{status}*\n"
+        f"โหมด TF: *{tf_desc}*\n\n"
+        "เมื่อ BUY position กำไร > threshold + spread\n"
+        "และมี SELL ฝั่งตรงข้าม (position/pending limit)\n"
+        "→ ข้าม Entry Candle Mode ของ BUY ตัวนั้น\n"
+        "(ฝั่ง SELL ทำงานสลับกัน)\n\n"
+        "📌 แยก TF = จับคู่เฉพาะ TF เดียวกัน\n"
+        "🔀 รวม TF = จับคู่ข้าม TF ได้\n\n"
+        "เลือก toggle / TF mode / threshold:"
+    )
+    keyboard = build_entry_focus_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def show_entry_candle_mode_menu(update_or_query, is_query=False):
@@ -367,6 +487,7 @@ async def show_entry_candle_mode_menu(update_or_query, is_query=False):
         mode_label = "Close Percentage"
     else:
         mode_label = "Close"
+    focus_status = f"ON ({config.ENTRY_CANDLE_FOCUS_NEW_POINTS}pt)" if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED else "OFF"
     text = (
         "🕯 *Entry Candle Mode*\n"
         "━━━━━━━━━━━━━━━━━\n"
@@ -379,6 +500,7 @@ async def show_entry_candle_mode_menu(update_or_query, is_query=False):
             f"Close -> Market: *{market_label}*\n"
             f"Close -> Limit: *{limit_label}*\n"
         )
+    text += f"Focus Opposite: *{focus_status}*\n"
     text += "\nเลือกโหมดที่ต้องการ:"
     keyboard = build_entry_candle_mode_keyboard()
     if is_query:
@@ -773,8 +895,17 @@ _PATTERN_LABELS = {
     "PA": "Pattern A", "PB": "Pattern B", "PC": "Pattern C",
     "PD": "Pattern D", "PE": "Pattern E", "P4": "Pattern 4แท่ง",
     "DMSP": "DM SP", "MARU": "Marubozu",
-    "FVG": "FVG", "SIGFVG": "นัยยะ FVG", "S5": "Scalping",
+    "FVG": "FVG", "SIGFVG": "นัยยะ FVG", "S5": "Scalping", "RSI9": "RSI Divergence",
     "SWING": "กินไส้ Swing",
+}
+
+_PROFIT_TREND_FILTERS = {
+    "all": {"label": "ทั้งหมด", "title": "ทั้งหมด"},
+    "bull_strong": {"label": "Bull+ (strong)", "title": "Bullish (strong)"},
+    "bull_weak": {"label": "Bull+ (weak)", "title": "Bullish (weak)"},
+    "sideway": {"label": "SW", "title": "SW"},
+    "bear_weak": {"label": "Bear- (weak)", "title": "Bearish (weak)"},
+    "bear_strong": {"label": "Bear- (strong)", "title": "Bearish (strong)"},
 }
 
 
@@ -782,7 +913,7 @@ def _parse_comment_detail(comment: str):
     """Parse comment เช่น Bot_H4_S2_FVG -> (tf, sid, pattern_code)"""
     if not comment or not comment.startswith("Bot_"):
         return None, None, None
-    m = re.match(r"Bot_(M\d+|H\d+|D\d+)(?:_S(\w+?))?(?:_(PA|PB|PC|PD|PE|P4|DMSP|MARU|FVG|SIGFVG|S5|SWING))?$", comment)
+    m = re.match(r"Bot_(M\d+|H\d+|D\d+)(?:_S(\w+?))?(?:_(PA|PB|PC|PD|PE|P4|DMSP|MARU|FVG|SIGFVG|S5|SWING|RSI9))?$", comment)
     if not m:
         return None, None, None
     tf = m.group(1)
@@ -800,7 +931,18 @@ def _parse_comment_detail(comment: str):
     return tf, sid, pat
 
 
-def _get_profit_data(year: int, month: int):
+def _profit_trend_title(trend_filter_key: str) -> str:
+    return _PROFIT_TREND_FILTERS.get(trend_filter_key, _PROFIT_TREND_FILTERS["all"])["title"]
+
+
+def _profit_trend_match(raw_value: str, trend_filter_key: str) -> bool:
+    if trend_filter_key == "all":
+        return True
+    values = [v.strip() for v in (raw_value or "").split(",") if v.strip()]
+    return trend_filter_key in values
+
+
+def _get_profit_data(year: int, month: int, trend_filter_key: str = "all"):
     """ดึง POSITION_CLOSED จาก bot.log แยก strategy -> tf -> pattern"""
     bkk = timezone(timedelta(hours=TZ_OFFSET))
     dt_from = datetime(year, month, 1, tzinfo=bkk)
@@ -809,6 +951,7 @@ def _get_profit_data(year: int, month: int):
     else:
         dt_to = datetime(year, month + 1, 1, tzinfo=bkk)
     result = {}
+    side_summary = {}  # {sid: {"BUY": {profit, volume, count}, "SELL": {...}}}
     total_profit = 0.0
     total_volume = 0.0
     total_count = 0
@@ -818,7 +961,7 @@ def _get_profit_data(year: int, month: int):
         log_file = BOT_LOG_FILE
 
     if not os.path.exists(log_file):
-        return result, total_profit, total_volume, total_count
+        return result, total_profit, total_volume, total_count, side_summary
 
     volume_by_ticket = {}
     try:
@@ -869,6 +1012,9 @@ def _get_profit_data(year: int, month: int):
                 ticket = 0
             tf = fields.get("tf", "-") or "-"
             pat = fields.get("pattern", "-") or "-"
+            trend_filter = fields.get("trend_filter", "") or ""
+            if not _profit_trend_match(trend_filter, trend_filter_key):
+                continue
             try:
                 pnl = float(fields.get("profit", "0") or 0.0)
             except Exception:
@@ -884,16 +1030,32 @@ def _get_profit_data(year: int, month: int):
             result[sid][tf][pat]["profit"] += pnl
             result[sid][tf][pat]["volume"] += volume
             result[sid][tf][pat]["count"] += 1
+
+            side_raw = (fields.get("side") or "").upper()
+            if "BUY" in side_raw:
+                side_key = "BUY"
+            elif "SELL" in side_raw:
+                side_key = "SELL"
+            else:
+                side_key = None
+            if side_key:
+                side_summary.setdefault(sid, {}).setdefault(
+                    side_key, {"profit": 0.0, "volume": 0.0, "count": 0}
+                )
+                side_summary[sid][side_key]["profit"] += pnl
+                side_summary[sid][side_key]["volume"] += volume
+                side_summary[sid][side_key]["count"] += 1
+
             total_profit += pnl
             total_volume += volume
             total_count += 1
 
-    return result, total_profit, total_volume, total_count
+    return result, total_profit, total_volume, total_count, side_summary
 
 
 def _format_profit_summary(year: int, month: int):
     """สร้างข้อความสรุปกำไรของเดือน แยก Strategy -> TF -> Pattern"""
-    data, total_profit, total_volume, total_count = _get_profit_data(year, month)
+    data, total_profit, total_volume, total_count, _ = _get_profit_data(year, month)
 
     month_name = _THAI_MONTHS.get(month, str(month))
     lines = [
@@ -963,7 +1125,130 @@ def _format_profit_summary(year: int, month: int):
     return "\n".join(lines)
 
 
-def build_profit_nav_keyboard(year: int, month: int):
+def _format_profit_overview(year: int, month: int, trend_filter_key: str = "all"):
+    """หน้าแรก: รวมรายเดือน แยกตาม strategy"""
+    data, total_profit, total_volume, total_count, side_summary = _get_profit_data(year, month, trend_filter_key)
+    month_name = _THAI_MONTHS.get(month, str(month))
+    lines = [
+        f"📊 *สรุปกำไร — {month_name} {year}*",
+        "━━━━━━━━━━━━━━━━━",
+        f"🧭 Trend Filter: *{_profit_trend_title(trend_filter_key)}*",
+    ]
+
+    if not data:
+        lines.append("📭 ไม่มีข้อมูลเดือนนี้")
+        return "\n".join(lines)
+
+    for sid in sorted(data.keys()):
+        sid_profit = sum(
+            info["profit"]
+            for tfs in data[sid].values()
+            for info in tfs.values()
+        )
+        sid_count = sum(
+            info["count"]
+            for tfs in data[sid].values()
+            for info in tfs.values()
+        )
+        sid_volume = sum(
+            info["volume"]
+            for tfs in data[sid].values()
+            for info in tfs.values()
+        )
+        pnl_e = "🟢" if sid_profit >= 0 else "🔴"
+        name = "ไม่ระบุท่า" if sid == 0 else STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+        lines.append(
+            f"\n{pnl_e} *{name}* — `{sid_profit:+.2f}` | "
+            f"{sid_volume:.2f}lot | {sid_count}ออเดอร์"
+        )
+
+        sides = side_summary.get(sid, {})
+        for side_key in ("BUY", "SELL"):
+            info = sides.get(side_key)
+            if not info or info["count"] == 0:
+                continue
+            side_e = "🟢" if side_key == "BUY" else "🔴"
+            lines.append(
+                f"    {side_e} {side_key} — `{info['profit']:+.2f}` | "
+                f"{info['volume']:.2f} lot | {info['count']} ออเดอร์"
+            )
+
+    total_e = "🟢" if total_profit >= 0 else "🔴"
+    lines.append("\n━━━━━━━━━━━━━━━━━")
+    lines.append(
+        f"{total_e} *รวม: `{total_profit:+.2f}` USD* | "
+        f"📦 `{total_volume:.2f}` lot | "
+        f"🔢 `{total_count}` ออเดอร์"
+    )
+    lines.append("\nกดปุ่มด้านล่างเพื่อดูรายละเอียดแต่ละท่า")
+    return "\n".join(lines)
+
+
+def _format_profit_pattern_label(pat: str) -> str:
+    """ย่อชื่อ pattern สำหรับหน้าสรุปกำไร"""
+    if not pat or pat == "-":
+        return "ไม่ระบุ Pattern"
+    if pat in _PATTERN_LABELS:
+        return _PATTERN_LABELS[pat]
+
+    label = pat.strip()
+    label = re.sub(r"^ท่าที่\s*\d+\s*[^🟢🔴]*\s*", "", label).strip()
+    label = re.sub(r"\s*\[(M\d+|H\d+|D\d+)\]$", "", label).strip()
+    label = re.sub(r"\s+(M\d+|H\d+|D\d+)$", "", label).strip()
+    return label or pat
+
+
+def _profit_pattern_sort_key(pat: str):
+    label = _format_profit_pattern_label(pat)
+    if "SELL" in label:
+        side_rank = 0
+    elif "BUY" in label:
+        side_rank = 1
+    else:
+        side_rank = 2
+    return side_rank, label
+
+
+def _format_profit_strategy_detail(year: int, month: int, sid: int, trend_filter_key: str = "all"):
+    """หน้ารายละเอียด strategy: แยกตาม TF -> รวม -> Pattern"""
+    data, _, _, _, _ = _get_profit_data(year, month, trend_filter_key)
+    month_name = _THAI_MONTHS.get(month, str(month))
+    name = "ไม่ระบุท่า" if sid == 0 else STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+    lines = [
+        f"📊 *{name} — {month_name} {year}*",
+        "━━━━━━━━━━━━━━━━━",
+        f"🧭 Trend Filter: *{_profit_trend_title(trend_filter_key)}*",
+    ]
+
+    sid_data = data.get(sid, {})
+    if not sid_data:
+        lines.append("📭 ไม่มีข้อมูลของท่านี้ในเดือนนี้")
+        return "\n".join(lines)
+
+    tf_order = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1", "-"]
+    sorted_tfs = sorted(sid_data.keys(), key=lambda t: tf_order.index(t) if t in tf_order else 99)
+    for tf in sorted_tfs:
+        pats = sid_data[tf]
+        tf_profit = sum(v["profit"] for v in pats.values())
+        tf_volume = sum(v["volume"] for v in pats.values())
+        tf_count = sum(v["count"] for v in pats.values())
+        lines.append(f"{tf} — รวม `{tf_profit:+.2f}` | {tf_volume:.2f} lot | {tf_count} ออเดอร์")
+        lines.append(
+            f"• {name} รวม `{tf_profit:+.2f}` | {tf_volume:.2f} lot | {tf_count} ออเดอร์"
+        )
+        for pat in sorted(pats.keys(), key=_profit_pattern_sort_key):
+            info = pats[pat]
+            pat_label = _format_profit_pattern_label(pat)
+            lines.append(
+                f"    {pat_label}: `{info['profit']:+.2f}` | "
+                f"{info['volume']:.2f} lot | {info['count']} ออเดอร์"
+            )
+        lines.append("")
+
+    return "\n".join(lines).rstrip()
+
+
+def build_profit_nav_keyboard(year: int, month: int, trend_filter_key: str = "all"):
     """ปุ่มเลื่อนเดือน ซ้าย/ขวา"""
     # เดือนก่อนหน้า
     prev_m = month - 1
@@ -981,13 +1266,53 @@ def build_profit_nav_keyboard(year: int, month: int):
 
     now = datetime.now()
     rows = [[
-        InlineKeyboardButton(f"◀️ {_THAI_MONTHS[prev_m]}", callback_data=f"profit_{prev_y}_{prev_m}"),
+        InlineKeyboardButton(f"◀️ {_THAI_MONTHS[prev_m]}", callback_data=f"profit_{prev_y}_{prev_m}_{trend_filter_key}"),
         InlineKeyboardButton("🔙 ปิด", callback_data="cancel"),
     ]]
     # ไม่แสดงปุ่มไปอนาคต
     if next_y < now.year or (next_y == now.year and next_m <= now.month):
-        rows[0].insert(1, InlineKeyboardButton(f"▶️ {_THAI_MONTHS[next_m]}", callback_data=f"profit_{next_y}_{next_m}"))
+        rows[0].insert(1, InlineKeyboardButton(f"▶️ {_THAI_MONTHS[next_m]}", callback_data=f"profit_{next_y}_{next_m}_{trend_filter_key}"))
 
+    return InlineKeyboardMarkup(rows)
+
+
+def build_profit_trend_filter_keyboard(year: int, month: int, sid: int | None = None, active_key: str = "all"):
+    rows = []
+    top = []
+    for key in ("all", "bull_strong", "bull_weak"):
+        label = _PROFIT_TREND_FILTERS[key]["label"]
+        prefix = "✅ " if key == active_key else ""
+        cb = f"profit_{year}_{month}_{key}" if sid is None else f"profit_sid_{year}_{month}_{sid}_{key}"
+        top.append(InlineKeyboardButton(f"{prefix}{label}", callback_data=cb))
+    rows.append(top)
+    bottom = []
+    for key in ("sideway", "bear_weak", "bear_strong"):
+        label = _PROFIT_TREND_FILTERS[key]["label"]
+        prefix = "✅ " if key == active_key else ""
+        cb = f"profit_{year}_{month}_{key}" if sid is None else f"profit_sid_{year}_{month}_{sid}_{key}"
+        bottom.append(InlineKeyboardButton(f"{prefix}{label}", callback_data=cb))
+    rows.append(bottom)
+    return rows
+
+
+def build_profit_overview_keyboard(year: int, month: int, trend_filter_key: str = "all"):
+    data, _, _, _, _ = _get_profit_data(year, month, trend_filter_key)
+    rows = []
+    rows.extend(build_profit_trend_filter_keyboard(year, month, None, trend_filter_key))
+    for sid in sorted(data.keys()):
+        name = "ไม่ระบุท่า" if sid == 0 else STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+        rows.append([InlineKeyboardButton(name, callback_data=f"profit_sid_{year}_{month}_{sid}_{trend_filter_key}")])
+
+    nav = build_profit_nav_keyboard(year, month, trend_filter_key).inline_keyboard[0]
+    rows.append(nav)
+    return InlineKeyboardMarkup(rows)
+
+
+def build_profit_detail_keyboard(year: int, month: int, sid: int, trend_filter_key: str = "all"):
+    rows = [[InlineKeyboardButton("🔙 กลับหน้ารวม", callback_data=f"profit_{year}_{month}_{trend_filter_key}")]]
+    rows.extend(build_profit_trend_filter_keyboard(year, month, sid, trend_filter_key))
+    nav = build_profit_nav_keyboard(year, month, trend_filter_key).inline_keyboard[0]
+    rows.append(nav)
     return InlineKeyboardMarkup(rows)
 
 
@@ -1009,8 +1334,8 @@ def _split_telegram_text(text: str, limit: int = 3500) -> list[str]:
     return parts or [text]
 
 
-async def show_profit_summary(update_or_query, year: int, month: int, is_query=False):
-    """แสดงสรุปกำไรของเดือน"""
+async def show_profit_summary(update_or_query, year: int, month: int, trend_filter_key: str = "all", is_query=False):
+    """แสดงหน้ารวมกำไรรายเดือน แยกตาม strategy"""
     if not connect_mt5():
         text = "❌ MT5 ไม่ได้เชื่อมต่อ"
         if is_query:
@@ -1022,9 +1347,9 @@ async def show_profit_summary(update_or_query, year: int, month: int, is_query=F
             await update_or_query.message.reply_text(text, reply_markup=main_keyboard())
         return
 
-    text = _format_profit_summary(year, month)
+    text = _format_profit_overview(year, month, trend_filter_key)
     chunks = _split_telegram_text(text)
-    keyboard = build_profit_nav_keyboard(year, month)
+    keyboard = build_profit_overview_keyboard(year, month, trend_filter_key)
 
     if is_query:
         try:
@@ -1038,3 +1363,143 @@ async def show_profit_summary(update_or_query, year: int, month: int, is_query=F
         for extra in chunks[1:]:
             await update_or_query.message.reply_text(extra, parse_mode="Markdown")
 
+
+async def show_profit_strategy_detail(update_or_query, year: int, month: int, sid: int, trend_filter_key: str = "all", is_query=False):
+    """แสดงรายละเอียดกำไรของ strategy เดียว แยกตาม TF -> Pattern"""
+    if not connect_mt5():
+        text = "❌ MT5 ไม่ได้เชื่อมต่อ"
+        if is_query:
+            try:
+                await update_or_query.edit_message_text(text)
+            except Exception:
+                pass
+        else:
+            await update_or_query.message.reply_text(text, reply_markup=main_keyboard())
+        return
+
+    text = _format_profit_strategy_detail(year, month, sid, trend_filter_key)
+    chunks = _split_telegram_text(text)
+    keyboard = build_profit_detail_keyboard(year, month, sid, trend_filter_key)
+
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(chunks[0], parse_mode="Markdown", reply_markup=keyboard)
+            for extra in chunks[1:]:
+                await update_or_query.message.reply_text(extra, parse_mode="Markdown")
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(chunks[0], parse_mode="Markdown", reply_markup=keyboard)
+        for extra in chunks[1:]:
+            await update_or_query.message.reply_text(extra, parse_mode="Markdown")
+
+
+def build_trend_filter_keyboard():
+    rows = []
+    # Per-TF checklist (ของใครของมัน — ติ๊ก M1 → M1 signal filter ด้วย M1 trend)
+    rows.append([InlineKeyboardButton("━ Per-TF (ของใครของมัน) ━", callback_data="noop_trend_filter")])
+    tf_row = []
+    for tf_name in TF_OPTIONS.keys():
+        is_on = config.TREND_FILTER_PER_TF.get(tf_name, False)
+        label = ("✅ " if is_on else "⬜ ") + tf_name
+        tf_row.append(InlineKeyboardButton(label, callback_data=f"toggle_trend_filter_per_tf_{tf_name}"))
+        if len(tf_row) == 4:
+            rows.append(tf_row)
+            tf_row = []
+    if tf_row:
+        rows.append(tf_row)
+    all_on = all(config.TREND_FILTER_PER_TF.values())
+    rows.append([InlineKeyboardButton(
+        "⬜ ยกเลิกทุก TF" if all_on else "🟢 เลือกทุก TF",
+        callback_data="toggle_trend_filter_per_tf_ALL"
+    )])
+    # Higher TF (เลือก 1 — filter ทุก signal ด้วย trend ของ TF นี้)
+    higher_label = (
+        f"🟢 Higher TF: ON ({config.TREND_FILTER_HIGHER_TF})"
+        if config.TREND_FILTER_HIGHER_TF_ENABLED
+        else "🔴 Higher TF: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Higher TF (เลือก 1) ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(higher_label, callback_data="toggle_trend_filter_higher_tf")])
+    tf_options = ["M15", "M30", "H1", "H4", "H12", "D1"]
+    htf_row = [
+        InlineKeyboardButton(
+            f"{'🔵' if config.TREND_FILTER_HIGHER_TF == t else '⬜'} {t}",
+            callback_data=f"set_trend_filter_higher_tf_{t}"
+        )
+        for t in tf_options
+    ]
+    rows.append(htf_row)
+    trail_override_label = (
+        "🟢 Trail SL Override: ON"
+        if config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
+        else "🔴 Trail SL Override: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Trail SL ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(trail_override_label, callback_data="toggle_trend_filter_trail_sl_override")])
+
+    # === Filter Mode (basic / breakout) ===
+    mode = getattr(config, "TREND_FILTER_MODE", "basic")
+    rows.append([InlineKeyboardButton("━ Mode ━", callback_data="noop_trend_filter")])
+    rows.append([
+        InlineKeyboardButton(
+            ("🔵 Basic" if mode == "basic" else "⬜ Basic"),
+            callback_data="set_trend_filter_mode_basic"
+        ),
+        InlineKeyboardButton(
+            ("🔵 Breakout" if mode == "breakout" else "⬜ Breakout"),
+            callback_data="set_trend_filter_mode_breakout"
+        ),
+    ])
+    rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def show_trend_filter_menu(update_or_query, is_query=False):
+    per_tf_on_list = [t for t, on in config.TREND_FILTER_PER_TF.items() if on]
+    per_status = f"🟢ON | {', '.join(per_tf_on_list)}" if per_tf_on_list else "🔴OFF"
+    higher_status = (
+        f"🟢ON | {config.TREND_FILTER_HIGHER_TF}"
+        if config.TREND_FILTER_HIGHER_TF_ENABLED
+        else "🔴OFF"
+    )
+    trail_override_status = "🟢ON" if config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED else "🔴OFF"
+    mode = getattr(config, "TREND_FILTER_MODE", "basic")
+    mode_status = "🔵 Basic" if mode == "basic" else "🔵 Breakout"
+    if mode == "basic":
+        mode_rules = (
+            "🟢 BULL (strong/weak) → BUY เท่านั้น\n"
+            "🔴 BEAR (strong/weak) → SELL เท่านั้น\n"
+            "⚪ SIDEWAY / UNKNOWN → ผ่านทั้งคู่"
+        )
+    else:
+        mode_rules = (
+            "🟢 BULL strong + ไม่ BREAK↓ → BUY เท่านั้น\n"
+            "🟢 BULL strong + BREAK↓ → ผ่านทั้งคู่\n"
+            "🔴 BEAR strong + ไม่ BREAK↑ → SELL เท่านั้น\n"
+            "🔴 BEAR strong + BREAK↑ → ผ่านทั้งคู่\n"
+            "⚪ weak / SIDEWAY / UNKNOWN → ผ่านทั้งคู่"
+        )
+    text = (
+        "🧭 *Trend Filter (Scan Trend)*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"Per-TF: *{per_status}*\n"
+        f"Higher TF: *{higher_status}*\n"
+        f"Trail SL Override: *{trail_override_status}*\n"
+        f"Mode: *{mode_status}*\n\n"
+        "กรอง signal ตาม trend ที่คำนวณจาก swing H/L\n\n"
+        f"{mode_rules}\n\n"
+        "Trail SL Override: ถ้า Focus Opposite freeze อยู่ จะยอมให้ Trail SL ทำงานเมื่อ trend เปลี่ยนเป็นฝั่งตรงข้ามของ position\n"
+        "SELL: BEAR/SIDEWAY → BULL | BUY: BULL/SIDEWAY → BEAR\n\n"
+        "Per-TF: ติ๊ก TF ที่ต้องการ filter (ของใครของมัน)\n"
+        "  เช่น ติ๊ก M1 → M1 signal filter ด้วย M1 trend เท่านั้น\n"
+        "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย"
+    )
+    keyboard = build_trend_filter_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)

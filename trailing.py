@@ -1,4 +1,4 @@
-﻿from config import *
+from config import *
 import config
 import re
 import inspect
@@ -21,9 +21,11 @@ position_sid: dict = {}  # {ticket: 2|3}
 
 # ── mapping: position ticket → pattern name ─────────────────
 position_pattern: dict = {}  # {ticket: "pattern string"}
+position_trend_filter: dict = {}  # {ticket: "bull_strong,sideway"}
 
 # ── Trail SL state per ticket ────────────────────────────────
 _trail_state: dict = {}
+_trend_filter_last_dir: dict = {}  # {"ticket|tf": "BULL"|"BEAR"|"SIDEWAY"}
 
 # ── ข้อ 4: นับแท่งหลัง order เข้า ─────────────────────────
 _bar_count: dict = {}
@@ -64,6 +66,12 @@ _s6i_state: dict = {}
 
 # ── Limit Sweep: track แท่งที่ตรวจแล้ว per ticket ────────────
 _sweep_last_bar: dict = {}  # {ticket: last_checked_bar_time}
+
+# ── Focus Opposite: frozen_side marker แยกต่อฟีเจอร์ ────────
+# "trail_sl"     → ใช้โดย check_engulf_trail_sl / SL ปกป้อง
+# "entry_candle" → ใช้โดย check_entry_candle_quality
+# ค่า: "BUY" | "SELL" | None
+_focus_frozen_side: dict = {"trail_sl": None, "entry_candle": None}
 
 
 def _parse_bot_comment(comment: str):
@@ -474,6 +482,166 @@ def _get_current_price(pos_type):
     return 0.0
 
 
+def _focus_side_presence(positions, pending_orders):
+    """คืน (has_buy, has_sell) — นับรวม position + pending limit/stop"""
+    has_buy = any(p.type == mt5.ORDER_TYPE_BUY for p in positions) or any(
+        o.type in (mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP)
+        for o in pending_orders
+    )
+    has_sell = any(p.type == mt5.ORDER_TYPE_SELL for p in positions) or any(
+        o.type in (mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP)
+        for o in pending_orders
+    )
+    return has_buy, has_sell
+
+
+def _focus_update_frozen_side(feature: str, positions, pending_orders):
+    """
+    อัปเดต marker ของ feature ('trail_sl' | 'entry_candle') ตามสภาพปัจจุบัน:
+    - ไม่มี order ทั้ง 2 ฝั่ง  → reset marker เป็น None
+    - marker ยัง None + มีฝั่งเดียว → ตั้ง marker เป็นฝั่งนั้น
+    - marker ยัง None + มีทั้ง 2 ฝั่ง → รอให้ฝั่งใดฝั่งหนึ่งหายก่อน (return None)
+    - marker มีค่าแล้ว → คงเดิม
+    คืนค่า marker หลังอัปเดต
+    """
+    current = _focus_frozen_side.get(feature)
+    has_buy, has_sell = _focus_side_presence(positions, pending_orders)
+
+    if not has_buy and not has_sell:
+        if current is not None:
+            _focus_frozen_side[feature] = None
+            try:
+                save_runtime_state()
+            except Exception:
+                pass
+        return None
+
+    if current is None:
+        new_side = None
+        if has_buy and not has_sell:
+            new_side = "BUY"
+        elif has_sell and not has_buy:
+            new_side = "SELL"
+        if new_side is not None:
+            _focus_frozen_side[feature] = new_side
+            try:
+                save_runtime_state()
+            except Exception:
+                pass
+        return new_side
+
+    return current
+
+
+def _focus_gate_passed(feature: str, frozen_side: str, positions, ref_tf) -> bool:
+    """
+    ตรวจว่าฝั่ง frozen มี position ที่กำไร > threshold (+ TF ตรงถ้า separate) หรือไม่
+    → True = ฝั่งตรงข้ามได้ทำงาน trail / ECM ตามปกติ
+    feature: 'trail_sl' | 'entry_candle' (ใช้ config คนละชุด)
+    """
+    if feature == "trail_sl":
+        points = int(getattr(config, "TRAIL_SL_FOCUS_NEW_POINTS", 100))
+        tf_mode = getattr(config, "TRAIL_SL_FOCUS_NEW_TF_MODE", "separate")
+    else:
+        points = int(getattr(config, "ENTRY_CANDLE_FOCUS_NEW_POINTS", 100))
+        tf_mode = getattr(config, "ENTRY_CANDLE_FOCUS_NEW_TF_MODE", "separate")
+
+    tick = mt5.symbol_info_tick(SYMBOL)
+    info = mt5.symbol_info(SYMBOL)
+    if not tick or not info:
+        return False
+
+    pt = float(info.point) if info.point else 0.01
+    threshold = points * pt + _get_spread_price()
+    bid_cur = float(tick.bid)
+    ask_cur = float(tick.ask)
+
+    if frozen_side == "BUY":
+        for p in positions:
+            if p.type != mt5.ORDER_TYPE_BUY:
+                continue
+            if (bid_cur - float(p.price_open)) > threshold:
+                if tf_mode == "combined" or position_tf.get(p.ticket) == ref_tf:
+                    return True
+        return False
+
+    for p in positions:
+        if p.type != mt5.ORDER_TYPE_SELL:
+            continue
+        if (float(p.price_open) - ask_cur) > threshold:
+            if tf_mode == "combined" or position_tf.get(p.ticket) == ref_tf:
+                return True
+    return False
+
+
+def _trend_filter_refs_for_tf(tf_name: str) -> list[str]:
+    """คืน TF ที่ Trend Filter เปิดใช้งานและเกี่ยวข้องกับ order TF นี้"""
+    refs: list[str] = []
+    per_tf_map = getattr(config, "TREND_FILTER_PER_TF", {}) or {}
+    if per_tf_map.get(tf_name, False):
+        refs.append(tf_name)
+    if getattr(config, "TREND_FILTER_HIGHER_TF_ENABLED", False):
+        higher_tf = getattr(config, "TREND_FILTER_HIGHER_TF", "")
+        if higher_tf and higher_tf not in refs:
+            refs.append(higher_tf)
+    return refs
+
+
+def _trend_filter_trail_override(ticket: int, pos_type: str, order_tf: str) -> tuple[bool, str]:
+    """
+    ให้ Trail SL ข้าม Focus Opposite เฉพาะตอน trend filter เปลี่ยนฝั่งจริง:
+    - SELL: ต้องเห็น BEAR/SIDEWAY -> BULL
+    - BUY:  ต้องเห็น BULL/SIDEWAY -> BEAR
+    UNKNOWN ไม่ถือเป็น trend ใหม่ และไม่ล้าง trend เดิม
+    """
+    if not getattr(config, "TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED", True):
+        return False, ""
+    refs = _trend_filter_refs_for_tf(order_tf)
+    if not refs:
+        return False, ""
+    try:
+        import scanner
+        swing_data = getattr(scanner, "_swing_data", {}) or {}
+    except Exception:
+        return False, ""
+
+    expected_prev = "BEAR" if pos_type == "SELL" else "BULL"
+    expected_new = "BULL" if pos_type == "SELL" else "BEAR"
+    for ref_tf in refs:
+        sw = swing_data.get(ref_tf) or {}
+        trend = sw.get("trend") or {}
+        t = trend.get("trend", "UNKNOWN")
+        strength = trend.get("strength", "-")
+        label = trend.get("label", t)
+        if t == "UNKNOWN":
+            continue
+
+        key = f"{ticket}|{ref_tf}"
+        prev = _trend_filter_last_dir.get(key)
+
+        if t == "SIDEWAY":
+            _trend_filter_last_dir[key] = t
+            continue
+
+        if t not in ("BULL", "BEAR") or strength not in ("weak", "strong"):
+            continue
+
+        _trend_filter_last_dir[key] = t
+        if prev in (expected_prev, "SIDEWAY") and t == expected_new:
+            return True, f"Trend Filter {ref_tf}: {expected_prev} → {label}"
+    return False, ""
+
+
+def reset_focus_frozen_side(feature: str):
+    """เรียกตอนผู้ใช้ toggle Focus Opposite OFF→ON ของฟีเจอร์นั้น"""
+    if feature in _focus_frozen_side and _focus_frozen_side[feature] is not None:
+        _focus_frozen_side[feature] = None
+        try:
+            save_runtime_state()
+        except Exception:
+            pass
+
+
 def _get_spread_price():
     """ดึง spread เป็นหน่วยราคา"""
     info = mt5.symbol_info(SYMBOL)
@@ -486,15 +654,8 @@ def _get_spread_price():
 
 
 def _fmt_bkk_ts(ts: int | float | None) -> str:
-    """แปลง unix timestamp เป็นเวลา Bangkok สำหรับแสดงผล"""
-    try:
-        if ts is None:
-            return "-"
-        return datetime.fromtimestamp(int(ts), timezone.utc).astimezone(
-            timezone(timedelta(hours=TZ_OFFSET))
-        ).strftime("%H:%M:%S %d/%m/%Y")
-    except Exception:
-        return "-"
+    """แปลง MT5 server timestamp เป็นเวลา Bangkok สำหรับแสดงผล"""
+    return fmt_mt5_bkk_ts(ts)
 
 
 def _tp_valid_for_side(pos_type: str, entry: float, tp: float, tol: float = 0.0) -> bool:
@@ -686,6 +847,7 @@ async def check_entry_candle_quality(app):
     positions = mt5.positions_get(symbol=SYMBOL)
     if not positions:
         _entry_state.clear()
+        _entry_bar_none_first.clear()
         return
     open_pos_tickets = {p.ticket for p in positions}
     open_order_tickets = {o.ticket for o in (mt5.orders_get(symbol=SYMBOL) or [])}
@@ -704,6 +866,27 @@ async def check_entry_candle_quality(app):
                 _fill_notified[p.ticket] = True
 
     now = now_bkk().strftime("%H:%M:%S")
+    open_tickets = {p.ticket for p in positions}
+    for t in list(_entry_bar_none_first.keys()):
+        if t not in open_tickets:
+            _entry_bar_none_first.pop(t, None)
+
+    # ── Entry Candle Focus Opposite (frozen_side marker) ──
+    # ฝั่งตรงกับ marker → skip ECM
+    # ฝั่งตรงข้าม → ECM ทำงานเมื่อ gate ผ่าน (ฝั่ง frozen มีไม้กำไร > threshold + TF ผ่าน)
+    entry_focus_skip_tickets: set[int] = set()
+    if getattr(config, "ENTRY_CANDLE_FOCUS_NEW_ENABLED", False):
+        pending_efn = mt5.orders_get(symbol=SYMBOL) or []
+        frozen_side_ec = _focus_update_frozen_side("entry_candle", positions, pending_efn)
+        if frozen_side_ec is not None:
+            for p in positions:
+                p_side = "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL"
+                if p_side == frozen_side_ec:
+                    entry_focus_skip_tickets.add(p.ticket)
+                elif not _focus_gate_passed(
+                    "entry_candle", frozen_side_ec, positions, position_tf.get(p.ticket)
+                ):
+                    entry_focus_skip_tickets.add(p.ticket)
 
     for pos in positions:
         ticket   = pos.ticket
@@ -712,6 +895,9 @@ async def check_entry_candle_quality(app):
         state    = _entry_state.get(ticket)
         if _trade_debug_enabled():
             print(f"[{now}] 🔍 entry_check: {pos_type} {ticket} state={state} fvg={bool(fvg_order_tickets.get(ticket))} pos_tf={position_tf.get(ticket)}")
+
+        if ticket in entry_focus_skip_tickets:
+            continue
 
         if state == "done":
             fvg_order_tickets.pop(ticket, None)
@@ -843,6 +1029,8 @@ async def check_entry_candle_quality(app):
                             position_sid[ticket] = pinfo.get("sid", 0)
                         if ticket not in position_pattern and pinfo.get("pattern"):
                             position_pattern[ticket] = pinfo.get("pattern", "")
+                        if ticket not in position_trend_filter and pinfo.get("trend_filter"):
+                            position_trend_filter[ticket] = pinfo.get("trend_filter", "")
                         pos_tf = position_tf[ticket]
                         meta_source = f"pending_price_match:{pticket}"
                         break
@@ -869,11 +1057,15 @@ async def check_entry_candle_quality(app):
             expected_entry_close = ((int(pos.time) // tf_seconds) + 1) * tf_seconds
             now_ts = int(datetime.now().timestamp())
             warn_after = expected_entry_close + 60
-            if now_ts >= warn_after:
+            first_warn_ts = _entry_bar_none_first.get(ticket)
+            if first_warn_ts is None:
+                _entry_bar_none_first[ticket] = now_ts
+            if now_ts >= warn_after and first_warn_ts is None:
                 await tg(app, (f"⚠️ *entry_bar=None นาน >60s*\n"
                                f"{sig_e} Ticket:`{ticket}` pos.time=`{int(pos.time)}`\n"
-                               f"fill={datetime.fromtimestamp(int(pos.time)).strftime('%H:%M:%S')} tf={position_tf.get(ticket,'?')}"))
+                               f"fill={fmt_mt5_bkk_ts(int(pos.time), '%H:%M:%S')} tf={position_tf.get(ticket,'?')}"))
             continue
+        _entry_bar_none_first.pop(ticket, None)
 
         # ── แจ้งเตือนแท่ง entry จบ พร้อม OHLC + body% ────────
         if ticket not in _entry_bar_notified:
@@ -1706,6 +1898,7 @@ async def check_engulf_trail_sl(app):
     if not positions:
         _bar_count.clear()
         _trail_state.clear()
+        _trend_filter_last_dir.clear()
         return
 
     # cleanup tickets ที่ปิดไปแล้ว
@@ -1713,6 +1906,14 @@ async def check_engulf_trail_sl(app):
     for t in list(_trail_state.keys()):
         if t not in open_tickets:
             _trail_state.pop(t, None)
+    for key in list(_trend_filter_last_dir.keys()):
+        try:
+            t = int(str(key).split("|", 1)[0])
+        except (TypeError, ValueError):
+            _trend_filter_last_dir.pop(key, None)
+            continue
+        if t not in open_tickets:
+            _trend_filter_last_dir.pop(key, None)
     for t in list(_fill_notified.keys()):
         if t not in open_tickets:
             _fill_notified.pop(t, None)
@@ -1722,9 +1923,32 @@ async def check_engulf_trail_sl(app):
 
     now = now_bkk().strftime("%H:%M:%S")
 
+    # ── Trail SL Focus Opposite (frozen_side marker) ──
+    # ฝั่งตรงกับ marker → freeze ทุกไม้ (ไม่ trail)
+    # ฝั่งตรงข้าม → trail ได้เมื่อ gate ผ่าน (ฝั่ง frozen มีไม้ที่กำไร > threshold + TF ผ่าน)
+    focus_skip_tickets: set[int] = set()
+    if getattr(config, "TRAIL_SL_FOCUS_NEW_ENABLED", False):
+        pending_focus = mt5.orders_get(symbol=SYMBOL) or []
+        frozen_side_ts = _focus_update_frozen_side("trail_sl", positions, pending_focus)
+        if frozen_side_ts is not None:
+            for p in positions:
+                p_side = "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL"
+                if p_side == frozen_side_ts:
+                    focus_skip_tickets.add(p.ticket)
+                elif not _focus_gate_passed(
+                    "trail_sl", frozen_side_ts, positions, position_tf.get(p.ticket)
+                ):
+                    focus_skip_tickets.add(p.ticket)
+
     for pos in positions:
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+
+        # หา TF ของ order
+        fvg_info = fvg_order_tickets.get(ticket)
+        order_tf = position_tf.get(ticket, "M1")
+        if fvg_info:
+            order_tf = fvg_info.get("tf", "M1")
 
         if not config.TRAIL_SL_IMMEDIATE and _entry_state.get(ticket) != "done":
             continue
@@ -1737,11 +1961,9 @@ async def check_engulf_trail_sl(app):
             if pos_type == "SELL" and tick.ask >= pos.price_open:
                 continue
 
-        # หา TF ของ order
-        fvg_info = fvg_order_tickets.get(ticket)
-        order_tf = position_tf.get(ticket, "M1")
-        if fvg_info:
-            order_tf = fvg_info.get("tf", "M1")
+        trend_override, trend_override_reason = _trend_filter_trail_override(ticket, pos_type, order_tf)
+        if ticket in focus_skip_tickets and not trend_override:
+            continue
 
         mode = getattr(config, "TRAIL_SL_ENGULF_MODE", "separate")
 
@@ -1889,6 +2111,8 @@ async def check_engulf_trail_sl(app):
                             phase_note = f"phase 2 ค้าง (เจอใน {engulf_tf}, รอราคาผ่าน entry)"
                 else:
                     phase_note = "SL ปกป้อง"
+                if trend_override:
+                    phase_note = f"{phase_note} | override {trend_override_reason}"
 
                 log_event(
                     "SL_CHANGED",
@@ -1900,6 +2124,7 @@ async def check_engulf_trail_sl(app):
                     new_sl=float(new_sl),
                     reason=phase_note,
                     source=(engulf_tf if engulf_found else group[0]),
+                    trend_override=trend_override,
                 )
                 trail_tg_key = f"{ticket}|{label}|{old_sl:.2f}|{float(new_sl):.2f}|{phase_note}"
                 if trail_tg_key != _last_trail_tg_key:
@@ -3505,6 +3730,7 @@ async def check_limit_sweep(app):
         position_tf.pop(ticket, None)
         position_sid.pop(ticket, None)
         position_pattern.pop(ticket, None)
+        position_trend_filter.pop(ticket, None)
         _s6_state.pop(ticket, None)
         _s6i_state.pop(ticket, None)
         _sweep_last_bar.pop(ticket, None)

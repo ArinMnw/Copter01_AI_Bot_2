@@ -143,7 +143,7 @@ async def _handle_lot_input(update, context, text, waiting):
 
 def _fmt_dt(ts):
     try:
-        return datetime.fromtimestamp(int(ts)).strftime("%d/%m %H:%M:%S")
+        return fmt_mt5_bkk_ts(ts, "%d/%m %H:%M:%S")
     except Exception:
         return "-"
 
@@ -231,6 +231,9 @@ async def _handle_ticket_lookup(update, ticket: int):
     pattern = trailing.position_pattern.get(ticket, "-")
     entry_state = trailing._entry_state.get(ticket, "-")
     trail_state = trailing._trail_state.get(ticket, {})
+    mt5_to_bkk_hours = TZ_OFFSET - MT5_SERVER_TZ
+    tz_summary = f"MT5->BKK +{mt5_to_bkk_hours} | MT5 Server UTC+{MT5_SERVER_TZ} | Display BKK"
+
 
     if not pos and not cur_order and not linked_orders and not linked_deals:
         await update.message.reply_text(
@@ -243,6 +246,7 @@ async def _handle_ticket_lookup(update, ticket: int):
     lines = [
         f"🔎 *Ticket Lookup*",
         f"🔖 Ticket: `{ticket}`",
+        f"🕒 Time Mode: `{tz_summary}`",
         f"🕐 TF: `{tf_name}` | SID: `{sid}`",
         f"🏷 Pattern: `{pattern}`",
         f"📋 Entry state: `{entry_state}`",

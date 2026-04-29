@@ -1,20 +1,13 @@
-import re
+﻿import re
 import config as _config
 from bot_log import log_event
 from config import *
 from mt5_utils import connect_mt5
-from trailing import position_tf, position_sid, position_pattern
+from trailing import position_tf, position_sid, position_pattern, position_trend_filter
 
 
 def _fmt_bkk_ts(ts: int | float | None) -> str:
-    try:
-        if ts is None:
-            return "-"
-        return datetime.fromtimestamp(int(ts), timezone.utc).astimezone(
-            timezone(timedelta(hours=TZ_OFFSET))
-        ).strftime("%H:%M:%S %d/%m/%Y")
-    except Exception:
-        return "-"
+    return fmt_mt5_bkk_ts(ts)
 
 
 def _parse_bot_comment(comment: str):
@@ -41,12 +34,13 @@ def _parse_bot_comment(comment: str):
         return tf, None
 
 
-def _get_tracked_meta(ticket: int, p_info: dict, deals) -> tuple[str, int | None, str]:
+def _get_tracked_meta(ticket: int, p_info: dict, deals) -> tuple[str, int | None, str, str]:
     tf_label = p_info.get("tf", "") or position_tf.get(ticket, "")
     sid_label = p_info.get("sid")
     if sid_label is None:
         sid_label = position_sid.get(ticket)
     pat_label = p_info.get("pattern", "") or position_pattern.get(ticket, "")
+    trend_filter = p_info.get("trend_filter", "") or position_trend_filter.get(ticket, "")
 
     comment = p_info.get("comment", "")
     if (not tf_label or sid_label is None) and comment:
@@ -67,7 +61,7 @@ def _get_tracked_meta(ticket: int, p_info: dict, deals) -> tuple[str, int | None
     if not pat_label and sid_label:
         pat_label = STRATEGY_NAMES.get(sid_label, "")
 
-    return tf_label, sid_label, pat_label
+    return tf_label, sid_label, pat_label, trend_filter
 
 async def check_sl_tp_hits(app):
     """
@@ -133,7 +127,7 @@ async def check_sl_tp_hits(app):
                         elif close_price <= tp_price + 1:
                             close_type = "🎯 TP Hit"
 
-            tf_label, sid_label, pat_label = _get_tracked_meta(ticket, p_info, deals)
+            tf_label, sid_label, pat_label, trend_filter = _get_tracked_meta(ticket, p_info, deals)
             strat_txt = STRATEGY_NAMES.get(sid_label, "") if sid_label else ""
             info_line = ""
             if tf_label or strat_txt or pat_label:
@@ -170,6 +164,7 @@ async def check_sl_tp_hits(app):
                 tf=tf_label,
                 sid=sid_label,
                 pattern=pat_label,
+                trend_filter=trend_filter,
                 open_price=p_info.get("price_open", 0),
                 close_price=round(close_price, 2),
                 sl=sl_price,
@@ -206,6 +201,7 @@ async def check_sl_tp_hits(app):
                 tf_label = position_tf.get(p.ticket, "")
                 sid_label = position_sid.get(p.ticket)
                 pat_label = position_pattern.get(p.ticket, "")
+                trend_filter = position_trend_filter.get(p.ticket, "")
                 if not tf_label or sid_label is None:
                     c_tf, c_sid = _parse_bot_comment(getattr(p, "comment", "") or "")
                     if not tf_label and c_tf:
@@ -221,6 +217,7 @@ async def check_sl_tp_hits(app):
                     "tf":         tf_label,
                     "sid":        sid_label,
                     "pattern":    pat_label,
+                    "trend_filter": trend_filter,
                     "comment":    getattr(p, "comment", "") or "",
                 }
             else:
@@ -233,5 +230,8 @@ async def check_sl_tp_hits(app):
                     _config.tracked_positions[p.ticket]["sid"] = position_sid.get(p.ticket)
                 if not _config.tracked_positions[p.ticket].get("pattern"):
                     _config.tracked_positions[p.ticket]["pattern"] = position_pattern.get(p.ticket, "")
+                if not _config.tracked_positions[p.ticket].get("trend_filter"):
+                    _config.tracked_positions[p.ticket]["trend_filter"] = position_trend_filter.get(p.ticket, "")
                 if not _config.tracked_positions[p.ticket].get("comment"):
                     _config.tracked_positions[p.ticket]["comment"] = getattr(p, "comment", "") or ""
+

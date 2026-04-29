@@ -199,6 +199,14 @@ mode:
   - ถ้าเปิด อาจ trail ได้ก่อน `_entry_state = done`
 - `TRAIL_SL_ENABLED`
   - master toggle ถ้า `False` ฟังก์ชัน return ทันที
+- `Trend Filter override`
+  - เปิด/ปิดได้จาก `Trend Filter > Trail SL Override`
+  - config: `TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED`
+  - ถ้าเปิด Trend Filter แบบ Per-TF หรือ Higher TF แล้ว trend ของ TF อ้างอิง “เปลี่ยนเป็นฝั่งตรงข้ามของ position” ระบบจะยอมให้ Trail SL ทำงานแม้ `TRAIL_SL_FOCUS_NEW_ENABLED` กำลัง freeze อยู่
+  - position `SELL`: ต้องเปลี่ยนจาก `BEAR` หรือ `SIDEWAY` ไปเป็น `BULL` ทั้ง `weak` หรือ `strong`
+  - position `BUY`: ต้องเปลี่ยนจาก `BULL` หรือ `SIDEWAY` ไปเป็น `BEAR` ทั้ง `weak` หรือ `strong`
+  - `SIDEWAY` ใช้เป็นฐานก่อนเปลี่ยนฝั่งได้ แต่ตัว `SIDEWAY` เองยังไม่ trigger trail
+  - `UNKNOWN` ไม่ถือเป็น trend ใหม่ และไม่ล้าง trend เดิม
 
 หลักการ:
 - BUY: หา SL ที่สูงขึ้นแต่ยังสมเหตุผล

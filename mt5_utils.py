@@ -27,6 +27,8 @@ def _pattern_comment_code(pattern: str) -> str:
         return "FVG"
     if "SCALPING" in text:
         return "S5"
+    if "RSI DIVERGENCE" in text:
+        return "RSI9"
     if "กินไส้" in raw or "SWING" in text:
         return "SWING"
     return ""

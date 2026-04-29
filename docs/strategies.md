@@ -215,3 +215,50 @@ SELL:
 - ถ้าเป็น S8 ที่มาจาก `Limit Sweep` ต้องระวังบริบทของ `LL/HH`
 - ห้ามใช้ swing ที่แท่งปิดทะลุผ่านไปแล้ว
 - ถ้า pending fill ก่อน arm SL ต้องมี fallback ไปตั้ง SL ให้ position หลัง fill
+
+## ท่าที่ 9: RSI Divergence
+
+ไฟล์หลัก: `strategy9.py`
+
+แนวคิด:
+- ใช้ `RSI(close)` ชุดเดียวกับ `mql5/RSIDivergencePane.mq5`
+- ค่า default ปัจจุบันคือ `RSI(14)`
+- ไม่ใช้ pivot divergence แบบ indicator สำเร็จรูป
+- ใช้ `swing ราคา` ของระบบเดิม แล้วเอาค่า RSI ที่ bar เวลาเดียวกับ swing นั้นมาเทียบ
+- เจอ setup แล้วจะตั้ง `BUY STOP` หรือ `SELL STOP` ทันที
+
+### แหล่งข้อมูล RSI
+
+- period มาจาก `config.RSI9_PERIOD`
+- applied price มาจาก `config.RSI9_APPLIED_PRICE`
+- ตอนนี้ล็อกให้ตรงกับ pane บน MT5 เป็น `close`
+- ถ้าจะเปลี่ยน period ของท่า 9 ต้องเปลี่ยนทั้ง `config.py` และ compile `RSIDivergencePane.mq5` ใหม่ให้ตรงกัน
+
+### BUY
+
+- หา `Swing Low` ปัจจุบัน และ `Swing Low` ก่อนหน้า
+- เอาค่า RSI ที่ bar ของ swing low ทั้งสองจุดมาเทียบกัน
+- ต้องเป็น `RSI low ปัจจุบัน > RSI low ก่อนหน้า`
+- และราคาเข้าได้ 2 แบบ:
+  - `HL`: low ปัจจุบันสูงกว่า low ก่อนหน้า
+  - `LL แต่ยังไม่ MSS`: low ปัจจุบันต่ำกว่า low ก่อนหน้า แต่ close ล่าสุดยังไม่ปิดเหนือ swing high ก่อนหน้า
+- ถ้าผ่าน จะตั้ง `BUY STOP = swing high ก่อนหน้า + buffer`
+- `SL = swing low ปัจจุบัน - buffer`
+- `TP = swing TP` ถ้าหาได้ ไม่งั้น fallback `RR 1:1`
+
+### SELL
+
+- สลับด้านจาก BUY
+- ต้องเป็น `RSI high ปัจจุบัน < RSI high ก่อนหน้า`
+- และราคาเข้าได้ 2 แบบ:
+  - `LH`: high ปัจจุบันต่ำกว่า high ก่อนหน้า
+  - `HH แต่ยังไม่ MSS`: high ปัจจุบันสูงกว่า high ก่อนหน้า แต่ close ล่าสุดยังไม่ปิดต่ำกว่า swing low ก่อนหน้า
+- ถ้าผ่าน จะตั้ง `SELL STOP = swing low ก่อนหน้า - buffer`
+- `SL = swing high ปัจจุบัน + buffer`
+- `TP = swing TP` ถ้าหาได้ ไม่งั้น fallback `RR 1:1`
+
+### หมายเหตุของท่า 9
+
+- ตอนนี้ถือว่า “ยืนยัน setup” ตอน scan เจอ divergence
+- ส่วน “ยืนยันเข้าไม้” จริง คือเมื่อราคามาชน stop order
+- ถ้า pane RSI บน MT5 กับ bot ให้ค่าไม่ตรงกัน ให้เช็ค period ก่อนเป็นอย่างแรก
