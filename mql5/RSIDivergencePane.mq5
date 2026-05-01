@@ -71,6 +71,10 @@ int    g_rsi_handle = INVALID_HANDLE;
 string g_obj_prefix = "RSIDivPane_";
 string g_indicator_short_name = "RSI Divergence Indicator";
 
+// Valid divergence object names ของรอบ OnCalculate ปัจจุบัน — ใช้ลบ orphan
+string g_valid_names[2048];
+int    g_valid_count = 0;
+
 //+------------------------------------------------------------------+
 bool IsPivotLow(const double &values[], const int index, const int left, const int right)
   {
@@ -175,7 +179,11 @@ void DrawDivergenceLine(const string kind,
       return;
 
    const int wnd = GetPaneWindow();
-   const string name = g_obj_prefix + kind + "_" + IntegerToString(prev_index) + "_" + IntegerToString(cur_index);
+   // Time-based naming — same divergence pair (same bar times) = same name across ticks
+   // → update-in-place ไม่ต้องลบ+สร้างใหม่ ไม่กระพริบ
+   const string name = g_obj_prefix + kind + "_" +
+                       IntegerToString((int)time[prev_index]) + "_" +
+                       IntegerToString((int)time[cur_index]);
    if(ObjectFind(0, name) < 0)
      {
       if(!ObjectCreate(0, name, OBJ_TREND, wnd, time[prev_index], g_rsi_buffer[prev_index], time[cur_index], g_rsi_buffer[cur_index]))
@@ -196,6 +204,35 @@ void DrawDivergenceLine(const string kind,
    ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, name, OBJPROP_SELECTED, false);
    ObjectSetInteger(0, name, OBJPROP_HIDDEN, true);
+
+   // Track this name as valid for current OnCalculate round
+   if(g_valid_count < ArraySize(g_valid_names))
+      g_valid_names[g_valid_count++] = name;
+  }
+
+//+------------------------------------------------------------------+
+//| ลบ object ของ divergence ที่ไม่ valid แล้ว (ไม่อยู่ใน g_valid_names) |
+//+------------------------------------------------------------------+
+void DeleteOrphanDivergenceLines()
+  {
+   const int total = ObjectsTotal(0, -1, -1);
+   for(int i = total - 1; i >= 0; i--)
+     {
+      const string name = ObjectName(0, i, -1, -1);
+      if(StringFind(name, g_obj_prefix) != 0)
+         continue;
+      bool found = false;
+      for(int j = 0; j < g_valid_count; j++)
+        {
+         if(g_valid_names[j] == name)
+           {
+            found = true;
+            break;
+           }
+        }
+      if(!found)
+         ObjectDelete(0, name);
+     }
   }
 
 //+------------------------------------------------------------------+
@@ -266,6 +303,11 @@ int OnCalculate(const int rates_total,
    if(rates_total <= InpRsiPeriod + InpPivotLookbackLeft + InpPivotLookbackRight + 5)
       return(0);
 
+   // ให้ time[] เป็น series เหมือน buffer (index 0 = newest) เพื่อ coordinate ตรงกัน
+   ArraySetAsSeries(time, true);
+   ArraySetAsSeries(low, true);
+   ArraySetAsSeries(high, true);
+
    if(CopyBuffer(g_rsi_handle, 0, 0, rates_total, g_rsi_buffer) <= 0)
      {
       Print("RSIDivergencePane: CopyBuffer failed. err=", GetLastError());
@@ -273,6 +315,8 @@ int OnCalculate(const int rates_total,
      }
 
    ResetSignalBuffers(rates_total);
+   // Reset valid-names tracker; orphan cleanup จะรันที่ท้าย OnCalculate
+   g_valid_count = 0;
 
    static int low_pivots[2048];
    static int high_pivots[2048];
@@ -342,6 +386,9 @@ int OnCalculate(const int rates_total,
            }
         }
      }
+
+   // ลบ divergence object ที่ไม่อยู่ใน valid set รอบนี้ (orphan จาก rounds ก่อน)
+   DeleteOrphanDivergenceLines();
 
    return(rates_total);
   }

@@ -315,17 +315,23 @@ void DrawPanel(const TFRow &rows[])
          icon = (rows[idx].strength == "strong") ? "🟢🟢" : "🟢";
       else if(rows[idx].trend == "BEAR")
          icon = (rows[idx].strength == "strong") ? "🔴🔴" : "🔴";
-      else
+      else if(rows[idx].trend == "SIDEWAY")
          icon = "⚪";
+      else // UNKNOWN
+         icon = "⚫";
+
+      string brk = "";
+      if(rows[idx].break_flag == "break_up")        brk = "↑";
+      else if(rows[idx].break_flag == "break_down") brk = "↓";
 
       int y = InpPanelYOffset + (count - 1 - k) * lh;
 
       // TF cell — LEFT-aligned at x_tf (all TFs share same left edge)
       DrawPanelLabel(g_prefix + "PANEL_" + IntegerToString(k) + "_tf",
                      rows[idx].tf, x_tf, y, clr, ANCHOR_LEFT_LOWER);
-      // Icon cell — RIGHT-aligned at x_icon (all icons share same right edge)
+      // Icon cell — RIGHT-aligned at x_icon (icon + break marker share same right edge)
       DrawPanelLabel(g_prefix + "PANEL_" + IntegerToString(k) + "_ic",
-                     icon, x_icon, y, clr, ANCHOR_RIGHT_LOWER);
+                     icon + brk, x_icon, y, clr, ANCHOR_RIGHT_LOWER);
      }
   }
 

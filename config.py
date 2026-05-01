@@ -301,7 +301,8 @@ active_strategies = {
     6: True,   # ท่าที่ 6: 2 High 2 Low (ต่อเนื่องท่า 2/3)
     7: True,   # ท่าที่ 6i: 2 High 2 Low อิสระ (scan swing + ตั้ง order)
     8: False,  # ท่าที่ 8: กินไส้ Swing (limit ที่ swing high/low)
-    9: True,  # ท่าที่ 9: RSI Divergence
+    9: True,   # ท่าที่ 9: RSI Divergence
+    10: True,  # ท่าที่ 10: CRT TBS (Candle Range Theory + Three Bar Sweep)
 }
 
 STRATEGY_NAMES = {
@@ -314,6 +315,7 @@ STRATEGY_NAMES = {
     7: "ท่าที่ 6i: 2H2L อิสระ",
     8: "ท่าที่ 8: กินไส้ Swing",
     9: "ท่าที่ 9: RSI Divergence",
+    10: "ท่าที่ 10: CRT TBS",
 }
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
@@ -626,6 +628,33 @@ def engulf_min_price() -> float:
     except Exception:
         point = 0.01
     return float(ENGULF_MIN_POINTS) * point
+
+
+# ── Strategy 10: CRT TBS ────────────────────────────────────────
+# Parent range ที่เล็กกว่านี้จะข้าม (กัน setup จิ๋วใน sideway แคบ)
+CRT_MIN_RANGE_POINTS = 200   # 200 point = ~$2.00 บน XAU
+# SL บัฟเฟอร์ จาก wick ของ sweep candle
+CRT_SL_BUFFER_POINTS = 50    # 50 point = ~$0.50 บน XAU
+
+
+def crt_min_range_price() -> float:
+    """แปลง CRT_MIN_RANGE_POINTS เป็นหน่วยราคา"""
+    try:
+        info = mt5.symbol_info(SYMBOL)
+        point = float(getattr(info, "point", 0.01) or 0.01)
+    except Exception:
+        point = 0.01
+    return float(CRT_MIN_RANGE_POINTS) * point
+
+
+def crt_sl_buffer_price() -> float:
+    """แปลง CRT_SL_BUFFER_POINTS เป็นหน่วยราคา"""
+    try:
+        info = mt5.symbol_info(SYMBOL)
+        point = float(getattr(info, "point", 0.01) or 0.01)
+    except Exception:
+        point = 0.01
+    return float(CRT_SL_BUFFER_POINTS) * point
 
 
 def save_runtime_state():

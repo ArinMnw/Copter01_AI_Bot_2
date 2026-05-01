@@ -2,7 +2,7 @@ from config import *
 import config
 import asyncio
 from bot_log import log_block, log_event
-from mt5_utils import connect_mt5, open_order, open_order_stop, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
+from mt5_utils import connect_mt5, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
 from strategy1 import strategy_1
 from strategy2 import strategy_2
 from strategy3 import strategy_3
@@ -10,6 +10,7 @@ from strategy4 import strategy_4, _find_prev_swing_high, _find_prev_swing_low, _
 from strategy5 import strategy_5
 from strategy8 import strategy_8
 from strategy9 import strategy_9
+from strategy10 import strategy_10
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl
 from notifications import check_sl_tp_hits
@@ -1053,6 +1054,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r9 = strategy_9(rates) if active_strategies.get(9, False) else {"signal": "WAIT", "reason": "S9 ปิด"}
     if r9.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 9, r9["signal"], last_candle_time, r9)
+    # S10 CRT TBS — purist version: รันเฉพาะ H1+ (ตาม CRT classic)
+    if active_strategies.get(10, False) and tf_name in ("H1", "H4", "H12", "D1"):
+        r10 = strategy_10(rates)
+    elif active_strategies.get(10, False):
+        r10 = {"signal": "WAIT", "reason": f"S10 รันเฉพาะ H1+ (TF นี้: {tf_name})"}
+    else:
+        r10 = {"signal": "WAIT", "reason": "S10 ปิด"}
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -1326,7 +1334,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -1342,7 +1350,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -1470,18 +1478,20 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         reason_flat = " | ".join(line.strip() for line in raw_reason.splitlines() if line.strip())
         if signal == "WAIT":
             continue
-        allowed, tf_reason = trend_allows_signal(tf_name, signal)
-        if not allowed:
-            _print_skip_once(
-                tf_name,
-                f"🧭 [{now}] {tf_label(tf_name)} ท่า{sid}: trend filter block {signal} ({tf_reason})"
-            )
-            log_event(
-                "TREND_FILTER_BLOCK",
-                f"block {signal} ({tf_reason})",
-                tf=tf_name, sid=sid, signal=signal,
-            )
-            continue
+        # S10 CRT TBS เป็น counter-trend reversal — bypass trend filter
+        if sid != 10:
+            allowed, tf_reason = trend_allows_signal(tf_name, signal)
+            if not allowed:
+                _print_skip_once(
+                    tf_name,
+                    f"🧭 [{now}] {tf_label(tf_name)} ท่า{sid}: trend filter block {signal} ({tf_reason})"
+                )
+                log_event(
+                    "TREND_FILTER_BLOCK",
+                    f"block {signal} ({tf_reason})",
+                    tf=tf_name, sid=sid, signal=signal,
+                )
+                continue
         # Pattern B pending
         if "Pattern B" in pattern:
             pb_key = f"{tf_name}_{last_candle_time}_{sid}"
@@ -1541,11 +1551,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             if _sid_prev and (last_candle_time - _sid_prev) == tf_secs:
                 _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
                 continue
-        cancel, cancel_reason = should_cancel_pending(rates, signal, entry)
-        if cancel:
-            print(f"🚫 [{now}] {tf_label(tf_name)} ท่า{sid}: {cancel_reason[:60]}")
-            await tg(app, f"🚫 *[{tf_name}] ท่า{sid} ยกเลิก*\n{cancel_reason}")
-            continue
+        # Market order ใช้ราคาปัจจุบัน — ไม่ต้องเช็ก "ราคาผ่าน entry แล้วหรือยัง"
+        if result.get("order_mode") != "market":
+            cancel, cancel_reason = should_cancel_pending(rates, signal, entry)
+            if cancel:
+                print(f"🚫 [{now}] {tf_label(tf_name)} ท่า{sid}: {cancel_reason[:60]}")
+                await tg(app, f"🚫 *[{tf_name}] ท่า{sid} ยกเลิก*\n{cancel_reason}")
+                continue
         async with _get_lock():
             _pos_now = mt5.positions_get(symbol=SYMBOL)
             if _pos_now and len(_pos_now) >= MAX_ORDERS:
@@ -1560,10 +1572,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
                 tp = existing_tp
             order_mode = result.get("order_mode", "limit")
-            use_delay_sl = (order_mode != "stop") and (sid == 8 or config.DELAY_SL_MODE != "off")
+            use_delay_sl = (order_mode == "limit") and (sid == 8 or config.DELAY_SL_MODE != "off")
             order_sl = 0.0 if use_delay_sl else sl
             if order_mode == "stop":
                 order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            elif order_mode == "market":
+                order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
             else:
                 order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
         if order["success"]:

@@ -31,6 +31,8 @@ def _pattern_comment_code(pattern: str) -> str:
         return "RSI9"
     if "กินไส้" in raw or "SWING" in text:
         return "SWING"
+    if "CRT" in text:
+        return "CRT"
     return ""
 
 
@@ -321,6 +323,48 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
         return {"success": False, "error": "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว"}
     if str(err_code) == "10016":
         return {"success": False, "error": f"⚠️ Invalid stops (10016) — Entry:{price} SL:{sl} TP:{tp} | SL/TP ใกล้ราคาเกินไปหรือผิดทิศ"}
+    return {"success": False, "error": f"{err_code} — {err_msg}"}
+
+
+def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern=""):
+    """
+    Market order — fill ทันทีที่ราคาปัจจุบัน
+    BUY  → ส่ง market BUY  (ask)
+    SELL → ส่ง market SELL (bid)
+    """
+    tick = mt5.symbol_info_tick(SYMBOL)
+    if not tick:
+        return {"success": False, "error": "ดึงราคาไม่ได้"}
+
+    price = tick.ask if signal == "BUY" else tick.bid
+    ot    = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
+
+    r = mt5.order_send({
+        "action":       mt5.TRADE_ACTION_DEAL,
+        "symbol":       SYMBOL,
+        "volume":       volume,
+        "type":         ot,
+        "price":        price,
+        "sl":           sl,
+        "tp":           tp,
+        "deviation":    20,
+        "magic":        234001,
+        "comment":      _build_order_comment(tf, sid, pattern, "Strategy_Market"),
+        "type_time":    mt5.ORDER_TIME_GTC,
+        "type_filling": mt5.ORDER_FILLING_FOK,
+    })
+    if r is None:
+        err = mt5.last_error()
+        return {"success": False, "error": f"order_send returned None — {err}"}
+    if r.retcode == mt5.TRADE_RETCODE_DONE:
+        name = "BUY" if signal == "BUY" else "SELL"
+        return {"success": True, "ticket": r.order, "price": price, "order_type": name}
+    err_code = r.retcode if r else "no result"
+    err_msg  = r.comment if r else ""
+    if str(err_code) == "10027":
+        return {"success": False, "error": "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว"}
+    if str(err_code) == "10016":
+        return {"success": False, "error": f"⚠️ Invalid stops (10016) — Entry:{price} SL:{sl} TP:{tp}"}
     return {"success": False, "error": f"{err_code} — {err_msg}"}
 
 

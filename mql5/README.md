@@ -95,11 +95,12 @@ Input หลัก:
 
 ```
 TREND FILTER
-M1         🟢🟢
+M1         🟢🟢↑
 M5           🔴
 M15           ⚪
+M30           ⚫
 H1         🟢🟢
-H4         🔴🔴
+H4         🔴🔴↓
 ```
 
 ความหมาย icon:
@@ -110,7 +111,16 @@ H4         🔴🔴
 | 🟢 | Bull weak |
 | 🔴🔴 | Bear strong |
 | 🔴 | Bear weak |
-| ⚪ | Sideway |
+| ⚪ | Sideway (มี swing แต่ตี trend ไม่ออก) |
+| ⚫ | Unknown (หา swing ไม่ครบ) |
+
+ความหมาย break marker (ต่อท้าย icon):
+
+| Marker | ความหมาย |
+|---|---|
+| ↑ | break_up — close แท่งล่าสุด > SH ปัจจุบัน |
+| ↓ | break_down — close แท่งล่าสุด < SL ปัจจุบัน |
+| (ไม่มี) | ราคายังอยู่ในกรอบ SH/SL |
 
 - **ไม่ filter ตาม TF ของ chart** — panel แสดงทุก TF ที่ `per_tf_on=1` (ต่างจากเส้น trend ที่ filter ด้วย `InpOnlyChartTf`)
 - Respect `InpOnlyPerTfOn` — ถ้าเปิดจะแสดงเฉพาะ TF ที่ติ๊กใน Telegram
