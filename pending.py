@@ -61,13 +61,14 @@ async def check_fvg_pending(app):
         touched = (signal == "BUY"  and ask <= entry + 0.1) or                   (signal == "SELL" and bid >= entry - 0.1)
 
         if touched:
-            from scanner import trend_allows_signal
-            _ok, _why = trend_allows_signal(tf, signal)
-            if not _ok:
-                print(f"🧭 [{now}] FVG [{tf}] trend filter block {signal} ({_why})")
-                log_event("TREND_FILTER_BLOCK", f"block FVG {signal} ({_why})", tf=tf, sid=2, signal=signal)
-                to_remove.append(key)
-                continue
+            if config.TREND_FILTER_SCAN_BLOCK:
+                from scanner import trend_allows_signal
+                _ok, _why = trend_allows_signal(tf, signal)
+                if not _ok:
+                    print(f"🧭 [{now}] FVG [{tf}] trend filter block {signal} ({_why})")
+                    log_event("TREND_FILTER_BLOCK", f"block FVG {signal} ({_why})", tf=tf, sid=2, signal=signal)
+                    to_remove.append(key)
+                    continue
             sig_e = "🟢" if signal == "BUY" else "🔴"
             print(f"🎯 [{now}] {tf}: FVG ราคาแตะ Entry {entry}!")
             await tg(app, (
@@ -75,7 +76,7 @@ async def check_fvg_pending(app):
                     f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
                     f"\U0001f4ca \u0e23\u0e32\u0e04\u0e32\u0e22\u0e49\u0e2d\u0e19\u0e21\u0e32\u0e41\u0e15\u0e30 Entry!\n"
                     f"Gap: `{p['gap_bot']}` \u2013 `{p['gap_top']}`\n"
-                    f"\U0001f4cc Entry 90%: `{entry}`\n"
+                    f"\U0001f4cc Entry 98%: `{entry}`\n"
                     f"\U0001f6d1 SL: `{p['sl']}` | \U0001f3af TP: `{p['tp']}`\n"
                     f"\u23f3 \u0e15\u0e31\u0e49\u0e07 Limit Order..."
                 ))
@@ -198,13 +199,14 @@ async def check_pb_pending(app):
         touched = (signal == "BUY"  and ask <= entry) or                   (signal == "SELL" and bid >= entry)
 
         if touched:
-            from scanner import trend_allows_signal
-            _ok, _why = trend_allows_signal(tf, signal)
-            if not _ok:
-                print(f"🧭 [{now}] PB [{tf}] trend filter block {signal} ({_why})")
-                log_event("TREND_FILTER_BLOCK", f"block PB {signal} ({_why})", tf=tf, sid=1, signal=signal)
-                to_remove.append(key)
-                continue
+            if config.TREND_FILTER_SCAN_BLOCK:
+                from scanner import trend_allows_signal
+                _ok, _why = trend_allows_signal(tf, signal)
+                if not _ok:
+                    print(f"🧭 [{now}] PB [{tf}] trend filter block {signal} ({_why})")
+                    log_event("TREND_FILTER_BLOCK", f"block PB {signal} ({_why})", tf=tf, sid=1, signal=signal)
+                    to_remove.append(key)
+                    continue
             sig_e = "🟢" if signal == "BUY" else "🔴"
             print(f"🎯 [{now}] {tf}: Pattern B วิธี 2 — ราคาแตะ Entry {entry}!")
             await tg(app, f"{sig_e} *Pattern B \u2014 \u0e15\u0e33\u0e2b\u0e19\u0e34 (\u0e27\u0e34\u0e18\u0e35 2)*\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\U0001f4ca [{tf}] \u0e23\u0e32\u0e04\u0e32\u0e41\u0e15\u0e30 50% Body[1] \u0e02\u0e13\u0e30\u0e41\u0e17\u0e48\u0e07[0] \u0e27\u0e34\u0e48\u0e07!\n\U0001f4cc \u0e15\u0e31\u0e49\u0e07 Limit \u0e17\u0e35\u0e48: `{entry}`\n\U0001f6d1 SL: `{p['sl']}` | \U0001f3af TP: `{p['tp']}`\n\n\u23f3 \u0e01\u0e33\u0e25\u0e31\u0e07\u0e15\u0e31\u0e49\u0e07 Limit Order...")

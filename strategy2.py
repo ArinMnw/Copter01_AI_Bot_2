@@ -45,7 +45,7 @@ def detect_fvg(rates):
         if gap_size < engulf_gap:
             return None, f"FVG BUY gap เล็กเกิน ({gap_size:.2f} < {engulf_gap:.2f})"
 
-        entry = round(gap_bot + gap_size * 0.90, 2)
+        entry = round(gap_bot + gap_size * 0.98, 2)
         sl = round(l1 - SL_BUFFER(), 2)
 
         if bull0 and cl0 > h1:
@@ -89,7 +89,7 @@ def detect_fvg(rates):
         if gap_size < engulf_gap:
             return None, f"FVG SELL gap เล็กเกิน ({gap_size:.2f} < {engulf_gap:.2f})"
 
-        entry = round(gap_top - gap_size * 0.90, 2)
+        entry = round(gap_top - gap_size * 0.98, 2)
         sl = round(h1 + SL_BUFFER(), 2)
 
         if (not bull0) and cl0 < l1:
@@ -178,7 +178,7 @@ def strategy_2(rates):
             "reason": (
                 f"FVG {fvg['signal']} ตรวจพบ!\n"
                 f"Gap: {fvg['gap_bot']} - {fvg['gap_top']} ({fvg['gap_size']:.2f}pt)\n"
-                f"Entry 90%: {fvg['entry']}\n"
+                f"Entry 98%: {fvg['entry']}\n"
                 f"แท่ง[0]: {fvg.get('c3_type', '')} | {fvg['zone_note']}\n"
                 f"ตั้ง Limit ทันที"
             ),

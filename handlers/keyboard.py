@@ -55,6 +55,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     engulf_label = f"{config.ENGULF_MIN_POINTS}pt"
     lbc_on_tfs = [tf for tf, on in config.LIMIT_BREAK_CANCEL_TF.items() if on]
     lbc_label = f"ON ({len(lbc_on_tfs)}TF)" if config.LIMIT_BREAK_CANCEL else "OFF"
+    ltr_label = f"ON ({config.LIMIT_TREND_RECHECK_POINTS}pt)" if config.LIMIT_TREND_RECHECK else "OFF"
     trail_suffix = f"🟢ON | Engulf / {trail_mode_label}{' ⚡' if config.TRAIL_SL_IMMEDIATE else ''}" if config.TRAIL_SL_ENABLED else "🔴OFF"
     entry_suffix = f"🟢ON | {entry_mode_label}" if config.ENTRY_CANDLE_ENABLED else "🔴OFF"
     opp_suffix = f"🟢ON | {opp_label}" if config.OPPOSITE_ORDER_ENABLED else "🔴OFF"
@@ -852,7 +853,7 @@ def build_strategy_keyboard():
                 callback_data="set_crt_entry_mode_htf"
             ),
             InlineKeyboardButton(
-                f"{'✅' if crt_entry == 'mtf' else '⬜'} ท่า10: MTF (LTF entry)",
+                f"{'✅' if crt_entry == 'mtf' else '⬜'} ท่า10: MTF TBS (LTF entry)",
                 callback_data="set_crt_entry_mode_mtf"
             ),
         ])
@@ -1491,6 +1492,43 @@ def build_trend_filter_keyboard():
             callback_data="set_trend_filter_mode_breakout"
         ),
     ])
+    # === Scan Block ===
+    scan_block_label = "🟢 Scan Block: ON" if config.TREND_FILTER_SCAN_BLOCK else "🔴 Scan Block: OFF"
+    rows.append([InlineKeyboardButton("━ Scan Block ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(scan_block_label, callback_data="toggle_trend_filter_scan_block")])
+
+    # === Limit Trend Recheck ===
+    ltr_toggle_label = (
+        f"🟢 Limit Recheck: ON ({config.LIMIT_TREND_RECHECK_POINTS}pt)"
+        if config.LIMIT_TREND_RECHECK
+        else "🔴 Limit Recheck: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Limit Trend Recheck ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(ltr_toggle_label, callback_data="toggle_limit_trend_recheck")])
+    ltr_pt_options = [100, 200, 300, 500]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if config.LIMIT_TREND_RECHECK_POINTS == p else '⬜'} {p}pt",
+            callback_data=f"set_ltr_pts_{p}"
+        )
+        for p in ltr_pt_options
+    ])
+    # === Near Approach Cancel ===
+    nac_label = (
+        f"🟢 Near Approach Cancel: ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)"
+        if config.NEAR_APPROACH_CANCEL_ENABLED
+        else "🔴 Near Approach Cancel: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Near Approach Cancel ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(nac_label, callback_data="toggle_near_approach_cancel")])
+    nac_pt_options = [100, 200, 300, 500]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if config.NEAR_APPROACH_CANCEL_POINTS == p else '⬜'} {p}pt",
+            callback_data=f"set_nac_pts_{p}"
+        )
+        for p in nac_pt_options
+    ])
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
 
@@ -1520,13 +1558,19 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
             "🔴 BEAR strong + BREAK↑ → ผ่านทั้งคู่\n"
             "⚪ weak / SIDEWAY / UNKNOWN → ผ่านทั้งคู่"
         )
+    ltr_status = f"🟢ON ({config.LIMIT_TREND_RECHECK_POINTS}pt)" if config.LIMIT_TREND_RECHECK else "🔴OFF"
+    scan_block_status = "🟢ON" if config.TREND_FILTER_SCAN_BLOCK else "🔴OFF"
+    nac_status = f"🟢ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)" if config.NEAR_APPROACH_CANCEL_ENABLED else "🔴OFF"
     text = (
         "🧭 *Trend Filter (Scan Trend)*\n"
         "━━━━━━━━━━━━━━━━━\n"
         f"Per-TF: *{per_status}*\n"
         f"Higher TF: *{higher_status}*\n"
         f"Trail SL Override: *{trail_override_status}*\n"
-        f"Mode: *{mode_status}*\n\n"
+        f"Mode: *{mode_status}*\n"
+        f"Scan Block: *{scan_block_status}*\n"
+        f"Limit Recheck: *{ltr_status}*\n"
+        f"Near Approach Cancel: *{nac_status}*\n\n"
         "กรอง signal ตาม trend ที่คำนวณจาก swing H/L\n\n"
         f"{mode_rules}\n\n"
         "Trail SL Override: ถ้า Focus Opposite freeze อยู่ จะยอมให้ Trail SL ทำงานเมื่อ trend เปลี่ยนเป็นฝั่งตรงข้ามของ position\n"

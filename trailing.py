@@ -897,33 +897,32 @@ async def check_entry_candle_quality(app):
         if _trade_debug_enabled():
             print(f"[{now}] 🔍 entry_check: {pos_type} {ticket} state={state} fvg={bool(fvg_order_tickets.get(ticket))} pos_tf={position_tf.get(ticket)}")
 
-        if ticket in entry_focus_skip_tickets:
-            continue
-
-        if state == "done":
-            fvg_order_tickets.pop(ticket, None)
-            save_runtime_state()
-            continue
-
-        # ── แจ้งเตือน Limit fill ครั้งแรก ────────────────────
+        # ── แจ้งเตือน Limit fill ครั้งแรก (ก่อน focus skip เพื่อไม่ให้หาย) ──
         fvg_info = fvg_order_tickets.get(ticket)
         pattern_name = position_pattern.get(ticket, "") or ""
         reverse_tag = " [Reverse]" if pattern_name.startswith("Reverse ") else ""
         if ticket not in _fill_notified:
             _fill_notified[ticket] = True
             fill_time = _fmt_bkk_ts(int(pos.time))
+            _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
+            try:
+                from scanner import get_trend_label as _gtl
+                _fill_trend = _gtl(_fill_tf)
+            except Exception:
+                _fill_trend = "?"
             log_event(
                 "ENTRY_FILL",
                 "Limit fill detected",
                 ticket=ticket,
                 side=pos_type,
-                tf=position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1"),
+                tf=_fill_tf,
                 sid=position_sid.get(ticket),
                 pattern=position_pattern.get(ticket, ""),
                 price=pos.price_open,
                 sl=pos.sl,
                 tp=pos.tp,
                 fill_time=fill_time,
+                trend=_fill_trend,
             )
             await tg(app, (f"🔔 *Limit Fill — {pos_type}{reverse_tag}*\n"
                           f"{sig_e} Ticket:`{ticket}`\n"
@@ -932,6 +931,14 @@ async def check_entry_candle_quality(app):
                           f"🛑 SL: `{pos.sl:.2f}` | 🎯 TP: `{pos.tp:.2f}`\n"
                           f"🕐 Fill Time: `{fill_time}`"))
             print(f"🔔 [{now}] {pos_type} {ticket} fill={pos.price_open:.2f}")
+
+        if ticket in entry_focus_skip_tickets:
+            continue
+
+        if state == "done":
+            fvg_order_tickets.pop(ticket, None)
+            save_runtime_state()
+            continue
 
         if pos.sl == 0 and ticket in _s8_fill_sl:
             intended_sl = float(_s8_fill_sl.get(ticket, 0) or 0)
@@ -3314,6 +3321,67 @@ async def check_cancel_pending_orders(app):
                                       f"SELL pos {pos_entry:.2f} "
                                       f"& ask {ask:.2f} < {pos_entry - guard_dist:.2f} (-{config.LIMIT_GUARD_POINTS}pt)")
                             break
+
+        # ── Limit Trend Recheck: เช็ค trend ก่อน fill เมื่อราคาใกล้ entry ──
+        _order_sid = info.get("sid") if isinstance(info, dict) else None
+        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (9, 10):
+            _tick = mt5.symbol_info_tick(SYMBOL)
+            _sym  = mt5.symbol_info(SYMBOL)
+            if _tick and _sym:
+                _pt           = _sym.point or 0.01
+                _recheck_dist = config.LIMIT_TREND_RECHECK_POINTS * _pt * config.points_scale()
+                _limit_entry  = order.price_open
+                if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
+                    _cur_price    = _tick.ask
+                    _order_signal = "BUY"
+                else:
+                    _cur_price    = _tick.bid
+                    _order_signal = "SELL"
+                if abs(_cur_price - _limit_entry) <= _recheck_dist:
+                    from scanner import trend_allows_signal as _tas
+                    _allowed, _why = _tas(tf, _order_signal)
+                    if not _allowed:
+                        should_cancel = True
+                        _dist_pt = round(abs(_cur_price - _limit_entry) / _pt)
+                        reason = (
+                            f"Trend Recheck Cancel [{tf}]: {_order_signal} LIMIT entry:{_limit_entry:.2f} "
+                            f"ใกล้ {_dist_pt}pt แต่ trend={_why}"
+                        )
+
+        # ── Near Approach Cancel: ยกเลิก limit เมื่อราคาเข้าใกล้แล้วกลับตัว ──
+        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED:
+            _nac_sym = mt5.symbol_info(SYMBOL)
+            if _nac_sym:
+                _pt = _nac_sym.point or 0.01
+                _approach_dist = config.NEAR_APPROACH_CANCEL_POINTS * _pt * config.points_scale()
+                _nac_entry = order.price_open
+                _nac_lb = max(2, config.NEAR_APPROACH_CANCEL_LOOKBACK)
+                _nac_bars = list(rates[-_nac_lb:]) if len(rates) >= _nac_lb else list(rates)
+                if len(_nac_bars) >= 2:
+                    _last_bar = _nac_bars[-1]
+                    _prev_bars = _nac_bars[:-1]
+                    if order.type == mt5.ORDER_TYPE_SELL_LIMIT:
+                        _threshold = _nac_entry - _approach_dist
+                        if (any(float(b["high"]) >= _threshold for b in _prev_bars)
+                                and float(_last_bar["high"]) < _threshold):
+                            _peak = max(float(b["high"]) for b in _prev_bars)
+                            _dist_pt = round((_nac_entry - _peak) / _pt)
+                            should_cancel = True
+                            reason = (
+                                f"Near Approach Cancel [{tf}]: SELL LIMIT {_nac_entry:.2f} "
+                                f"high ขึ้นมาใกล้ {_dist_pt}pt แล้วกลับตัว"
+                            )
+                    elif order.type == mt5.ORDER_TYPE_BUY_LIMIT:
+                        _threshold = _nac_entry + _approach_dist
+                        if (any(float(b["low"]) <= _threshold for b in _prev_bars)
+                                and float(_last_bar["low"]) > _threshold):
+                            _valley = min(float(b["low"]) for b in _prev_bars)
+                            _dist_pt = round((_valley - _nac_entry) / _pt)
+                            should_cancel = True
+                            reason = (
+                                f"Near Approach Cancel [{tf}]: BUY LIMIT {_nac_entry:.2f} "
+                                f"low ลงมาใกล้ {_dist_pt}pt แล้วกลับตัว"
+                            )
 
         if isinstance(info, dict) and not info.get("sl_armed") and info.get("intended_sl"):
             _is_s8 = info.get("sid") == 8

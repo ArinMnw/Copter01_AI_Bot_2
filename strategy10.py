@@ -51,6 +51,8 @@ _TF_SECONDS = {
 # ── Armed states for MTF mode ─────────────────────────────────────
 # {htf_tf: {direction, sl_target, tp_target, armed_at, htf_tf, ltf_tf, candles, pattern_base}}
 _armed_states: dict = {}
+# track armed_at ที่เคย fire order แล้ว — ป้องกัน re-arm ด้วย HTF bar เดิม
+_last_fired_armed_at: dict = {}  # {htf_tf: armed_at}
 
 
 def _candle_dict(c):
@@ -98,96 +100,97 @@ def _strategy_10_htf(rates):
 
 
 def _strategy_10_2bar(rates):
-    parent      = rates[-2]
-    sweep_close = rates[-1]
+    if rates is None or len(rates) < 3:
+        return {"signal": "WAIT", "reason": "[2bar] ไม่มีข้อมูลเพียงพอ"}
 
-    p_high = float(parent["high"])
-    p_low  = float(parent["low"])
-    p_range = p_high - p_low
     min_range = crt_min_range_price()
-    if p_range < min_range:
-        return {
-            "signal": "WAIT",
-            "reason": f"[2bar] Parent range เล็กไป ({p_range:.2f} < {min_range:.2f})",
-        }
+    buffer    = crt_sl_buffer_price()
+    lookback  = 10  # สแกนย้อนหลังสูงสุด 10 แท่ง HTF
+    start_pi  = max(0, len(rates) - lookback)
 
-    s_open  = float(sweep_close["open"])
-    s_high  = float(sweep_close["high"])
-    s_low   = float(sweep_close["low"])
-    s_close = float(sweep_close["close"])
-    buffer  = crt_sl_buffer_price()
-    min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
+    # สแกนหา (parent, sweep) pair — sweep เป็นแท่งที่ >= 2 หลัง parent
+    # คืนค่า sweep ล่าสุดที่ valid ที่สุด (sweep index สูงสุด)
+    best_si     = -1
+    best_result = None
 
-    candles = [_candle_dict(parent), _candle_dict(sweep_close)]
+    for pi in range(start_pi, len(rates) - 1):
+        parent  = rates[pi]
+        p_high  = float(parent["high"])
+        p_low   = float(parent["low"])
+        p_range = p_high - p_low
+        if p_range < min_range:
+            continue
+        p_mid     = (p_high + p_low) / 2.0
+        min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
 
-    if s_low < p_low and s_close > p_low and s_close > s_open:
-        sweep_depth = p_low - s_low
-        if sweep_depth < min_depth:
-            return {
-                "signal": "WAIT",
-                "reason": f"[2bar BUY] Sweep ตื้นไป ({sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)",
-            }
-        # CRT 50% rule: BUY → sweep close ต้องไม่เกิน 50% ของ parent (ยังเหลือ room ขึ้น)
-        p_mid = (p_high + p_low) / 2.0
-        if s_close >= p_mid:
-            return {
-                "signal": "WAIT",
-                "reason": f"[2bar BUY] Sweep close เกิน 50% ของ parent ({s_close:.2f} >= mid:{p_mid:.2f})",
-            }
-        entry = round(s_close, 2)
-        sl    = round(s_low - buffer, 2)
-        tp    = round(p_high, 2)
-        if not (sl < entry < tp):
-            return {"signal": "WAIT", "reason": "[2bar BUY] SL/TP ไม่ valid"}
-        risk = entry - sl
-        rr = round((tp - entry) / risk, 2) if risk > 0 else 0
-        return {
-            "signal": "BUY",
-            "pattern": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
-            "entry": entry, "sl": sl, "tp": tp,
-            "order_mode": "market",
-            "reason": (
-                f"[2bar] Parent[H:{p_high:.2f} L:{p_low:.2f} range:{p_range:.2f}] "
-                f"SweepClose🟢[L:{s_low:.2f} depth:{sweep_depth:.2f} C:{s_close:.2f}>{p_low:.2f}]\n"
-                f"Entry:{entry} SL:{sl} TP:{tp} RR1:{rr}"
-            ),
-            "candles": candles,
-        }
+        for si in range(pi + 1, len(rates)):
+            if si <= best_si:
+                continue
+            sweep   = rates[si]
+            s_open  = float(sweep["open"])
+            s_high  = float(sweep["high"])
+            s_low   = float(sweep["low"])
+            s_close = float(sweep["close"])
+            candles = [_candle_dict(parent), _candle_dict(sweep)]
 
-    if s_high > p_high and s_close < p_high and s_close < s_open:
-        sweep_depth = s_high - p_high
-        if sweep_depth < min_depth:
-            return {
-                "signal": "WAIT",
-                "reason": f"[2bar SELL] Sweep ตื้นไป ({sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)",
-            }
-        # CRT 50% rule: SELL → sweep close ต้องไม่ต่ำกว่า 50% ของ parent (ยังเหลือ room ลง)
-        p_mid = (p_high + p_low) / 2.0
-        if s_close <= p_mid:
-            return {
-                "signal": "WAIT",
-                "reason": f"[2bar SELL] Sweep close เกิน 50% ของ parent ({s_close:.2f} <= mid:{p_mid:.2f})",
-            }
-        entry = round(s_close, 2)
-        sl    = round(s_high + buffer, 2)
-        tp    = round(p_low, 2)
-        if not (tp < entry < sl):
-            return {"signal": "WAIT", "reason": "[2bar SELL] SL/TP ไม่ valid"}
-        risk = sl - entry
-        rr = round((entry - tp) / risk, 2) if risk > 0 else 0
-        return {
-            "signal": "SELL",
-            "pattern": "ท่าที่ 10 CRT TBS 🔴 SELL — Sweep High (2bar)",
-            "entry": entry, "sl": sl, "tp": tp,
-            "order_mode": "market",
-            "reason": (
-                f"[2bar] Parent[H:{p_high:.2f} L:{p_low:.2f} range:{p_range:.2f}] "
-                f"SweepClose🔴[H:{s_high:.2f} depth:{sweep_depth:.2f} C:{s_close:.2f}<{p_high:.2f}]\n"
-                f"Entry:{entry} SL:{sl} TP:{tp} RR1:{rr}"
-            ),
-            "candles": candles,
-        }
+            # BUY: sweep low, ปิดกลับเข้า range, ปิดเขียว
+            if s_low < p_low and s_close > p_low and s_close > s_open:
+                sweep_depth = p_low - s_low
+                if sweep_depth < min_depth:
+                    continue
+                if s_close >= p_mid:
+                    continue
+                entry = round(s_close, 2)
+                sl    = round(s_low - buffer, 2)
+                tp    = round(p_high, 2)
+                if not (sl < entry < tp):
+                    continue
+                risk = entry - sl
+                rr   = round((tp - entry) / risk, 2) if risk > 0 else 0
+                best_si     = si
+                best_result = {
+                    "signal": "BUY",
+                    "pattern": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
+                    "entry": entry, "sl": sl, "tp": tp,
+                    "order_mode": "market",
+                    "reason": (
+                        f"[2bar] Parent[H:{p_high:.2f} L:{p_low:.2f} range:{p_range:.2f}] "
+                        f"SweepClose🟢[L:{s_low:.2f} depth:{sweep_depth:.2f} C:{s_close:.2f}>{p_low:.2f}]\n"
+                        f"Entry:{entry} SL:{sl} TP:{tp} RR1:{rr}"
+                    ),
+                    "candles": candles,
+                }
 
+            # SELL: sweep high, ปิดต่ำกว่า high ของ parent, ปิดแดง
+            elif s_high > p_high and s_close < p_high and s_close < s_open:
+                sweep_depth = s_high - p_high
+                if sweep_depth < min_depth:
+                    continue
+                if s_close <= p_mid:
+                    continue
+                entry = round(s_close, 2)
+                sl    = round(s_high + buffer, 2)
+                tp    = round(p_low, 2)
+                if not (tp < entry < sl):
+                    continue
+                risk = sl - entry
+                rr   = round((entry - tp) / risk, 2) if risk > 0 else 0
+                best_si     = si
+                best_result = {
+                    "signal": "SELL",
+                    "pattern": "ท่าที่ 10 CRT TBS 🔴 SELL — Sweep High (2bar)",
+                    "entry": entry, "sl": sl, "tp": tp,
+                    "order_mode": "market",
+                    "reason": (
+                        f"[2bar] Parent[H:{p_high:.2f} L:{p_low:.2f} range:{p_range:.2f}] "
+                        f"SweepClose🔴[H:{s_high:.2f} depth:{sweep_depth:.2f} C:{s_close:.2f}<{p_high:.2f}]\n"
+                        f"Entry:{entry} SL:{sl} TP:{tp} RR1:{rr}"
+                    ),
+                    "candles": candles,
+                }
+
+    if best_result:
+        return best_result
     return {"signal": "WAIT", "reason": "[2bar] ไม่พบ CRT TBS Setup"}
 
 
@@ -307,6 +310,7 @@ def _strategy_10_mtf(rates, tf_name: str):
             continue
         trigger = _check_ltf_trigger(rates, state, tf_name, htf)
         if trigger:
+            _last_fired_armed_at[htf] = state["armed_at"]  # กัน re-arm ด้วย bar เดิม
             _armed_states.pop(htf, None)   # consumed
             return trigger
 
@@ -329,6 +333,9 @@ def _arm_htf_state(htf_result, htf_tf: str, rates):
     if rates is None or len(rates) == 0:
         return
     last_bar = rates[-1]
+    new_armed_at = int(last_bar["time"])
+    if new_armed_at == _last_fired_armed_at.get(htf_tf):
+        return  # HTF bar นี้เคย fire order ไปแล้ว — ไม่ re-arm
     _armed_states[htf_tf] = {
         "direction":    htf_result["signal"],
         "sl_target":    float(htf_result["sl"]),
@@ -420,10 +427,10 @@ def _calc_model1_ob(rates, engulf_idx: int, direction: str, armed_at: int):
 
 def _calc_model2_fvg(rates, engulf_idx: int, direction: str):
     """
-    Model 2 — FVG 90% (concept จาก S2 — ไม่เรียก S2 จริง)
+    Model 2 — FVG 98% (concept จาก S2 — ไม่เรียก S2 จริง)
     3-bar imbalance: B1=engulf_idx-2, B2=engulf_idx-1, B3=engulf_idx
-    Bullish FVG: B1.high < B3.low → entry @ 90% (ลึกใน gap, ใกล้ B1.high)
-    Bearish FVG: B1.low > B3.high → entry @ 90% (ลึกใน gap, ใกล้ B1.low)
+    Bullish FVG: B1.high < B3.low → entry @ 98% (ลึกใน gap, ใกล้ B1.high)
+    Bearish FVG: B1.low > B3.high → entry @ 98% (ลึกใน gap, ใกล้ B1.low)
     """
     if engulf_idx < 2:
         return None
@@ -436,13 +443,13 @@ def _calc_model2_fvg(rates, engulf_idx: int, direction: str):
     if direction == "BUY":
         # Bullish FVG: gap ระหว่าง [b1.high, b3.low]
         if b3_low > b1_high:
-            # 90% deep = ใกล้ b1.high (ราคา retrace ลงลึก)
-            return b3_low - 0.9 * (b3_low - b1_high)
+            # 98% deep = ใกล้ b1.high (ราคา retrace ลงลึก)
+            return b3_low - 0.98 * (b3_low - b1_high)
     else:
         # Bearish FVG: gap ระหว่าง [b3.high, b1.low]
         if b1_low > b3_high:
-            # 90% deep = ใกล้ b1.low (ราคา retrace ขึ้นลึก)
-            return b3_high + 0.9 * (b1_low - b3_high)
+            # 98% deep = ใกล้ b1.low (ราคา retrace ขึ้นลึก)
+            return b3_high + 0.98 * (b1_low - b3_high)
     return None
 
 
@@ -473,7 +480,7 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
     Phase 2: engulfing บน LTF เพื่อหา entry
     Models:
       #1 Order Block (recommended) — entry @ OB.open
-      #2 FVG 90%                   — entry ลึกใน FVG
+      #2 FVG 98%                   — entry ลึกใน FVG
       #3 MSS swing point           — confirmation only (log)
     เลือก Model 1 ก่อน, fallback Model 2
     """
@@ -506,15 +513,11 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
     m2_entry = _calc_model2_fvg(rates, engulf_idx, direction)
     m3_level = _calc_model3_mss(rates, engulf_idx, direction, armed_at)
 
-    # เลือก Model 1 ก่อน, fallback Model 2
-    if m1_entry is not None:
-        entry_raw = m1_entry
-        model_used = 1
-    elif m2_entry is not None:
-        entry_raw = m2_entry
-        model_used = 2
-    else:
+    # ต้องครบทั้ง 3 model — Model 1 เป็น entry, Model 2/3 เป็น confirmation
+    if m1_entry is None or m2_entry is None or m3_level is None:
         return None
+    entry_raw = m1_entry
+    model_used = 1
 
     sl = round(float(state["sl_target"]), 2)
     entry = round(entry_raw, 2)
@@ -546,14 +549,14 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
         "tp":         tp,
         "order_mode": "limit",
         "entry_label": "BUY LIMIT ที่" if direction == "BUY" else "SELL LIMIT ที่",
-        "pattern":    f"ท่าที่ 10 CRT TBS {sig_e} {direction} — MTF [{htf_tf}→{ltf_tf}] Model{model_used}",
+        "pattern":    f"ท่าที่ 10 CRT TBS {sig_e} {direction} — MTF TBS [{htf_tf}→{ltf_tf}] Model{model_used}",
         "reason": (
             f"[MTF {htf_tf}→{ltf_tf}] HTF armed at bar={armed_at}\n"
             f"Parent[H:{parent_high:.2f} L:{parent_low:.2f}]\n"
             f"Phase 1 (failed-push): bar={phase1_idx} close={p1_close:.2f}\n"
             f"Phase 2 (engulfing): bar={engulf_idx} close={eng_close:.2f}\n"
             f"Model 1 (OB.open):  {m1_str}\n"
-            f"Model 2 (FVG 90%):  {m2_str}\n"
+            f"Model 2 (FVG 98%):  {m2_str}\n"
             f"Model 3 (MSS):      {m3_str}\n"
             f"USING Model {model_used} = {entry} | SL:{sl} | TP:{tp} | RR1:{rr}"
         ),
@@ -567,5 +570,7 @@ def reset_mtf_state(htf_tf: str = ""):
     """Reset armed state — เรียกตอน position close หรือ user สั่ง"""
     if htf_tf:
         _armed_states.pop(htf_tf, None)
+        _last_fired_armed_at.pop(htf_tf, None)
     else:
         _armed_states.clear()
+        _last_fired_armed_at.clear()

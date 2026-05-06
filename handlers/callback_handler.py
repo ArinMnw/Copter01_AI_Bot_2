@@ -817,6 +817,38 @@ async def handle_callback(update, ctx):
         await show_main_settings_menu(query, is_query=True)
         await query.answer(f"Delay SL: {label}")
 
+    elif data == "toggle_trend_filter_scan_block":
+        config.TREND_FILTER_SCAN_BLOCK = not config.TREND_FILTER_SCAN_BLOCK
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Scan Block: {'ON' if config.TREND_FILTER_SCAN_BLOCK else 'OFF'}")
+
+    elif data == "toggle_limit_trend_recheck":
+        config.LIMIT_TREND_RECHECK = not config.LIMIT_TREND_RECHECK
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Trend Recheck: {'ON' if config.LIMIT_TREND_RECHECK else 'OFF'}")
+
+    elif data.startswith("set_ltr_pts_"):
+        pts = int(data.replace("set_ltr_pts_", ""))
+        config.LIMIT_TREND_RECHECK_POINTS = pts
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Trend Recheck: {pts}pt")
+
+    elif data == "toggle_near_approach_cancel":
+        config.NEAR_APPROACH_CANCEL_ENABLED = not config.NEAR_APPROACH_CANCEL_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Near Approach Cancel: {'ON' if config.NEAR_APPROACH_CANCEL_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_nac_pts_"):
+        pts = int(data.replace("set_nac_pts_", ""))
+        config.NEAR_APPROACH_CANCEL_POINTS = pts
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Near Approach Cancel: {pts}pt")
+
     elif data == "toggle_limit_break_cancel":
         config.LIMIT_BREAK_CANCEL = not config.LIMIT_BREAK_CANCEL
         save_runtime_state()

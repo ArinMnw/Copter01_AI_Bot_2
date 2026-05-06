@@ -156,6 +156,12 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
     if cur_rsi is None or prev_rsi is None:
         return None
 
+    # cur pivot ต้องเป็น low ต่ำสุดในช่วง prev→cur (ไม่มีแท่งระหว่างกลางทำ low ต่ำกว่า)
+    if cur_idx > prev_idx + 1:
+        min_low_between = min(float(rates[i]["low"]) for i in range(prev_idx + 1, cur_idx))
+        if min_low_between < cur_price_low:
+            return None
+
     if hidden:
         matched = cur_price_low > prev_price_low and cur_rsi < prev_rsi
         pattern_name = "Hidden Bullish"
@@ -170,10 +176,8 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
     if not matched:
         return None
 
-    # Limit entry @ 50% (midpoint) ของแท่ง cur pivot — รอ pullback กลับมาแตะ
-    cur_high = float(rates[cur_idx]["high"])
-    cur_low  = float(rates[cur_idx]["low"])
-    entry = round((cur_high + cur_low) / 2.0, 2)
+    # Limit entry @ low ของแท่ง cur pivot — รอ pullback กลับมาแตะ
+    entry = round(cur_price_low, 2)
     sl = round(cur_price_low - SL_BUFFER(), 2)
     if sl >= entry:
         return None
@@ -190,7 +194,7 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
             f"RSI({period}, {applied_price}) Pivot Low ปัจจุบัน:`{_fmt_rsi(cur_rsi)}` {rsi_cmp} ก่อนหน้า:`{_fmt_rsi(prev_rsi)}`\n"
             f"Price Low ปัจจุบัน:`{cur_price_low:.2f}` {price_cmp} ก่อนหน้า:`{prev_price_low:.2f}`\n"
             f"Pivot Left/Right: `{left}/{right}` | Lookback Range: `{min_range}-{max_range}` bars\n"
-            f"BUY LIMIT @ 50% ของแท่ง pivot [H:{cur_high:.2f} L:{cur_low:.2f}] = `{entry:.2f}` | SL: `{sl:.2f}`"
+            f"BUY LIMIT @ Low ของแท่ง pivot = `{entry:.2f}` | SL: `{sl:.2f}`"
         ),
         "order_mode": "limit",
         "entry_label": "BUY LIMIT ที่",
@@ -226,6 +230,12 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
     if cur_rsi is None or prev_rsi is None:
         return None
 
+    # cur pivot ต้องเป็น high สูงสุดในช่วง prev→cur (ไม่มีแท่งระหว่างกลางทำ high สูงกว่า)
+    if cur_idx > prev_idx + 1:
+        max_high_between = max(float(rates[i]["high"]) for i in range(prev_idx + 1, cur_idx))
+        if max_high_between > cur_price_high:
+            return None
+
     if hidden:
         matched = cur_price_high < prev_price_high and cur_rsi > prev_rsi
         pattern_name = "Hidden Bearish"
@@ -240,10 +250,8 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
     if not matched:
         return None
 
-    # Limit entry @ 50% (midpoint) ของแท่ง cur pivot — รอ pullback กลับมาแตะ
-    cur_high = float(rates[cur_idx]["high"])
-    cur_low  = float(rates[cur_idx]["low"])
-    entry = round((cur_high + cur_low) / 2.0, 2)
+    # Limit entry @ high ของแท่ง cur pivot — รอ pullback กลับมาแตะ
+    entry = round(cur_price_high, 2)
     sl = round(cur_price_high + SL_BUFFER(), 2)
     if sl <= entry:
         return None
@@ -260,7 +268,7 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
             f"RSI({period}, {applied_price}) Pivot High ปัจจุบัน:`{_fmt_rsi(cur_rsi)}` {rsi_cmp} ก่อนหน้า:`{_fmt_rsi(prev_rsi)}`\n"
             f"Price High ปัจจุบัน:`{cur_price_high:.2f}` {price_cmp} ก่อนหน้า:`{prev_price_high:.2f}`\n"
             f"Pivot Left/Right: `{left}/{right}` | Lookback Range: `{min_range}-{max_range}` bars\n"
-            f"SELL LIMIT @ 50% ของแท่ง pivot [H:{cur_high:.2f} L:{cur_low:.2f}] = `{entry:.2f}` | SL: `{sl:.2f}`"
+            f"SELL LIMIT @ High ของแท่ง pivot = `{entry:.2f}` | SL: `{sl:.2f}`"
         ),
         "order_mode": "limit",
         "entry_label": "SELL LIMIT ที่",

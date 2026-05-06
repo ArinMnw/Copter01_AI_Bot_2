@@ -316,7 +316,7 @@ active_strategies = {
     8: False,  # ท่าที่ 8: กินไส้ Swing (limit ที่ swing high/low)
     9: True,   # ท่าที่ 9: RSI Divergence
     10: True,  # ท่าที่ 10: CRT TBS (Candle Range Theory + Three Bar Sweep)
-    11: False, # ท่าที่ 11: Fibo S1 (Fibonacci expansion จาก S1 pattern)
+    11: True,  # ท่าที่ 11: Fibo S1 (Fibonacci expansion จาก S1 pattern)
 }
 
 STRATEGY_NAMES = {
@@ -384,7 +384,7 @@ LIMIT_GUARD_TF_MODE = "combined"  # "separate" = เฉพาะ TF เดีย
 ENGULF_MIN_POINTS = 100  # จำนวนจุดขั้นต่ำที่ close ต้องทะลุ high/low เดิมเพื่อถือว่า "กลืนกิน"
 
 # ลบ LIMIT เมื่อแท่งยืนยันทะลุ TP/SL ตาม TF ที่เลือก
-LIMIT_BREAK_CANCEL = True
+LIMIT_BREAK_CANCEL = False
 LIMIT_BREAK_CANCEL_TF = {
     "M1":  True,
     "M5":  True,
@@ -395,6 +395,19 @@ LIMIT_BREAK_CANCEL_TF = {
     "H12": True,
     "D1":  True,
 }
+
+# ── Limit Trend Recheck: เช็ค trend ก่อน fill เมื่อราคาใกล้ entry ──
+# ถ้า trend เปลี่ยนสวนทาง order ภายในระยะ N จุด → ยกเลิก limit
+LIMIT_TREND_RECHECK = True
+LIMIT_TREND_RECHECK_POINTS = 300  # ระยะห่างจาก entry (points) ที่จะเริ่ม recheck
+TREND_FILTER_SCAN_BLOCK = False   # False = ไม่ block ตอน scan ให้ Limit Recheck จัดการแทน
+
+# ── Near Approach Cancel: ยกเลิก limit เมื่อราคาเข้าใกล้แล้วกลับตัว ──
+# SELL LIMIT: high เข้ามาใน N pt ของ entry แล้ว bar ถัดไปกลับออก → ยกเลิก
+# BUY LIMIT:  low เข้ามาใน N pt ของ entry แล้ว bar ถัดไปกลับออก → ยกเลิก
+NEAR_APPROACH_CANCEL_ENABLED = True
+NEAR_APPROACH_CANCEL_POINTS = 300  # ระยะใกล้สุดที่ถือว่า "เข้าใกล้" (points)
+NEAR_APPROACH_CANCEL_LOOKBACK = 3  # จำนวน bars ย้อนหลังที่ตรวจ approach
 
 # ── Limit Sweep ──────────────────────────────────────────────
 # เมื่อ position ถูก fill แล้วแท่งจบสวนทาง (BUY→แดง close<prevLow / SELL→เขียว close>prevHigh)
@@ -467,7 +480,7 @@ TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = True
 #                BULL strong + ไม่ break_down → BUY only / + break_down → ผ่านทั้งคู่
 #                BEAR strong + ไม่ break_up   → SELL only / + break_up   → ผ่านทั้งคู่
 #                weak / sideway / unknown → ผ่านทั้งคู่
-TREND_FILTER_MODE = "basic"
+TREND_FILTER_MODE = "breakout"
 
 # ── Strategy 10: CRT TBS — runtime mode (constants ที่ helper ใช้ภายหลังอยู่ด้านล่าง) ──
 # Bar mode: "2bar" (classic CRT — sweep+close ในแท่งเดียว) หรือ "3bar" (TBS — sweep+confirm แยก)
@@ -564,6 +577,8 @@ _RUNTIME_DEFAULTS = {
     "ENGULF_MIN_POINTS": ENGULF_MIN_POINTS,
     "LIMIT_BREAK_CANCEL": LIMIT_BREAK_CANCEL,
     "LIMIT_BREAK_CANCEL_TF": copy.deepcopy(LIMIT_BREAK_CANCEL_TF),
+    "LIMIT_TREND_RECHECK": LIMIT_TREND_RECHECK,
+    "LIMIT_TREND_RECHECK_POINTS": LIMIT_TREND_RECHECK_POINTS,
     "LIMIT_SWEEP": LIMIT_SWEEP,
     "DELAY_SL_MODE": DELAY_SL_MODE,
     "TRAIL_SL_IMMEDIATE": TRAIL_SL_IMMEDIATE,
@@ -588,6 +603,9 @@ _RUNTIME_DEFAULTS = {
     "RSI9_PLOT_HIDDEN_BULLISH": RSI9_PLOT_HIDDEN_BULLISH,
     "RSI9_PLOT_BEARISH": RSI9_PLOT_BEARISH,
     "RSI9_PLOT_HIDDEN_BEARISH": RSI9_PLOT_HIDDEN_BEARISH,
+    "NEAR_APPROACH_CANCEL_ENABLED": NEAR_APPROACH_CANCEL_ENABLED,
+    "NEAR_APPROACH_CANCEL_POINTS": NEAR_APPROACH_CANCEL_POINTS,
+    "NEAR_APPROACH_CANCEL_LOOKBACK": NEAR_APPROACH_CANCEL_LOOKBACK,
     "TF_ACTIVE": copy.deepcopy(TF_ACTIVE),
     "TF_CURRENT": TF_CURRENT,
 }
@@ -723,6 +741,11 @@ def save_runtime_state():
             "engulf_min_points": ENGULF_MIN_POINTS,
             "limit_break_cancel": LIMIT_BREAK_CANCEL,
             "limit_break_cancel_tf": LIMIT_BREAK_CANCEL_TF,
+            "limit_trend_recheck": LIMIT_TREND_RECHECK,
+            "limit_trend_recheck_points": LIMIT_TREND_RECHECK_POINTS,
+            "trend_filter_scan_block": TREND_FILTER_SCAN_BLOCK,
+            "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
+            "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
             "trail_sl_immediate": TRAIL_SL_IMMEDIATE,
             "trail_sl_enabled": TRAIL_SL_ENABLED,
             "trail_sl_focus_new_enabled": TRAIL_SL_FOCUS_NEW_ENABLED,
@@ -817,7 +840,10 @@ def restore_runtime_state():
         global TG_QUEUE_DEBUG, SLTP_AUDIT_DEBUG, TRADE_DEBUG, OPPOSITE_ORDER_MODE
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
         global LIMIT_GUARD, LIMIT_GUARD_POINTS, LIMIT_GUARD_TF_MODE, ENGULF_MIN_POINTS
-        global LIMIT_BREAK_CANCEL, LIMIT_BREAK_CANCEL_TF, TRAIL_SL_IMMEDIATE, LIMIT_SWEEP
+        global LIMIT_BREAK_CANCEL, LIMIT_BREAK_CANCEL_TF, LIMIT_TREND_RECHECK, LIMIT_TREND_RECHECK_POINTS
+        global TREND_FILTER_SCAN_BLOCK
+        global NEAR_APPROACH_CANCEL_ENABLED, NEAR_APPROACH_CANCEL_POINTS
+        global TRAIL_SL_IMMEDIATE, LIMIT_SWEEP
         global DELAY_SL_MODE
         global FVG_NORMAL, FVG_PARALLEL
         global TRAIL_SL_ENABLED, ENTRY_CANDLE_ENABLED, OPPOSITE_ORDER_ENABLED
@@ -854,6 +880,15 @@ def restore_runtime_state():
             for tf_name in LIMIT_BREAK_CANCEL_TF:
                 if tf_name in saved_lbc_tf:
                     LIMIT_BREAK_CANCEL_TF[tf_name] = bool(saved_lbc_tf[tf_name])
+        LIMIT_TREND_RECHECK = bool(state.get("limit_trend_recheck", LIMIT_TREND_RECHECK))
+        saved_ltr_pts = state.get("limit_trend_recheck_points")
+        if saved_ltr_pts is not None:
+            LIMIT_TREND_RECHECK_POINTS = int(saved_ltr_pts)
+        TREND_FILTER_SCAN_BLOCK = bool(state.get("trend_filter_scan_block", TREND_FILTER_SCAN_BLOCK))
+        NEAR_APPROACH_CANCEL_ENABLED = bool(state.get("near_approach_cancel_enabled", NEAR_APPROACH_CANCEL_ENABLED))
+        saved_nac_pts = state.get("near_approach_cancel_points")
+        if saved_nac_pts is not None:
+            NEAR_APPROACH_CANCEL_POINTS = int(saved_nac_pts)
         TRAIL_SL_IMMEDIATE = bool(state.get("trail_sl_immediate", TRAIL_SL_IMMEDIATE))
         TRAIL_SL_ENABLED = bool(state.get("trail_sl_enabled", TRAIL_SL_ENABLED))
         TRAIL_SL_FOCUS_NEW_ENABLED = bool(state.get("trail_sl_focus_new_enabled", TRAIL_SL_FOCUS_NEW_ENABLED))
@@ -1078,7 +1113,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 f"{sig_e} *FVG {fvg['signal']} ตรวจพบ! [{tf_name}]*\n"
                 f"Gap: `{fvg['gap_bot']}` – `{fvg['gap_top']}`\n"
                 f"แท่ง[3]: {fvg.get('c3_type','')}\n"
-                f"📌 Entry 90%: `{fvg['entry']}`\n"
+                f"📌 Entry 98%: `{fvg['entry']}`\n"
                 f"🛑 SL: `{fvg['sl']}` | 🎯 TP: `{tp}`\n"
                 f"({tp_note})\n"
                 f"\n⏳ รอราคาย้อนมาแตะ Entry..."
@@ -1198,13 +1233,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         )
         return True
     elif order.get("skipped"):
-        # ราคาผ่าน Entry ไปแล้ว — แจ้งเตือนแบบ soft (ไม่ใช่ error)
         print(f"⏭️ [{now}] {tf_name}: {order['error'][:60]}")
-        await app.bot.send_message(
-            chat_id=MY_USER_ID,
-            text=f"⏭️ *[{tf_name}] ราคาผ่าน Entry ไปแล้ว*\n`{order['error']}`",
-            parse_mode="Markdown"
-        )
         return False
     else:
         await app.bot.send_message(

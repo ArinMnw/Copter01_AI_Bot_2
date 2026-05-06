@@ -330,20 +330,23 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
         trend = sw.get("trend") or {}
         t = trend.get("trend", "UNKNOWN")
         if mode == "breakout":
-            strength = trend.get("strength", "-")
-            if strength != "strong":
+            if t not in ("BULL", "BEAR"):
                 return True, ""
             breakout = sw.get("breakout") or {}
             if t == "BULL":
                 if breakout.get("break_down"):
-                    return True, ""
-                if signal == "SELL":
-                    return False, f"{ref_tf} BULL"
+                    if signal == "BUY":
+                        return False, f"{ref_tf} BULL break_down"
+                else:
+                    if signal == "SELL":
+                        return False, f"{ref_tf} BULL"
             elif t == "BEAR":
                 if breakout.get("break_up"):
-                    return True, ""
-                if signal == "BUY":
-                    return False, f"{ref_tf} BEAR"
+                    if signal == "SELL":
+                        return False, f"{ref_tf} BEAR break_up"
+                else:
+                    if signal == "BUY":
+                        return False, f"{ref_tf} BEAR"
             return True, ""
         # basic mode
         if t == "BULL" and signal == "SELL":
@@ -363,6 +366,17 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
             if not ok:
                 return False, why
     return True, ""
+
+
+def get_trend_label(tf_name: str) -> str:
+    """คืน trend label ของ TF นั้น เช่น 'BULL (strong)', 'BEAR (weak)', 'SIDEWAY'"""
+    sw = _swing_data.get(tf_name)
+    if not sw:
+        return "?"
+    trend = sw.get("trend") or {}
+    t = trend.get("trend", "UNKNOWN")
+    s = trend.get("strength", "")
+    return f"{t} ({s})" if s and s != "-" else t
 
 
 def _trend_filter_setup_note(tf_name: str) -> str:
@@ -676,7 +690,7 @@ async def check_s3_maru_pending(app):
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
                 _s3_prev = config.last_traded_sid_tf.get(tf, {}).get(3)
                 _s3_adj = _s3_prev and has_previous_bar_trade(tf, candle_time) and (candle_time - _s3_prev) == TF_SECONDS_MAP.get(tf, 0)
-                if not _s3_ok:
+                if config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
                     print(f"🧭 [{now}] ท่า3 BUY Maru [{tf}] trend filter block ({_s3_why})")
                     log_event("TREND_FILTER_BLOCK", f"block S3 Maru {direction} ({_s3_why})", tf=tf, sid=3, signal=direction)
                 elif _s3_adj:
@@ -720,7 +734,7 @@ async def check_s3_maru_pending(app):
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
                 _s3_prev = config.last_traded_sid_tf.get(tf, {}).get(3)
                 _s3_adj = _s3_prev and has_previous_bar_trade(tf, candle_time) and (candle_time - _s3_prev) == TF_SECONDS_MAP.get(tf, 0)
-                if not _s3_ok:
+                if config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
                     print(f"🧭 [{now}] ท่า3 SELL Maru [{tf}] trend filter block ({_s3_why})")
                     log_event("TREND_FILTER_BLOCK", f"block S3 Maru {direction} ({_s3_why})", tf=tf, sid=3, signal=direction)
                 elif _s3_adj:
@@ -1084,7 +1098,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         fvg     = r2["fvg"]
         fvg_key = f"{tf_name}_{last_candle_time}"
         _s2_allowed, _s2_why = trend_allows_signal(tf_name, fvg["signal"])
-        if not _s2_allowed:
+        if config.TREND_FILTER_SCAN_BLOCK and not _s2_allowed:
             _print_skip_once(
                 tf_name,
                 f"🧭 [{now}] {tf_label(tf_name)} ท่า2 FVG: trend filter block {fvg['signal']} ({_s2_why})"
@@ -1146,9 +1160,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             # คำนวณ entry จาก final gap
             gap_size   = final_gap_top - final_gap_bot
             if fvg["signal"] == "BUY":
-                final_entry = round(final_gap_bot + gap_size * 0.90, 2)
+                final_entry = round(final_gap_bot + gap_size * 0.98, 2)
             else:
-                final_entry = round(final_gap_top - gap_size * 0.90, 2)
+                final_entry = round(final_gap_top - gap_size * 0.98, 2)
             tf_label_str = "+".join(parallel_tfs) if len(parallel_tfs) > 1 else tf_name
             fvg_tp = get_existing_tp(fvg["signal"], final_entry, tf_name) or tp
             order  = open_order(fvg["signal"], get_volume(), fvg["sl"], fvg_tp, entry_price=final_entry, tf=tf_name, sid=2, pattern=fvg["pattern"], parallel_tfs=parallel_tfs)
@@ -1495,8 +1509,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         reason_flat = " | ".join(line.strip() for line in raw_reason.splitlines() if line.strip())
         if signal == "WAIT":
             continue
-        # S10 CRT TBS เป็น counter-trend reversal — bypass trend filter
-        if sid != 10:
+        # S9 RSI Divergence และ S10 CRT TBS bypass trend filter
+        if sid not in (9, 10) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(
@@ -1688,14 +1702,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 parse_mode="Markdown"
             )
         elif order.get("skipped"):
-            err_flat = order["error"].replace("\n", " | ")
-            print(f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: Entry {signal} ผ่านไปแล้ว | Entry:{entry} | {err_flat[:80]}")
-            await _notify_skip_once(
-                app,
-                f"{tf_name}|sid{sid}|{signal}|entry_passed",
-                f"⏭️ *[{tf_name}] ท่า{sid} ราคาผ่าน Entry ไปแล้ว*\n`{order['error']}`",
-                tf_name=tf_name,
-                log_message=f"sid={sid} signal={signal} entry={entry} sl={sl} tp={tp} {err_flat}",
+            _print_skip_once(
+                tf_name,
+                f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: Entry {signal} ผ่านไปแล้ว | Entry:{entry}",
             )
         else:
             err = order.get('error','')

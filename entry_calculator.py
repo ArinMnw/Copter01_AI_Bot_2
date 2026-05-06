@@ -93,13 +93,13 @@ def calc_tp_sl_s1_sell_C(rates, o1, h1, l1, cl1):
 def calc_tp_sl_s2_buy(rates, gap_bot, gap_top, h1, l2):
     """
     ท่าที่ 2 FVG BUY
-    Entry = High[1] + Gap × 0.90   (90% ของ Gap)
+    Entry = High[1] + Gap × 0.98   (98% ของ Gap)
     SL    = Low[2] - SL_BUFFER     (ใต้ Imbalance candle)
     TP    = Swing High ย่อย/หลัก ที่ RR≥1:1 | fallback RR 1:1
     Gap   = gap_top - gap_bot (Low[3] - High[1])
     """
     gap      = gap_top - gap_bot
-    entry    = round(gap_bot + gap * 0.90, 2)   # High[1] + Gap*0.90
+    entry    = round(gap_bot + gap * 0.98, 2)   # High[1] + Gap*0.98
     sl       = round(l2 - SL_BUFFER(), 2)
     tp_swing = find_swing_tp(rates, "BUY", entry, sl)
     tp       = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
@@ -110,13 +110,13 @@ def calc_tp_sl_s2_buy(rates, gap_bot, gap_top, h1, l2):
 def calc_tp_sl_s2_sell(rates, gap_bot, gap_top, l1, h2):
     """
     ท่าที่ 2 FVG SELL
-    Entry = Low[1] - Gap × 0.90   (90% ของ Gap)
+    Entry = Low[1] - Gap × 0.98   (98% ของ Gap)
     SL    = High[2] + SL_BUFFER   (เหนือ Imbalance candle)
     TP    = Swing Low ย่อย/หลัก ที่ RR≥1:1 | fallback RR 1:1
     Gap   = gap_top - gap_bot (Low[1] - High[3])
     """
     gap      = gap_top - gap_bot
-    entry    = round(gap_top - gap * 0.90, 2)   # Low[1] - Gap*0.90
+    entry    = round(gap_top - gap * 0.98, 2)   # Low[1] - Gap*0.98
     sl       = round(h2 + SL_BUFFER(), 2)
     tp_swing = find_swing_tp(rates, "SELL", entry, sl)
     tp       = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
