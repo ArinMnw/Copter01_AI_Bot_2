@@ -54,7 +54,7 @@ run.bat
 | config, symbol, strategy toggle | `config.py` |
 | scan signal, create order, order message | `scanner.py` |
 | trailing, state machine, post-fill lifecycle | `trailing.py` |
-| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py` |
+| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py` |
 | swing helper | `strategy4.py` |
 | คำนวณ entry / TP / SL | `entry_calculator.py` |
 | utility ฝั่ง MT5 | `mt5_utils.py` |
@@ -67,7 +67,7 @@ run.bat
 - `config.py`: config หลัก, symbol settings, strategy flags และ helper สำหรับ persist state
 - `scanner.py`: scan pattern, สร้าง order และส่งข้อความ order
 - `trailing.py`: lifecycle หลัง fill, trailing SL, entry quality, S6, S6i
-- `strategy1.py` - `strategy5.py`, `strategy8.py`: logic ของแต่ละท่า
+- `strategy1.py` - `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`: logic ของแต่ละท่า
 - `strategy4.py`: helper หา swing ที่หลายจุดเรียกใช้ร่วมกัน
 - `entry_calculator.py`: logic กลางสำหรับ entry / TP / SL
 - `mt5_utils.py`: utility ติดต่อ MT5
@@ -162,6 +162,31 @@ state ที่เกี่ยวข้องใน `config.py`:
 
 - กินไส้ Swing
 - มี logic พิเศษเรื่อง limit, sweep และ arm SL
+
+### ท่าที่ 9
+
+- RSI Divergence (Regular + Hidden)
+- ใช้ pivot RSI แบบเดียวกับ `RSIDivergencePane.mq5`
+- entry = `LIMIT @ midpoint` ของแท่ง pivot ปัจจุบัน
+
+### ท่าที่ 10
+
+- CRT TBS — Candle Range Theory + Three Bar Sweep
+- bypass trend filter (`if sid != 10:`)
+- HTF filters: parent range, sweep depth ≥ 10%, sweep close < 50% ของ parent
+- สอง mode:
+  - `htf` (Entry Model 2): market entry ทันที่ HTF sweep ปิด — M15+ เท่านั้น
+  - `mtf` (Entry Model 3, CRT TBS Classic): Phase 1 failed-push + Phase 2 engulf + 3 Models (OB/FVG/MSS) → LIMIT entry
+- MTF Models: Model 1 OB (recommended) → fallback Model 2 FVG 90% → Model 3 MSS (log only)
+- `_armed_states` persist ลง `bot_state.json` (key `s10_armed_states`)
+- Comment: HTF = `Bot_<TF>_S10_CRT`, MTF = `Bot_[<HTF>-<LTF>]_S10_CRT`
+
+### ท่าที่ 11
+
+- Fibo S1 — ตี Fibo บน anchor ของ S1 pattern
+- รอ wick แตะ trigger level → LIMIT
+- 6 ระดับหลัก: KRH1/KRH2/KRH3 (trigger), 50%/KRH1 (entry), 7.044 (TP), -0.31 (SL)
+- ไม่ persist phase — รอ S1 fire ใหม่หลัง restart
 
 ## จุดเริ่มเวลาตามบั๊ก
 

@@ -16,6 +16,8 @@
 - `_entry_state`: state ของ entry candle แยกตาม ticket
 - `_s6_state`: state ของท่า 6
 - `_s6i_state`: state ของ S6i
+- `_armed_states` (`strategy10.py`): per-HTF armed state ของท่า 10 MTF mode — เก็บ `direction, sl_target, tp_target, armed_at, htf_tf, ltf_tf, candles, pattern_base`
+- `_s11_state` (`strategy11.py`): per-TF anchor + phase ของท่า 11 (ไม่ persist)
 
 ## การบันทึก state
 
@@ -37,3 +39,13 @@
 - `ENTRY_CANDLE_UPDATE_TP`: toggle ตรงจากหน้าหลัก
 - `LIMIT_SWEEP`: toggle ตรงจากหน้าหลัก
 - `DELAY_SL_MODE`: `off` / `time` / `price`
+
+State อื่น ๆ ที่ persist:
+
+- `s10_armed_states`: snapshot ของ `_armed_states` ใน `strategy10.py` (in-place restore)
+
+## BTC Lot / Points Scaling
+
+- helper `points_scale()` ใน `config.py` คืน `4.0` สำหรับ `BTCUSD.iux` ส่วน symbol อื่น = `1.0`
+- ใช้ scale lot (`get_volume()`) และระยะ point ทุกจุด (engulf min, CRT min/buffer, trailing offsets)
+- Telegram UI ยังเห็นค่า config ของ XAUUSD เป็น base — scaling ทำหลังบ้านเท่านั้น

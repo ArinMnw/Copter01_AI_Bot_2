@@ -12,6 +12,9 @@
 - `6`: trail logic สำหรับ position จากท่า 2/3
 - `7`: S6i independent swing logic
 - `8`: กินไส้ Swing
+- `9`: RSI Divergence
+- `10`: CRT TBS (Candle Range Theory + Three Bar Sweep)
+- `11`: Fibo S1
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -234,31 +237,214 @@ SELL:
 - ตอนนี้ล็อกให้ตรงกับ pane บน MT5 เป็น `close`
 - ถ้าจะเปลี่ยน period ของท่า 9 ต้องเปลี่ยนทั้ง `config.py` และ compile `RSIDivergencePane.mq5` ใหม่ให้ตรงกัน
 
-### BUY
+### Pivot detection
 
-- หา `Swing Low` ปัจจุบัน และ `Swing Low` ก่อนหน้า
-- เอาค่า RSI ที่ bar ของ swing low ทั้งสองจุดมาเทียบกัน
-- ต้องเป็น `RSI low ปัจจุบัน > RSI low ก่อนหน้า`
-- และราคาเข้าได้ 2 แบบ:
-  - `HL`: low ปัจจุบันสูงกว่า low ก่อนหน้า
-  - `LL แต่ยังไม่ MSS`: low ปัจจุบันต่ำกว่า low ก่อนหน้า แต่ close ล่าสุดยังไม่ปิดเหนือ swing high ก่อนหน้า
-- ถ้าผ่าน จะตั้ง `BUY STOP = swing high ก่อนหน้า + buffer`
-- `SL = swing low ปัจจุบัน - buffer`
-- `TP = swing TP` ถ้าหาได้ ไม่งั้น fallback `RR 1:1`
+- ใช้ pivot RSI แบบเดียวกับ TV / `RSIDivergencePane.mq5`
+- pivot left = `RSI9_LEFT` (default 5), pivot right = `RSI9_RIGHT` (default 5)
+- หา pivot คู่ติดกัน (immediate previous pivot only) ภายใน range `RSI9_RANGE_MIN..RSI9_RANGE_MAX`
 
-### SELL
+### Divergence types
 
-- สลับด้านจาก BUY
-- ต้องเป็น `RSI high ปัจจุบัน < RSI high ก่อนหน้า`
-- และราคาเข้าได้ 2 แบบ:
-  - `LH`: high ปัจจุบันต่ำกว่า high ก่อนหน้า
-  - `HH แต่ยังไม่ MSS`: high ปัจจุบันสูงกว่า high ก่อนหน้า แต่ close ล่าสุดยังไม่ปิดต่ำกว่า swing low ก่อนหน้า
-- ถ้าผ่าน จะตั้ง `SELL STOP = swing low ก่อนหน้า - buffer`
-- `SL = swing high ปัจจุบัน + buffer`
-- `TP = swing TP` ถ้าหาได้ ไม่งั้น fallback `RR 1:1`
+รองรับ 4 แบบ ผ่าน toggle ใน config:
+
+- `RSI9_PLOT_BULLISH` (default ON) — Regular Bullish: price LL + RSI HL → BUY
+- `RSI9_PLOT_BEARISH` (default ON) — Regular Bearish: price HH + RSI LH → SELL
+- `RSI9_PLOT_HIDDEN_BULLISH` (default OFF) — Hidden Bullish: price HL + RSI LL → BUY
+- `RSI9_PLOT_HIDDEN_BEARISH` (default OFF) — Hidden Bearish: price LH + RSI HH → SELL
+
+ปุ่ม Telegram รวมแล้วเหลือ 2 ปุ่ม: **Regular** (Bullish + Bearish) และ **Hidden** (Bullish + Bearish)
+
+### Entry / SL / TP
+
+ปัจจุบันใช้ `LIMIT @ midpoint` ของแท่งที่ pivot ปัจจุบันชี้:
+
+BUY (BUY LIMIT):
+- `entry = (cur_high + cur_low) / 2` ของแท่ง pivot ปัจจุบัน
+- `SL = cur_low - SL_BUFFER`
+- `TP` = swing TP / fallback RR 1:1
+
+SELL (SELL LIMIT):
+- `entry = (cur_high + cur_low) / 2` ของแท่ง pivot ปัจจุบัน
+- `SL = cur_high + SL_BUFFER`
+- `TP` = swing TP / fallback RR 1:1
+
+`order_mode = "limit"` — ต่างจากเวอร์ชันเก่าที่เป็น STOP
 
 ### หมายเหตุของท่า 9
 
-- ตอนนี้ถือว่า “ยืนยัน setup” ตอน scan เจอ divergence
-- ส่วน “ยืนยันเข้าไม้” จริง คือเมื่อราคามาชน stop order
+- setup_sig ใช้แค่ pivot identity (`tf|signal|div_type|pivot_prev_time|pivot_cur_time`) เพื่อกัน duplicate
 - ถ้า pane RSI บน MT5 กับ bot ให้ค่าไม่ตรงกัน ให้เช็ค period ก่อนเป็นอย่างแรก
+- code Python (`strategy9.py`) กับ MQL5 indicator ทำงานแยกกัน แต่ใช้สูตรเดียวกัน → ให้ผลตรงกันบน RSI ชุดเดียว
+- เวลาเทียบ chart: log ใน `bot.log` เป็น BKK, MT5 chart เป็น broker time
+
+## ท่าที่ 10: CRT TBS
+
+ไฟล์หลัก: `strategy10.py`
+
+แนวคิด:
+- รวม Candle Range Theory (CRT) + Three Bar Sweep (TBS)
+- หา pattern ที่ราคาทำ liquidity sweep แล้วกลับด้าน
+- bypass trend filter (`if sid != 10: trend_allows_signal()` ใน `scanner.py`)
+- default `active_strategies[10] = True` (ปุ่ม “เปิดทั้งหมด” ไม่กระทบ)
+
+### Mode: bar count
+
+`CRT_BAR_MODE`:
+- `2bar`: ดู 2 แท่ง — แท่งกลาง sweep + แท่งล่าสุดยืนยัน
+- `3bar`: ดู 3 แท่ง — มีแท่ง setup เพิ่มก่อน sweep
+
+### HTF detect filters
+
+- TF restriction: HTF mode ใช้ M15+ เท่านั้น; MTF mode ใช้ทุก TF (เพราะ LTF ตีจาก HTF อยู่แล้ว)
+- `CRT_MIN_RANGE_POINTS` (default `200` × points_scale) — กรอง swing range เล็กเกิน
+- `CRT_SWEEP_DEPTH_PCT` (default `0.10`) — แท่ง sweep wick ต้องลึกอย่างน้อย X% ของ parent range
+- **CRT 50% rule** — sweep close ต้องไม่เกิน 50% ของ parent (BUY: < midpoint / SELL: > midpoint)
+- `CRT_SL_BUFFER_POINTS` (default `50` × points_scale)
+
+### Mode: entry timing
+
+`CRT_ENTRY_MODE`:
+
+**`htf` — Entry Model 2 (Confirmation Market):**
+- เจอ HTF CRT → market BUY/SELL ทันที (เมื่อ HTF sweep candle ปิดยืนยัน)
+- entry = HTF sweep_close.close (2bar) / confirm.close (3bar)
+- SL = HTF sweep level ± buffer
+- TP = HTF parent opposite
+
+**`mtf` (default) — Entry Model 3 (LTF Confirmation, CRT TBS Classic):**
+
+หลัง HTF arms → ทุก scan tick (5s) วน LTF rates หา trigger:
+
+```
+Phase 1: Failed-push (pattern confirmation)
+  BUY  (HTF sweep low):  LTF RED  + close < HTF parent.low
+  SELL (HTF sweep high): LTF GREEN + close > HTF parent.high
+  เริ่มค้นจาก bar.time > armed_at
+
+Phase 2: Body engulf 2-bar (entry trigger search)
+  BUY engulf:  prev RED + curr GREEN + curr.close > prev.open
+  SELL engulf: prev GREEN + curr RED + curr.close < prev.open
+  ค้นต่อจาก phase1_idx + 1
+  (concept จาก S1 — ไม่เรียก S1 จริง)
+
+Models (คำนวณพร้อมกันหลังเจอ Phase 2):
+  #1 Order Block — RECOMMENDED
+       SELL: ย้อนหา GREEN bar → entry = OB.open
+       BUY:  ย้อนหา RED   bar → entry = OB.open
+  #2 FVG 90% (concept S2 — ไม่เรียก S2 จริง)
+       3-bar imbalance: B1=engulf-2, B3=engulf
+       Bullish FVG (BUY):  B3.low > B1.high → entry @ 90% deep ใน gap
+       Bearish FVG (SELL): B1.low > B3.high → entry @ 90% deep ใน gap
+  #3 MSS — confirmation only (log)
+       SELL: lowest low ใน range / BUY: highest high
+
+Search range ของ Model 1/3: bar.time > armed_at ถึง engulf_idx-1
+                              (ไม่ใช้ lookback คงที่ — boundary คือ HTF sweep open)
+```
+
+**Entry priority:**
+- ใช้ Model 1 ก่อน → ถ้า None → fallback Model 2 → ถ้า None → ไม่เข้า
+- Model 3 = log เท่านั้น
+
+**Order properties:**
+- `order_mode = "limit"` — รอราคา retrace มาแตะ entry
+- SL = HTF sweep level ± buffer (= `state["sl_target"]`)
+- TP = HTF parent opposite (= `state["tp_target"]`)
+- Validate `BUY: sl < entry < tp` / `SELL: tp < entry < sl`
+
+**LTF mapping (HTF → LTF):**
+- `D1/H12 → M15`
+- `H4 → M5`
+- `H1/M30/M15 → M1`
+
+**State management:**
+- `_armed_states[htf_tf]` save/restore ผ่าน `bot_state.json` (key `s10_armed_states`)
+- `armed_at` = HTF sweep candle's open time
+- expiry = `armed_at + 2 × htf_secs` (= 1 HTF bar หลัง HTF close)
+
+### Comment / Pattern code
+
+| Mode | Pattern ตัวอย่าง | Comment |
+|---|---|---|
+| HTF 2bar | `... — Sweep Low (2bar)` | `Bot_M30_S10_CRT` |
+| HTF 3bar | `... — Sweep High (3bar)` | `Bot_H1_S10_CRT` |
+| MTF | `... — MTF [M30→M1] Model1` | `Bot_[M30-M1]_S10_CRT` |
+| MTF | `... — MTF [H4→M5] Model2` | `Bot_[H4-M5]_S10_CRT` |
+
+### Telegram message
+
+แสดง HTF candles (CRT detected) ก่อน LTF candles (trigger):
+```
+📍 HTF M30 (เจอ CRT):
+🟢 แท่ง[1]: O:... H:... L:... C:... <time>
+🟢 แท่ง[0]: O:... H:... L:... C:... <time>
+📍 LTF M1 (trigger):
+🔴 แท่ง[2]: ...
+🟢 แท่ง[1]: ...
+🔴 แท่ง[0]: ... ← engulfing bar
+```
+
+Reason log แสดงราคา Model 1, 2, 3 ทั้งหมด + ระบุ Model ที่ใช้
+
+## ท่าที่ 11: Fibo S1
+
+ไฟล์หลัก: `strategy11.py`
+
+แนวคิด:
+- Hook ติดท่าที่ 1 — เมื่อ S1 fire BUY/SELL ให้ลง anchor บนแท่งสีตรงกับ direction (BUY=green ตัวล่าสุด, SELL=red ตัวล่าสุด)
+- ตี Fibo บน anchor: BUY → `1=high, 0=low` | SELL → `1=low, 0=high`
+- รอราคา wick แตะ trigger level → ตั้ง LIMIT
+- default `active_strategies[11] = False`
+
+### Fibo grid (`FIBO_LEVELS`)
+
+| level | label |
+|---|---|
+| -1.31 | Liquidity day |
+| -0.95 | Liquidity m5 |
+| -0.31 | XXL |
+| -0.17 | XL |
+| 0 | 0 |
+| 0.242 | KRL |
+| 0.382 | 0.382 |
+| 0.5 | 50% |
+| 0.57 | 60% |
+| 1 | 1 |
+| 1.617 | KRH1 |
+| 3.097 | KRH2 |
+| 5.165 | KRH3 |
+| 7.044 | Run Engulfing |
+| 7.467 | RUN |
+| 8.237 | X Divergence |
+
+### Trigger / Entry pairs
+
+| Pattern | Trigger (wick แตะ) | Entry LIMIT |
+|---|---|---|
+| 1 | KRH1 (1.617) | 50% (0.5) |
+| 2 | KRH2 (3.097) | 50% (0.5) |
+| 3 | KRH3 (5.165) | KRH1 (1.617) |
+
+- TP = `7.044` (Run Engulfing) ทุก pattern
+- SL = `-0.31` (XXL) ทุก pattern
+- Recovery = `-0.95` (Liquidity m5) — phase 2 ยังไม่ implement
+
+### Touch detection
+
+- BUY: `last_high >= trigger_price`
+- SELL: `last_low <= trigger_price`
+
+### State
+
+- `_s11_state[tf_name]` per-TF: `{direction, anchor_high, anchor_low, anchor_time, phase, triggered_level}`
+- phase: `armed` (รอ touch) → `triggered` (ออก order แล้ว)
+- ไม่ persist (reset ทุกครั้งที่ restart — รอ S1 fire ใหม่)
+
+### Comment / Pattern code
+
+| Pattern | comment ตัวอย่าง |
+|---|---|
+| 1 | `Bot_H1_S11_KRH1_50` |
+| 2 | `Bot_H1_S11_KRH2_50` |
+| 3 | `Bot_H1_S11_KRH3_KRH1` |
+| fallback | `Bot_H1_S11_FIBO` |

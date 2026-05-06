@@ -104,10 +104,23 @@ MT5_LOGIN      = 2101114448
 MT5_PASSWORD   = "cop04TERZ_18"
 MT5_SERVER     = "IUXMarkets-Demo"
 
-AUTO_VOLUME    = 0.01   # lot size สำหรับ auto trade
+AUTO_VOLUME    = 0.01   # lot size สำหรับ auto trade (ฐานของ XAUUSD)
+
+
+def points_scale() -> float:
+    """
+    Multiplier สำหรับ point/lot ตาม SYMBOL ปัจจุบัน
+    XAUUSD = 1.0 (default), BTCUSD = 4.0
+    ใช้ background ทุกที่ที่คำนวณ point → price (ไม่กระทบค่าใน Telegram UI)
+    """
+    if SYMBOL == "BTCUSD.iux":
+        return 4.0
+    return 1.0
+
+
 def get_volume():
-    """ดึง lot size ปัจจุบันของ auto trade"""
-    return AUTO_VOLUME
+    """ดึง lot size ปัจจุบันของ auto trade — BTCUSD = AUTO_VOLUME × 4"""
+    return round(AUTO_VOLUME * points_scale(), 2)
 LOT_OPTIONS    = [0.01, 0.02, 0.03, 0.05, 0.10, 0.20]  # ตัวเลือก lot size
 MAX_ORDERS     = 9999
 SCAN_INTERVAL  = 1
@@ -303,6 +316,7 @@ active_strategies = {
     8: False,  # ท่าที่ 8: กินไส้ Swing (limit ที่ swing high/low)
     9: True,   # ท่าที่ 9: RSI Divergence
     10: True,  # ท่าที่ 10: CRT TBS (Candle Range Theory + Three Bar Sweep)
+    11: False, # ท่าที่ 11: Fibo S1 (Fibonacci expansion จาก S1 pattern)
 }
 
 STRATEGY_NAMES = {
@@ -316,6 +330,7 @@ STRATEGY_NAMES = {
     8: "ท่าที่ 8: กินไส้ Swing",
     9: "ท่าที่ 9: RSI Divergence",
     10: "ท่าที่ 10: CRT TBS",
+    11: "ท่าที่ 11: Fibo S1",
 }
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
@@ -454,6 +469,16 @@ TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = True
 #                weak / sideway / unknown → ผ่านทั้งคู่
 TREND_FILTER_MODE = "basic"
 
+# ── Strategy 10: CRT TBS — runtime mode (constants ที่ helper ใช้ภายหลังอยู่ด้านล่าง) ──
+# Bar mode: "2bar" (classic CRT — sweep+close ในแท่งเดียว) หรือ "3bar" (TBS — sweep+confirm แยก)
+CRT_BAR_MODE = "2bar"
+# Min sweep depth: sweep wick ต้องทะลุ parent อย่างน้อยกี่ % ของ parent range (กัน micro-sweep)
+CRT_SWEEP_DEPTH_PCT = 0.10   # 10% of parent range
+# Entry mode:
+#   "htf" — เข้า market บน HTF ทันทีตอน detect (SL ใหญ่)
+#   "mtf" (default) — HTF detect → arm → ลงไป LTF รอ color shift → entry (SL เล็ก, RR ดี)
+CRT_ENTRY_MODE = "mtf"
+
 # กลุ่ม TF คู่ขนาน — ถ้า gap ของ TF เล็กอยู่ใน gap ของ TF ใหญ่
 # ให้ใช้ TF เล็กเป็นหลัก (entry แม่นกว่า) และยกเลิก TF อื่นในกลุ่ม
 FVG_PARALLEL_GROUPS = [
@@ -556,6 +581,13 @@ _RUNTIME_DEFAULTS = {
     "TREND_FILTER_HIGHER_TF": TREND_FILTER_HIGHER_TF,
     "TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
     "TREND_FILTER_MODE": TREND_FILTER_MODE,
+    "CRT_BAR_MODE": CRT_BAR_MODE,
+    "CRT_SWEEP_DEPTH_PCT": CRT_SWEEP_DEPTH_PCT,
+    "CRT_ENTRY_MODE": CRT_ENTRY_MODE,
+    "RSI9_PLOT_BULLISH": RSI9_PLOT_BULLISH,
+    "RSI9_PLOT_HIDDEN_BULLISH": RSI9_PLOT_HIDDEN_BULLISH,
+    "RSI9_PLOT_BEARISH": RSI9_PLOT_BEARISH,
+    "RSI9_PLOT_HIDDEN_BEARISH": RSI9_PLOT_HIDDEN_BEARISH,
     "TF_ACTIVE": copy.deepcopy(TF_ACTIVE),
     "TF_CURRENT": TF_CURRENT,
 }
@@ -621,16 +653,16 @@ def reset_runtime_config_to_defaults(save_state: bool = True):
 
 
 def engulf_min_price() -> float:
-    """แปลงจำนวน point ของ engulf ขั้นต่ำเป็นหน่วยราคา"""
+    """แปลงจำนวน point ของ engulf ขั้นต่ำเป็นหน่วยราคา (BTC = 4× ของ XAU)"""
     try:
         info = mt5.symbol_info(SYMBOL)
         point = float(getattr(info, "point", 0.01) or 0.01)
     except Exception:
         point = 0.01
-    return float(ENGULF_MIN_POINTS) * point
+    return float(ENGULF_MIN_POINTS) * point * points_scale()
 
 
-# ── Strategy 10: CRT TBS ────────────────────────────────────────
+# ── Strategy 10: CRT TBS — point constants (CRT_BAR_MODE/PCT อยู่ด้านบน) ──
 # Parent range ที่เล็กกว่านี้จะข้าม (กัน setup จิ๋วใน sideway แคบ)
 CRT_MIN_RANGE_POINTS = 200   # 200 point = ~$2.00 บน XAU
 # SL บัฟเฟอร์ จาก wick ของ sweep candle
@@ -638,23 +670,23 @@ CRT_SL_BUFFER_POINTS = 50    # 50 point = ~$0.50 บน XAU
 
 
 def crt_min_range_price() -> float:
-    """แปลง CRT_MIN_RANGE_POINTS เป็นหน่วยราคา"""
+    """แปลง CRT_MIN_RANGE_POINTS เป็นหน่วยราคา (BTC = 4× ของ XAU)"""
     try:
         info = mt5.symbol_info(SYMBOL)
         point = float(getattr(info, "point", 0.01) or 0.01)
     except Exception:
         point = 0.01
-    return float(CRT_MIN_RANGE_POINTS) * point
+    return float(CRT_MIN_RANGE_POINTS) * point * points_scale()
 
 
 def crt_sl_buffer_price() -> float:
-    """แปลง CRT_SL_BUFFER_POINTS เป็นหน่วยราคา"""
+    """แปลง CRT_SL_BUFFER_POINTS เป็นหน่วยราคา (BTC = 4× ของ XAU)"""
     try:
         info = mt5.symbol_info(SYMBOL)
         point = float(getattr(info, "point", 0.01) or 0.01)
     except Exception:
         point = 0.01
-    return float(CRT_SL_BUFFER_POINTS) * point
+    return float(CRT_SL_BUFFER_POINTS) * point * points_scale()
 
 
 def save_runtime_state():
@@ -665,6 +697,12 @@ def save_runtime_state():
             position_pattern, position_trend_filter, _entry_state, _trail_state, _s8_fill_sl,
             _focus_frozen_side
         )
+        # S10 MTF armed states (per HTF) — กัน restart ตอน armed อยู่
+        try:
+            from strategy10 import _armed_states as _s10_armed
+            s10_armed_serialized = {k: dict(v) for k, v in _s10_armed.items()}
+        except Exception:
+            s10_armed_serialized = {}
 
         state = {
             "saved_at": now_bkk().strftime("%Y-%m-%d %H:%M:%S"),
@@ -698,6 +736,14 @@ def save_runtime_state():
             "trend_filter_higher_tf": TREND_FILTER_HIGHER_TF,
             "trend_filter_trail_sl_override_enabled": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
             "trend_filter_mode": TREND_FILTER_MODE,
+            "crt_bar_mode": CRT_BAR_MODE,
+            "crt_sweep_depth_pct": CRT_SWEEP_DEPTH_PCT,
+            "crt_entry_mode": CRT_ENTRY_MODE,
+            "s10_armed_states": s10_armed_serialized,
+            "rsi9_plot_bullish": RSI9_PLOT_BULLISH,
+            "rsi9_plot_hidden_bullish": RSI9_PLOT_HIDDEN_BULLISH,
+            "rsi9_plot_bearish": RSI9_PLOT_BEARISH,
+            "rsi9_plot_hidden_bearish": RSI9_PLOT_HIDDEN_BEARISH,
             "entry_candle_enabled": ENTRY_CANDLE_ENABLED,
             "opposite_order_enabled": OPPOSITE_ORDER_ENABLED,
             "limit_sweep": LIMIT_SWEEP,
@@ -779,6 +825,8 @@ def restore_runtime_state():
         global ENTRY_CANDLE_FOCUS_NEW_ENABLED, ENTRY_CANDLE_FOCUS_NEW_POINTS, ENTRY_CANDLE_FOCUS_NEW_TF_MODE
         global TREND_FILTER_HIGHER_TF_ENABLED, TREND_FILTER_HIGHER_TF, TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
         global TREND_FILTER_MODE
+        global CRT_BAR_MODE, CRT_SWEEP_DEPTH_PCT, CRT_ENTRY_MODE
+        global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
@@ -837,6 +885,33 @@ def restore_runtime_state():
         saved_tf_mode = state.get("trend_filter_mode")
         if saved_tf_mode in ("basic", "breakout"):
             TREND_FILTER_MODE = saved_tf_mode
+        saved_crt_mode = state.get("crt_bar_mode")
+        if saved_crt_mode in ("2bar", "3bar"):
+            CRT_BAR_MODE = saved_crt_mode
+        try:
+            saved_crt_pct = float(state.get("crt_sweep_depth_pct", CRT_SWEEP_DEPTH_PCT))
+            if 0.0 <= saved_crt_pct <= 1.0:
+                CRT_SWEEP_DEPTH_PCT = saved_crt_pct
+        except Exception:
+            pass
+        saved_crt_entry = state.get("crt_entry_mode")
+        if saved_crt_entry in ("htf", "mtf"):
+            CRT_ENTRY_MODE = saved_crt_entry
+        # S10 MTF armed states — restore in-place เพื่อให้ strategy10 module เห็นข้อมูลเดียวกัน
+        try:
+            from strategy10 import _armed_states as _s10_armed
+            _s10_armed.clear()
+            saved_s10_armed = state.get("s10_armed_states", {})
+            if isinstance(saved_s10_armed, dict):
+                for htf_tf, st in saved_s10_armed.items():
+                    if isinstance(st, dict) and st.get("direction") in ("BUY", "SELL"):
+                        _s10_armed[htf_tf] = dict(st)
+        except Exception:
+            pass
+        RSI9_PLOT_BULLISH = bool(state.get("rsi9_plot_bullish", RSI9_PLOT_BULLISH))
+        RSI9_PLOT_HIDDEN_BULLISH = bool(state.get("rsi9_plot_hidden_bullish", RSI9_PLOT_HIDDEN_BULLISH))
+        RSI9_PLOT_BEARISH = bool(state.get("rsi9_plot_bearish", RSI9_PLOT_BEARISH))
+        RSI9_PLOT_HIDDEN_BEARISH = bool(state.get("rsi9_plot_hidden_bearish", RSI9_PLOT_HIDDEN_BEARISH))
         ENTRY_CANDLE_ENABLED = bool(state.get("entry_candle_enabled", ENTRY_CANDLE_ENABLED))
         OPPOSITE_ORDER_ENABLED = bool(state.get("opposite_order_enabled", OPPOSITE_ORDER_ENABLED))
         LIMIT_SWEEP = bool(state.get("limit_sweep", LIMIT_SWEEP))

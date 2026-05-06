@@ -45,3 +45,35 @@
 
 - toggle ที่หน้าหลักเลย ไม่มี submenu แยก
 - Delay SL มี 3 mode: `off` → `🔴OFF`, `time` → `🟢ON | ช่วงท้าย TF`, `price` → `🟢ON | ราคาผ่าน Entry`
+
+## Toggle ของแต่ละท่า
+
+### ท่าที่ 9 — RSI Divergence
+
+- รวมจาก 4 ปุ่ม (Bull/Bear × Regular/Hidden) เหลือ 2 ปุ่ม:
+  - **Regular** → toggle ทั้ง `RSI9_PLOT_BULLISH` + `RSI9_PLOT_BEARISH`
+  - **Hidden** → toggle ทั้ง `RSI9_PLOT_HIDDEN_BULLISH` + `RSI9_PLOT_HIDDEN_BEARISH`
+- callback: `toggle_rsi9_regular`, `toggle_rsi9_hidden`
+- default: Regular ON, Hidden OFF
+
+### ท่าที่ 10 — CRT TBS
+
+- 2 sub-toggle:
+  - **Bar mode** (`CRT_BAR_MODE`): `2bar` / `3bar`
+  - **Entry mode** (`CRT_ENTRY_MODE`): `htf` / `mtf`
+- callback: `set_crt_bar_mode_<mode>`, `set_crt_entry_mode_<mode>`
+- default: `2bar` + `mtf`
+- master toggle ของ S10 อยู่ในหน้า strategy ปกติ
+
+### Trend Filter
+
+- **Mode** (`trend_filter_mode`): `basic` / `breakout`
+- callback: `set_trend_filter_mode_<mode>`
+- default: `basic`
+- มี per-TF toggle และ Trail SL Override toggle แยก
+
+## Profit summary (หน้าหลัก)
+
+- แสดง BUY / SELL breakdown ต่อ strategy
+- กดปุ่ม trend filter เพื่อ filter สรุปกำไรตาม trend ตอนเปิดออเดอร์
+- callback parsing: ใช้ `"_".join(parts[5:])` สำหรับ key ที่มี underscore เช่น `bull_strong`

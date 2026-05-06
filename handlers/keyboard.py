@@ -817,6 +817,46 @@ def build_strategy_keyboard():
             ),
         ])
 
+    # sub-option ท่า 9: RSI Divergence — รวม bull/bear ในแต่ละแบบ (Regular / Hidden)
+    if active_strategies.get(9, False):
+        regular_on = config.RSI9_PLOT_BULLISH and config.RSI9_PLOT_BEARISH
+        hidden_on  = config.RSI9_PLOT_HIDDEN_BULLISH and config.RSI9_PLOT_HIDDEN_BEARISH
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if regular_on else '⬜'} ท่า9: Regular",
+                callback_data="toggle_rsi9_regular"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if hidden_on else '⬜'} ท่า9: Hidden",
+                callback_data="toggle_rsi9_hidden"
+            ),
+        ])
+
+    # sub-option ท่า 10: CRT bar mode (2bar / 3bar)
+    if active_strategies.get(10, False):
+        crt_mode = getattr(config, "CRT_BAR_MODE", "2bar")
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if crt_mode == '2bar' else '⬜'} ท่า10: 2bar (classic)",
+                callback_data="set_crt_bar_mode_2bar"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if crt_mode == '3bar' else '⬜'} ท่า10: 3bar (TBS)",
+                callback_data="set_crt_bar_mode_3bar"
+            ),
+        ])
+        crt_entry = getattr(config, "CRT_ENTRY_MODE", "htf")
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if crt_entry == 'htf' else '⬜'} ท่า10: HTF entry",
+                callback_data="set_crt_entry_mode_htf"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if crt_entry == 'mtf' else '⬜'} ท่า10: MTF (LTF entry)",
+                callback_data="set_crt_entry_mode_mtf"
+            ),
+        ])
+
     all_on = all(active_strategies.values())
     ctrl = [
         InlineKeyboardButton(

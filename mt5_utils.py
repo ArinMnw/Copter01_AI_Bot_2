@@ -1,4 +1,8 @@
+import re
 from config import *
+
+# Match S10 MTF marker: "MTF [HTF→LTF]" or "MTF [HTF->LTF]"
+_MTF_TF_RE = re.compile(r"MTF\s*\[\s*([A-Za-z0-9]+)\s*(?:→|->)\s*([A-Za-z0-9]+)\s*\]")
 
 
 def _pattern_comment_code(pattern: str) -> str:
@@ -33,11 +37,26 @@ def _pattern_comment_code(pattern: str) -> str:
         return "SWING"
     if "CRT" in text:
         return "CRT"
+    if "FIBO" in text:
+        # Pattern N → trigger_entry: 1=KRH1→50%, 2=KRH2→50%, 3=KRH3→KRH1
+        if "PATTERN 1" in text:
+            return "KRH1_50"
+        if "PATTERN 2" in text:
+            return "KRH2_50"
+        if "PATTERN 3" in text:
+            return "KRH3_KRH1"
+        return "FIBO"
     return ""
 
 
 def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str = "", parallel_tfs: list = None) -> str:
-    base = f"Bot_{tf}_S{sid}" if tf and sid else (f"Bot_{tf}" if tf else fallback)
+    # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF-LTF]"
+    tf_label = tf
+    if pattern:
+        m = _MTF_TF_RE.search(pattern)
+        if m:
+            tf_label = f"[{m.group(1)}-{m.group(2)}]"
+    base = f"Bot_{tf_label}_S{sid}" if tf_label and sid else (f"Bot_{tf_label}" if tf_label else fallback)
     code = _pattern_comment_code(pattern)
     if not code:
         return base

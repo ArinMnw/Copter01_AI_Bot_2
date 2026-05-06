@@ -545,6 +545,7 @@ def _focus_gate_passed(feature: str, frozen_side: str, positions, ref_tf) -> boo
     else:
         points = int(getattr(config, "ENTRY_CANDLE_FOCUS_NEW_POINTS", 100))
         tf_mode = getattr(config, "ENTRY_CANDLE_FOCUS_NEW_TF_MODE", "separate")
+    points = points * config.points_scale()   # BTC = 4× ของ XAU (background)
 
     tick = mt5.symbol_info_tick(SYMBOL)
     info = mt5.symbol_info(SYMBOL)
@@ -3272,7 +3273,7 @@ async def check_cancel_pending_orders(app):
             if positions and (limit_tf or not tf_separate):
                 sym_info = mt5.symbol_info(SYMBOL)
                 pt = sym_info.point if sym_info else 0.01
-                guard_dist = config.LIMIT_GUARD_POINTS * pt
+                guard_dist = config.LIMIT_GUARD_POINTS * pt * config.points_scale()  # BTC = 4× (background)
 
                 if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                     for pos in positions:

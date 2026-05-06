@@ -11,6 +11,7 @@ from strategy5 import strategy_5
 from strategy8 import strategy_8
 from strategy9 import strategy_9
 from strategy10 import strategy_10
+from strategy11 import strategy_11, record_s1_pattern as s11_record_s1_pattern
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl
 from notifications import check_sl_tp_hits
@@ -88,20 +89,17 @@ def _same_price(a, b, tol: float = 0.05) -> bool:
 
 
 def _build_strategy9_setup_sig(tf_name: str, signal: str, result: dict) -> str:
+    """
+    Setup signature สำหรับ dedup — ใช้แค่ pivot identity (ไม่รวม entry/sl/tp)
+    เพราะ market mode entry = rates[-1].close จะเปลี่ยนทุก bar ใหม่ —
+    setup_sig ที่อิง entry จะ break dedup ตอนแท่งใหม่ปิด
+    """
     div_type = result.get("div_type", "") or ""
     pivot_prev_time = int(result.get("pivot_prev_time", 0) or 0)
     pivot_cur_time = int(result.get("pivot_cur_time", 0) or 0)
-    swing_price = round(float(result.get("swing_price", 0.0) or 0.0), 2)
-    entry = round(float(result.get("entry", 0.0) or 0.0), 2)
-    sl = round(float(result.get("sl", 0.0) or 0.0), 2)
-    tp = round(float(result.get("tp", 0.0) or 0.0), 2)
     if not (div_type and pivot_prev_time and pivot_cur_time):
         return ""
-    return (
-        f"{tf_name}|{signal}|{div_type}|"
-        f"{pivot_prev_time}|{pivot_cur_time}|"
-        f"{swing_price:.2f}|{entry:.2f}|{sl:.2f}|{tp:.2f}"
-    )
+    return f"{tf_name}|{signal}|{div_type}|{pivot_prev_time}|{pivot_cur_time}"
 
 
 def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
@@ -1054,13 +1052,32 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r9 = strategy_9(rates) if active_strategies.get(9, False) else {"signal": "WAIT", "reason": "S9 ปิด"}
     if r9.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 9, r9["signal"], last_candle_time, r9)
-    # S10 CRT TBS — purist version: รันเฉพาะ H1+ (ตาม CRT classic)
-    if active_strategies.get(10, False) and tf_name in ("H1", "H4", "H12", "D1"):
-        r10 = strategy_10(rates)
-    elif active_strategies.get(10, False):
-        r10 = {"signal": "WAIT", "reason": f"S10 รันเฉพาะ H1+ (TF นี้: {tf_name})"}
+    # S10 CRT TBS — branch ตาม CRT_ENTRY_MODE
+    if active_strategies.get(10, False):
+        crt_entry_mode = getattr(config, "CRT_ENTRY_MODE", "htf")
+        if crt_entry_mode == "mtf":
+            # MTF mode: HTF detect → arm; LTF (M1/M5/M15) เช็ก color shift trigger
+            r10 = strategy_10(rates, tf_name)
+        elif tf_name in ("M15", "M30", "H1", "H4", "H12", "D1"):
+            # HTF mode: detect + entry บน HTF เท่านั้น
+            r10 = strategy_10(rates, tf_name)
+        else:
+            r10 = {"signal": "WAIT", "reason": f"S10 HTF mode รันเฉพาะ M15+ (TF นี้: {tf_name})"}
     else:
         r10 = {"signal": "WAIT", "reason": "S10 ปิด"}
+
+    # S11 Fibo S1 — hook กับ S1 result เพื่อตี Fibo grid
+    if active_strategies.get(11, False) and r1.get("signal") in ("BUY", "SELL"):
+        s11_record_s1_pattern(
+            tf_name,
+            r1.get("signal"),
+            r1.get("candles") or [],
+            int(rates[-1]["time"]) if len(rates) else 0,
+        )
+    if active_strategies.get(11, False):
+        r11 = strategy_11(rates, tf_name)
+    else:
+        r11 = {"signal": "WAIT", "reason": "S11 ปิด"}
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -1334,7 +1351,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -1350,7 +1367,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -1511,6 +1528,22 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         risk  = abs(entry - sl)
         rr    = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
         candle_txt = ""
+        # S10 MTF: แสดงแท่ง HTF ที่เจอ CRT pattern ก่อน
+        _htf_candles = result.get("htf_candles") or []
+        _htf_tf = result.get("htf_tf", "")
+        if _htf_candles:
+            _hn = len(_htf_candles)
+            _hlabels = [f"[{_hn - 1 - i}]" for i in range(_hn)]
+            candle_txt += f"📍 *HTF {_htf_tf}* (เจอ CRT):\n"
+            for i, c in enumerate(_htf_candles):
+                o, h, l, cl = float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])
+                clr = "🟢" if cl > o else "🔴"
+                ts = int(c.get("time", 0))
+                candle_txt += (
+                    f"{clr} แท่ง{_hlabels[i]}: O:`{o:.2f}` H:`{h:.2f}` "
+                    f"L:`{l:.2f}` C:`{cl:.2f}` {_fmt_swing_dt(ts)}\n"
+                )
+            candle_txt += f"📍 *LTF {tf_name}* (trigger):\n"
         _candles_list = result.get("candles", [])
         _n = len(_candles_list)
         labels = [f"[{_n - 1 - i}]" for i in range(_n)]

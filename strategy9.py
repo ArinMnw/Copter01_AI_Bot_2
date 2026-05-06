@@ -102,12 +102,18 @@ def _find_rsi_pivot_highs(rsi_values, left: int, right: int):
 
 
 def _find_previous_valid_pivot(pivots, current_idx: int, min_range: int, max_range: int):
-    for prev_idx in reversed(pivots):
-        if prev_idx >= current_idx:
-            continue
-        gap = current_idx - prev_idx
-        if min_range <= gap <= max_range:
-            return prev_idx
+    """
+    เลือก immediate previous pivot ตัวเดียว (ตรงกับ TV `valuewhen(plFound, ..., 1)`)
+    ถ้าตัวก่อนหน้าทันที out-of-range → return None (ไม่ walk back หาตัวเก่ากว่า)
+    """
+    if not pivots:
+        return None
+    prev_idx = pivots[-1]   # immediate previous (newest ก่อน current)
+    if prev_idx >= current_idx:
+        return None
+    gap = current_idx - prev_idx
+    if min_range <= gap <= max_range:
+        return prev_idx
     return None
 
 
@@ -164,12 +170,13 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
     if not matched:
         return None
 
-    prev_swing_high = _find_prev_swing_high_before_index(rates, cur_idx)
-    if not prev_swing_high:
-        return None
-
-    entry = round(float(prev_swing_high["price"]) + SL_BUFFER(), 2)
+    # Limit entry @ 50% (midpoint) ของแท่ง cur pivot — รอ pullback กลับมาแตะ
+    cur_high = float(rates[cur_idx]["high"])
+    cur_low  = float(rates[cur_idx]["low"])
+    entry = round((cur_high + cur_low) / 2.0, 2)
     sl = round(cur_price_low - SL_BUFFER(), 2)
+    if sl >= entry:
+        return None
     tp_swing = find_swing_tp(rates, "BUY", entry, sl)
     tp = tp_swing if tp_swing else round(entry + (entry - sl), 2)
 
@@ -183,15 +190,11 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
             f"RSI({period}, {applied_price}) Pivot Low ปัจจุบัน:`{_fmt_rsi(cur_rsi)}` {rsi_cmp} ก่อนหน้า:`{_fmt_rsi(prev_rsi)}`\n"
             f"Price Low ปัจจุบัน:`{cur_price_low:.2f}` {price_cmp} ก่อนหน้า:`{prev_price_low:.2f}`\n"
             f"Pivot Left/Right: `{left}/{right}` | Lookback Range: `{min_range}-{max_range}` bars\n"
-            f"Buy Stop: Swing High ก่อนหน้า + buffer = `{entry:.2f}`\n"
-            f"Swing High ก่อนหน้า:`{float(prev_swing_high['price']):.2f}` | SL: Pivot Low ปัจจุบัน - buffer"
+            f"BUY LIMIT @ 50% ของแท่ง pivot [H:{cur_high:.2f} L:{cur_low:.2f}] = `{entry:.2f}` | SL: `{sl:.2f}`"
         ),
-        "order_mode": "stop",
-        "entry_label": "Buy Stop ที่",
-        "swing_high": float(prev_swing_high["price"]),
+        "order_mode": "limit",
+        "entry_label": "BUY LIMIT ที่",
         "swing_low": cur_price_low,
-        "swing_price": float(prev_swing_high["price"]),
-        "swing_bar_time": int(prev_swing_high["time"]),
         "div_type": pattern_name,
         "pivot_prev_index": prev_idx,
         "pivot_cur_index": cur_idx,
@@ -237,12 +240,13 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
     if not matched:
         return None
 
-    prev_swing_low = _find_prev_swing_low_before_index(rates, cur_idx)
-    if not prev_swing_low:
-        return None
-
-    entry = round(float(prev_swing_low["price"]) - SL_BUFFER(), 2)
+    # Limit entry @ 50% (midpoint) ของแท่ง cur pivot — รอ pullback กลับมาแตะ
+    cur_high = float(rates[cur_idx]["high"])
+    cur_low  = float(rates[cur_idx]["low"])
+    entry = round((cur_high + cur_low) / 2.0, 2)
     sl = round(cur_price_high + SL_BUFFER(), 2)
+    if sl <= entry:
+        return None
     tp_swing = find_swing_tp(rates, "SELL", entry, sl)
     tp = tp_swing if tp_swing else round(entry - (sl - entry), 2)
 
@@ -256,15 +260,11 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
             f"RSI({period}, {applied_price}) Pivot High ปัจจุบัน:`{_fmt_rsi(cur_rsi)}` {rsi_cmp} ก่อนหน้า:`{_fmt_rsi(prev_rsi)}`\n"
             f"Price High ปัจจุบัน:`{cur_price_high:.2f}` {price_cmp} ก่อนหน้า:`{prev_price_high:.2f}`\n"
             f"Pivot Left/Right: `{left}/{right}` | Lookback Range: `{min_range}-{max_range}` bars\n"
-            f"Sell Stop: Swing Low ก่อนหน้า - buffer = `{entry:.2f}`\n"
-            f"Swing Low ก่อนหน้า:`{float(prev_swing_low['price']):.2f}` | SL: Pivot High ปัจจุบัน + buffer"
+            f"SELL LIMIT @ 50% ของแท่ง pivot [H:{cur_high:.2f} L:{cur_low:.2f}] = `{entry:.2f}` | SL: `{sl:.2f}`"
         ),
-        "order_mode": "stop",
-        "entry_label": "Sell Stop ที่",
+        "order_mode": "limit",
+        "entry_label": "SELL LIMIT ที่",
         "swing_high": cur_price_high,
-        "swing_low": float(prev_swing_low["price"]),
-        "swing_price": float(prev_swing_low["price"]),
-        "swing_bar_time": int(prev_swing_low["time"]),
         "div_type": pattern_name,
         "pivot_prev_index": prev_idx,
         "pivot_cur_index": cur_idx,

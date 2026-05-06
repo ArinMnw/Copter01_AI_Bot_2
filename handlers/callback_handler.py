@@ -435,6 +435,54 @@ async def handle_callback(update, ctx):
             pass
         await query.answer(f"✅ ท่า 1: {label}")
 
+    elif data in ("toggle_rsi9_regular", "toggle_rsi9_hidden"):
+        # Toggle bull+bear ของแต่ละแบบพร้อมกัน — ON ก็ต่อเมื่อทั้งคู่ ON, มิฉะนั้น OFF
+        if data == "toggle_rsi9_regular":
+            currently_on = config.RSI9_PLOT_BULLISH and config.RSI9_PLOT_BEARISH
+            new_state = not currently_on
+            config.RSI9_PLOT_BULLISH = new_state
+            config.RSI9_PLOT_BEARISH = new_state
+            label = f"Regular: {'ON' if new_state else 'OFF'}"
+        else:
+            currently_on = config.RSI9_PLOT_HIDDEN_BULLISH and config.RSI9_PLOT_HIDDEN_BEARISH
+            new_state = not currently_on
+            config.RSI9_PLOT_HIDDEN_BULLISH = new_state
+            config.RSI9_PLOT_HIDDEN_BEARISH = new_state
+            label = f"Hidden: {'ON' if new_state else 'OFF'}"
+        save_runtime_state()
+        try:
+            await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
+        except Exception:
+            pass
+        await query.answer(f"✅ ท่า 9: {label}")
+
+    elif data.startswith("set_crt_bar_mode_"):
+        mode = data.replace("set_crt_bar_mode_", "")
+        if mode in ("2bar", "3bar"):
+            config.CRT_BAR_MODE = mode
+            save_runtime_state()
+            try:
+                await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
+            except Exception:
+                pass
+            await query.answer(f"✅ ท่า 10: {mode}")
+        else:
+            await query.answer("Mode ไม่ถูกต้อง")
+
+    elif data.startswith("set_crt_entry_mode_"):
+        mode = data.replace("set_crt_entry_mode_", "")
+        if mode in ("htf", "mtf"):
+            config.CRT_ENTRY_MODE = mode
+            save_runtime_state()
+            try:
+                await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
+            except Exception:
+                pass
+            label = "HTF entry" if mode == "htf" else "MTF (LTF entry)"
+            await query.answer(f"✅ ท่า 10: {label}")
+        else:
+            await query.answer("Entry mode ไม่ถูกต้อง")
+
     elif data in ("toggle_fvg_normal", "toggle_fvg_parallel"):
         if data == "toggle_fvg_normal":
             config.FVG_NORMAL = not config.FVG_NORMAL

@@ -61,6 +61,9 @@ input int   InpRsiWidth              = 2;
 input bool  InpDrawDivergenceLines   = true;          // Draw Bull/Bear lines
 input int   InpLineWidth             = 2;             // Divergence line width
 input ENUM_LINE_STYLE InpLineStyle   = STYLE_SOLID;   // Divergence line style
+input int   InpLookbackBars          = 1000;          // จำนวนแท่งที่คำนวณย้อนหลัง (per TF)
+input int   InpRecalcSec             = 60;            // ความถี่ recalculate divergence (วินาที)
+input bool  InpDebugLog              = false;         // เขียน Print log สำหรับ debug pivot/divergence
 
 double g_rsi_buffer[];
 double g_bull_buffer[];
@@ -74,6 +77,8 @@ string g_indicator_short_name = "RSI Divergence Indicator";
 // Valid divergence object names ของรอบ OnCalculate ปัจจุบัน — ใช้ลบ orphan
 string g_valid_names[2048];
 int    g_valid_count = 0;
+// Throttle: คำนวณ divergence ทุก InpRecalcSec วินาที (RSI line update ทุก tick ตามปกติ)
+datetime g_last_recalc = 0;
 
 //+------------------------------------------------------------------+
 bool IsPivotLow(const double &values[], const int index, const int left, const int right)
@@ -119,15 +124,16 @@ bool IsPivotHigh(const double &values[], const int index, const int left, const 
 int FindPreviousPivot(const int &pivots[], const int pivot_count, const int current_index,
                       const int min_range, const int max_range)
   {
-   for(int i = pivot_count - 1; i >= 0; i--)
-     {
-      const int prev_index = pivots[i];
-      if(prev_index <= current_index)
-         continue;
-      const int gap = prev_index - current_index;
-      if(gap >= min_range && gap <= max_range)
-         return(prev_index);
-     }
+   // TV style: เฉพาะ immediate previous pivot ตัวเดียว (ตรงกับ valuewhen ..., 1)
+   // ถ้า out-of-range → -1 (ไม่ walk back หาตัวเก่ากว่า)
+   if(pivot_count <= 0)
+      return(-1);
+   const int prev_index = pivots[pivot_count - 1];
+   if(prev_index <= current_index)
+      return(-1);
+   const int gap = prev_index - current_index;
+   if(gap >= min_range && gap <= max_range)
+      return(prev_index);
    return(-1);
   }
 
@@ -181,9 +187,10 @@ void DrawDivergenceLine(const string kind,
    const int wnd = GetPaneWindow();
    // Time-based naming — same divergence pair (same bar times) = same name across ticks
    // → update-in-place ไม่ต้องลบ+สร้างใหม่ ไม่กระพริบ
+   // ใช้ (long) cast — datetime ใน MQL5 เป็น 64-bit, (int) อาจ truncate
    const string name = g_obj_prefix + kind + "_" +
-                       IntegerToString((int)time[prev_index]) + "_" +
-                       IntegerToString((int)time[cur_index]);
+                       IntegerToString((long)time[prev_index]) + "_" +
+                       IntegerToString((long)time[cur_index]);
    if(ObjectFind(0, name) < 0)
      {
       if(!ObjectCreate(0, name, OBJ_TREND, wnd, time[prev_index], g_rsi_buffer[prev_index], time[cur_index], g_rsi_buffer[cur_index]))
@@ -303,16 +310,29 @@ int OnCalculate(const int rates_total,
    if(rates_total <= InpRsiPeriod + InpPivotLookbackLeft + InpPivotLookbackRight + 5)
       return(0);
 
-   // ให้ time[] เป็น series เหมือน buffer (index 0 = newest) เพื่อ coordinate ตรงกัน
+   // ให้ time/low/high เป็น series เหมือน buffer (index 0 = newest) เพื่อ coordinate ตรงกัน
    ArraySetAsSeries(time, true);
-   ArraySetAsSeries(low, true);
+   ArraySetAsSeries(low,  true);
    ArraySetAsSeries(high, true);
 
-   if(CopyBuffer(g_rsi_handle, 0, 0, rates_total, g_rsi_buffer) <= 0)
+   // จำกัดจำนวนแท่งที่ใช้คำนวณ — InpLookbackBars หรือ rates_total อันไหนน้อยกว่า
+   const int bars = MathMin(rates_total, InpLookbackBars);
+
+   // CopyBuffer สำหรับ RSI line — ทำทุก tick เพื่อให้เส้น RSI live
+   if(CopyBuffer(g_rsi_handle, 0, 0, bars, g_rsi_buffer) <= 0)
      {
       Print("RSIDivergencePane: CopyBuffer failed. err=", GetLastError());
       return(prev_calculated);
      }
+   // เคลียร์แท่งเก่ากว่า bars ให้ EMPTY_VALUE → ไม่ render เส้น RSI
+   for(int i = bars; i < rates_total; i++)
+      g_rsi_buffer[i] = EMPTY_VALUE;
+
+   // Throttle pivot detection + drawing — ทำทุก InpRecalcSec วินาที
+   datetime now = TimeCurrent();
+   if(g_last_recalc > 0 && (now - g_last_recalc) < InpRecalcSec)
+      return(rates_total);
+   g_last_recalc = now;
 
    ResetSignalBuffers(rates_total);
    // Reset valid-names tracker; orphan cleanup จะรันที่ท้าย OnCalculate
@@ -323,7 +343,8 @@ int OnCalculate(const int rates_total,
    int low_count = 0;
    int high_count = 0;
 
-   for(int i = rates_total - 1; i >= 0; i--)
+   // Scan pivot ใน range bars เท่านั้น (ไม่ scan ทั้ง rates_total)
+   for(int i = bars - 1; i >= 0; i--)
      {
       if(IsPivotLow(g_rsi_buffer, i, InpPivotLookbackLeft, InpPivotLookbackRight))
         {
@@ -334,6 +355,30 @@ int OnCalculate(const int rates_total,
         {
          if(high_count < ArraySize(high_pivots))
             high_pivots[high_count++] = i;
+        }
+     }
+
+   if(InpDebugLog)
+     {
+      PrintFormat("=== RSIDivPane DEBUG @ %s | TF=%s | bars=%d ===",
+                  TimeToString(now, TIME_DATE|TIME_SECONDS), EnumToString(_Period), bars);
+      PrintFormat("Low pivots found: %d | High pivots found: %d", low_count, high_count);
+      // Print 5 ตัวล่าสุดของ low pivots (newest first ในแง่เวลา)
+      int print_n = MathMin(5, low_count);
+      for(int i = low_count - 1; i >= low_count - print_n; i--)
+        {
+         int idx = low_pivots[i];
+         PrintFormat("  LowPivot[%d] series_idx=%d time=%s low=%.5f rsi=%.4f",
+                     i, idx, TimeToString(time[idx], TIME_DATE|TIME_MINUTES),
+                     low[idx], g_rsi_buffer[idx]);
+        }
+      print_n = MathMin(5, high_count);
+      for(int i = high_count - 1; i >= high_count - print_n; i--)
+        {
+         int idx = high_pivots[i];
+         PrintFormat("  HighPivot[%d] series_idx=%d time=%s high=%.5f rsi=%.4f",
+                     i, idx, TimeToString(time[idx], TIME_DATE|TIME_MINUTES),
+                     high[idx], g_rsi_buffer[idx]);
         }
      }
 
@@ -348,6 +393,14 @@ int OnCalculate(const int rates_total,
 
          const bool regular_bull = low[cur] < low[prev] && g_rsi_buffer[cur] > g_rsi_buffer[prev];
          const bool hidden_bull  = low[cur] > low[prev] && g_rsi_buffer[cur] < g_rsi_buffer[prev];
+
+         if(InpDebugLog)
+            PrintFormat("BULL pair: prev=%s(%d) cur=%s(%d) gap=%d | low_prev=%.2f low_cur=%.2f | rsi_prev=%.4f rsi_cur=%.4f | reg=%s hid=%s",
+                        TimeToString(time[prev], TIME_MINUTES), prev,
+                        TimeToString(time[cur], TIME_MINUTES), cur,
+                        prev - cur,
+                        low[prev], low[cur], g_rsi_buffer[prev], g_rsi_buffer[cur],
+                        regular_bull ? "YES" : "no", hidden_bull ? "YES" : "no");
 
          if(InpPlotBullish && regular_bull)
            {
@@ -373,6 +426,14 @@ int OnCalculate(const int rates_total,
 
          const bool regular_bear = high[cur] > high[prev] && g_rsi_buffer[cur] < g_rsi_buffer[prev];
          const bool hidden_bear  = high[cur] < high[prev] && g_rsi_buffer[cur] > g_rsi_buffer[prev];
+
+         if(InpDebugLog)
+            PrintFormat("BEAR pair: prev=%s(%d) cur=%s(%d) gap=%d | high_prev=%.2f high_cur=%.2f | rsi_prev=%.4f rsi_cur=%.4f | reg=%s hid=%s",
+                        TimeToString(time[prev], TIME_MINUTES), prev,
+                        TimeToString(time[cur], TIME_MINUTES), cur,
+                        prev - cur,
+                        high[prev], high[cur], g_rsi_buffer[prev], g_rsi_buffer[cur],
+                        regular_bear ? "YES" : "no", hidden_bear ? "YES" : "no");
 
          if(InpPlotBearish && regular_bear)
            {

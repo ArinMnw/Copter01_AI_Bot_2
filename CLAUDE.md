@@ -154,6 +154,75 @@ mode ที่รองรับ:
 - ไม่ควรยิงซ้ำรัวสำหรับ ticket เดิม
 - ข้อความ Telegram ฝั่ง protect/trail ควรถูก dedup
 
+### S9 RSI Divergence
+
+- ใช้ pivot RSI ตรงกับ `RSIDivergencePane.mq5` (immediate previous pivot only)
+- 4 type: Regular Bullish/Bearish (default ON), Hidden Bullish/Bearish (default OFF)
+- Telegram รวมเป็น 2 ปุ่ม: Regular / Hidden
+- entry = `LIMIT @ midpoint` ของแท่ง pivot ปัจจุบัน
+- setup_sig ใช้แค่ pivot identity เพื่อกัน duplicate
+- ค่า config ที่ต้อง sync กับ MQL5: `RSI9_PERIOD`, `RSI9_LEFT`, `RSI9_RIGHT`, `RSI9_RANGE_MIN`, `RSI9_RANGE_MAX`
+
+### S10 CRT TBS
+
+- bypass trend filter (`if sid != 10:` ใน scanner.py)
+- ปุ่ม `strategy_all_on` ไม่กระทบ S10 (ต้องเปิด/ปิดรายตัว) — default ON
+- `CRT_BAR_MODE` = `2bar` (default — TBS compressed) / `3bar` (TBS classic)
+- `CRT_ENTRY_MODE` = `mtf` (default) / `htf`
+
+**HTF detect filters (ทุก mode):**
+- Parent range ≥ `CRT_MIN_RANGE_POINTS × points_scale`
+- Sweep depth ≥ `CRT_SWEEP_DEPTH_PCT × parent range` (default 10%)
+- Sweep close ต้องไม่เกิน 50% ของ parent (CRT 50% rule)
+
+**HTF mode (Entry Model 2):**
+- ใช้ M15+ เท่านั้น
+- Market BUY/SELL ทันที่ HTF sweep ปิดยืนยัน
+
+**MTF mode (Entry Model 3 — CRT TBS Classic):**
+- LTF mapping: D1/H12→M15, H4→M5, H1/M30/M15→M1
+- Phase 1: failed-push (BUY=RED+close<parent.low / SELL=GREEN+close>parent.high)
+- Phase 2: body engulf 2-bar (concept S1 — ไม่เรียก S1 จริง)
+- Models (คำนวณหลัง engulfing):
+  - #1 Order Block — opposite-color bar ก่อน engulf → entry = OB.open (LIMIT)
+  - #2 FVG 90% — 3-bar imbalance → entry @ 90% deep (concept S2 — ไม่เรียก S2 จริง)
+  - #3 MSS — swing low/high (log only, ไม่ใช้เป็น entry)
+- Priority: Model 1 → fallback Model 2 → ถ้าทั้งคู่ None ไม่เข้า
+- `order_mode = "limit"` (เปลี่ยนจาก market — รอ price retrace)
+- SL = HTF sweep level ± buffer (`state["sl_target"]`)
+- TP = HTF parent opposite (`state["tp_target"]`)
+- Search range ของ Model 1/3: `bar.time > armed_at` (no fixed lookback)
+
+**State:**
+- `_armed_states` save/restore ผ่าน `bot_state.json` (key `s10_armed_states`)
+- `armed_at` = HTF sweep candle's open time
+- expiry = `armed_at + 2 × htf_secs`
+
+**Comment format:**
+- HTF mode: `Bot_<TF>_S10_CRT`
+- MTF mode: `Bot_[<HTF>-<LTF>]_S10_CRT` (regex `MTF [HTF→LTF]` ใน mt5_utils)
+
+### S11 Fibo S1
+
+- Hook ติด S1 — เมื่อ S1 fire จะ record anchor (แท่งสีตรงกับ direction ตัวล่าสุด)
+- 3 trigger levels: KRH1 (1.617) / KRH2 (3.097) / KRH3 (5.165)
+- entry LIMIT, TP=7.044, SL=-0.31, Recovery=-0.95 (phase 2 ยังไม่ implement)
+- `_s11_state` ไม่ persist — restart แล้วต้องรอ S1 fire ใหม่
+- comment ใช้ pattern code: `KRH1_50` / `KRH2_50` / `KRH3_KRH1` / fallback `FIBO`
+- default `active_strategies[11] = False`
+
+### BTC Lot / Points Scaling
+
+- `points_scale()` คืน `4.0` สำหรับ BTCUSD ส่วน symbol อื่น = `1.0`
+- ใช้กับ `get_volume()` และระยะ point ทุกจุด (engulf min, CRT min/buffer, trailing offsets)
+- Telegram UI ยังเห็นค่า config base ของ XAUUSD — scaling ทำหลังบ้าน
+
+### numpy rates check
+
+- `rates` ที่ส่งให้ `strategy_*` เป็น numpy structured array
+- `if not rates:` จะ throw `ValueError: ambiguous` — **ห้ามใช้**
+- ใช้ `if rates is None or len(rates) == 0:` แทน
+
 ## Telegram Toggle Icons
 
 - ปุ่มและ status text ของฟังก์ชันที่เปิด/ปิดได้ใช้ icon: `🟢ON` = เปิด, `🔴OFF` = ปิด
