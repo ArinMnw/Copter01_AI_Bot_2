@@ -343,13 +343,19 @@ async def show_limit_break_menu(update_or_query, is_query=False):
 
 
 def build_engulf_keyboard():
-    pt_options = [100, 200, 300, 500, 1000]
-    pt_row = []
-    for p in pt_options:
-        label = f"{'✅' if config.ENGULF_MIN_POINTS == p else '⬜'} {p}pt"
-        pt_row.append(InlineKeyboardButton(label, callback_data=f"set_engulf_pts_{p}"))
+    row1_opts = [50, 100, 150]
+    row2_opts = [200, 300, 500, 1000]
+    def make_row(opts):
+        return [
+            InlineKeyboardButton(
+                f"{'✅' if config.ENGULF_MIN_POINTS == p else '⬜'} {p}pt",
+                callback_data=f"set_engulf_pts_{p}"
+            )
+            for p in opts
+        ]
     return InlineKeyboardMarkup([
-        pt_row,
+        make_row(row1_opts),
+        make_row(row2_opts),
         [InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")],
     ])
 
@@ -951,10 +957,10 @@ _PROFIT_TREND_FILTERS = {
 
 
 def _parse_comment_detail(comment: str):
-    """Parse comment เช่น Bot_H4_S2_FVG -> (tf, sid, pattern_code)"""
-    if not comment or not comment.startswith("Bot_"):
+    """Parse comment เช่น H4_S2_FVG -> (tf, sid, pattern_code)"""
+    if not comment:
         return None, None, None
-    m = re.match(r"Bot_(M\d+|H\d+|D\d+)(?:_S(\w+?))?(?:_(PA|PB|PC|PD|PE|P4|DMSP|MARU|FVG|SIGFVG|S5|SWING|RSI9))?$", comment)
+    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S(\w+?))?(?:_(PA|PB|PC|PD|PE|P4|DMSP|MARU|FVG|SIGFVG|S5|SWING|RSI9))?$", comment)
     if not m:
         return None, None, None
     tf = m.group(1)

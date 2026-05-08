@@ -56,7 +56,7 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
         m = _MTF_TF_RE.search(pattern)
         if m:
             tf_label = f"[{m.group(1)}-{m.group(2)}]"
-    base = f"Bot_{tf_label}_S{sid}" if tf_label and sid else (f"Bot_{tf_label}" if tf_label else fallback)
+    base = f"{tf_label}_S{sid}" if tf_label and sid else (f"{tf_label}" if tf_label else fallback)
     code = _pattern_comment_code(pattern)
     if not code:
         return base

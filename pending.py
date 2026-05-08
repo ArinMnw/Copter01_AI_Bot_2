@@ -1,3 +1,4 @@
+import config
 from config import *
 from bot_log import log_event
 from mt5_utils import connect_mt5, open_order, find_swing_tp, should_cancel_pending, get_existing_tp, has_previous_bar_trade

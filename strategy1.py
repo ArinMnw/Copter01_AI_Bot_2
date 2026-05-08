@@ -102,7 +102,7 @@ def strategy_1(rates):
         if c1_engulf and c0_engulf and zone and body1_ok:
             # ข้อ 1: SL = min(l0,l1,l2) - SL_BUFFER() เหมือน Pattern B
             lowest   = min(l0, l1, l2)
-            entry    = round(o1 + abs(cl1-o1)*0.5, 2)
+            entry    = round((h1 + l1) / 2, 2)
             sl       = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)
@@ -115,6 +115,7 @@ def strategy_1(rates):
                     f"✅ แท่ง[1] เขียวกลืน Close:{cl1:.2f} > High[2]:{h2:.2f} Body:{body1_pct}%\n"
                     f"✅ แท่ง[0] เขียวกลืน Close:{cl0:.2f} > High[1]:{h1:.2f}\n"
                     f"✅ ใกล้ Swing Low:{sl_z:.2f}\n"
+                    f"📌 Entry Fibo 50% High-Low[1] | SL Low ต่ำสุด-SL_BUFFER\n"
                     f"🎯 TP: {tp_note}"
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
@@ -149,7 +150,7 @@ def strategy_1(rates):
 
         if c1_in_zone and c1_body_ok and c0_engulf and zone:
             body1_pct = round(body1/range1*100) if range1 > 0 else 0
-            entry    = round(o1 + body1*0.5, 2)
+            entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
@@ -163,7 +164,7 @@ def strategy_1(rates):
                     f"⚠️ แท่ง[1] เขียวตำหนิ High:{h1:.2f} ≥ Open:{o2:.2f} | Body:{body1_pct}%\n"
                     f"✅ แท่ง[0] เขียวกลืน Close:{cl0:.2f} > High[1]:{h1:.2f}\n"
                     f"✅ ใกล้ Swing Low:{sl_z:.2f}\n"
-                    f"📌 2 วิธี: รอ[0]ปิด หรือ ราคาแตะ 50%Body[1] ระหว่างที่[0]วิ่ง\n"
+                    f"📌 Entry Fibo 50% High-Low[1] | SL Low ต่ำสุด-SL_BUFFER\n"
                     f"🎯 TP: {tp_note}"
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
@@ -191,7 +192,7 @@ def strategy_1(rates):
         if c1_engulf and c0_engulf and zone and body1_ok:
             # ข้อ 1: SL = max(h0,h1,h2) + SL_BUFFER() เหมือน Pattern B
             highest  = max(h0, h1, h2)
-            entry    = round(o1 - abs(cl1-o1)*0.5, 2)
+            entry    = round((h1 + l1) / 2, 2)
             sl       = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)
@@ -204,6 +205,7 @@ def strategy_1(rates):
                     f"✅ แท่ง[1] แดงกลืน Close:{cl1:.2f} < Low[2]:{l2:.2f} Body:{body1_pct}%\n"
                     f"✅ แท่ง[0] แดงกลืน Close:{cl0:.2f} < Low[1]:{l1:.2f}\n"
                     f"✅ ใกล้ Swing High:{sh:.2f}\n"
+                    f"📌 Entry Fibo 50% High-Low[1] | SL High สูงสุด+SL_BUFFER\n"
                     f"🎯 TP: {tp_note}"
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
@@ -238,7 +240,7 @@ def strategy_1(rates):
 
         if c1_in_zone and c1_body_ok and c0_engulf and zone:
             body1_pct = round(body1/range1*100) if range1 > 0 else 0
-            entry    = round(o1 - body1*0.5, 2)
+            entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
@@ -252,7 +254,7 @@ def strategy_1(rates):
                     f"⚠️ แท่ง[1] แดงตำหนิ Low:{l1:.2f} ≤ Open:{o2:.2f} | Body:{body1_pct}%\n"
                     f"✅ แท่ง[0] แดงกลืน Close:{cl0:.2f} < Low[1]:{l1:.2f}\n"
                     f"✅ ใกล้ Swing High:{sh:.2f}\n"
-                    f"📌 2 วิธี: รอ[0]ปิด หรือ ราคาแตะ 50%Body[1] ระหว่างที่[0]วิ่ง\n"
+                    f"📌 Entry Fibo 50% High-Low[1] | SL High สูงสุด+SL_BUFFER\n"
                     f"🎯 TP: {tp_note}"
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
@@ -271,7 +273,7 @@ def strategy_1(rates):
         zone      = (not use_zone) or (l1 <= sl_z + buf)
 
         if c0_engulf and zone and body1_c_ok:
-            entry    = round(o1 + abs(cl1-o1)*0.5, 2)
+            entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
@@ -304,7 +306,7 @@ def strategy_1(rates):
         zone      = (not use_zone) or (h1 >= sh - buf)
 
         if c0_engulf and zone and body1_c_ok:
-            entry    = round(o1 - abs(cl1-o1)*0.5, 2)
+            entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
@@ -339,7 +341,7 @@ def strategy_1(rates):
         zone = (not use_zone) or (l1 <= sl_z + buf)
 
         if c0_engulf and body0_ok and zone:
-            entry    = round(o0 + b0 * 0.5, 2)
+            entry    = round((h0 + l0) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
@@ -381,7 +383,7 @@ def strategy_1(rates):
         zone = (not use_zone) or (h1 >= sh - buf)
 
         if c0_engulf and body0_ok and zone:
-            entry    = round(o0 - b0 * 0.5, 2)
+            entry    = round((h0 + l0) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
@@ -418,7 +420,7 @@ def strategy_1(rates):
         zone = (not use_zone) or (l2 <= sl_z + buf)
         if zone and body2_d_ok:
             body2 = abs(cl2 - o2)
-            entry = round(o2 + body2 * 0.5, 2)
+            entry = round((h2 + l2) / 2, 2)
             lowest = min(l0, l1, l2, l3)
             sl = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
@@ -447,7 +449,7 @@ def strategy_1(rates):
         zone = (not use_zone) or (h2 >= sh - buf)
         if zone and body2_d_ok:
             body2 = abs(cl2 - o2)
-            entry = round(o2 - body2 * 0.5, 2)
+            entry = round((h2 + l2) / 2, 2)
             highest = max(h0, h1, h2, h3)
             sl = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)

@@ -19,6 +19,45 @@
 - `_armed_states` (`strategy10.py`): per-HTF armed state ของท่า 10 MTF mode — เก็บ `direction, sl_target, tp_target, armed_at, htf_tf, ltf_tf, candles, pattern_base`
 - `_s11_state` (`strategy11.py`): per-TF anchor + phase ของท่า 11 (ไม่ persist)
 
+## S12 State
+
+### `_s12_state` (`strategy12.py`)
+
+state หลักของท่า 12:
+
+- `last_sl_time: float` — timestamp ที่ SL hit ล่าสุด (ตั้งโดย `s12_cleanup_tickets()`)
+- เมื่อ `last_sl_time > 0` และเวลาผ่านไปน้อยกว่า 1800 วินาที → S12 อยู่ใน cooldown
+- cooldown ป้องกันไม่ให้ S12 เข้า order ใหม่ทันทีหลัง SL
+
+### `_s12_scan_status` (`scanner.py`)
+
+dict ที่สรุปสถานะ S12 รอบปัจจุบัน — อัปเดตโดย `scan_s12()` ทุก cycle:
+
+**ปกติ (มี zone):**
+```python
+{
+    "side": "BUY" | "SELL" | "—",
+    "count": int,
+    "zone": "BUY zone" | "SELL zone" | "—",
+    "buy_zone_top": float,
+    "sell_zone_bot": float,
+    "swing_low": float,
+    "swing_high": float,
+}
+```
+
+**ระหว่าง cooldown:**
+```python
+{"cooldown": "⏳ S12 cooldown N นาที (หลัง SL)"}
+```
+
+**พฤติกรรมใน SCAN_SUMMARY:**
+- ปกติ: แสดง zone และ side
+- cooldown: **ไม่แสดง** S12 block เลย (ป้องกัน body ค้างจากค่า 0.00)
+- condition: `if _s12_scan_status and active_strategies.get(12) and not _s12_scan_status.get("cooldown")`
+
+**หมายเหตุ timing:** `scan_s12()` รันหลัง SCAN_SUMMARY ใน `auto_scan` → `_s12_scan_status` ที่แสดงใน SCAN_SUMMARY เป็นของ cycle ก่อนหน้า 1 cycle เสมอ
+
 ## การบันทึก state
 
 - runtime state จะถูกบันทึกลง `bot_state.json`

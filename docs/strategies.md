@@ -15,6 +15,7 @@
 - `9`: RSI Divergence
 - `10`: CRT TBS (Candle Range Theory + Three Bar Sweep)
 - `11`: Fibo S1
+- `12`: Range Trading
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -23,7 +24,7 @@
 แนวคิด:
 - ใช้แท่ง `[2]`, `[1]`, `[0]` เป็นแกน
 - มีทั้งฝั่ง `BUY` และ `SELL`
-- ใช้ `engulf_min_price()` เป็นระยะขั้นต่ำของคำว่า “กลืนกิน”
+- ใช้ `engulf_min_price()` เป็นระยะขั้นต่ำของคำว่า "กลืนกิน"
 - ถ้าเปิด `S1_ZONE_MODE = "zone"` จะต้องอยู่ใกล้ swing zone ด้วย
 
 ### Pattern A
@@ -47,7 +48,7 @@ SELL:
 
 BUY:
 - `[2]` แดง
-- `[1]` เขียวแบบ “ตำหนิ” คือไส้/ช่วงแท่งเข้าไปใน zone ของแท่ง `[2]`
+- `[1]` เขียวแบบ "ตำหนิ" คือไส้/ช่วงแท่งเข้าไปใน zone ของแท่ง `[2]`
 - body `[1] >= 35%`
 - `[0]` เขียวกลืน `[1]`
 - ถ้าใช้ zone mode ต้องใกล้ `Swing Low`
@@ -164,7 +165,7 @@ SELL:
 - `[0]` ต้องยังไม่ปิด gap เช่น `Low[0] > High[2]`
 - ต้องหา `Swing High` ก่อนหน้าให้เจอ
 - `Close[1]` ต้องปิดเหนือ swing นั้น และห่างจาก swing อย่างน้อย `engulf_min_price()`
-- swing ที่กลืนต้องอยู่ “ใน gap” จริง
+- swing ที่กลืนต้องอยู่ "ใน gap" จริง
 
 ### SELL
 
@@ -204,7 +205,7 @@ SELL:
 - `Entry = High + 17% ของ range swing`
 - `SL = High + 31% ของ range swing`
 - `TP = Swing Low`
-- ปัจจุบันมี logic พิเศษเรื่อง “ตั้ง limit ก่อน แล้วค่อย arm SL” ตาม flow ของระบบ
+- ปัจจุบันมี logic พิเศษเรื่อง "ตั้ง limit ก่อน แล้วค่อย arm SL" ตาม flow ของระบบ
 
 ### BUY
 
@@ -285,7 +286,7 @@ SELL (SELL LIMIT):
 - รวม Candle Range Theory (CRT) + Three Bar Sweep (TBS)
 - หา pattern ที่ราคาทำ liquidity sweep แล้วกลับด้าน
 - bypass trend filter (`if sid != 10: trend_allows_signal()` ใน `scanner.py`)
-- default `active_strategies[10] = True` (ปุ่ม “เปิดทั้งหมด” ไม่กระทบ)
+- default `active_strategies[10] = True` (ปุ่ม "เปิดทั้งหมด" ไม่กระทบ)
 
 ### Mode: bar count
 
@@ -448,3 +449,42 @@ Reason log แสดงราคา Model 1, 2, 3 ทั้งหมด + ระ
 | 2 | `Bot_H1_S11_KRH2_50` |
 | 3 | `Bot_H1_S11_KRH3_KRH1` |
 | fallback | `Bot_H1_S11_FIBO` |
+
+## ท่าที่ 12: Range Trading
+
+ไฟล์หลัก: `strategy12.py`
+
+แนวคิด:
+- ระบุ range ด้วย swing high และ swing low บน M5
+- แบ่ง range เป็น buy zone (ใกล้ swing low) และ sell zone (ใกล้ swing high)
+- ตั้ง limit order หลายชั้นใน zone ที่เหมาะสม
+- จัดการ order หลาย ticket พร้อมกันภายใต้ `S12_ORDER_COUNT`
+- default `active_strategies[12] = True`
+- ปุ่ม "เปิดทั้งหมด" ไม่กระทบ S12 (ต้องเปิด/ปิดรายตัว)
+
+### Config หลัก
+
+| key | ความหมาย |
+|---|---|
+| `S12_ORDER_COUNT` | จำนวน order สูงสุดต่อด้าน (default 3) |
+| `S12_COOLDOWN_SECS` | เวลา cooldown หลัง SL hit (default 1800s = 30 นาที) |
+
+### Cooldown
+
+- หลัง SL hit ระบบตั้ง `_s12_state["last_sl_time"]` ผ่าน `s12_cleanup_tickets()`
+- ระหว่าง cooldown S12 จะไม่เข้า order ใหม่
+- `_s12_scan_status = {"cooldown": "⏳ S12 cooldown N นาที (หลัง SL)"}` ระหว่างนี้
+- SCAN_SUMMARY จะไม่แสดง S12 block เลยระหว่าง cooldown
+
+### Comment format
+
+```
+Bot_M5_S12_buy
+Bot_M5_S12_sell
+```
+
+### State
+
+- `_s12_state`: `{"last_sl_time": float}`
+- `_s12_scan_status`: dict สรุปสถานะรอบปัจจุบัน (ดูรายละเอียดใน `runtime-state.md`)
+- ไม่ persist ผ่าน `bot_state.json` (restart แล้วนับใหม่)

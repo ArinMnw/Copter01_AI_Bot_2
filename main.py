@@ -2,7 +2,7 @@ import MetaTrader5 as mt5
 import asyncio
 import time as _time
 from datetime import datetime
-from bot_log import log_event, setup_python_logging, cleanup_old_logs
+from bot_log import log_event, log_error, setup_python_logging, cleanup_old_logs
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -18,7 +18,50 @@ from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
 
+_error_last_sent: dict = {}
+_ERROR_COOLDOWN = 300  # วินาที — ไม่ส่ง error ซ้ำภายใน 5 นาที
+
+
+async def _tg_error(app, job_name: str, exc: Exception) -> None:
+    """ส่ง error ไป Telegram พร้อม dedup กัน spam"""
+    import time, traceback
+    key = f"{job_name}:{type(exc).__name__}:{str(exc)[:80]}"
+    now = time.time()
+    if now - _error_last_sent.get(key, 0) < _ERROR_COOLDOWN:
+        return
+    _error_last_sent[key] = now
+    tb = traceback.format_exc()
+    short_tb = tb[-500:] if len(tb) > 500 else tb
+    msg = (
+        f"🚨 *Bot Error — {job_name}*\n"
+        f"`{type(exc).__name__}: {str(exc)[:200]}`\n"
+        f"```\n{short_tb}\n```"
+    )
+    log_event("BOT_ERROR", f"{job_name} error: {type(exc).__name__}: {exc}")
+    log_error("BOT_ERROR", f"{job_name} | {type(exc).__name__}: {exc}\n{short_tb}")
+    try:
+        await app.bot.send_message(chat_id=MY_USER_ID, text=msg, parse_mode="Markdown")
+    except Exception:
+        pass
+
+
 def main():
+    import sys as _sys, traceback as _tb2
+
+    def _fatal_excepthook(exc_type, exc_value, exc_tb):
+        """จับ exception ที่หลุดออกมาโดยไม่มี try/except — เขียนลง error log"""
+        if issubclass(exc_type, KeyboardInterrupt):
+            _sys.__excepthook__(exc_type, exc_value, exc_tb)
+            return
+        tb_str = "".join(_tb2.format_exception(exc_type, exc_value, exc_tb))
+        try:
+            log_error("FATAL_ERROR", f"{exc_type.__name__}: {exc_value}\n{tb_str[-800:]}")
+        except Exception:
+            pass
+        _sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+    _sys.excepthook = _fatal_excepthook
+
     setup_python_logging()
     log_event("APP_START", "Bot starting", symbol=SYMBOL, scan_interval=SCAN_INTERVAL)
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -37,7 +80,10 @@ def main():
     scheduler = AsyncIOScheduler()
 
     async def run_scan():
-        await auto_scan(app)
+        try:
+            await auto_scan(app)
+        except Exception as e:
+            await _tg_error(app, "run_scan", e)
 
     async def check_symbol_switch():
         """ตรวจตลาด XAUUSD — ถ้าปิดสลับไป BTCUSD ถ้าเปิดสลับกลับ"""
@@ -94,8 +140,11 @@ def main():
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
-        await check_engulf_trail_sl(app)
-        await check_s6_trail(app)
+        try:
+            await check_engulf_trail_sl(app)
+            await check_s6_trail(app)
+        except Exception as e:
+            await _tg_error(app, "run_trail_sl", e)
 
     async def run_position_check():
         """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)"""
@@ -104,12 +153,15 @@ def main():
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
-        await check_entry_candle_quality(app)
-        await check_sl_tp_hits(app)
-        await check_cancel_pending_orders(app)
-        # await check_breakeven_tp(app)  # ปิดชั่วคราว
-        await check_opposite_order_tp(app)
-        await check_limit_sweep(app)
+        try:
+            await check_entry_candle_quality(app)
+            await check_sl_tp_hits(app)
+            await check_cancel_pending_orders(app)
+            # await check_breakeven_tp(app)  # ปิดชั่วคราว
+            await check_opposite_order_tp(app)
+            await check_limit_sweep(app)
+        except Exception as e:
+            await _tg_error(app, "run_position_check", e)
 
     async def save_bot_state_job():
         """บันทึก state สำคัญเป็นระยะ เพื่อลดปัญหา pattern/state หายหลัง restart"""

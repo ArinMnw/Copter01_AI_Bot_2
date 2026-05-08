@@ -1,6 +1,7 @@
 from config import *
 import config
 import asyncio
+import time as _time
 from bot_log import log_block, log_event
 from mt5_utils import connect_mt5, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
 from strategy1 import strategy_1
@@ -13,13 +14,16 @@ from strategy9 import strategy_9
 from strategy10 import strategy_10
 from strategy11 import strategy_11, record_s1_pattern as s11_record_s1_pattern
 from pending import check_fvg_pending, check_pb_pending
-from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl
+from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode
 from notifications import check_sl_tp_hits
 _first_scan_done = False
 _scan_results: dict = {}   # {tf_name: dict}
 _scan_lock = None
 _last_scan_summary_telegram = ""
 _last_scan_summary_cmd = ""
+_last_scan_summary_log_time: float = 0.0
+SCAN_SUMMARY_FORCE_INTERVAL = 60  # force log/tg ทุก 1 นาที แม้ body จะไม่เปลี่ยน
+_s12_scan_status: dict = {}  # สถานะ S12 ล่าสุด สำหรับ scan summary
 _last_skip_log_by_tf: dict = {}
 _last_skip_notify_by_key: dict = {}
 _last_divergence_log_by_key: dict = {}
@@ -133,7 +137,7 @@ def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
 
     orders = mt5.orders_get(symbol=SYMBOL) or []
     want_type = mt5.ORDER_TYPE_BUY_STOP if signal == "BUY" else mt5.ORDER_TYPE_SELL_STOP
-    comment_prefix = f"Bot_{tf_name}_S{sid}"
+    comment_prefix = f"{tf_name}_S{sid}"
     for order in orders:
         if order.type != want_type:
             continue
@@ -588,7 +592,7 @@ def _format_scan_summary_telegram(show_tfs: list[str]) -> tuple[str, str]:
     text = (
         "🔍 *Scan Summary*\n"
         "━━━━━━━━━━━━━━━━━\n"
-        f"🕐 `{now_bkk().strftime('%H:%M:%S %d/%m/%Y')}`\n\n"
+        f"🕐 `{now_bkk().strftime('%d/%m/%Y %H:%M:%S')}`\n\n"
         f"{body}"
     )
     return text, body
@@ -642,11 +646,28 @@ def _format_scan_summary_telegram_clean(show_tfs: list[str]) -> tuple[str, str]:
     if swing_lines:
         body_lines.append("━━━━━━━━━━━━━━━━━\n📊 Scan Swing\n\n" + "\n".join(swing_lines))
 
+    if _s12_scan_status and active_strategies.get(12, False) and not _s12_scan_status.get("cooldown"):
+        s = _s12_scan_status
+        side_lbl  = s.get("side") or "—"
+        count_lbl = s.get("count", 0)
+        zone_lbl  = s.get("zone", "—")
+        bzt = s.get("buy_zone_top",  s.get("swing_low", 0))
+        szb = s.get("sell_zone_bot", s.get("swing_high", 0))
+        swing_low  = s.get("swing_low", 0)
+        swing_high = s.get("swing_high", 0)
+        body_lines.append(
+            f"━━━━━━━━━━━━━━━━━\n"
+            f"📦 S12 Range [M5]\n"
+            f"SELL zone: {szb:.2f} – {swing_high:.2f}\n"
+            f"BUY  zone: {swing_low:.2f} – {bzt:.2f}\n"
+            f"Now: {zone_lbl} | Side: {side_lbl} #{count_lbl}/{config.S12_ORDER_COUNT}"
+        )
+
     body = "\n".join(body_lines).strip()
     text = (
         "🔍 Scan Summary\n"
         "━━━━━━━━━━━━━━━━━\n"
-        f"🕐 {now_bkk().strftime('%H:%M:%S %d/%m/%Y')}\n\n"
+        f"🕐 {now_bkk().strftime('%d/%m/%Y %H:%M:%S')}\n\n"
         f"{body}"
     )
     return text, body
@@ -786,7 +807,7 @@ def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
     return (
         f"{sig_e} *{pattern}*\n"
         f"━━━━━━━━━━━━━━━━━\n"
-        f"🕐 {now_bkk().strftime('%H:%M %d/%m/%Y')}\n"
+        f"🕐 {now_bkk().strftime('%d/%m/%Y %H:%M')}\n"
         f"📊 *Timeframe: {tf_name}* | ท่าที่ {sid}\n\n"
         f"{candle_rows}\n"
         f"📈 Swing High:`{swing_h:.2f}`{swing_h_suffix} | Low:`{swing_l:.2f}`{swing_l_suffix}\n\n"
@@ -880,7 +901,7 @@ def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, ga
     return round(int_bot, 2), round(int_top, 2), tfs_list, tickets_to_cancel
 async def auto_scan(app):
     """สแกนทุก Timeframe ที่เปิดอยู่พร้อมกัน"""
-    global auto_active, _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd
+    global auto_active, _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
     if not auto_active:
         return
     if not connect_mt5():
@@ -895,6 +916,7 @@ async def auto_scan(app):
     await check_s3_maru_pending(app)
     await check_fvg_pending(app)
     await check_pb_pending(app)
+    await check_s12_management(app)
     positions  = mt5.positions_get(symbol=SYMBOL)
     open_count = len(positions) if positions else 0
     if open_count >= MAX_ORDERS:
@@ -971,14 +993,166 @@ async def auto_scan(app):
                 swing_lines.append("  └────────────────")
             if swing_lines:
                 blocks.append("\n".join(swing_lines))
-            if tg_key and tg_key != _last_scan_summary_cmd:
+            _now_t = _time.time()
+            _force_log = (_now_t - _last_scan_summary_log_time) >= SCAN_SUMMARY_FORCE_INTERVAL
+            if tg_key and (tg_key != _last_scan_summary_cmd or _force_log):
                 print("\n".join(blocks))
                 log_block("SCAN_SUMMARY", tg_text)
                 _last_scan_summary_cmd = tg_key
-            if tg_key and tg_key != _last_scan_summary_telegram:
+                _last_scan_summary_log_time = _now_t
+            if tg_key and (tg_key != _last_scan_summary_telegram or _force_log):
                 await tg(app, tg_text, parse_mode=None)
                 _last_scan_summary_telegram = tg_key
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] SCAN_SUMMARY_TG queued")
+    await scan_s12(app)
+
+
+async def scan_s12(app):
+    """S12 Range Trading — เปิด order เมื่อราคาเข้า zone (M5 only, standalone)"""
+    global _s12_scan_status
+    from strategy12 import _s12_state, s12_get_swing, s12_get_tp, s12_cleanup_tickets
+    from bot_log import log_event
+
+    if not active_strategies.get(12, False):
+        _s12_scan_status = {}
+        return
+
+    s12_cleanup_tickets()
+
+    # Fix 1: Cooldown หลัง SL hit
+    cooldown = config.S12_COOLDOWN_SECONDS
+    if cooldown > 0 and _s12_state.get("last_sl_time", 0) > 0:
+        elapsed = _time.time() - _s12_state["last_sl_time"]
+        if elapsed < cooldown:
+            remaining_min = int((cooldown - elapsed) / 60) + 1
+            _s12_scan_status = {"cooldown": f"⏳ S12 cooldown {remaining_min} นาที (หลัง SL)"}
+            return
+
+    rates_m5  = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M5,  0, config.S12_LOOKBACK + 5)
+    rates_m15 = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M15, 0, 60)
+    tick      = mt5.symbol_info_tick(SYMBOL)
+    sym       = mt5.symbol_info(SYMBOL)
+
+    if rates_m5 is None or len(rates_m5) < 10 or tick is None or sym is None:
+        return
+
+    pt        = sym.point or 0.01
+    scale     = config.points_scale()
+    zone_dist = config.S12_ZONE_POINTS * pt * scale
+    sl_dist   = config.S12_SL_POINTS   * pt * scale
+
+    swing_high, swing_low = s12_get_swing(rates_m5, config.S12_LOOKBACK)
+
+    bid = float(tick.bid)
+    ask = float(tick.ask)
+
+    side       = _s12_state["side"]
+    count      = _s12_state["order_count"]
+    last_price = _s12_state["last_entry_price"]
+
+    # Fix 3: Zone validity — ราคาต้องอยู่ภายใน range ไม่ทะลุ swing
+    in_buy_zone  = swing_low  <= ask <= swing_low  + zone_dist
+    in_sell_zone = swing_high - zone_dist <= bid <= swing_high
+
+    buy_zone_bot  = swing_low
+    buy_zone_top  = swing_low  + zone_dist
+    sell_zone_bot = swing_high - zone_dist
+    sell_zone_top = swing_high
+    zone_label = "BUY zone" if in_buy_zone else ("SELL zone" if in_sell_zone else "Neutral")
+    _s12_scan_status = {
+        "swing_high":   swing_high,
+        "swing_low":    swing_low,
+        "buy_zone_top": buy_zone_top,
+        "sell_zone_bot":sell_zone_bot,
+        "bid":          bid,
+        "ask":          ask,
+        "zone":         zone_label,
+        "side":         side,
+        "count":        count,
+    }
+
+    should_buy = (
+        in_buy_zone
+        and (side is None or side == "BUY")
+        and count < config.S12_ORDER_COUNT
+        and (last_price is None or ask < last_price)
+    )
+    should_sell = (
+        in_sell_zone
+        and (side is None or side == "SELL")
+        and count < config.S12_ORDER_COUNT
+        and (last_price is None or bid > last_price)
+    )
+
+    if not should_buy and not should_sell:
+        return
+
+    direction = "BUY" if should_buy else "SELL"
+
+    # Momentum filter — ถ้า M5 ล่าสุด N แท่งทิศเดียวกันทั้งหมด ไม่เปิด order ทวนทิศ
+    mb = config.S12_MOMENTUM_BARS
+    if mb > 0 and len(rates_m5) >= mb + 1:
+        recent = rates_m5[-(mb + 1):-1]  # N แท่งที่ปิดแล้ว
+        all_bull = all(float(r["close"]) > float(r["open"]) for r in recent)
+        all_bear = all(float(r["close"]) < float(r["open"]) for r in recent)
+        if direction == "SELL" and all_bull:
+            _s12_scan_status.update({"momentum_block": f"⛔ Momentum block SELL ({mb} bull bars)"})
+            return
+        if direction == "BUY" and all_bear:
+            _s12_scan_status.update({"momentum_block": f"⛔ Momentum block BUY ({mb} bear bars)"})
+            return
+
+    entry     = ask if should_buy else bid
+    sl        = round(entry - sl_dist, 2) if should_buy else round(entry + sl_dist, 2)
+    tp_raw    = s12_get_tp(rates_m15, direction)
+    if tp_raw:
+        tp = round(tp_raw, 2)
+    else:
+        tp = round(entry + sl_dist, 2) if should_buy else round(entry - sl_dist, 2)
+
+    req = {
+        "action":       mt5.TRADE_ACTION_DEAL,
+        "symbol":       SYMBOL,
+        "volume":       config.S12_LOT_SIZE,
+        "type":         mt5.ORDER_TYPE_BUY if should_buy else mt5.ORDER_TYPE_SELL,
+        "price":        entry,
+        "sl":           sl,
+        "tp":           tp,
+        "deviation":    20,
+        "magic":        0,
+        "comment":      f"M5_S12_{'BUY' if should_buy else 'SELL'}",
+        "type_time":    mt5.ORDER_TIME_GTC,
+        "type_filling": _get_filling_mode(),
+    }
+    r = mt5.order_send(req)
+    now = now_bkk().strftime("%H:%M:%S")
+    if r is None or r.retcode != mt5.TRADE_RETCODE_DONE:
+        retcode = r.retcode if r else "None"
+        print(f"❌ [{now}] S12 {direction} FAIL retcode={retcode}")
+        return
+
+    ticket = r.order
+    _s12_state["side"]             = direction
+    _s12_state["order_count"]      = count + 1
+    _s12_state["last_entry_price"] = entry
+    _s12_state["tickets"].append(ticket)
+
+    new_count = count + 1
+    sig_e = "🟢" if should_buy else "🔴"
+    print(f"{sig_e} [{now}] S12 {direction} #{new_count} entry={entry:.2f} sl={sl:.2f} tp={tp:.2f} ticket={ticket}")
+    log_event("ORDER_CREATED", f"ท่าที่ 12 Range Trading {sig_e} {direction} #{new_count}",
+              tf="M5", sid=12, signal=direction,
+              entry=entry, sl=sl, tp=tp, ticket=ticket, order_type=direction)
+    await tg(app, (
+        f"{sig_e} *S12 Range Trading #{new_count}*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"[M5] {direction} Ticket:`{ticket}`\n"
+        f"Entry:`{entry:.2f}` | SL:`{sl:.2f}` | TP:`{tp:.2f}`\n"
+        f"Range: `{swing_low:.2f}` – `{swing_high:.2f}`\n"
+        f"Zone: {'bottom' if should_buy else 'top'} ±{config.S12_ZONE_POINTS}pt"
+    ))
+
+
 async def scan_one_tf(app, tf_name: str) -> bool:
     """สแกน 1 Timeframe — return True ถ้าเปิด Order สำเร็จ"""
     tf_val = TF_OPTIONS[tf_name]
@@ -1087,6 +1261,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             r1.get("signal"),
             r1.get("candles") or [],
             int(rates[-1]["time"]) if len(rates) else 0,
+            r1.get("pattern", ""),
         )
     if active_strategies.get(11, False):
         r11 = strategy_11(rates, tf_name)

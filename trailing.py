@@ -42,7 +42,7 @@ _reverse_tickets: set = set()    # ticket ที่เปิดจาก reverse
 _FILL_INIT_SUPPRESS_SEC = 180    # suppress fill notify only for positions older than this on init
 _last_meta_map_key = ""
 _last_trail_tg_key = ""
-SLTP_AUDIT_DIR = LOG_DIR
+SLTP_AUDIT_DIR = os.path.join(LOG_DIR, "debug")
 SLTP_AUDIT_FILE = os.path.join(SLTP_AUDIT_DIR, "sltp_audit.log")
 _last_sltp_cmd_key = ""
 _last_sltp_tg_key = ""
@@ -75,10 +75,10 @@ _focus_frozen_side: dict = {"trail_sl": None, "entry_candle": None}
 
 
 def _parse_bot_comment(comment: str):
-    """Parse comment เช่น Bot_M1_S2, Bot_H4_S3, Bot_M1_S6i_buy → (tf, sid)"""
-    if not comment or not comment.startswith("Bot_"):
+    """Parse comment เช่น M1_S2, H4_S3, M1_S6i_buy → (tf, sid)"""
+    if not comment:
         return None, None
-    m = re.match(r"Bot_(M\d+|H\d+|D\d+)(?:_S(\w+))?", comment)
+    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S(\w+))?", comment)
     if not m:
         return None, None
     tf = m.group(1)
@@ -1364,7 +1364,7 @@ async def check_entry_candle_quality(app):
                                     "tp":           rev_tp,
                                     "deviation":    20,
                                     "magic":        234001,
-                                    "comment":      f"Bot_{tf_name}_S{sid}_rev_market",
+                                    "comment":      f"{tf_name}_S{sid}_rev_market",
                                     "type_time":    mt5.ORDER_TIME_GTC,
                                     "type_filling": _get_filling_mode(),
                                 })
@@ -1592,7 +1592,7 @@ async def check_entry_candle_quality(app):
                                     "tp":           rev_tp,
                                     "deviation":    20,
                                     "magic":        234001,
-                                    "comment":      f"Bot_{tf_name}_S{sid}_rev_market",
+                                    "comment":      f"{tf_name}_S{sid}_rev_market",
                                     "type_time":    mt5.ORDER_TIME_GTC,
                                     "type_filling": _get_filling_mode(),
                                 })
@@ -3087,7 +3087,7 @@ async def _s6i_on_swing2(app, pos, pos_type, rates, st, swing1, swing2,
             "tp":           round(tp_price, 2),
             "deviation":    20,
             "magic":        0,
-            "comment":      f"Bot_{tf_name}_S6i_{pos_type.lower()}",
+            "comment":      f"{tf_name}_S6i_{pos_type.lower()}",
             "type_time":    mt5.ORDER_TIME_GTC,
             "type_filling": _get_filling_mode(),
         })
@@ -3324,7 +3324,7 @@ async def check_cancel_pending_orders(app):
 
         # ── Limit Trend Recheck: เช็ค trend ก่อน fill เมื่อราคาใกล้ entry ──
         _order_sid = info.get("sid") if isinstance(info, dict) else None
-        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (9, 10):
+        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (1, 9, 10, 11):
             _tick = mt5.symbol_info_tick(SYMBOL)
             _sym  = mt5.symbol_info(SYMBOL)
             if _tick and _sym:
@@ -3809,3 +3809,113 @@ async def check_limit_sweep(app):
 async def check_fvg_candle_quality(app):
     """Deprecated — ท่าที่ 2 ใช้ check_entry_candle_quality เหมือนทุกท่าแล้ว"""
     pass
+
+
+# ─────────────────────────────────────────────────────────────
+async def _s12_close_all(app, reason: str):
+    """ปิด S12 positions ทั้งหมด — ใช้ใน flip + breakout"""
+    from strategy12 import _s12_state
+    from bot_log import log_event
+
+    positions   = mt5.positions_get(symbol=SYMBOL)
+    s12_tickets = set(_s12_state["tickets"])
+    closed = 0
+    total_profit = 0.0
+
+    if positions:
+        tick = mt5.symbol_info_tick(SYMBOL)
+        for pos in positions:
+            if pos.ticket not in s12_tickets:
+                continue
+            close_type  = mt5.ORDER_TYPE_SELL if pos.type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY
+            close_price = float(tick.bid) if pos.type == mt5.ORDER_TYPE_BUY else float(tick.ask)
+            r = mt5.order_send({
+                "action":       mt5.TRADE_ACTION_DEAL,
+                "symbol":       SYMBOL,
+                "volume":       pos.volume,
+                "type":         close_type,
+                "position":     pos.ticket,
+                "price":        close_price,
+                "deviation":    20,
+                "magic":        0,
+                "comment":      "S12 close",
+                "type_time":    mt5.ORDER_TIME_GTC,
+                "type_filling": _get_filling_mode(),
+            })
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                closed += 1
+                total_profit += pos.profit
+                log_event("POSITION_CLOSED", reason,
+                          ticket=pos.ticket,
+                          side="BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL",
+                          symbol=SYMBOL, tf="M5", sid=12,
+                          open_price=pos.price_open, close_price=close_price,
+                          profit=round(pos.profit, 2))
+
+    _s12_state["tickets"].clear()
+    _s12_state["order_count"] = 0
+    _s12_state["last_entry_price"] = None
+    # side ไม่ล้างที่นี่ — caller กำหนดเอง
+
+    now_str = now_bkk().strftime("%H:%M:%S")
+    profit_str = f"+{total_profit:.2f}" if total_profit >= 0 else f"{total_profit:.2f}"
+    print(f"🗑 [{now_str}] S12 ปิด {closed} positions profit={profit_str}: {reason}")
+    await tg(app, (
+        f"🗑 *S12 ปิด {closed} position*\n"
+        f"Profit: `{profit_str}`\n"
+        f"เหตุผล: {reason}"
+    ))
+
+
+async def check_s12_management(app):
+    """S12 Range Trading management — ตรวจ flip + breakout"""
+    from strategy12 import _s12_state, s12_get_swing, s12_cleanup_tickets
+
+    if not active_strategies.get(12, False):
+        return
+
+    s12_cleanup_tickets()
+
+    if not _s12_state["tickets"]:
+        return
+
+    rates_m5 = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M5, 0, config.S12_LOOKBACK + 5)
+    tick     = mt5.symbol_info_tick(SYMBOL)
+    sym      = mt5.symbol_info(SYMBOL)
+
+    if rates_m5 is None or len(rates_m5) < 5 or tick is None or sym is None:
+        return
+
+    pt        = sym.point or 0.01
+    scale     = config.points_scale()
+    zone_dist = config.S12_ZONE_POINTS * pt * scale
+    side      = _s12_state["side"]
+
+    swing_high, swing_low = s12_get_swing(rates_m5, config.S12_LOOKBACK)
+
+    # ── ตรวจ Breakout (แท่งปิดล่าสุด) ──
+    if len(rates_m5) >= 2:
+        last_close = float(rates_m5[-2]["close"])
+        if side == "BUY" and last_close > swing_high:
+            await _s12_close_all(app, f"Breakout ขึ้น close:{last_close:.2f} > {swing_high:.2f}")
+            _s12_state["side"] = None
+            return
+        elif side == "SELL" and last_close < swing_low:
+            await _s12_close_all(app, f"Breakout ลง close:{last_close:.2f} < {swing_low:.2f}")
+            _s12_state["side"] = None
+            return
+
+    # ── ตรวจ Flip ──
+    bid = float(tick.bid)
+    ask = float(tick.ask)
+
+    if side == "SELL" and ask <= swing_low + zone_dist:
+        await _s12_close_all(app, f"Flip → BUY: ราคาถึง bottom zone {swing_low:.2f}")
+        _s12_state["side"]             = "BUY"
+        _s12_state["order_count"]      = 0
+        _s12_state["last_entry_price"] = None
+    elif side == "BUY" and bid >= swing_high - zone_dist:
+        await _s12_close_all(app, f"Flip → SELL: ราคาถึง top zone {swing_high:.2f}")
+        _s12_state["side"]             = "SELL"
+        _s12_state["order_count"]      = 0
+        _s12_state["last_entry_price"] = None

@@ -12,13 +12,13 @@ def _fmt_bkk_ts(ts: int | float | None) -> str:
 
 def _parse_bot_comment(comment: str):
     """
-    Parse comment เช่น 'Bot_M1_S3', 'Bot_H4_S2', 'Bot_M1_S6i_buy'
+    Parse comment เช่น 'M1_S3', 'H4_S2', 'M1_S6i_buy'
     คืน (tf, sid) เช่น ('M1', 3), ('H4', 2), ('M1', '6i')
     ถ้า parse ไม่ได้ คืน (None, None)
     """
-    if not comment or not comment.startswith("Bot_"):
+    if not comment:
         return None, None
-    m = re.match(r"Bot_(M\d+|H\d+|D\d+)(?:_S(\w+))?", comment)
+    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S(\w+))?", comment)
     if not m:
         return None, None
     tf = m.group(1)

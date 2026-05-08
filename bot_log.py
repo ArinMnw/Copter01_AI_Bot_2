@@ -8,11 +8,14 @@ from datetime import datetime, timedelta, timezone
 TZ_OFFSET = 7
 LOG_DIR = "logs"
 BOT_LOG_FILE = os.path.join(LOG_DIR, "bot.log")
-SYSTEM_LOG_FILE = os.path.join(LOG_DIR, "system.log")
+SYSTEM_LOG_DIR = os.path.join(LOG_DIR, "system")
+SYSTEM_LOG_FILE = os.path.join(SYSTEM_LOG_DIR, "system.log")
+DEBUG_LOG_DIR = os.path.join(LOG_DIR, "debug")
 LOG_RETENTION_DAYS = 7
 
 _TS_LINE_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
 _MONTHLY_LOG_RE = re.compile(r"^bot-\d{4}-\d{2}\.log$")
+_ERROR_MONTHLY_LOG_RE = re.compile(r"^error-\d{4}-\d{2}\.log$")
 
 
 def _now_bkk() -> datetime:
@@ -55,6 +58,8 @@ def _sanitize(value) -> str:
 
 def _ensure_log_dir() -> None:
     os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs(SYSTEM_LOG_DIR, exist_ok=True)
+    os.makedirs(DEBUG_LOG_DIR, exist_ok=True)
 
 
 def get_monthly_bot_log_file(year: int, month: int) -> str:
@@ -65,18 +70,61 @@ def get_monthly_bot_log_file_for_dt(dt: datetime) -> str:
     return get_monthly_bot_log_file(dt.year, dt.month)
 
 
+def get_monthly_error_log_file_for_dt(dt: datetime) -> str:
+    return os.path.join(LOG_DIR, f"error-{dt.year:04d}-{dt.month:02d}.log")
+
+
+def log_error(kind: str, message: str = "", **fields) -> None:
+    """เขียน error ลง error-YYYY-MM.log แยกต่างหาก"""
+    try:
+        _ensure_log_dir()
+        now_dt = _now_bkk()
+        ts = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+        flat_fields = [f"{key}={_sanitize(value)}" for key, value in fields.items() if value is not None]
+        line = f"[{ts}] {kind}"
+        if message:
+            line += f" | {_sanitize(message)}"
+        if flat_fields:
+            line += " | " + " | ".join(flat_fields)
+        error_log = get_monthly_error_log_file_for_dt(now_dt)
+        with open(error_log, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
+
+
+class _ErrorLogHandler(logging.Handler):
+    """Catch Python ERROR-level logs → เขียนลง error-YYYY-MM.log"""
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            log_error("PYTHON_ERROR", msg)
+        except Exception:
+            pass
+
+
 def setup_python_logging() -> None:
     _ensure_log_dir()
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     system_path = os.path.abspath(SYSTEM_LOG_FILE)
+    already_has_file = False
+    already_has_error = False
     for handler in root.handlers:
         if isinstance(handler, logging.FileHandler) and getattr(handler, "baseFilename", "") == system_path:
-            return
-    file_handler = logging.FileHandler(SYSTEM_LOG_FILE, encoding="utf-8")
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    root.addHandler(file_handler)
+            already_has_file = True
+        if isinstance(handler, _ErrorLogHandler):
+            already_has_error = True
+    if not already_has_file:
+        file_handler = logging.FileHandler(SYSTEM_LOG_FILE, encoding="utf-8")
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        root.addHandler(file_handler)
+    if not already_has_error:
+        error_handler = _ErrorLogHandler()
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(logging.Formatter("%(name)s | %(message)s"))
+        root.addHandler(error_handler)
 
 
 def log_event(kind: str, message: str = "", **fields) -> None:
@@ -145,7 +193,7 @@ def cleanup_old_logs(retention_days: int = LOG_RETENTION_DAYS) -> dict:
             if effective_ts is None or effective_ts >= cutoff:
                 kept.append(line)
 
-        if _MONTHLY_LOG_RE.match(name) and not kept:
+        if (_MONTHLY_LOG_RE.match(name) or _ERROR_MONTHLY_LOG_RE.match(name)) and not kept:
             try:
                 os.remove(path)
                 summary["deleted"].append(name)

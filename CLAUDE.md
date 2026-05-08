@@ -230,12 +230,30 @@ mode ที่รองรับ:
 - ฟังก์ชันที่มี master toggle และ submenu: Trail SL, Entry Candle Mode, Opposite Order
 - ฟังก์ชันที่ toggle ตรงจากหน้าหลัก: Entry Candle TP, Limit Sweep, Delay SL (3 mode)
 
+### S12 Range Trading
+
+- ระบุ range ด้วย swing high/low บน M5 → แบ่งเป็น buy/sell zone
+- ตั้ง limit order หลายชั้น (จำนวนสูงสุด = `S12_ORDER_COUNT`)
+- ปุ่ม `strategy_all_on` ไม่กระทบ S12 — default ON ต้องปิด/เปิดรายตัวเอง
+- cooldown 1800s หลัง SL hit (`S12_COOLDOWN_SECS`)
+- **SCAN_SUMMARY**: ระหว่าง cooldown จะ **ไม่แสดง** S12 block เลย (ป้องกัน body ค้างจากค่า 0.00 → ทำให้ force-log ทำงานได้ตามปกติ)
+- comment: `Bot_M5_S12_buy` / `Bot_M5_S12_sell`
+
 ## Log และสรุปกำไร
 
-- log หลักคือ `logs/bot.log`
-- มี monthly log เช่น `logs/bot-YYYY-MM.log`
+- log หลักคือ `logs/bot.log` และ `logs/bot-YYYY-MM.log` (สำเนารายเดือน)
+- `logs/error-YYYY-MM.log`: error + Python exception (จาก `log_error()` และ `_ErrorLogHandler`)
+- `logs/system/system.log`: Python `logging` module (INFO+)
+- `logs/debug/sltp_audit.log`: audit trail การเปลี่ยน SL/TP
 - `POSITION_CLOSED` ใช้เป็นฐานของสรุปกำไร
 - เวลา Telegram มากับ log ไม่ตรงกัน ให้เชื่อ `bot.log` ก่อน
+
+## SCAN_SUMMARY
+
+- log ทุกครั้งที่ body เปลี่ยน (dedup ด้วย `tg_key`)
+- **force-log ทุก 60 วินาที** แม้ body จะไม่เปลี่ยน (ทั้ง bot.log และ Telegram)
+- ควบคุมด้วย `SCAN_SUMMARY_FORCE_INTERVAL = 60` ใน `scanner.py`
+- S12 cooldown: ไม่แสดง S12 block ใน body ระหว่าง cooldown
 
 ## กติกาเวลาแก้ไฟล์
 

@@ -13,6 +13,7 @@
 - `check_s6_trail()`
 - `check_cancel_pending_orders()`
 - `check_limit_sweep()`
+- `check_s12_management()`
 
 ## Entry Candle Quality
 
@@ -95,7 +96,7 @@ waiting_bad:
 ### 2. close
 
 แนวคิด:
-- เน้น “ปิดเร็ว” ถ้าแท่ง entry ออกสวนทาง
+- เน้น "ปิดเร็ว" ถ้าแท่ง entry ออกสวนทาง
 - ใช้ branch ปิดทันทีจากคุณภาพแท่งมากกว่า mode classic
 
 BUY:
@@ -202,7 +203,7 @@ mode:
 - `Trend Filter override`
   - เปิด/ปิดได้จาก `Trend Filter > Trail SL Override`
   - config: `TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED`
-  - ถ้าเปิด Trend Filter แบบ Per-TF หรือ Higher TF แล้ว trend ของ TF อ้างอิง “เปลี่ยนเป็นฝั่งตรงข้ามของ position” ระบบจะยอมให้ Trail SL ทำงานแม้ `TRAIL_SL_FOCUS_NEW_ENABLED` กำลัง freeze อยู่
+  - ถ้าเปิด Trend Filter แบบ Per-TF หรือ Higher TF แล้ว trend ของ TF อ้างอิง "เปลี่ยนเป็นฝั่งตรงข้ามของ position" ระบบจะยอมให้ Trail SL ทำงานแม้ `TRAIL_SL_FOCUS_NEW_ENABLED` กำลัง freeze อยู่
   - position `SELL`: ต้องเปลี่ยนจาก `BEAR` หรือ `SIDEWAY` ไปเป็น `BULL` ทั้ง `weak` หรือ `strong`
   - position `BUY`: ต้องเปลี่ยนจาก `BULL` หรือ `SIDEWAY` ไปเป็น `BEAR` ทั้ง `weak` หรือ `strong`
   - `SIDEWAY` ใช้เป็นฐานก่อนเปลี่ยนฝั่งได้ แต่ตัว `SIDEWAY` เองยังไม่ trigger trail
@@ -270,6 +271,19 @@ SELL:
 - อาจตั้ง TP ใหม่
 - อาจตั้ง limit order ใหม่
 
+## S12 Management
+
+ฟังก์ชัน: `check_s12_management()`
+
+หน้าที่:
+- รันทุก cycle ก่อน `scan_one_tf()` และก่อน SCAN_SUMMARY
+- เรียก `s12_cleanup_tickets()` จาก `strategy12.py` เพื่อตรวจ ticket S12 ที่ปิดแล้ว
+- ถ้าพบ SL hit จะตั้ง `_s12_state["last_sl_time"]` ทำให้เข้า cooldown
+
+ผลกระทบ:
+- cooldown เริ่มต้นจาก `check_s12_management()` (รัน BEFORE SCAN_SUMMARY)
+- `scan_s12()` รัน AFTER SCAN_SUMMARY → `_s12_scan_status` ที่ SCAN_SUMMARY เห็นเป็น cycle ก่อนหน้า
+
 ## Auto Cancel Pending
 
 ฟังก์ชัน: `check_cancel_pending_orders()`
@@ -322,6 +336,9 @@ S8 follow-up:
 - protect SL
 - เปลี่ยน TP
 - ตรวจย้อนหลังว่าใครแก้ SL/TP
+
+ไฟล์ log:
+- `logs/debug/sltp_audit.log` (path กำหนดโดย `SLTP_AUDIT_DIR = os.path.join(LOG_DIR, "debug")`)
 
 ## หมายเหตุสำคัญ
 

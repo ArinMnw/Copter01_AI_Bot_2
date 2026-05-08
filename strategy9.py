@@ -101,6 +101,36 @@ def _find_rsi_pivot_highs(rsi_values, left: int, right: int):
     return [i for i in range(len(rsi_values)) if _pivot_high(rsi_values, i, left, right)]
 
 
+def _price_pivot_high(rates, idx: int, left: int, right: int) -> bool:
+    """หา pivot บน Price series (เหมือน MQ5) — center high ต้องสูงสุดและ unique"""
+    if idx - left < 0 or idx + right >= len(rates):
+        return False
+    center = float(rates[idx]["high"])
+    window = [float(rates[i]["high"]) for i in range(idx - left, idx + right + 1)]
+    if center != max(window):
+        return False
+    return window.count(center) == 1
+
+
+def _price_pivot_low(rates, idx: int, left: int, right: int) -> bool:
+    """หา pivot บน Price series (เหมือน MQ5) — center low ต้องต่ำสุดและ unique"""
+    if idx - left < 0 or idx + right >= len(rates):
+        return False
+    center = float(rates[idx]["low"])
+    window = [float(rates[i]["low"]) for i in range(idx - left, idx + right + 1)]
+    if center != min(window):
+        return False
+    return window.count(center) == 1
+
+
+def _find_price_pivot_highs(rates, left: int, right: int):
+    return [i for i in range(len(rates)) if _price_pivot_high(rates, i, left, right)]
+
+
+def _find_price_pivot_lows(rates, left: int, right: int):
+    return [i for i in range(len(rates)) if _price_pivot_low(rates, i, left, right)]
+
+
 def _find_previous_valid_pivot(pivots, current_idx: int, min_range: int, max_range: int):
     """
     เลือก immediate previous pivot ตัวเดียว (ตรงกับ TV `valuewhen(plFound, ..., 1)`)

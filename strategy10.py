@@ -123,9 +123,32 @@ def _strategy_10_2bar(rates):
         p_mid     = (p_high + p_low) / 2.0
         min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
 
+        inter_high_broken = False  # แท่งระหว่าง parent-sweep ทะลุ p_high ไปแล้ว
+        inter_low_broken  = False  # แท่งระหว่าง parent-sweep ทะลุ p_low ไปแล้ว
+
         for si in range(pi + 1, len(rates)):
             if si <= best_si:
+                # อัปเดต intermediate break สำหรับแท่งที่ข้ามไป
+                if si > pi + 1:
+                    prev = rates[si - 1]
+                    if float(prev["high"]) > p_high:
+                        inter_high_broken = True
+                    if float(prev["low"]) < p_low:
+                        inter_low_broken = True
                 continue
+
+            # อัปเดต intermediate break ก่อนเช็ค si
+            if si > pi + 1:
+                prev = rates[si - 1]
+                if float(prev["high"]) > p_high:
+                    inter_high_broken = True
+                if float(prev["low"]) < p_low:
+                    inter_low_broken = True
+
+            # ถ้าทั้ง high และ low ถูกทะลุแล้ว parent นี้ใช้ไม่ได้อีก
+            if inter_high_broken and inter_low_broken:
+                break
+
             sweep   = rates[si]
             s_open  = float(sweep["open"])
             s_high  = float(sweep["high"])
@@ -133,8 +156,8 @@ def _strategy_10_2bar(rates):
             s_close = float(sweep["close"])
             candles = [_candle_dict(parent), _candle_dict(sweep)]
 
-            # BUY: sweep low, ปิดกลับเข้า range, ปิดเขียว
-            if s_low < p_low and s_close > p_low and s_close > s_open:
+            # BUY: sweep low, ปิดกลับเข้า range (ยอมรับ doji)
+            if not inter_low_broken and s_low < p_low and s_close > p_low and s_close >= s_open:
                 sweep_depth = p_low - s_low
                 if sweep_depth < min_depth:
                     continue
@@ -161,8 +184,8 @@ def _strategy_10_2bar(rates):
                     "candles": candles,
                 }
 
-            # SELL: sweep high, ปิดต่ำกว่า high ของ parent, ปิดแดง
-            elif s_high > p_high and s_close < p_high and s_close < s_open:
+            # SELL: sweep high, ปิดต่ำกว่า high ของ parent (ยอมรับ doji)
+            elif not inter_high_broken and s_high > p_high and s_close < p_high and s_close <= s_open:
                 sweep_depth = s_high - p_high
                 if sweep_depth < min_depth:
                     continue
