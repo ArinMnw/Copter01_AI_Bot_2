@@ -106,6 +106,39 @@ def _build_strategy9_setup_sig(tf_name: str, signal: str, result: dict) -> str:
     return f"{tf_name}|{signal}|{div_type}|{pivot_prev_time}|{pivot_cur_time}"
 
 
+def _build_order_flow_id(tf_name: str, sid: int, signal: str, candle_time: int,
+                         entry: float, sl: float, tp: float, model: int = 0) -> str:
+    try:
+        entry_s = f"{float(entry):.2f}"
+    except Exception:
+        entry_s = "0.00"
+    try:
+        sl_s = f"{float(sl):.2f}"
+    except Exception:
+        sl_s = "0.00"
+    try:
+        tp_s = f"{float(tp):.2f}"
+    except Exception:
+        tp_s = "0.00"
+    base = f"{tf_name}|S{sid}|{signal}|T{int(candle_time or 0)}|E{entry_s}|SL{sl_s}|TP{tp_s}"
+    if model:
+        base += f"|M{int(model)}"
+    return base
+
+
+def _short_flow_id(flow_id: str) -> str:
+    if not flow_id:
+        return ""
+    parts = [p for p in str(flow_id).split("|") if p]
+    if len(parts) <= 4:
+        return "-".join(parts)
+    head = parts[:4]
+    model = next((p for p in parts[4:] if p.startswith("M")), "")
+    if model:
+        head.append(model)
+    return "-".join(head)
+
+
 def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
                                   entry: float, sl: float, tp: float,
                                   setup_sig: str = "",
@@ -797,10 +830,11 @@ async def check_s3_maru_pending(app):
         s3_maru_pending.pop(k, None)
 def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
                reason_txt, current_price, entry, sl, tp, rr, ticket=None, extra_note="",
-               swing_h_text="", swing_l_text="", entry_label="Limit ที่"):
+               swing_h_text="", swing_l_text="", entry_label="Limit ที่", flow_id=""):
     """สร้าง Telegram message format มาตรฐานสำหรับทุกท่า"""
     price_diff = round(abs(current_price - entry), 2)
     ticket_line = f"\n🔖 Ticket: `{ticket}`" if ticket else ""
+    flow_line = f"\nFlow: `{_short_flow_id(flow_id)}`" if flow_id else ""
     note_line = f"\n{extra_note}" if extra_note else ""
     swing_h_suffix = f" {swing_h_text}" if swing_h_text else ""
     swing_l_suffix = f" {swing_l_text}" if swing_l_text else ""
@@ -817,7 +851,7 @@ def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
         f"📌 *{entry_label}:* `{entry}` (ห่าง {price_diff})\n"
         f"🛑 SL: `{sl}` | 🎯 TP: `{tp}`\n"
         f"⚖️ R:R `1:{rr}` | 📦 `{AUTO_VOLUME}` lot"
-        f"{ticket_line}{note_line}"
+        f"{ticket_line}{flow_line}{note_line}"
     )
 def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, gap_top: float):
     """
@@ -1714,6 +1748,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         entry = result["entry"]
         sl    = result["sl"]
         tp    = result["tp"]
+        base_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, entry, sl, tp)
         risk  = abs(entry - sl)
         rr    = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
         candle_txt = ""
@@ -1747,6 +1782,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             )
         tick          = mt5.symbol_info_tick(SYMBOL)
         current_price = (tick.ask if signal == "BUY" else tick.bid) if tick else 0
+        log_event(
+            "PATTERN_FOUND",
+            pattern,
+            tf=tf_name,
+            sid=sid,
+            signal=signal,
+            entry=entry,
+            sl=sl,
+            tp=tp,
+            flow_id=base_flow_id,
+        )
         if sid == 9:
             setup_sig = _build_strategy9_setup_sig(tf_name, signal, result)
             dup_ticket, dup_source = _find_duplicate_pending_setup(tf_name, sid, signal, entry, sl, tp, setup_sig=setup_sig)
@@ -1774,12 +1820,173 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
                 continue
         # Market order ใช้ราคาปัจจุบัน — ไม่ต้องเช็ก "ราคาผ่าน entry แล้วหรือยัง"
-        if result.get("order_mode") != "market":
+        if result.get("order_mode") != "market" and not (sid == 10 and result.get("s10_model_orders")):
             cancel, cancel_reason = should_cancel_pending(rates, signal, entry)
             if cancel:
                 print(f"🚫 [{now}] {tf_label(tf_name)} ท่า{sid}: {cancel_reason[:60]}")
                 await tg(app, f"🚫 *[{tf_name}] ท่า{sid} ยกเลิก*\n{cancel_reason}")
                 continue
+        if sid == 10 and result.get("s10_model_orders"):
+            order_mode = result.get("order_mode", "limit")
+            use_delay_sl = (order_mode == "limit") and (sid == 8 or config.DELAY_SL_MODE != "off")
+            placed_orders = []
+            async with _get_lock():
+                _pos_now = mt5.positions_get(symbol=SYMBOL)
+                if _pos_now and len(_pos_now) >= MAX_ORDERS:
+                    print(f"⚠️ [{now}] {tf_label(tf_name)}: Order เต็ม ({len(_pos_now)}/{MAX_ORDERS})")
+                    continue
+
+                existing_tp = get_existing_tp(signal, entry, tf_name)
+                if existing_tp > 0:
+                    print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
+                    tp = existing_tp
+
+                for spec in result.get("s10_model_orders", []):
+                    place_entry = round(float(spec.get("entry", entry)), 2)
+                    place_pattern = spec.get("pattern", pattern)
+                    place_label = spec.get("entry_label", result.get("entry_label", "Limit ที่"))
+                    place_model = int(spec.get("model", 0) or 0)
+                    place_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, place_entry, sl, tp, place_model)
+                    order_sl = 0.0 if use_delay_sl else sl
+                    if order_mode == "stop":
+                        order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
+                    elif order_mode == "market":
+                        order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=place_pattern)
+                    else:
+                        order = open_order(signal, get_volume(), order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
+                    order["_entry"] = place_entry
+                    order["_pattern"] = place_pattern
+                    order["_entry_label"] = place_label
+                    order["_model"] = place_model
+                    order["_flow_id"] = place_flow_id
+                    placed_orders.append(order)
+
+            success_tickets = [o["ticket"] for o in placed_orders if o.get("success") and o.get("ticket")]
+            s10_group_id = ""
+            if len(success_tickets) > 1:
+                s10_group_id = f"{tf_name}|{signal}|{int(result.get('armed_at', 0) or 0)}|{int(result.get('s10_parent_time', 0) or 0)}|{int(result.get('s10_sweep_time', 0) or 0)}"
+
+            for order in placed_orders:
+                place_entry = round(float(order.get("_entry", entry)), 2)
+                place_pattern = order.get("_pattern", pattern)
+                place_label = order.get("_entry_label", result.get("entry_label", "Limit ที่"))
+                place_model = int(order.get("_model", 0) or 0)
+                place_flow_id = order.get("_flow_id", base_flow_id)
+
+                if order.get("success"):
+                    last_traded_per_tf[tf_name] = last_candle_time
+                    config.last_traded_sid_tf.setdefault(tf_name, {})[sid] = last_candle_time
+                    any_success = True
+                    ot_name = order.get("order_type", "LIMIT")
+                    if order.get("ticket"):
+                        _pend_info = {
+                            "tf": tf_name,
+                            "entry": round(place_entry, 2),
+                            "sl": round(sl, 2),
+                            "tp": round(tp, 2),
+                            "gap_bot": round(place_entry - abs(place_entry - sl), 2),
+                            "gap_top": round(place_entry + abs(place_entry - sl), 2),
+                            "detect_bar_time": last_candle_time,
+                            "signal": signal,
+                            "sid": sid,
+                            "pattern": place_pattern,
+                            "s10_htf_tf": result.get("htf_tf", tf_name),
+                            "s10_armed_at": int(result.get("armed_at", 0) or 0),
+                            "s10_parent_time": int(result.get("s10_parent_time", 0) or 0),
+                            "s10_sweep_time": int(result.get("s10_sweep_time", 0) or 0),
+                            "s10_bar_mode": result.get("s10_bar_mode", ""),
+                            "s10_sweep_checked": False,
+                            "s10_model": place_model,
+                            "flow_id": place_flow_id,
+                            "parent_flow_id": base_flow_id,
+                        }
+                        _trend_keys = _trend_filter_state_keys(tf_name)
+                        if _trend_keys:
+                            _pend_info["trend_filter"] = ",".join(_trend_keys)
+                        if result.get("cancel_bars"):
+                            _pend_info["cancel_bars"] = result["cancel_bars"]
+                        if result.get("swing_price"):
+                            _pend_info["swing_price"] = result["swing_price"]
+                            _pend_info["swing_bar_time"] = result.get("swing_bar_time", 0)
+                        if s10_group_id:
+                            _pend_info["s10_group_id"] = s10_group_id
+                            _pend_info["s10_sibling_tickets"] = [t for t in success_tickets if t != order["ticket"]]
+                        if use_delay_sl:
+                            _pend_info["intended_sl"] = sl
+                            _pend_info["sl_armed"] = False
+                            _s8_fill_sl[order["ticket"]] = sl
+                        pending_order_tf[order["ticket"]] = _pend_info
+                        position_tf[order["ticket"]] = tf_name
+                        position_sid[order["ticket"]] = sid
+                        position_pattern[order["ticket"]] = place_pattern
+                        if _trend_keys:
+                            from trailing import position_trend_filter as _pos_trend
+                            _pos_trend[order["ticket"]] = ",".join(_trend_keys)
+                        log_event(
+                            "ORDER_CREATED",
+                            place_pattern,
+                            tf=tf_name,
+                            sid=sid,
+                            signal=signal,
+                            entry=place_entry,
+                            sl=sl,
+                            tp=tp,
+                            ticket=order["ticket"],
+                            order_type=ot_name,
+                            trend_filter=",".join(_trend_keys) if _trend_keys else "",
+                            model=place_model,
+                            group_id=s10_group_id if s10_group_id else "",
+                            flow_id=place_flow_id,
+                            parent_flow_id=base_flow_id,
+                            htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}",
+                        )
+                    save_runtime_state()
+                    swing_h_text = _fmt_swing_dt(_sh_info["time"]) if _sh_info else ""
+                    swing_l_text = _fmt_swing_dt(_sl_info["time"]) if _sl_info else ""
+                    await app.bot.send_message(
+                        chat_id=MY_USER_ID,
+                        text=_order_msg(
+                            sig_e,
+                            place_pattern,
+                            tf_name,
+                            sid,
+                            candle_txt,
+                            result.get("swing_high", 0), result.get("swing_low", 0),
+                            raw_reason, current_price, place_entry, sl, tp, rr,
+                            order.get("ticket"),
+                            _trend_filter_setup_note(tf_name),
+                            swing_h_text=swing_h_text,
+                            swing_l_text=swing_l_text,
+                            entry_label=place_label,
+                            flow_id=place_flow_id,
+                        ),
+                        parse_mode="Markdown"
+                    )
+                elif order.get("skipped"):
+                    _print_skip_once(
+                        tf_name,
+                        f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: Entry {signal} ผ่านไปแล้ว | Entry:{place_entry}",
+                    )
+                else:
+                    err = order.get('error', '')
+                    if '10027' in str(err):
+                        err = "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E หรือกดปุ่ม AutoTrading ให้เป็นสีเขียว"
+                    log_event(
+                        "ORDER_FAILED",
+                        err,
+                        tf=tf_name,
+                        sid=sid,
+                        signal=signal,
+                        entry=place_entry,
+                        sl=sl,
+                        tp=tp,
+                        model=place_model,
+                        flow_id=place_flow_id,
+                        parent_flow_id=base_flow_id,
+                        htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}",
+                    )
+                    await tg(app, f"❌ [{tf_name}] ท่า{sid} Limit ไม่สำเร็จ: `{err}`\nFlow: `{_short_flow_id(place_flow_id)}`")
+            continue
         async with _get_lock():
             _pos_now = mt5.positions_get(symbol=SYMBOL)
             if _pos_now and len(_pos_now) >= MAX_ORDERS:
@@ -1828,6 +2035,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 if result.get("swing_price"):
                     _pend_info["swing_price"] = result["swing_price"]
                     _pend_info["swing_bar_time"] = result.get("swing_bar_time", 0)
+                if sid == 10:
+                    _pend_info["s10_htf_tf"] = result.get("htf_tf", tf_name)
+                    _pend_info["s10_armed_at"] = int(result.get("armed_at", 0) or 0)
+                    _pend_info["s10_parent_time"] = int(result.get("s10_parent_time", 0) or 0)
+                    _pend_info["s10_sweep_time"] = int(result.get("s10_sweep_time", 0) or 0)
+                    _pend_info["s10_bar_mode"] = result.get("s10_bar_mode", "")
+                    _pend_info["s10_sweep_checked"] = False
                 if sid == 9 and setup_sig:
                     _pend_info["setup_sig"] = setup_sig
                     _last_strategy9_setup_by_key[setup_sig] = order["ticket"]
@@ -1835,6 +2049,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     _pend_info["intended_sl"] = sl
                     _pend_info["sl_armed"] = False
                     _s8_fill_sl[order["ticket"]] = sl
+                _pend_info["flow_id"] = base_flow_id
                 pending_order_tf[order["ticket"]] = _pend_info
                 position_tf[order["ticket"]] = tf_name
                 position_sid[order["ticket"]] = sid
@@ -1854,6 +2069,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     ticket=order["ticket"],
                     order_type=ot_name,
                     trend_filter=",".join(_trend_keys) if _trend_keys else "",
+                    flow_id=base_flow_id,
+                    htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}" if sid == 10 else "",
                 )
             save_runtime_state()
             swing_h_text = _fmt_swing_dt(_sh_info["time"]) if _sh_info else ""
@@ -1869,11 +2086,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     result.get("swing_high", 0), result.get("swing_low", 0),
                     raw_reason, current_price, entry, sl, tp, rr,
                     order.get("ticket"),
-                    _trend_filter_setup_note(tf_name),
-                    swing_h_text=swing_h_text,
-                    swing_l_text=swing_l_text,
-                    entry_label=result.get("entry_label", "Limit ที่"),
-                ),
+                            _trend_filter_setup_note(tf_name),
+                            swing_h_text=swing_h_text,
+                            swing_l_text=swing_l_text,
+                            entry_label=result.get("entry_label", "Limit ที่"),
+                            flow_id=base_flow_id,
+                        ),
                 parse_mode="Markdown"
             )
         elif order.get("skipped"):
@@ -1894,7 +2112,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 entry=entry,
                 sl=sl,
                 tp=tp,
+                flow_id=base_flow_id,
+                htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}" if sid == 10 else "",
             )
-            await tg(app, f"❌ [{tf_name}] ท่า{sid} Limit ไม่สำเร็จ: `{err}`")
+            await tg(app, f"❌ [{tf_name}] ท่า{sid} Limit ไม่สำเร็จ: `{err}`\nFlow: `{_short_flow_id(base_flow_id)}`")
 
     return any_success

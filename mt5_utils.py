@@ -53,15 +53,29 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
     # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF-LTF]"
     tf_label = tf
     if pattern:
-        m = _MTF_TF_RE.search(pattern)
+        m = re.search(r"\[([^\]]+)\]", pattern)
         if m:
-            tf_label = f"[{m.group(1)}-{m.group(2)}]"
+            pair = m.group(1).strip()
+            if "?" in pair:
+                parts = [p.strip() for p in pair.split("?", 1)]
+            elif "->" in pair:
+                parts = [p.strip() for p in pair.split("->", 1)]
+            else:
+                parts = []
+            if len(parts) == 2 and parts[0] and parts[1]:
+                tf_label = f"[{parts[0]}_{parts[1]}]"
     base = f"{tf_label}_S{sid}" if tf_label and sid else (f"{tf_label}" if tf_label else fallback)
     code = _pattern_comment_code(pattern)
     if not code:
         return base
 
     candidate = f"{base}_{code}"
+    if pattern:
+        m_model = re.search(r"MODEL\s*([12])", pattern.upper())
+        if m_model:
+            candidate_with_model = f"{candidate}_#{m_model.group(1)}"
+            if len(candidate_with_model) <= 31:
+                candidate = candidate_with_model
     if len(candidate) > 31:
         return base
 

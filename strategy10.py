@@ -27,6 +27,7 @@ from config import (
     crt_sl_buffer_price,
     CRT_BAR_MODE,
     CRT_SWEEP_DEPTH_PCT,
+    fmt_mt5_bkk_ts,
 )
 import config as _config
 
@@ -67,6 +68,63 @@ def _candle_dict(c):
     except (KeyError, ValueError, IndexError, TypeError):
         pass
     return d
+
+
+def _arm_target_hit_reason(state, rates, htf_tf: str = "") -> str:
+    """
+    ถ้า arm ถูก invalidate เพราะราคาวิ่งไปแตะ HTF target ก่อน LTF trigger
+    จะคืน reason กลับมา ไม่งั้นคืนค่าว่าง
+    """
+    if not state or rates is None or len(rates) == 0:
+        return ""
+
+    direction = str(state.get("direction", "") or "").upper()
+    armed_at = int(state.get("armed_at", 0) or 0)
+    tp_target = float(state.get("tp_target", 0.0) or 0.0)
+    if direction not in ("BUY", "SELL") or armed_at <= 0 or tp_target <= 0:
+        return ""
+
+    # 1) invalidate ทันทีถ้า HTF sweep candle แตะ target แล้ว
+    htf_candles = state.get("candles") or []
+    if len(htf_candles) >= 2:
+        sweep = htf_candles[1]
+        s_high = float(_s10_bar_value(sweep, "high", 0.0) or 0.0)
+        s_low = float(_s10_bar_value(sweep, "low", 0.0) or 0.0)
+        sweep_time = _s10_bar_int(sweep, "time", 0)
+        if direction == "BUY" and s_high >= tp_target:
+            return (
+                f"S10 MTF: invalidate {htf_tf or state.get('htf_tf', '')} BUY arm "
+                f"(HTF sweep แตะ TP {tp_target:.2f} แล้ว @ "
+                f"{fmt_mt5_bkk_ts(sweep_time, '%H:%M %d-%b-%Y')})"
+            )
+        if direction == "SELL" and s_low <= tp_target:
+            return (
+                f"S10 MTF: invalidate {htf_tf or state.get('htf_tf', '')} SELL arm "
+                f"(HTF sweep แตะ TP {tp_target:.2f} แล้ว @ "
+                f"{fmt_mt5_bkk_ts(sweep_time, '%H:%M %d-%b-%Y')})"
+            )
+
+    # 2) invalidate ถ้ามี LTF bar หลัง armed_at แตะ target ไปก่อน trigger
+    for i in range(len(rates)):
+        bar = rates[i]
+        bar_time = _s10_bar_int(bar, "time", 0)
+        if bar_time <= armed_at:
+            continue
+        bar_high = float(_s10_bar_value(bar, "high", 0.0) or 0.0)
+        bar_low = float(_s10_bar_value(bar, "low", 0.0) or 0.0)
+        if direction == "BUY" and bar_high >= tp_target:
+            return (
+                f"S10 MTF: invalidate {htf_tf or state.get('htf_tf', '')} BUY arm "
+                f"(LTF แตะ TP {tp_target:.2f} ก่อน trigger @ "
+                f"{fmt_mt5_bkk_ts(bar_time, '%H:%M %d-%b-%Y')})"
+            )
+        if direction == "SELL" and bar_low <= tp_target:
+            return (
+                f"S10 MTF: invalidate {htf_tf or state.get('htf_tf', '')} SELL arm "
+                f"(LTF แตะ TP {tp_target:.2f} ก่อน trigger @ "
+                f"{fmt_mt5_bkk_ts(bar_time, '%H:%M %d-%b-%Y')})"
+            )
+    return ""
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -314,6 +372,71 @@ def _strategy_10_3bar(rates):
     return {"signal": "WAIT", "reason": "[3bar] ไม่พบ CRT TBS Setup"}
 
 
+def _s10_bar_value(bar, key: str, default=0.0):
+    """Read from dict-like bars and numpy.void rows returned by MT5 copy_rates_*."""
+    if bar is None:
+        return default
+    try:
+        if hasattr(bar, "get"):
+            return bar.get(key, default)
+    except Exception:
+        pass
+    try:
+        return bar[key]
+    except Exception:
+        return default
+
+
+def _s10_bar_int(bar, key: str, default=0) -> int:
+    try:
+        return int(_s10_bar_value(bar, key, default) or default)
+    except Exception:
+        return int(default)
+
+
+def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
+    """Validate ว่า parent/sweep pair ยังเป็น CRT sweep จริงหรือไม่เมื่อแท่ง HTF ปิดแล้ว"""
+    if parent is None or sweep is None or signal not in ("BUY", "SELL"):
+        return False
+
+    use_mode = mode or CRT_BAR_MODE
+    if use_mode not in ("2bar", "3bar"):
+        use_mode = "2bar"
+    if use_mode != "2bar":
+        return False
+
+    p_high = float(_s10_bar_value(parent, "high", 0) or 0)
+    p_low = float(_s10_bar_value(parent, "low", 0) or 0)
+    s_open = float(_s10_bar_value(sweep, "open", 0) or 0)
+    s_high = float(_s10_bar_value(sweep, "high", 0) or 0)
+    s_low = float(_s10_bar_value(sweep, "low", 0) or 0)
+    s_close = float(_s10_bar_value(sweep, "close", 0) or 0)
+    p_range = p_high - p_low
+    if p_range < crt_min_range_price():
+        return False
+    min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
+    p_mid = (p_high + p_low) / 2.0
+
+    if signal == "BUY":
+        sweep_depth = p_low - s_low
+        return (
+            s_low < p_low
+            and s_close > p_low
+            and s_close >= s_open
+            and sweep_depth >= min_depth
+            and s_close < p_mid
+        )
+
+    sweep_depth = s_high - p_high
+    return (
+        s_high > p_high
+        and s_close < p_high
+        and s_close <= s_open
+        and sweep_depth >= min_depth
+        and s_close > p_mid
+    )
+
+
 # ══════════════════════════════════════════════════════════════════
 # MTF mode (HTF detect → arm; LTF color-shift → entry)
 # ══════════════════════════════════════════════════════════════════
@@ -328,6 +451,10 @@ def _strategy_10_mtf(rates, tf_name: str):
         state = _armed_states.get(htf)
         if not state:
             continue
+        invalid_reason = _arm_target_hit_reason(state, rates, htf)
+        if invalid_reason:
+            _armed_states.pop(htf, None)
+            return {"signal": "WAIT", "reason": invalid_reason}
         if _is_armed_expired(state, rates, htf):
             _armed_states.pop(htf, None)
             continue
@@ -359,7 +486,7 @@ def _arm_htf_state(htf_result, htf_tf: str, rates):
     new_armed_at = int(last_bar["time"])
     if new_armed_at == _last_fired_armed_at.get(htf_tf):
         return  # HTF bar นี้เคย fire order ไปแล้ว — ไม่ re-arm
-    _armed_states[htf_tf] = {
+    new_state = {
         "direction":    htf_result["signal"],
         "sl_target":    float(htf_result["sl"]),
         "tp_target":    float(htf_result["tp"]),
@@ -369,6 +496,10 @@ def _arm_htf_state(htf_result, htf_tf: str, rates):
         "candles":      htf_result.get("candles", []),
         "pattern_base": htf_result.get("pattern", ""),
     }
+    # ถ้าแท่ง HTF ที่เป็น sweep แตะ target ไปแล้ว setup ถือว่าหมดความสด ไม่ต้อง arm
+    if _arm_target_hit_reason(new_state, rates, htf_tf):
+        return
+    _armed_states[htf_tf] = new_state
 
 
 def _is_armed_expired(state, rates, htf_tf: str) -> bool:
@@ -431,20 +562,66 @@ def _find_phase2_engulfing(rates, direction: str, start_idx: int):
 
 def _calc_model1_ob(rates, engulf_idx: int, direction: str, armed_at: int):
     """
-    Model 1 — Order Block: หา opposite-color bar ตัวล่าสุดก่อน engulfing
-    SELL: ย้อนหา GREEN bar → entry = OB.open
-    BUY:  ย้อนหา RED bar   → entry = OB.open
-    Search range: bars ที่ bar.time > armed_at (= ภายใน HTF sweep candle ขึ้นไป)
+    Model 1 — Order Block entry
+    SELL:
+      1) เขียว -> แดงกลืนกิน
+      2) เขียว -> แดง -> แดงกลืนกิน
+      ใช้ราคาเปิดของแท่งเขียวเป็น entry
+    BUY:
+      1) แดง -> เขียวกลืนกิน
+      2) แดง -> เขียว -> เขียวกลืนกิน
+      ใช้ราคาปิดของแท่งแดงเป็น entry
     """
-    for j in range(engulf_idx - 1, -1, -1):
-        if int(rates[j]["time"]) <= armed_at:
-            break
-        bo = float(rates[j]["open"])
-        bc = float(rates[j]["close"])
-        if direction == "SELL" and bc > bo:   # green bar
-            return bo
-        if direction == "BUY" and bc < bo:    # red bar
-            return bo
+    if engulf_idx <= 0 or engulf_idx >= len(rates):
+        return None
+
+    cur = rates[engulf_idx]
+    cur_o = float(cur["open"])
+    cur_c = float(cur["close"])
+
+    if direction == "SELL" and cur_c < cur_o:
+        prev = rates[engulf_idx - 1]
+        prev_o = float(prev["open"])
+        prev_c = float(prev["close"])
+        if int(prev["time"]) > armed_at and prev_c > prev_o and cur_c < prev_o:
+            return prev_o
+
+        if engulf_idx >= 2:
+            src = rates[engulf_idx - 2]
+            mid = rates[engulf_idx - 1]
+            src_o = float(src["open"])
+            src_c = float(src["close"])
+            mid_o = float(mid["open"])
+            mid_c = float(mid["close"])
+            if (
+                int(src["time"]) > armed_at
+                and src_c > src_o
+                and mid_c < mid_o
+                and cur_c < src_o
+            ):
+                return src_o
+
+    if direction == "BUY" and cur_c > cur_o:
+        prev = rates[engulf_idx - 1]
+        prev_o = float(prev["open"])
+        prev_c = float(prev["close"])
+        if int(prev["time"]) > armed_at and prev_c < prev_o and cur_c > prev_o:
+            return prev_c
+
+        if engulf_idx >= 2:
+            src = rates[engulf_idx - 2]
+            mid = rates[engulf_idx - 1]
+            src_o = float(src["open"])
+            src_c = float(src["close"])
+            mid_o = float(mid["open"])
+            mid_c = float(mid["close"])
+            if (
+                int(src["time"]) > armed_at
+                and src_c < src_o
+                and mid_c > mid_o
+                and cur_c > src_o
+            ):
+                return src_c
     return None
 
 
@@ -516,8 +693,8 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
     if not htf_candles:
         return None
     parent = htf_candles[0]
-    parent_high = float(parent.get("high", 0) or 0)
-    parent_low = float(parent.get("low", 0) or 0)
+    parent_high = float(_s10_bar_value(parent, "high", 0) or 0)
+    parent_low = float(_s10_bar_value(parent, "low", 0) or 0)
     if parent_high <= 0 or parent_low <= 0:
         return None
 
@@ -527,43 +704,88 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
         return None
 
     # Phase 2: engulfing (entry trigger search)
-    engulf_idx = _find_phase2_engulfing(rates, direction, phase1_idx)
-    if engulf_idx is None:
-        return None
+    trigger_idx = phase1_idx
 
     # คำนวณ 3 models (Model 1/3 ใช้ armed_at เป็นขอบ, Model 2 ใช้ 3-bar window รอบ engulf)
-    m1_entry = _calc_model1_ob(rates, engulf_idx, direction, armed_at)
-    m2_entry = _calc_model2_fvg(rates, engulf_idx, direction)
-    m3_level = _calc_model3_mss(rates, engulf_idx, direction, armed_at)
+    m1_entry = None
+    m2_entry = None
+    m3_level = None
+    m1_idx = None
+    m2_idx = None
+    m3_idx = None
+    for idx in range(trigger_idx, len(rates)):
+        if m1_entry is None:
+            v = _calc_model1_ob(rates, idx, direction, armed_at)
+            if v is not None:
+                m1_entry = v
+                m1_idx = idx
+        if m2_entry is None:
+            v = _calc_model2_fvg(rates, idx, direction)
+            if v is not None:
+                m2_entry = v
+                m2_idx = idx
+        if m3_level is None:
+            v = _calc_model3_mss(rates, idx, direction, armed_at)
+            if v is not None:
+                m3_level = v
+                m3_idx = idx
+        if m1_entry is not None and m2_entry is not None and m3_level is not None:
+            break
 
-    # ต้องครบทั้ง 3 model — Model 1 เป็น entry, Model 2/3 เป็น confirmation
-    if m1_entry is None or m2_entry is None or m3_level is None:
+    # Entry priority: Model 1 -> fallback Model 2
+    # Model 3 ใช้เป็น log/confirmation เท่านั้น ไม่บังคับเป็น entry
+    if m1_entry is None and m2_entry is None:
         return None
-    entry_raw = m1_entry
-    model_used = 1
 
     sl = round(float(state["sl_target"]), 2)
-    entry = round(entry_raw, 2)
     tp = round(float(state["tp_target"]), 2)
-
-    if direction == "BUY" and not (sl < entry < tp):
-        return None
-    if direction == "SELL" and not (tp < entry < sl):
-        return None
-
-    risk = abs(entry - sl)
-    reward = abs(tp - entry)
-    rr = round(reward / risk, 2) if risk > 0 else 0
-    sig_e = "🟢" if direction == "BUY" else "🔴"
 
     m1_str = f"{m1_entry:.2f}" if m1_entry is not None else "n/a"
     m2_str = f"{m2_entry:.2f}" if m2_entry is not None else "n/a"
     m3_str = f"{m3_level:.2f}" if m3_level is not None else "n/a"
+    m1_time = fmt_mt5_bkk_ts(int(rates[m1_idx]["time"]), "%H:%M %d-%b-%Y") if m1_idx is not None else "n/a"
+    m2_time = fmt_mt5_bkk_ts(int(rates[m2_idx]["time"]), "%H:%M %d-%b-%Y") if m2_idx is not None else "n/a"
+    m3_time = fmt_mt5_bkk_ts(int(rates[m3_idx]["time"]), "%H:%M %d-%b-%Y") if m3_idx is not None else "n/a"
+    sig_e = "🟢" if direction == "BUY" else "🔴"
 
     phase1_bar = rates[phase1_idx]
-    engulf_bar = rates[engulf_idx]
     p1_close = float(phase1_bar["close"])
-    eng_close = float(engulf_bar["close"])
+
+    def _is_valid_entry(v) -> bool:
+        if v is None:
+            return False
+        vv = round(float(v), 2)
+        if direction == "BUY":
+            return sl < vv < tp
+        return tp < vv < sl
+
+    model_orders = []
+    if _is_valid_entry(m1_entry):
+        model_orders.append({
+            "model": 1,
+            "entry": round(float(m1_entry), 2),
+            "pattern": f"ท่าที่ 10 CRT TBS {sig_e} {direction} — MTF TBS [{htf_tf}→{ltf_tf}] Model1",
+            "entry_label": "BUY LIMIT ที่" if direction == "BUY" else "SELL LIMIT ที่",
+        })
+    if _is_valid_entry(m2_entry):
+        model2_entry = round(float(m2_entry), 2)
+        if not model_orders or abs(float(model_orders[0]["entry"]) - model2_entry) > 0.01:
+            model_orders.append({
+                "model": 2,
+                "entry": model2_entry,
+                "pattern": f"ท่าที่ 10 CRT TBS {sig_e} {direction} — MTF TBS [{htf_tf}→{ltf_tf}] Model2",
+                "entry_label": "BUY LIMIT ที่" if direction == "BUY" else "SELL LIMIT ที่",
+            })
+
+    if not model_orders:
+        return None
+
+    trigger_idx = max(i for i in (m1_idx, m2_idx, m3_idx) if i is not None)
+    entry = round(float(model_orders[0]["entry"]), 2)
+    model_used = int(model_orders[0]["model"])
+    risk = abs(entry - sl)
+    reward = abs(tp - entry)
+    rr = round(reward / risk, 2) if risk > 0 else 0
 
     return {
         "signal":     direction,
@@ -577,15 +799,20 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
             f"[MTF {htf_tf}→{ltf_tf}] HTF armed at bar={armed_at}\n"
             f"Parent[H:{parent_high:.2f} L:{parent_low:.2f}]\n"
             f"Phase 1 (failed-push): bar={phase1_idx} close={p1_close:.2f}\n"
-            f"Phase 2 (engulfing): bar={engulf_idx} close={eng_close:.2f}\n"
-            f"Model 1 (OB.open):  {m1_str}\n"
-            f"Model 2 (FVG 98%):  {m2_str}\n"
-            f"Model 3 (MSS):      {m3_str}\n"
+            f"Phase 2: disabled (use Phase 1 as trigger)\n"
+            f"Model 1 (OB.open):  {m1_str} @ {m1_time}\n"
+            f"Model 2 (FVG 98%):  {m2_str} @ {m2_time}\n"
+            f"Model 3 (MSS):      {m3_str} @ {m3_time}\n"
             f"USING Model {model_used} = {entry} | SL:{sl} | TP:{tp} | RR1:{rr}"
         ),
-        "candles": [_candle_dict(r) for r in rates[max(0, engulf_idx - 2):engulf_idx + 1]],
+        "candles": [_candle_dict(r) for r in rates[max(0, trigger_idx - 2):trigger_idx + 1]],
         "htf_candles": list(htf_candles),
         "htf_tf": htf_tf,
+        "armed_at": armed_at,
+        "s10_parent_time": _s10_bar_int(parent, "time", 0),
+        "s10_sweep_time": _s10_bar_int(htf_candles[1], "time", 0) if len(htf_candles) > 1 else 0,
+        "s10_bar_mode": CRT_BAR_MODE,
+        "s10_model_orders": model_orders,
     }
 
 

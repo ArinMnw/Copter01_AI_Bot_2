@@ -849,6 +849,19 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await query.answer(f"Near Approach Cancel: {pts}pt")
 
+    elif data == "toggle_pending_rsi_recheck":
+        config.PENDING_RSI_RECHECK_ENABLED = not config.PENDING_RSI_RECHECK_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Pending RSI Recheck: {'ON' if config.PENDING_RSI_RECHECK_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_prr_pts_"):
+        pts = int(data.replace("set_prr_pts_", ""))
+        config.PENDING_RSI_RECHECK_POINTS = pts
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await query.answer(f"Pending RSI Recheck: {pts}pt")
+
     elif data == "toggle_limit_break_cancel":
         config.LIMIT_BREAK_CANCEL = not config.LIMIT_BREAK_CANCEL
         save_runtime_state()

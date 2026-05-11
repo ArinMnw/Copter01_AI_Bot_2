@@ -391,7 +391,7 @@ OPPOSITE_ORDER_MODE = "sl_protect"
 # เมื่อราคาห่างจาก entry ของ position มากกว่า N จุด
 LIMIT_GUARD = True
 LIMIT_GUARD_POINTS = 300  # จำนวนจุด (point) ที่ถือว่าห่างเกินไป
-LIMIT_GUARD_TF_MODE = "combined"  # "separate" = เฉพาะ TF เดียวกัน | "combined" = ดูทุก TF
+LIMIT_GUARD_TF_MODE = "separate"  # "separate" = เฉพาะ TF เดียวกัน | "combined" = ดูทุก TF
 ENGULF_MIN_POINTS = 50  # จำนวนจุดขั้นต่ำที่ close ต้องทะลุ high/low เดิมเพื่อถือว่า "กลืนกิน"
 
 # ลบ LIMIT เมื่อแท่งยืนยันทะลุ TP/SL ตาม TF ที่เลือก
@@ -412,6 +412,16 @@ LIMIT_BREAK_CANCEL_TF = {
 LIMIT_TREND_RECHECK = True
 LIMIT_TREND_RECHECK_POINTS = 300  # ระยะห่างจาก entry (points) ที่จะเริ่ม recheck
 TREND_FILTER_SCAN_BLOCK = False   # False = ไม่ block ตอน scan ให้ Limit Recheck จัดการแทน
+
+# ── Pending RSI Recheck: เช็ค RSI ก่อน pending order fill ──
+# เมื่อราคาเข้าใกล้ LIMIT/STOP ในระยะ N จุด:
+# BUY ต้อง RSI < BUY_MAX, SELL ต้อง RSI > SELL_MIN ของ TF ที่ order นั้นใช้
+PENDING_RSI_RECHECK_ENABLED = True
+PENDING_RSI_RECHECK_POINTS = 200
+PENDING_RSI_PERIOD = 14
+PENDING_RSI_APPLIED_PRICE = "close"
+PENDING_RSI_BUY_MAX = 50.0
+PENDING_RSI_SELL_MIN = 50.0
 
 # ── Near Approach Cancel: ยกเลิก limit เมื่อราคาเข้าใกล้แล้วกลับตัว ──
 # SELL LIMIT: high เข้ามาใน N pt ของ entry แล้ว bar ถัดไปกลับออก → ยกเลิก
@@ -590,6 +600,12 @@ _RUNTIME_DEFAULTS = {
     "LIMIT_BREAK_CANCEL_TF": copy.deepcopy(LIMIT_BREAK_CANCEL_TF),
     "LIMIT_TREND_RECHECK": LIMIT_TREND_RECHECK,
     "LIMIT_TREND_RECHECK_POINTS": LIMIT_TREND_RECHECK_POINTS,
+    "PENDING_RSI_RECHECK_ENABLED": PENDING_RSI_RECHECK_ENABLED,
+    "PENDING_RSI_RECHECK_POINTS": PENDING_RSI_RECHECK_POINTS,
+    "PENDING_RSI_PERIOD": PENDING_RSI_PERIOD,
+    "PENDING_RSI_APPLIED_PRICE": PENDING_RSI_APPLIED_PRICE,
+    "PENDING_RSI_BUY_MAX": PENDING_RSI_BUY_MAX,
+    "PENDING_RSI_SELL_MIN": PENDING_RSI_SELL_MIN,
     "LIMIT_SWEEP": LIMIT_SWEEP,
     "DELAY_SL_MODE": DELAY_SL_MODE,
     "TRAIL_SL_IMMEDIATE": TRAIL_SL_IMMEDIATE,
@@ -754,6 +770,12 @@ def save_runtime_state():
             "limit_break_cancel_tf": LIMIT_BREAK_CANCEL_TF,
             "limit_trend_recheck": LIMIT_TREND_RECHECK,
             "limit_trend_recheck_points": LIMIT_TREND_RECHECK_POINTS,
+            "pending_rsi_recheck_enabled": PENDING_RSI_RECHECK_ENABLED,
+            "pending_rsi_recheck_points": PENDING_RSI_RECHECK_POINTS,
+            "pending_rsi_period": PENDING_RSI_PERIOD,
+            "pending_rsi_applied_price": PENDING_RSI_APPLIED_PRICE,
+            "pending_rsi_buy_max": PENDING_RSI_BUY_MAX,
+            "pending_rsi_sell_min": PENDING_RSI_SELL_MIN,
             "trend_filter_scan_block": TREND_FILTER_SCAN_BLOCK,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
@@ -852,6 +874,8 @@ def restore_runtime_state():
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
         global LIMIT_GUARD, LIMIT_GUARD_POINTS, LIMIT_GUARD_TF_MODE, ENGULF_MIN_POINTS
         global LIMIT_BREAK_CANCEL, LIMIT_BREAK_CANCEL_TF, LIMIT_TREND_RECHECK, LIMIT_TREND_RECHECK_POINTS
+        global PENDING_RSI_RECHECK_ENABLED, PENDING_RSI_RECHECK_POINTS, PENDING_RSI_PERIOD
+        global PENDING_RSI_APPLIED_PRICE, PENDING_RSI_BUY_MAX, PENDING_RSI_SELL_MIN
         global TREND_FILTER_SCAN_BLOCK
         global NEAR_APPROACH_CANCEL_ENABLED, NEAR_APPROACH_CANCEL_POINTS
         global TRAIL_SL_IMMEDIATE, LIMIT_SWEEP
@@ -895,6 +919,22 @@ def restore_runtime_state():
         saved_ltr_pts = state.get("limit_trend_recheck_points")
         if saved_ltr_pts is not None:
             LIMIT_TREND_RECHECK_POINTS = int(saved_ltr_pts)
+        PENDING_RSI_RECHECK_ENABLED = bool(state.get("pending_rsi_recheck_enabled", PENDING_RSI_RECHECK_ENABLED))
+        saved_prr_pts = state.get("pending_rsi_recheck_points")
+        if saved_prr_pts is not None:
+            PENDING_RSI_RECHECK_POINTS = int(saved_prr_pts)
+        saved_prr_period = state.get("pending_rsi_period")
+        if saved_prr_period is not None:
+            PENDING_RSI_PERIOD = max(2, int(saved_prr_period))
+        saved_prr_applied = state.get("pending_rsi_applied_price")
+        if saved_prr_applied in ("open", "high", "low", "close", "median", "hl2", "typical", "hlc3", "weighted", "hlcc4", "weighted_close"):
+            PENDING_RSI_APPLIED_PRICE = saved_prr_applied
+        saved_prr_buy = state.get("pending_rsi_buy_max")
+        if saved_prr_buy is not None:
+            PENDING_RSI_BUY_MAX = float(saved_prr_buy)
+        saved_prr_sell = state.get("pending_rsi_sell_min")
+        if saved_prr_sell is not None:
+            PENDING_RSI_SELL_MIN = float(saved_prr_sell)
         TREND_FILTER_SCAN_BLOCK = bool(state.get("trend_filter_scan_block", TREND_FILTER_SCAN_BLOCK))
         NEAR_APPROACH_CANCEL_ENABLED = bool(state.get("near_approach_cancel_enabled", NEAR_APPROACH_CANCEL_ENABLED))
         saved_nac_pts = state.get("near_approach_cancel_points")

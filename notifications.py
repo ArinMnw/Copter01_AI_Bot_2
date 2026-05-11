@@ -28,6 +28,12 @@ def _parse_bot_comment(comment: str):
     # "3" → 3, "6i" → 7 (S6i = active_strategies key 7)
     if sid_raw == "6i":
         return tf, 7
+    m_sid = re.match(r"(\d+)", sid_raw)
+    if m_sid:
+        try:
+            return tf, int(m_sid.group(1))
+        except ValueError:
+            return tf, None
     try:
         return tf, int(sid_raw)
     except ValueError:

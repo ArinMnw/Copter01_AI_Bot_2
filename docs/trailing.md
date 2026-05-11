@@ -297,6 +297,26 @@ SELL:
 - reverse limit หมดอายุ
 - S8 arm SL / retry logic ก็พัวพันใน flow นี้ด้วย
 
+## Pending RSI Recheck
+
+อยู่ใน flow ของ `check_cancel_pending_orders()`
+
+แนวคิด:
+- หลังจากมี pending `LIMIT` หรือ `STOP` รออยู่
+- เมื่อราคาเข้าใกล้ entry ในระยะ `PENDING_RSI_RECHECK_POINTS` (default 200 points)
+- ระบบจะเช็ก RSI ของ TF ที่ order นั้นผูกอยู่ ณ ตอนนั้น
+- `BUY LIMIT` / `BUY STOP`: ต้อง `RSI < PENDING_RSI_BUY_MAX` (default 50)
+- `SELL LIMIT` / `SELL STOP`: ต้อง `RSI > PENDING_RSI_SELL_MIN` (default 50)
+- ถ้าไม่ผ่าน ระบบยกเลิก pending order ก่อน fill
+
+config:
+- `PENDING_RSI_RECHECK_ENABLED`
+- `PENDING_RSI_RECHECK_POINTS`
+- `PENDING_RSI_PERIOD`
+- `PENDING_RSI_APPLIED_PRICE`
+- `PENDING_RSI_BUY_MAX`
+- `PENDING_RSI_SELL_MIN`
+
 ## Limit Guard
 
 อยู่ใน flow ของ `check_cancel_pending_orders()`
