@@ -5,9 +5,34 @@ from config import *
 _MTF_TF_RE = re.compile(r"MTF\s*\[\s*([A-Za-z0-9]+)\s*(?:→|->)\s*([A-Za-z0-9]+)\s*\]")
 
 
-def _pattern_comment_code(pattern: str) -> str:
+def _pattern_comment_code(pattern: str, sid="") -> str:
     text = (pattern or "").upper()
     raw = pattern or ""
+    sid_text = str(sid or "")
+
+    if sid_text == "1":
+        if "กลืนกิน 2 แดง" in raw or "กลืนกิน 2 เขียว" in raw:
+            return "P5"
+        if "PATTERN ใหม่ 4" in raw or "4 แท่ง" in raw:
+            return "P4"
+        if "ย้อนโครงสร้าง" in raw:
+            return "P3"
+        if "ตำหนิ" in raw:
+            return "P2"
+        if "กลืนกิน" in raw:
+            return "P1"
+
+    if sid_text == "2":
+        if "ปฏิเสธราคา" in raw:
+            return "P2"
+        if "เขียวกลืนกิน" in raw or "แดงกลืนกิน" in raw:
+            return "P1"
+
+    if sid_text == "3":
+        if "MARUBOZU" in text:
+            return "P2"
+        if "DM SP" in text:
+            return "P1"
 
     if "PATTERN A" in text:
         return "PA"
@@ -49,27 +74,40 @@ def _pattern_comment_code(pattern: str) -> str:
     return ""
 
 
-def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str = "", parallel_tfs: list = None) -> str:
+def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str = "",
+                         parallel_tfs: list = None, parallel_patterns: list = None) -> str:
     # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF-LTF]"
     tf_label = tf
     if pattern:
-        m = re.search(r"\[([^\]]+)\]", pattern)
+        m = _MTF_TF_RE.search(pattern)
+        if not m:
+            m = re.search(r"\[\s*([A-Za-z0-9]+)\s*(?:→|->)\s*([A-Za-z0-9]+)\s*\]", pattern)
         if m:
-            pair = m.group(1).strip()
-            if "?" in pair:
-                parts = [p.strip() for p in pair.split("?", 1)]
-            elif "->" in pair:
-                parts = [p.strip() for p in pair.split("->", 1)]
-            else:
-                parts = []
-            if len(parts) == 2 and parts[0] and parts[1]:
-                tf_label = f"[{parts[0]}_{parts[1]}]"
+            htf_tf = (m.group(1) or "").strip()
+            ltf_tf = (m.group(2) or "").strip()
+            if htf_tf and ltf_tf:
+                tf_label = f"[{htf_tf}-{ltf_tf}]"
     base = f"{tf_label}_S{sid}" if tf_label and sid else (f"{tf_label}" if tf_label else fallback)
-    code = _pattern_comment_code(pattern)
+    code = _pattern_comment_code(pattern, sid)
     if not code:
         return base
 
     candidate = f"{base}_{code}"
+
+    if str(sid or "") == "2" and parallel_tfs and len(parallel_tfs) > 1:
+        tf_parts = [str(t).strip() for t in parallel_tfs if str(t).strip()]
+        pattern_parts = parallel_patterns or []
+        code_parts = []
+        for idx, tf_part in enumerate(tf_parts):
+            part_pattern = pattern_parts[idx] if idx < len(pattern_parts) else pattern
+            part_code = _pattern_comment_code(part_pattern, sid) or code
+            if part_code:
+                code_parts.append(part_code)
+        if tf_parts and code_parts and len(tf_parts) == len(code_parts):
+            parallel_comment = f"[{'_'.join(tf_parts)}]_S{sid}_[{'_'.join(code_parts)}]"
+            if len(parallel_comment) <= 31:
+                return parallel_comment
+
     if pattern:
         m_model = re.search(r"MODEL\s*([12])", pattern.upper())
         if m_model:
@@ -191,7 +229,7 @@ def find_swing_tp(rates, signal: str, entry: float, sl: float, n_long=40) -> flo
 #          [0] แดง + อยู่ใกล้ Swing High
 # ============================================================
 
-def get_existing_tp(signal: str, entry: float = 0.0, tf: str = "") -> float:
+def get_existing_tp(signal: str, entry: float = 0.0, tf: str = "", requester_sid: int = 0) -> float:
     """
     ถ้ามี Position เปิดอยู่แล้วที่ทิศทางเดียวกัน และ TF เดียวกัน → คืน TP ของ Position นั้น
     เพื่อให้ Order ใน TF เดียวกันใช้ TP ร่วมกัน
@@ -200,13 +238,18 @@ def get_existing_tp(signal: str, entry: float = 0.0, tf: str = "") -> float:
     - ถ้าส่ง entry มาด้วย จะตรวจ direction ของ TP vs entry
       BUY: TP ต้องสูงกว่า entry / SELL: TP ต้องต่ำกว่า entry
     """
-    from trailing import position_tf as _pos_tf
+    if requester_sid == 12:
+        return 0.0
+
+    from trailing import position_tf as _pos_tf, position_sid as _pos_sid
     positions = mt5.positions_get(symbol=SYMBOL)
     if not positions:
         return 0.0
     for pos in positions:
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         if pos_type != signal:
+            continue
+        if _pos_sid.get(pos.ticket) == 12:
             continue
         if pos.tp <= 0:
             continue
@@ -281,7 +324,8 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
     return {"success": False, "error": f"{err}"}
 
 
-def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern="", parallel_tfs=None):
+def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern="",
+               parallel_tfs=None, parallel_patterns=None):
     """
     ตั้ง Limit Order ที่ entry_price
     BUY  → BUY_LIMIT  (รอราคาลงมาแตะ)
@@ -298,10 +342,13 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     price = entry_price if entry_price else current
 
     # ใช้เฉพาะ BUY LIMIT และ SELL LIMIT เท่านั้น
-    # tolerance = spread ประมาณ 0.30 (3 จุด) เผื่อ slippage เล็กน้อย
+    # tolerance ตรงนี้ใช้แค่กันกรณี entry ชิดราคาปัจจุบันมากจน broker มองว่า
+    # เป็นคำสั่งที่ "ผ่านจุดเข้าไปแล้ว" เท่านั้น จึงควรเล็กมาก
+    # ไม่ควรใช้ระดับ spread ทั้งก้อน เพราะจะทำให้ limit ที่ยัง valid
+    # ถูก skip เร็วเกินไป (เช่น S9 ที่ราคาใกล้ entry มาก)
     info = mt5.symbol_info(SYMBOL)
-    spread_pts = info.spread * info.point if info else 0
-    tol = max(spread_pts, 0.30)
+    point = float(info.point) if info and getattr(info, "point", 0) else 0.01
+    tol = max(point * 2.0, 0.01)
 
     if signal == "BUY":
         # BUY_LIMIT: Entry ต้องต่ำกว่าราคาปัจจุบัน (ask) อย่างน้อย tol
@@ -332,7 +379,11 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
         "tp":           tp,
         "deviation":    20,
         "magic":        234001,
-        "comment":      _build_order_comment(tf, sid, pattern, "Strategy1_Limit", parallel_tfs=parallel_tfs),
+        "comment":      _build_order_comment(
+            tf, sid, pattern, "Strategy1_Limit",
+            parallel_tfs=parallel_tfs,
+            parallel_patterns=parallel_patterns,
+        ),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,
     })

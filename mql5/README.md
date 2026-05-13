@@ -8,7 +8,7 @@
 
 - `TrendFilterLines.mq5` — source code ของ indicator
 - `RSIDivergencePane.mq5` — RSI แยกหน้าต่างล่างสำหรับท่าที่ 9
-- `SwingHLLevels.mq5` — วาดเส้น Swing High / Swing Low ล่าสุดของแต่ละ TF ไปทางขวาประมาณ 5 แท่ง
+- `SwingHLLevels.mq5` — วาดเส้น Pivot Swing High / Pivot Swing Low ล่าสุดของแต่ละ TF ไปทางขวาประมาณ 5 แท่ง แบบเส้นล้วน
 - `trend_state.txt` / `trend_state_<symbol>.txt` — ไฟล์ที่ Python bot เขียน แล้ว indicator อ่าน
   (Location: `<MT5 Common>\Files\trend_state*.txt`)
 
@@ -63,24 +63,31 @@ Input หลัก:
 ใช้สำหรับดูเส้น `H/L` ที่หาเจอในแต่ละ TF แบบเร็วบน chart:
 
 - คำนวณใน MT5 เอง ไม่ต้องอ่านไฟล์จาก Python bot
-- ใช้ logic หา swing แบบเดียวกับ `strategy4.py`
-- วาดเส้น `Swing High` และ `Swing Low` ล่าสุดของแต่ละ TF
+- ใช้ logic แบบ pivot swing เดียวกับ `SCAN_SUMMARY` ใน `scanner.py`
+- วาดเฉพาะเส้น `Swing High` และ `Swing Low` ล่าสุดของแต่ละ TF
 - ลากเส้นไปทางขวาประมาณ `5` แท่งของ TF นั้น (ปรับได้ด้วย `InpExtendBars`)
 
 input หลัก:
 
 | Parameter | Default | คำอธิบาย |
 |---|---|---|
-| `InpLookback` | `100` | จำนวน bars ที่ใช้หา swing |
-| `InpExtendBars` | `5` | ลากเส้นไปทางขวากี่แท่ง |
+| `InpLookback` | `2000` | จำนวน bars ที่ใช้หา swing |
+| `InpInitialLevelsPerSide` | `10` | จำนวนเส้นเริ่มต้นต่อฝั่งที่แสดงทันทีตอนเปิดหรือเปลี่ยน TF |
+| `InpLoadStepPerSide` | `10` | จำนวนเส้นต่อฝั่งที่ค่อย ๆ เติมย้อนหลังในแต่ละรอบ refresh |
+| `InpMaxLevelsPerSide` | `30` | จำนวนเส้นสูงสุดต่อฝั่ง |
+| `InpPivotLeft` | `15` | จำนวนแท่งฝั่งซ้ายของ pivot |
+| `InpPivotRight` | `10` | จำนวนแท่งฝั่งขวาของ pivot |
+| `InpFixedExtendBars` | `5` | ลากเส้นไปทางขวากี่แท่ง เมื่อไม่ได้ extend จน fill |
 | `InpRefreshSec` | `5` | refresh ทุกกี่วินาที |
 | `InpOnlyPerTfOn` | `true` | ถ้าเปิด จะแสดงเฉพาะ TF ที่ bot ติ๊กเปิดไว้ใน `trend_state_<symbol>.txt` |
-| `InpShowLabels` | `true` | แสดง label ที่ปลายเส้น |
+| `InpShowTextLabels` | `false` | ปิดไว้เป็นค่า default เพื่อให้เหลือแค่เส้น |
 | `InpShowM1` ... `InpShowD1` | `true` | เปิด/ปิดการวาดแต่ละ TF |
 
 หมายเหตุ:
 - indicator นี้ล็อกให้แสดงเฉพาะ TF ของ chart ปัจจุบันเสมอ
 - ตัวอย่าง: ถ้าเปิด chart `M1` จะเห็นแค่เส้น `H/L` ของ `M1`
+- ค่า default ของ pivot ตอนนี้คือ `Left=15 / Right=10` ให้ตรงกับ swing summary ฝั่ง Python
+- เวลาเปิดหรือเปลี่ยน TF indicator จะวาด `10` เส้นล่าสุดต่อฝั่งก่อน แล้วค่อยเติมย้อนหลัง `ครั้งละ 10 เส้น` จนถึงเพดานที่ตั้งไว้ เพื่อลดอาการค้างของ MT5
 
 ## วิธีใช้
 

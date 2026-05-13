@@ -1,4 +1,4 @@
-from config import *
+﻿from config import *
 import config
 import asyncio
 import time as _time
@@ -7,7 +7,11 @@ from mt5_utils import connect_mt5, open_order, open_order_stop, open_order_marke
 from strategy1 import strategy_1
 from strategy2 import strategy_2
 from strategy3 import strategy_3
-from strategy4 import strategy_4, _find_prev_swing_high, _find_prev_swing_low, _find_hh, _find_ll
+from strategy4 import (
+    strategy_4,
+    _find_prev_swing_high, _find_prev_swing_low, _find_hh, _find_ll,
+    _find_prev_pivot_swing_high, _find_prev_pivot_swing_low, _find_pivot_hh, _find_pivot_ll,
+)
 from strategy5 import strategy_5
 from strategy8 import strategy_8
 from strategy9 import strategy_9
@@ -28,6 +32,7 @@ _last_skip_log_by_tf: dict = {}
 _last_skip_notify_by_key: dict = {}
 _last_divergence_log_by_key: dict = {}
 _last_strategy9_setup_by_key: dict = {}
+_last_strategy9_invalid_setup_by_key: dict = {}
 _swing_data: dict = {}   # {tf_name: {"sh": str, "sl": str, "prev_sh": str, "prev_sl": str, "hh": str, "ll": str}}
 _SCAN_TF_ICONS = {"M1": "🟨", "M5": "🟩", "M15": "🟦", "M30": "🟪", "H1": "🟧", "H4": "🟥", "H12": "🟫", "D1": "⬛"}
 _SCAN_STRATEGY_ICONS = {"[ท่า1]": "🟡", "[ท่า2]": "🔵", "[ท่า3]": "🟣", "[ท่า4]": "🟢", "[ท่า6]": "🟠", "[ท่า6i]": "🟤", "[ท่า8]": "🩵", "[ท่า9]": "🟥"}
@@ -92,6 +97,46 @@ def _same_price(a, b, tol: float = 0.05) -> bool:
         return False
 
 
+def _has_active_sid_trade(tf_name: str, sid: int) -> bool:
+    for info in pending_order_tf.values():
+        if not isinstance(info, dict):
+            continue
+        if info.get("tf") == tf_name and int(info.get("sid", 0) or 0) == sid:
+            return True
+    try:
+        positions = mt5.positions_get(symbol=SYMBOL) or []
+    except Exception:
+        positions = []
+    for pos in positions:
+        ticket = int(getattr(pos, "ticket", 0) or 0)
+        if not ticket:
+            continue
+        if position_tf.get(ticket) == tf_name and int(position_sid.get(ticket, 0) or 0) == sid:
+            return True
+    return False
+
+
+def _adjacent_sid_blocked(tf_name: str, sid: int, candle_time: int, tf_secs: int) -> bool:
+    prev = config.last_traded_sid_tf.get(tf_name, {}).get(sid)
+    if not prev or tf_secs <= 0 or (int(candle_time) - int(prev)) != int(tf_secs):
+        return False
+    if _has_active_sid_trade(tf_name, sid):
+        return True
+    tf_map = config.last_traded_sid_tf.get(tf_name)
+    if isinstance(tf_map, dict) and tf_map.get(sid) == prev:
+        tf_map.pop(sid, None)
+        if not tf_map:
+            config.last_traded_sid_tf.pop(tf_name, None)
+    return False
+
+
+def _pattern_allows_adjacent_order(sid: int, pattern: str) -> bool:
+    if int(sid or 0) != 1:
+        return False
+    pattern = str(pattern or "")
+    return ("Pattern กลืนกิน 2 แดง" in pattern) or ("Pattern กลืนกิน 2 เขียว" in pattern)
+
+
 def _build_strategy9_setup_sig(tf_name: str, signal: str, result: dict) -> str:
     """
     Setup signature สำหรับ dedup — ใช้แค่ pivot identity (ไม่รวม entry/sl/tp)
@@ -104,6 +149,10 @@ def _build_strategy9_setup_sig(tf_name: str, signal: str, result: dict) -> str:
     if not (div_type and pivot_prev_time and pivot_cur_time):
         return ""
     return f"{tf_name}|{signal}|{div_type}|{pivot_prev_time}|{pivot_cur_time}"
+
+
+def _is_strategy9_setup_invalidated(setup_sig: str) -> bool:
+    return bool(setup_sig and _last_strategy9_invalid_setup_by_key.get(setup_sig))
 
 
 def _build_order_flow_id(tf_name: str, sid: int, signal: str, candle_time: int,
@@ -200,6 +249,37 @@ def _find_previous_swing_info(rates, current_info, finder):
         return finder(prev_rates)
     except Exception:
         return None
+
+
+def _get_summary_swing_finders(lookback: int):
+    mode = str(getattr(config, "SWING_SUMMARY_MODE", "pair") or "pair").lower()
+    pivot_left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
+    pivot_right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
+
+    if mode == "pivot":
+        return {
+            "mode": "pivot",
+            "high": lambda rates: _find_prev_pivot_swing_high(
+                rates, lookback=lookback, left=pivot_left, right=pivot_right
+            ),
+            "low": lambda rates: _find_prev_pivot_swing_low(
+                rates, lookback=lookback, left=pivot_left, right=pivot_right
+            ),
+            "hh": lambda rates, cur: _find_pivot_hh(
+                rates, cur, lookback=lookback, left=pivot_left, right=pivot_right
+            ),
+            "ll": lambda rates, cur: _find_pivot_ll(
+                rates, cur, lookback=lookback, left=pivot_left, right=pivot_right
+            ),
+        }
+
+    return {
+        "mode": "pair",
+        "high": lambda rates: _find_prev_swing_high(rates, lookback=lookback),
+        "low": lambda rates: _find_prev_swing_low(rates, lookback=lookback),
+        "hh": lambda rates, cur: _find_hh(rates, cur, lookback=lookback),
+        "ll": lambda rates, cur: _find_ll(rates, cur, lookback=lookback),
+    }
 
 
 def _compute_trend_info(sh, prev_sh, prev_prev_sh, sl, prev_sl, prev_prev_sl):
@@ -742,8 +822,7 @@ async def check_s3_maru_pending(app):
             if bull_next:
                 # ✅ จบเขียว → ตั้ง Limit
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
-                _s3_prev = config.last_traded_sid_tf.get(tf, {}).get(3)
-                _s3_adj = _s3_prev and has_previous_bar_trade(tf, candle_time) and (candle_time - _s3_prev) == TF_SECONDS_MAP.get(tf, 0)
+                _s3_adj = _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
                 if config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
                     print(f"🧭 [{now}] ท่า3 BUY Maru [{tf}] trend filter block ({_s3_why})")
                     log_event("TREND_FILTER_BLOCK", f"block S3 Maru {direction} ({_s3_why})", tf=tf, sid=3, signal=direction)
@@ -786,8 +865,7 @@ async def check_s3_maru_pending(app):
             if not bull_next:
                 # ✅ จบแดง → ตั้ง Limit
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
-                _s3_prev = config.last_traded_sid_tf.get(tf, {}).get(3)
-                _s3_adj = _s3_prev and has_previous_bar_trade(tf, candle_time) and (candle_time - _s3_prev) == TF_SECONDS_MAP.get(tf, 0)
+                _s3_adj = _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
                 if config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
                     print(f"🧭 [{now}] ท่า3 SELL Maru [{tf}] trend filter block ({_s3_why})")
                     log_event("TREND_FILTER_BLOCK", f"block S3 Maru {direction} ({_s3_why})", tf=tf, sid=3, signal=direction)
@@ -856,8 +934,8 @@ def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
 def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, gap_top: float):
     """
     หา intersection ของ gap ระหว่าง new_tf กับ TF อื่นในกลุ่มเดียวกัน
-    คืน (int_bot, int_top, tfs_list, tickets_to_cancel)
-    ถ้าไม่มี overlap คืน (None, None, [new_tf], [])
+    คืน (int_bot, int_top, tfs_list, tickets_to_cancel, patterns_list)
+    ถ้าไม่มี overlap คืน (None, None, [new_tf], [], [])
     """
     TF_MIN = {"M1":1,"M5":5,"M15":15,"M30":30,"H1":60,"H4":240,"H12":720,"D1":1440}
     def tf_min(tf): return TF_MIN.get(tf, 9999)
@@ -870,14 +948,14 @@ def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, ga
             if any(tf != new_tf for tf in group):
                 my_groups.append(group)
     if not my_groups:
-        return None, None, [new_tf], []
+        return None, None, [new_tf], [], []
     orders = mt5.orders_get(symbol=SYMBOL)
     if not orders:
-        return None, None, [new_tf], []
+        return None, None, [new_tf], [], []
     target_type = mt5.ORDER_TYPE_BUY_LIMIT if signal == "BUY" else mt5.ORDER_TYPE_SELL_LIMIT
 
     # รวม gap ของทุก TF ที่ overlap
-    all_gaps = [{"tf": new_tf, "bot": gap_bot, "top": gap_top, "ticket": None}]
+    all_gaps = [{"tf": new_tf, "bot": gap_bot, "top": gap_top, "ticket": None, "pattern": ""}]
     for order in orders:
         if order.type != target_type:
             continue
@@ -900,20 +978,26 @@ def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, ga
         if not overlap:
             continue
 
-        all_gaps.append({"tf": ex_tf, "bot": ex_bot, "top": ex_top, "ticket": order.ticket})
+        all_gaps.append({
+            "tf": ex_tf,
+            "bot": ex_bot,
+            "top": ex_top,
+            "ticket": order.ticket,
+            "pattern": info.get("pattern", ""),
+        })
     if len(all_gaps) == 1:
         # ไม่มี TF อื่น overlap → ตั้ง order ปกติ
-        return None, None, [new_tf], []
+        return None, None, [new_tf], [], []
 
     # คำนวณ intersection ของทุก gap
     int_bot = max(g["bot"] for g in all_gaps)
     int_top = min(g["top"] for g in all_gaps)
     if int_bot >= int_top:
-        return None, None, [new_tf], []
+        return None, None, [new_tf], [], []
 
     # intersection gap ต้องมีขนาด ≥ 0.5pt (เหมือน FVG ปกติ)
     if int_top - int_bot < 0.5:
-        return None, None, [new_tf], []
+        return None, None, [new_tf], [], []
 
     # เรียง TF จากเล็กไปใหญ่ และ dedup (กัน M15+M15)
     all_gaps.sort(key=lambda g: tf_min(g["tf"]))
@@ -932,7 +1016,8 @@ def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, ga
     all_gaps = deduped
     tfs_list = [g["tf"] for g in all_gaps]
     tickets_to_cancel = [g["ticket"] for g in all_gaps if g["ticket"] is not None]
-    return round(int_bot, 2), round(int_top, 2), tfs_list, tickets_to_cancel
+    patterns_list = [g.get("pattern", "") for g in all_gaps]
+    return round(int_bot, 2), round(int_top, 2), tfs_list, tickets_to_cancel, patterns_list
 async def auto_scan(app):
     """สแกนทุก Timeframe ที่เปิดอยู่พร้อมกัน"""
     global auto_active, _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
@@ -1044,7 +1129,7 @@ async def auto_scan(app):
 async def scan_s12(app):
     """S12 Range Trading — เปิด order เมื่อราคาเข้า zone (M5 only, standalone)"""
     global _s12_scan_status
-    from strategy12 import _s12_state, s12_get_swing, s12_get_tp, s12_cleanup_tickets
+    from strategy12 import _s12_state, s12_get_zone_levels, s12_get_tp, s12_cleanup_tickets
     from bot_log import log_event
 
     if not active_strategies.get(12, False):
@@ -1075,7 +1160,11 @@ async def scan_s12(app):
     zone_dist = config.S12_ZONE_POINTS * pt * scale
     sl_dist   = config.S12_SL_POINTS   * pt * scale
 
-    swing_high, swing_low = s12_get_swing(rates_m5, config.S12_LOOKBACK)
+    levels = s12_get_zone_levels(rates_m5, config.S12_LOOKBACK, zone_dist)
+    if not levels:
+        return
+    swing_high = levels["swing_high"]
+    swing_low = levels["swing_low"]
 
     bid = float(tick.bid)
     ask = float(tick.ask)
@@ -1088,10 +1177,10 @@ async def scan_s12(app):
     in_buy_zone  = swing_low  <= ask <= swing_low  + zone_dist
     in_sell_zone = swing_high - zone_dist <= bid <= swing_high
 
-    buy_zone_bot  = swing_low
-    buy_zone_top  = swing_low  + zone_dist
-    sell_zone_bot = swing_high - zone_dist
-    sell_zone_top = swing_high
+    buy_zone_bot = levels["buy_zone_bot"]
+    buy_zone_top = levels["buy_zone_top"]
+    sell_zone_bot = levels["sell_zone_bot"]
+    sell_zone_top = levels["sell_zone_top"]
     zone_label = "BUY zone" if in_buy_zone else ("SELL zone" if in_sell_zone else "Neutral")
     _s12_scan_status = {
         "swing_high":   swing_high,
@@ -1138,9 +1227,15 @@ async def scan_s12(app):
 
     entry     = ask if should_buy else bid
     sl        = round(entry - sl_dist, 2) if should_buy else round(entry + sl_dist, 2)
-    tp_raw    = s12_get_tp(rates_m15, direction)
-    if tp_raw:
-        tp = round(tp_raw, 2)
+    tp_raw = s12_get_tp(rates_m15, direction)
+    tp_valid = (
+        tp_raw is not None and (
+            (should_buy and float(tp_raw) > entry) or
+            (should_sell and float(tp_raw) < entry)
+        )
+    )
+    if tp_valid:
+        tp = round(float(tp_raw), 2)
     else:
         tp = round(entry + sl_dist, 2) if should_buy else round(entry - sl_dist, 2)
 
@@ -1210,14 +1305,20 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     last_candle_time = int(rates[-1]["time"])
 
     # ── Log Swing High / Low ของ TF นี้ (ทำก่อน guard เพื่อแสดงทุก TF เสมอ) ──
-    _sh_info = _find_prev_swing_high(rates)
-    _sl_info = _find_prev_swing_low(rates)
-    _prev_sh_info = _find_previous_swing_info(rates, _sh_info, _find_prev_swing_high)
-    _prev_sl_info = _find_previous_swing_info(rates, _sl_info, _find_prev_swing_low)
-    _prev_prev_sh_info = _find_previous_swing_info(rates, _prev_sh_info, _find_prev_swing_high)
-    _prev_prev_sl_info = _find_previous_swing_info(rates, _prev_sl_info, _find_prev_swing_low)
-    _hh_info = _find_hh(rates, _sh_info)
-    _ll_info = _find_ll(rates, _sl_info)
+    _swing_finders = _get_summary_swing_finders(lookback)
+    _find_sh = _swing_finders["high"]
+    _find_sl = _swing_finders["low"]
+    _find_higher_h = _swing_finders["hh"]
+    _find_lower_l = _swing_finders["ll"]
+
+    _sh_info = _find_sh(rates)
+    _sl_info = _find_sl(rates)
+    _prev_sh_info = _find_previous_swing_info(rates, _sh_info, _find_sh)
+    _prev_sl_info = _find_previous_swing_info(rates, _sl_info, _find_sl)
+    _prev_prev_sh_info = _find_previous_swing_info(rates, _prev_sh_info, _find_sh)
+    _prev_prev_sl_info = _find_previous_swing_info(rates, _prev_sl_info, _find_sl)
+    _hh_info = _find_higher_h(rates, _sh_info)
+    _ll_info = _find_lower_l(rates, _sl_info)
     _trend_info = _compute_trend_info(
         _sh_info, _prev_sh_info, _prev_prev_sh_info,
         _sl_info, _prev_sl_info, _prev_prev_sl_info,
@@ -1236,6 +1337,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         "prev_sl": _swing_fmt(_prev_sl_info, "L"),
         "hh": _swing_fmt(_hh_info, "HH"),
         "ll": _swing_fmt(_ll_info, "LL"),
+        "mode": _swing_finders["mode"],
         "trend": _trend_info,
         "breakout": _breakout_info,
         "sh_price": float(_sh_info["price"]) if _sh_info else None,
@@ -1319,8 +1421,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             )
             return False
         # adjacent bar check per-sid
-        _s2_prev = config.last_traded_sid_tf.get(tf_name, {}).get(2)
-        _s2_adjacent = _s2_prev and (last_candle_time - _s2_prev) == tf_secs
+        _s2_adjacent = _adjacent_sid_blocked(tf_name, 2, last_candle_time, tf_secs)
         if fvg_key not in fvg_pending and last_traded_per_tf.get(tf_name) != last_candle_time and not _s2_adjacent:
             tp_swing = find_swing_tp(rates, fvg["signal"], fvg["entry"], fvg["sl"])
             tp = tp_swing if tp_swing else round(
@@ -1335,9 +1436,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             final_gap_bot = fvg["gap_bot"]
             final_gap_top = fvg["gap_top"]
             parallel_tfs  = [tf_name]   # TF ที่ gap ซ้อนกัน
+            parallel_patterns = [fvg["pattern"]]
 
             if config.FVG_PARALLEL:
-                int_bot, int_top, int_tfs, to_cancel_tickets = \
+                int_bot, int_top, int_tfs, to_cancel_tickets, int_patterns = \
                     _fvg_find_parallel_intersection(
                         tf_name, fvg["signal"], fvg["gap_bot"], fvg["gap_top"]
                     )
@@ -1345,6 +1447,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     final_gap_bot = int_bot
                     final_gap_top = int_top
                     parallel_tfs  = int_tfs
+                    parallel_patterns = list(int_patterns or [])
+                    for idx, ptf in enumerate(parallel_tfs):
+                        if ptf == tf_name and (idx >= len(parallel_patterns) or not parallel_patterns[idx]):
+                            while len(parallel_patterns) <= idx:
+                                parallel_patterns.append("")
+                            parallel_patterns[idx] = fvg["pattern"]
                     # ลบ order ของ TF ที่ซ้อนออก (จะตั้ง order ใหม่แทน)
                     for t in to_cancel_tickets:
                         # หา tf ของ order ก่อน pop
@@ -1373,8 +1481,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             else:
                 final_entry = round(final_gap_top - gap_size * 0.98, 2)
             tf_label_str = "+".join(parallel_tfs) if len(parallel_tfs) > 1 else tf_name
-            fvg_tp = get_existing_tp(fvg["signal"], final_entry, tf_name) or tp
-            order  = open_order(fvg["signal"], get_volume(), fvg["sl"], fvg_tp, entry_price=final_entry, tf=tf_name, sid=2, pattern=fvg["pattern"], parallel_tfs=parallel_tfs)
+            fvg_tp = get_existing_tp(fvg["signal"], final_entry, tf_name, requester_sid=2) or tp
+            order  = open_order(
+                fvg["signal"], get_volume(), fvg["sl"], fvg_tp,
+                entry_price=final_entry, tf=tf_name, sid=2, pattern=fvg["pattern"],
+                parallel_tfs=parallel_tfs, parallel_patterns=parallel_patterns,
+            )
             if order["success"]:
                 # mark ทุก TF ใน parallel group เพื่อกัน re-detect
                 for ptf in parallel_tfs:
@@ -1795,6 +1907,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         )
         if sid == 9:
             setup_sig = _build_strategy9_setup_sig(tf_name, signal, result)
+            if _is_strategy9_setup_invalidated(setup_sig):
+                _print_skip_once(
+                    tf_name,
+                    f"⏭️ [{now}] {tf_label(tf_name)} ท่า9: setup เดิมถูกยกเลิกแล้ว source=passed_entry entry={entry}"
+                )
+                continue
             dup_ticket, dup_source = _find_duplicate_pending_setup(tf_name, sid, signal, entry, sl, tp, setup_sig=setup_sig)
             if dup_ticket:
                 _print_skip_once(
@@ -1814,9 +1932,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 )
                 continue
         # adjacent bar check per-sid (ท่า 8 ข้ามเช็กนี้ — ตั้งแท่งติดกันได้)
-        if sid != 8:
-            _sid_prev = config.last_traded_sid_tf.get(tf_name, {}).get(sid)
-            if _sid_prev and (last_candle_time - _sid_prev) == tf_secs:
+        if sid != 8 and not _pattern_allows_adjacent_order(sid, pattern):
+            if _adjacent_sid_blocked(tf_name, sid, last_candle_time, tf_secs):
                 _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
                 continue
         # Market order ใช้ราคาปัจจุบัน — ไม่ต้องเช็ก "ราคาผ่าน entry แล้วหรือยัง"
@@ -1836,7 +1953,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     print(f"⚠️ [{now}] {tf_label(tf_name)}: Order เต็ม ({len(_pos_now)}/{MAX_ORDERS})")
                     continue
 
-                existing_tp = get_existing_tp(signal, entry, tf_name)
+                existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid)
                 if existing_tp > 0:
                     print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
                     tp = existing_tp
@@ -1894,6 +2011,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                             "s10_armed_at": int(result.get("armed_at", 0) or 0),
                             "s10_parent_time": int(result.get("s10_parent_time", 0) or 0),
                             "s10_sweep_time": int(result.get("s10_sweep_time", 0) or 0),
+                            "s10_parent_high": float(result.get("s10_parent_high", 0.0) or 0.0),
+                            "s10_parent_low": float(result.get("s10_parent_low", 0.0) or 0.0),
                             "s10_bar_mode": result.get("s10_bar_mode", ""),
                             "s10_sweep_checked": False,
                             "s10_model": place_model,
@@ -1963,6 +2082,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         parse_mode="Markdown"
                     )
                 elif order.get("skipped"):
+                    if sid == 9 and setup_sig:
+                        _last_strategy9_invalid_setup_by_key[setup_sig] = {
+                            "reason": "passed_entry",
+                            "time": int(last_candle_time or 0),
+                            "entry": round(place_entry, 2),
+                        }
                     _print_skip_once(
                         tf_name,
                         f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: Entry {signal} ผ่านไปแล้ว | Entry:{place_entry}",
@@ -1996,7 +2121,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             # ── Shared TP: ถ้ามี Order ทิศเดียวกันอยู่แล้ว ──────────
             # BUY → TP = Swing High ย่อย ร่วมกัน
             # SELL → TP = Swing Low ย่อย ร่วมกัน
-            existing_tp = get_existing_tp(signal, entry, tf_name)
+            existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid)
             if existing_tp > 0:
                 print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
                 tp = existing_tp
@@ -2040,6 +2165,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     _pend_info["s10_armed_at"] = int(result.get("armed_at", 0) or 0)
                     _pend_info["s10_parent_time"] = int(result.get("s10_parent_time", 0) or 0)
                     _pend_info["s10_sweep_time"] = int(result.get("s10_sweep_time", 0) or 0)
+                    _pend_info["s10_parent_high"] = float(result.get("s10_parent_high", 0.0) or 0.0)
+                    _pend_info["s10_parent_low"] = float(result.get("s10_parent_low", 0.0) or 0.0)
                     _pend_info["s10_bar_mode"] = result.get("s10_bar_mode", "")
                     _pend_info["s10_sweep_checked"] = False
                 if sid == 9 and setup_sig:
@@ -2095,6 +2222,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 parse_mode="Markdown"
             )
         elif order.get("skipped"):
+            if sid == 9 and setup_sig:
+                _last_strategy9_invalid_setup_by_key[setup_sig] = {
+                    "reason": "passed_entry",
+                    "time": int(last_candle_time or 0),
+                    "entry": round(entry, 2),
+                }
             _print_skip_once(
                 tf_name,
                 f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: Entry {signal} ผ่านไปแล้ว | Entry:{entry}",
@@ -2118,3 +2251,5 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             await tg(app, f"❌ [{tf_name}] ท่า{sid} Limit ไม่สำเร็จ: `{err}`\nFlow: `{_short_flow_id(base_flow_id)}`")
 
     return any_success
+
+

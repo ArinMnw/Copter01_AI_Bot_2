@@ -165,6 +165,7 @@ def _strategy_10_2bar(rates):
     buffer    = crt_sl_buffer_price()
     lookback  = 10  # สแกนย้อนหลังสูงสุด 10 แท่ง HTF
     start_pi  = max(0, len(rates) - lookback)
+    last_reason = "[2bar] ไม่พบ CRT TBS Setup"
 
     # สแกนหา (parent, sweep) pair — sweep เป็นแท่งที่ >= 2 หลัง parent
     # คืนค่า sweep ล่าสุดที่ valid ที่สุด (sweep index สูงสุด)
@@ -177,9 +178,14 @@ def _strategy_10_2bar(rates):
         p_low   = float(parent["low"])
         p_range = p_high - p_low
         if p_range < min_range:
+            last_reason = (
+                f"[2bar] Parent range เล็กไป "
+                f"(H:{p_high:.2f} L:{p_low:.2f} range:{p_range:.2f} < {min_range:.2f})"
+            )
             continue
-        p_mid     = (p_high + p_low) / 2.0
         min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
+        parent_time = _s10_bar_int(parent, "time", 0)
+        parent_ts = fmt_mt5_bkk_ts(parent_time, "%H:%M %d-%b-%Y") if parent_time else "?"
 
         inter_high_broken = False  # แท่งระหว่าง parent-sweep ทะลุ p_high ไปแล้ว
         inter_low_broken  = False  # แท่งระหว่าง parent-sweep ทะลุ p_low ไปแล้ว
@@ -205,6 +211,10 @@ def _strategy_10_2bar(rates):
 
             # ถ้าทั้ง high และ low ถูกทะลุแล้ว parent นี้ใช้ไม่ได้อีก
             if inter_high_broken and inter_low_broken:
+                last_reason = (
+                    f"[2bar] Parent {parent_ts} ถูกทะลุทั้งสองด้านก่อน sweep "
+                    f"(high>{p_high:.2f} และ low<{p_low:.2f})"
+                )
                 break
 
             sweep   = rates[si]
@@ -213,18 +223,26 @@ def _strategy_10_2bar(rates):
             s_low   = float(sweep["low"])
             s_close = float(sweep["close"])
             candles = [_candle_dict(parent), _candle_dict(sweep)]
+            sweep_time = _s10_bar_int(sweep, "time", 0)
+            sweep_ts = fmt_mt5_bkk_ts(sweep_time, "%H:%M %d-%b-%Y") if sweep_time else "?"
 
             # BUY: sweep low, ปิดกลับเข้า range (ยอมรับ doji)
             if not inter_low_broken and s_low < p_low and s_close > p_low and s_close >= s_open:
                 sweep_depth = p_low - s_low
                 if sweep_depth < min_depth:
-                    continue
-                if s_close >= p_mid:
+                    last_reason = (
+                        f"[2bar BUY] Sweep {sweep_ts} ตื้นไป "
+                        f"(depth:{sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)"
+                    )
                     continue
                 entry = round(s_close, 2)
                 sl    = round(s_low - buffer, 2)
                 tp    = round(p_high, 2)
                 if not (sl < entry < tp):
+                    last_reason = (
+                        f"[2bar BUY] Sweep {sweep_ts} SL/TP ไม่ valid "
+                        f"(SL:{sl:.2f} Entry:{entry:.2f} TP:{tp:.2f})"
+                    )
                     continue
                 risk = entry - sl
                 rr   = round((tp - entry) / risk, 2) if risk > 0 else 0
@@ -246,13 +264,19 @@ def _strategy_10_2bar(rates):
             elif not inter_high_broken and s_high > p_high and s_close < p_high and s_close <= s_open:
                 sweep_depth = s_high - p_high
                 if sweep_depth < min_depth:
-                    continue
-                if s_close <= p_mid:
+                    last_reason = (
+                        f"[2bar SELL] Sweep {sweep_ts} ตื้นไป "
+                        f"(depth:{sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)"
+                    )
                     continue
                 entry = round(s_close, 2)
                 sl    = round(s_high + buffer, 2)
                 tp    = round(p_low, 2)
                 if not (tp < entry < sl):
+                    last_reason = (
+                        f"[2bar SELL] Sweep {sweep_ts} SL/TP ไม่ valid "
+                        f"(TP:{tp:.2f} Entry:{entry:.2f} SL:{sl:.2f})"
+                    )
                     continue
                 risk = sl - entry
                 rr   = round((entry - tp) / risk, 2) if risk > 0 else 0
@@ -269,10 +293,27 @@ def _strategy_10_2bar(rates):
                     ),
                     "candles": candles,
                 }
+            else:
+                side_hints = []
+                if s_low < p_low:
+                    if not (s_close > p_low):
+                        side_hints.append(f"BUY close:{s_close:.2f} ยังไม่กลับเหนือ parent low:{p_low:.2f}")
+                    elif not (s_close >= s_open):
+                        side_hints.append(f"BUY candle ไม่เขียว/dojiพอ (O:{s_open:.2f} C:{s_close:.2f})")
+                if s_high > p_high:
+                    if not (s_close < p_high):
+                        side_hints.append(f"SELL close:{s_close:.2f} ยังไม่กลับต่ำกว่า parent high:{p_high:.2f}")
+                    elif not (s_close <= s_open):
+                        side_hints.append(f"SELL candle ไม่แดง/dojiพอ (O:{s_open:.2f} C:{s_close:.2f})")
+                if not side_hints:
+                    side_hints.append(
+                        f"ยังไม่ sweep parent (parent H:{p_high:.2f} L:{p_low:.2f} | sweep H:{s_high:.2f} L:{s_low:.2f})"
+                    )
+                last_reason = f"[2bar] Parent {parent_ts} / Sweep {sweep_ts}: " + " | ".join(side_hints)
 
     if best_result:
         return best_result
-    return {"signal": "WAIT", "reason": "[2bar] ไม่พบ CRT TBS Setup"}
+    return {"signal": "WAIT", "reason": last_reason}
 
 
 def _strategy_10_3bar(rates):
@@ -306,13 +347,6 @@ def _strategy_10_3bar(rates):
                 "signal": "WAIT",
                 "reason": f"[3bar BUY] Sweep ตื้นไป ({sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)",
             }
-        # CRT 50% rule: BUY → confirm close ต้องไม่เกิน 50% ของ parent
-        p_mid = (p_high + p_low) / 2.0
-        if c_close >= p_mid:
-            return {
-                "signal": "WAIT",
-                "reason": f"[3bar BUY] Sweep close เกิน 50% ของ parent ({c_close:.2f} >= mid:{p_mid:.2f})",
-            }
         entry = round(c_close, 2)
         sl    = round(s_low - buffer, 2)
         tp    = round(p_high, 2)
@@ -340,13 +374,6 @@ def _strategy_10_3bar(rates):
             return {
                 "signal": "WAIT",
                 "reason": f"[3bar SELL] Sweep ตื้นไป ({sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)",
-            }
-        # CRT 50% rule: SELL → confirm close ต้องไม่ต่ำกว่า 50% ของ parent
-        p_mid = (p_high + p_low) / 2.0
-        if c_close <= p_mid:
-            return {
-                "signal": "WAIT",
-                "reason": f"[3bar SELL] Sweep close เกิน 50% ของ parent ({c_close:.2f} <= mid:{p_mid:.2f})",
             }
         entry = round(c_close, 2)
         sl    = round(s_high + buffer, 2)
@@ -415,8 +442,6 @@ def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
     if p_range < crt_min_range_price():
         return False
     min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
-    p_mid = (p_high + p_low) / 2.0
-
     if signal == "BUY":
         sweep_depth = p_low - s_low
         return (
@@ -424,7 +449,6 @@ def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
             and s_close > p_low
             and s_close >= s_open
             and sweep_depth >= min_depth
-            and s_close < p_mid
         )
 
     sweep_depth = s_high - p_high
@@ -433,7 +457,6 @@ def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
         and s_close < p_high
         and s_close <= s_open
         and sweep_depth >= min_depth
-        and s_close > p_mid
     )
 
 
@@ -521,18 +544,20 @@ def _find_phase1_failed_push(rates, direction: str, armed_at: int,
                               parent_high: float, parent_low: float):
     """
     Phase 1: failed-push บน LTF (ยืนยันว่า CRT TBS pattern complete)
-    BUY:  RED bar + close < HTF parent.low
-    SELL: GREEN bar + close > HTF parent.high
+    BUY:  RED bar + close < HTF parent.low - 50 points
+    SELL: GREEN bar + close > HTF parent.high + 50 points
     เริ่มค้นจาก bar.time > armed_at
     """
+    buy_extra_break = float(crt_sl_buffer_price())
+    sell_extra_break = float(crt_sl_buffer_price())
     for i in range(1, len(rates)):
         if int(rates[i]["time"]) <= armed_at:
             continue
         bo = float(rates[i]["open"])
         bc = float(rates[i]["close"])
-        if direction == "BUY" and bc < bo and bc < parent_low:
+        if direction == "BUY" and bc < bo and bc < (parent_low - buy_extra_break):
             return i
-        if direction == "SELL" and bc > bo and bc > parent_high:
+        if direction == "SELL" and bc > bo and bc > (parent_high + sell_extra_break):
             return i
     return None
 
@@ -809,6 +834,8 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
         "htf_candles": list(htf_candles),
         "htf_tf": htf_tf,
         "armed_at": armed_at,
+        "s10_parent_high": round(float(parent_high), 2),
+        "s10_parent_low": round(float(parent_low), 2),
         "s10_parent_time": _s10_bar_int(parent, "time", 0),
         "s10_sweep_time": _s10_bar_int(htf_candles[1], "time", 0) if len(htf_candles) > 1 else 0,
         "s10_bar_mode": CRT_BAR_MODE,

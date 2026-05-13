@@ -299,7 +299,6 @@ SELL (SELL LIMIT):
 - TF restriction: HTF mode ใช้ M15+ เท่านั้น; MTF mode ใช้ทุก TF (เพราะ LTF ตีจาก HTF อยู่แล้ว)
 - `CRT_MIN_RANGE_POINTS` (default `200` × points_scale) — กรอง swing range เล็กเกิน
 - `CRT_SWEEP_DEPTH_PCT` (default `0.10`) — แท่ง sweep wick ต้องลึกอย่างน้อย X% ของ parent range
-- **CRT 50% rule** — sweep close ต้องไม่เกิน 50% ของ parent (BUY: < midpoint / SELL: > midpoint)
 - `CRT_SL_BUFFER_POINTS` (default `50` × points_scale)
 
 ### Mode: entry timing

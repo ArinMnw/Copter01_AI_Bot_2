@@ -1537,20 +1537,12 @@ def build_trend_filter_keyboard():
     ])
     # === Pending RSI Recheck ===
     prr_label = (
-        f"🟢 Pending RSI Recheck: ON ({config.PENDING_RSI_RECHECK_POINTS}pt)"
+        "🟢 Pending RSI Recheck: ON"
         if config.PENDING_RSI_RECHECK_ENABLED
         else "🔴 Pending RSI Recheck: OFF"
     )
     rows.append([InlineKeyboardButton("━ Pending RSI Recheck ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(prr_label, callback_data="toggle_pending_rsi_recheck")])
-    prr_pt_options = [100, 200, 300, 500]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if config.PENDING_RSI_RECHECK_POINTS == p else '⬜'} {p}pt",
-            callback_data=f"set_prr_pts_{p}"
-        )
-        for p in prr_pt_options
-    ])
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
 
@@ -1583,7 +1575,7 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     ltr_status = f"🟢ON ({config.LIMIT_TREND_RECHECK_POINTS}pt)" if config.LIMIT_TREND_RECHECK else "🔴OFF"
     scan_block_status = "🟢ON" if config.TREND_FILTER_SCAN_BLOCK else "🔴OFF"
     nac_status = f"🟢ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)" if config.NEAR_APPROACH_CANCEL_ENABLED else "🔴OFF"
-    prr_status = f"🟢ON ({config.PENDING_RSI_RECHECK_POINTS}pt)" if config.PENDING_RSI_RECHECK_ENABLED else "🔴OFF"
+    prr_status = "🟢ON" if config.PENDING_RSI_RECHECK_ENABLED else "🔴OFF"
     text = (
         "🧭 *Trend Filter (Scan Trend)*\n"
         "━━━━━━━━━━━━━━━━━\n"

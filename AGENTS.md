@@ -264,7 +264,6 @@ mode ที่รองรับ:
 **HTF detect filters (ทุก mode):**
 - Parent range ≥ `CRT_MIN_RANGE_POINTS × points_scale`
 - Sweep depth ≥ `CRT_SWEEP_DEPTH_PCT × parent range` (default 10%)
-- Sweep close ต้องไม่เกิน 50% ของ parent (CRT 50% rule)
 
 **HTF mode (Entry Model 2):**
 - ใช้ M15+ เท่านั้น
@@ -336,6 +335,7 @@ mode ที่รองรับ:
 - `logs/error-YYYY-MM.log`: error + Python exception (จาก `log_error()` และ `_ErrorLogHandler`)
 - `logs/system/system.log`: Python `logging` module (INFO+)
 - `logs/debug/sltp_audit.log`: audit trail การเปลี่ยน SL/TP
+- ไฟล์ใน `logs/`, `__pycache__/`, `*.tmp`, `*.bak` และไฟล์ compile เช่น `*.ex5` ไม่ควรถูก commit เข้า git
 - `POSITION_CLOSED` ใช้เป็นฐานของสรุปกำไร
 - เวลา Telegram มากับ log ไม่ตรงกัน ให้เชื่อ `bot.log` ก่อน
 

@@ -99,6 +99,80 @@ def _find_prev_swing_low(rates, lookback=100):
     return None
 
 
+def _is_pivot_high(rates, idx: int, left: int, right: int) -> bool:
+    center = float(rates[idx]["high"])
+    for j in range(idx - left, idx):
+        if float(rates[j]["high"]) >= center:
+            return False
+    for j in range(idx + 1, idx + right + 1):
+        if float(rates[j]["high"]) > center:
+            return False
+    return True
+
+
+def _is_pivot_low(rates, idx: int, left: int, right: int) -> bool:
+    center = float(rates[idx]["low"])
+    for j in range(idx - left, idx):
+        if float(rates[j]["low"]) <= center:
+            return False
+    for j in range(idx + 1, idx + right + 1):
+        if float(rates[j]["low"]) < center:
+            return False
+    return True
+
+
+def _find_prev_pivot_swing_high(rates, lookback=100, left=15, right=10):
+    total = len(rates)
+    if total < left + right + 3:
+        return None
+    start = max(left, total - min(lookback, total))
+    end = total - right
+    for i in range(end - 1, start - 1, -1):
+        if not _is_pivot_high(rates, i, left, right):
+            continue
+        swing_h = float(rates[i]["high"])
+        bar_from_2 = (total - 3) - i
+        bar = rates[i]
+        return {
+            "price": swing_h,
+            "bar_from_2": bar_from_2,
+            "time": int(bar["time"]),
+            "candle": {
+                "open": float(bar["open"]),
+                "high": swing_h,
+                "low": float(bar["low"]),
+                "close": float(bar["close"]),
+            },
+        }
+    return None
+
+
+def _find_prev_pivot_swing_low(rates, lookback=100, left=15, right=10):
+    total = len(rates)
+    if total < left + right + 3:
+        return None
+    start = max(left, total - min(lookback, total))
+    end = total - right
+    for i in range(end - 1, start - 1, -1):
+        if not _is_pivot_low(rates, i, left, right):
+            continue
+        swing_l = float(rates[i]["low"])
+        bar_from_2 = (total - 3) - i
+        bar = rates[i]
+        return {
+            "price": swing_l,
+            "bar_from_2": bar_from_2,
+            "time": int(bar["time"]),
+            "candle": {
+                "open": float(bar["open"]),
+                "high": float(bar["high"]),
+                "low": swing_l,
+                "close": float(bar["close"]),
+            },
+        }
+    return None
+
+
 def _find_hh(rates, current_sh, lookback=100):
     """หา Higher High: Swing High เก่าที่สูงกว่า H ปัจจุบัน
 
@@ -203,6 +277,46 @@ def _find_ll(rates, current_sl, lookback=100):
     return None
 
 
+def _find_pivot_hh(rates, current_sh, lookback=100, left=15, right=10):
+    if not current_sh:
+        return None
+    cur_price = float(current_sh["price"])
+    cur_time = int(current_sh.get("time", 0) or 0)
+    for i in range(len(rates) - 1, -1, -1):
+        if int(rates[i]["time"]) >= cur_time:
+            continue
+        info = _find_prev_pivot_swing_high(rates[:i + 1], lookback=lookback, left=left, right=right)
+        if info and float(info["price"]) > cur_price:
+            return info
+    return None
+
+
+def _find_pivot_ll(rates, current_sl, lookback=100, left=15, right=10):
+    if not current_sl:
+        return None
+    cur_price = float(current_sl["price"])
+    cur_time = int(current_sl.get("time", 0) or 0)
+    for i in range(len(rates) - 1, -1, -1):
+        if int(rates[i]["time"]) >= cur_time:
+            continue
+        info = _find_prev_pivot_swing_low(rates[:i + 1], lookback=lookback, left=left, right=right)
+        if info and float(info["price"]) < cur_price:
+            return info
+    return None
+
+
+def _get_s4_prev_swing_high(rates, lookback=100):
+    left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
+    right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
+    return _find_prev_pivot_swing_high(rates, lookback=lookback, left=left, right=right) or _find_prev_swing_high(rates, lookback=lookback)
+
+
+def _get_s4_prev_swing_low(rates, lookback=100):
+    left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
+    right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
+    return _find_prev_pivot_swing_low(rates, lookback=lookback, left=left, right=right) or _find_prev_swing_low(rates, lookback=lookback)
+
+
 def strategy_4(rates):
     """
     ท่าที่ 4 — นัยยะสำคัญ FVG
@@ -247,7 +361,7 @@ def strategy_4(rates):
     # Swing High ต้องอยู่ในช่วง gap: High[2] < Swing High < Low[0]
     # BUY FVG: [1] เขียว + Low[0] > High[2] → gap จริง
     if bull1 and h1 > h2 and l0 > h2:
-        sh_info = _find_prev_swing_high(rates)
+        sh_info = _get_s4_prev_swing_high(rates)
         prev_sh  = sh_info["price"] if sh_info else None
         swing_in_gap = prev_sh is not None and h2 < prev_sh < l0
         _s4_debug(
@@ -320,7 +434,7 @@ def strategy_4(rates):
     # Swing Low ต้องอยู่ในช่วง gap: High[0] < Swing Low < Low[2]
     # SELL FVG: [1] แดง + High[0] < Low[2] → gap จริง
     if not bull1 and l1 < l2 and h0 < l2:
-        sl_info = _find_prev_swing_low(rates)
+        sl_info = _get_s4_prev_swing_low(rates)
         prev_sl  = sl_info["price"] if sl_info else None
         swing_in_gap = prev_sl is not None and h0 < prev_sl < l2
         _s4_debug(

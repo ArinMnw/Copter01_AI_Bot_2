@@ -1,10 +1,28 @@
+import config
 from config import *
 from mt5_utils import get_structure, find_swing_tp
+from strategy4 import _find_prev_pivot_swing_high, _find_prev_pivot_swing_low
 from entry_calculator import (
     calc_tp_sl_s1_buy_A, calc_tp_sl_s1_sell_A,
     calc_tp_sl_s1_buy_B, calc_tp_sl_s1_sell_B,
     calc_tp_sl_s1_buy_C, calc_tp_sl_s1_sell_C,
 )
+
+
+def _get_s1_structure(rates):
+    ms = get_structure(rates)
+    left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
+    right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
+    lookback = len(rates)
+
+    sh_info = _find_prev_pivot_swing_high(rates, lookback=lookback, left=left, right=right)
+    sl_info = _find_prev_pivot_swing_low(rates, lookback=lookback, left=left, right=right)
+
+    if sh_info:
+        ms["swing_high"] = float(sh_info["price"])
+    if sl_info:
+        ms["swing_low"] = float(sl_info["price"])
+    return ms
 
 def strategy_1(rates):
     if len(rates) < 3:
@@ -23,7 +41,7 @@ def strategy_1(rates):
     if has_c3:
         o3,h3,l3,cl3,bull3 = c(-4)
 
-    ms   = get_structure(rates)
+    ms   = _get_s1_structure(rates)
     sh   = ms["swing_high"]
     sl_z = ms["swing_low"]
     atr  = ms["atr"]
