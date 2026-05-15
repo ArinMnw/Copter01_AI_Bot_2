@@ -27,6 +27,7 @@ from config import (
     crt_sl_buffer_price,
     CRT_BAR_MODE,
     CRT_SWEEP_DEPTH_PCT,
+    engulf_min_price,
     fmt_mt5_bkk_ts,
 )
 import config as _config
@@ -174,8 +175,10 @@ def _strategy_10_2bar(rates):
 
     for pi in range(start_pi, len(rates) - 1):
         parent  = rates[pi]
+        p_open  = float(parent["open"])
         p_high  = float(parent["high"])
         p_low   = float(parent["low"])
+        p_close = float(parent["close"])
         p_range = p_high - p_low
         if p_range < min_range:
             last_reason = (
@@ -226,8 +229,8 @@ def _strategy_10_2bar(rates):
             sweep_time = _s10_bar_int(sweep, "time", 0)
             sweep_ts = fmt_mt5_bkk_ts(sweep_time, "%H:%M %d-%b-%Y") if sweep_time else "?"
 
-            # BUY: sweep low, ปิดกลับเข้า range (ยอมรับ doji)
-            if not inter_low_broken and s_low < p_low and s_close > p_low and s_close >= s_open:
+            # BUY: sweep low, ปิดกลับเข้า range (ยอมรับ doji) + parent ต้องแดง
+            if not inter_low_broken and s_low < p_low and s_close > p_low and p_close < p_open:
                 sweep_depth = p_low - s_low
                 if sweep_depth < min_depth:
                     last_reason = (
@@ -260,8 +263,8 @@ def _strategy_10_2bar(rates):
                     "candles": candles,
                 }
 
-            # SELL: sweep high, ปิดต่ำกว่า high ของ parent (ยอมรับ doji)
-            elif not inter_high_broken and s_high > p_high and s_close < p_high and s_close <= s_open:
+            # SELL: sweep high, ปิดต่ำกว่า high ของ parent (ยอมรับ doji) + parent ต้องเขียว
+            elif not inter_high_broken and s_high > p_high and s_close < p_high and p_close > p_open:
                 sweep_depth = s_high - p_high
                 if sweep_depth < min_depth:
                     last_reason = (
@@ -298,13 +301,9 @@ def _strategy_10_2bar(rates):
                 if s_low < p_low:
                     if not (s_close > p_low):
                         side_hints.append(f"BUY close:{s_close:.2f} ยังไม่กลับเหนือ parent low:{p_low:.2f}")
-                    elif not (s_close >= s_open):
-                        side_hints.append(f"BUY candle ไม่เขียว/dojiพอ (O:{s_open:.2f} C:{s_close:.2f})")
                 if s_high > p_high:
                     if not (s_close < p_high):
                         side_hints.append(f"SELL close:{s_close:.2f} ยังไม่กลับต่ำกว่า parent high:{p_high:.2f}")
-                    elif not (s_close <= s_open):
-                        side_hints.append(f"SELL candle ไม่แดง/dojiพอ (O:{s_open:.2f} C:{s_close:.2f})")
                 if not side_hints:
                     side_hints.append(
                         f"ยังไม่ sweep parent (parent H:{p_high:.2f} L:{p_low:.2f} | sweep H:{s_high:.2f} L:{s_low:.2f})"
@@ -331,6 +330,8 @@ def _strategy_10_3bar(rates):
             "reason": f"[3bar] Parent range เล็กไป ({p_range:.2f} < {min_range:.2f})",
         }
 
+    p_open  = float(parent["open"])
+    p_close = float(parent["close"])
     s_high = float(sweep["high"])
     s_low  = float(sweep["low"])
     c_open  = float(confirm["open"])
@@ -340,7 +341,8 @@ def _strategy_10_3bar(rates):
 
     candles = [_candle_dict(parent), _candle_dict(sweep), _candle_dict(confirm)]
 
-    if s_low < p_low and c_close > p_low and c_close > c_open:
+    # BUY: parent ต้องแดง (close < open)
+    if s_low < p_low and c_close > p_low and c_close > c_open and p_close < p_open:
         sweep_depth = p_low - s_low
         if sweep_depth < min_depth:
             return {
@@ -368,7 +370,8 @@ def _strategy_10_3bar(rates):
             "candles": candles,
         }
 
-    if s_high > p_high and c_close < p_high and c_close < c_open:
+    # SELL: parent ต้องเขียว (close > open)
+    if s_high > p_high and c_close < p_high and c_close < c_open and p_close > p_open:
         sweep_depth = s_high - p_high
         if sweep_depth < min_depth:
             return {
@@ -447,7 +450,6 @@ def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
         return (
             s_low < p_low
             and s_close > p_low
-            and s_close >= s_open
             and sweep_depth >= min_depth
         )
 
@@ -455,7 +457,6 @@ def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
     return (
         s_high > p_high
         and s_close < p_high
-        and s_close <= s_open
         and sweep_depth >= min_depth
     )
 
@@ -544,20 +545,18 @@ def _find_phase1_failed_push(rates, direction: str, armed_at: int,
                               parent_high: float, parent_low: float):
     """
     Phase 1: failed-push บน LTF (ยืนยันว่า CRT TBS pattern complete)
-    BUY:  RED bar + close < HTF parent.low - 50 points
-    SELL: GREEN bar + close > HTF parent.high + 50 points
+    BUY:  RED bar + close < HTF parent.low
+    SELL: GREEN bar + close > HTF parent.high
     เริ่มค้นจาก bar.time > armed_at
     """
-    buy_extra_break = float(crt_sl_buffer_price())
-    sell_extra_break = float(crt_sl_buffer_price())
     for i in range(1, len(rates)):
         if int(rates[i]["time"]) <= armed_at:
             continue
         bo = float(rates[i]["open"])
         bc = float(rates[i]["close"])
-        if direction == "BUY" and bc < bo and bc < (parent_low - buy_extra_break):
+        if direction == "BUY" and bc < bo and bc < parent_low:
             return i
-        if direction == "SELL" and bc > bo and bc > (parent_high + sell_extra_break):
+        if direction == "SELL" and bc > bo and bc > parent_high:
             return i
     return None
 
@@ -656,6 +655,7 @@ def _calc_model2_fvg(rates, engulf_idx: int, direction: str):
     3-bar imbalance: B1=engulf_idx-2, B2=engulf_idx-1, B3=engulf_idx
     Bullish FVG: B1.high < B3.low → entry @ 98% (ลึกใน gap, ใกล้ B1.high)
     Bearish FVG: B1.low > B3.high → entry @ 98% (ลึกใน gap, ใกล้ B1.low)
+    ใช้ gap ขั้นต่ำเดียวกับ engulf_min_price()
     """
     if engulf_idx < 2:
         return None
@@ -665,37 +665,46 @@ def _calc_model2_fvg(rates, engulf_idx: int, direction: str):
     b1_low  = float(b1["low"])
     b3_high = float(b3["high"])
     b3_low  = float(b3["low"])
+    min_gap = float(engulf_min_price())
     if direction == "BUY":
         # Bullish FVG: gap ระหว่าง [b1.high, b3.low]
-        if b3_low > b1_high:
+        gap = b3_low - b1_high
+        if gap >= min_gap:
             # 98% deep = ใกล้ b1.high (ราคา retrace ลงลึก)
             return b3_low - 0.98 * (b3_low - b1_high)
     else:
         # Bearish FVG: gap ระหว่าง [b3.high, b1.low]
-        if b1_low > b3_high:
+        gap = b1_low - b3_high
+        if gap >= min_gap:
             # 98% deep = ใกล้ b1.low (ราคา retrace ขึ้นลึก)
             return b3_high + 0.98 * (b1_low - b3_high)
     return None
 
 
-def _calc_model3_mss(rates, engulf_idx: int, direction: str, armed_at: int):
+def _calc_model3_mss(rates, phase1_idx: int, direction: str, armed_at: int):
     """
     Model 3 — MSS swing point (confirmation only, ไม่ใช้เป็น entry)
-    SELL: lowest low ภายใน LTF range (armed_at, engulf_idx)
-    BUY:  highest high ภายใน LTF range (armed_at, engulf_idx)
+    SELL: lowest low ภายใน LTF range (armed_at, phase1_idx)
+    BUY:  highest high ภายใน LTF range (armed_at, phase1_idx)
     """
-    lows = []
-    highs = []
-    for j in range(engulf_idx - 1, -1, -1):
+    best_idx = None
+    best_value = None
+    for j in range(phase1_idx - 1, -1, -1):
         if int(rates[j]["time"]) <= armed_at:
             break
-        lows.append(float(rates[j]["low"]))
-        highs.append(float(rates[j]["high"]))
-    if not lows:
+        if direction == "SELL":
+            v = float(rates[j]["low"])
+            if best_value is None or v < best_value:
+                best_value = v
+                best_idx = j
+        else:
+            v = float(rates[j]["high"])
+            if best_value is None or v > best_value:
+                best_value = v
+                best_idx = j
+    if best_idx is None or best_value is None:
         return None
-    if direction == "SELL":
-        return min(lows)
-    return max(highs)
+    return best_value, best_idx
 
 
 def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
@@ -728,16 +737,21 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
     if phase1_idx is None:
         return None
 
-    # Phase 2: engulfing (entry trigger search)
-    trigger_idx = phase1_idx
+    # Model 3: MSS lookback ย้อนจากแท่ง Phase 1
+    m3_entry = _calc_model3_mss(rates, phase1_idx, direction, armed_at)
+    m3_level = None
+    m3_idx = None
+    if m3_entry is not None:
+        m3_level, m3_idx = m3_entry
 
-    # คำนวณ 3 models (Model 1/3 ใช้ armed_at เป็นขอบ, Model 2 ใช้ 3-bar window รอบ engulf)
+    # Model 1/2: ค้นต่อหลังแท่ง Phase 1
+    trigger_idx = phase1_idx + 1
+
+    # คำนวณ models ฝั่ง entry หลัง Phase 1
     m1_entry = None
     m2_entry = None
-    m3_level = None
     m1_idx = None
     m2_idx = None
-    m3_idx = None
     for idx in range(trigger_idx, len(rates)):
         if m1_entry is None:
             v = _calc_model1_ob(rates, idx, direction, armed_at)
@@ -749,12 +763,7 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
             if v is not None:
                 m2_entry = v
                 m2_idx = idx
-        if m3_level is None:
-            v = _calc_model3_mss(rates, idx, direction, armed_at)
-            if v is not None:
-                m3_level = v
-                m3_idx = idx
-        if m1_entry is not None and m2_entry is not None and m3_level is not None:
+        if m1_entry is not None and m2_entry is not None:
             break
 
     # Entry priority: Model 1 -> fallback Model 2
@@ -775,6 +784,7 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
 
     phase1_bar = rates[phase1_idx]
     p1_close = float(phase1_bar["close"])
+    p1_time = fmt_mt5_bkk_ts(int(phase1_bar["time"]), "%H:%M %d-%b-%Y")
 
     def _is_valid_entry(v) -> bool:
         if v is None:
@@ -805,7 +815,7 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
     if not model_orders:
         return None
 
-    trigger_idx = max(i for i in (m1_idx, m2_idx, m3_idx) if i is not None)
+    trigger_idx = max(i for i in (m1_idx, m2_idx, m3_idx, phase1_idx) if i is not None)
     entry = round(float(model_orders[0]["entry"]), 2)
     model_used = int(model_orders[0]["model"])
     risk = abs(entry - sl)
@@ -823,11 +833,11 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
         "reason": (
             f"[MTF {htf_tf}→{ltf_tf}] HTF armed at bar={armed_at}\n"
             f"Parent[H:{parent_high:.2f} L:{parent_low:.2f}]\n"
-            f"Phase 1 (failed-push): bar={phase1_idx} close={p1_close:.2f}\n"
+            f"Phase 1 (failed-push): bar={phase1_idx} @ {p1_time} close={p1_close:.2f}\n"
             f"Phase 2: disabled (use Phase 1 as trigger)\n"
             f"Model 1 (OB.open):  {m1_str} @ {m1_time}\n"
             f"Model 2 (FVG 98%):  {m2_str} @ {m2_time}\n"
-            f"Model 3 (MSS):      {m3_str} @ {m3_time}\n"
+            f"Model 3 (MSS lookback from Phase 1): {m3_str} @ {m3_time}\n"
             f"USING Model {model_used} = {entry} | SL:{sl} | TP:{tp} | RR1:{rr}"
         ),
         "candles": [_candle_dict(r) for r in rates[max(0, trigger_idx - 2):trigger_idx + 1]],
@@ -841,6 +851,151 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
         "s10_bar_mode": CRT_BAR_MODE,
         "s10_model_orders": model_orders,
     }
+
+
+def _strategy_10_2bar_pre_sweep(rates):
+    """
+    Pre-sweep detection — ใช้ rates[-1] เป็น sweep candle in-progress
+    ไม่ต้องรอ sweep ปิด (ไม่เช็ค s_close กลับเข้า range)
+    เช็คเพียงว่า sweep ผ่าน parent range ไปแล้วหรือยัง (HIGH/LOW เท่านั้น)
+    Sweep close validation จะทำตอน HTF bar ปิดผ่าน S10_SWEEP_RECHECK
+    """
+    if rates is None or len(rates) < 2:
+        return {"signal": "WAIT", "reason": "[pre-sweep] ข้อมูลไม่พอ"}
+
+    min_range = crt_min_range_price()
+    buffer    = crt_sl_buffer_price()
+    lookback  = 10
+    # rates[-1] = current in-progress sweep bar
+    sweep      = rates[-1]
+    s_high     = float(sweep["high"])
+    s_low      = float(sweep["low"])
+    sweep_time = _s10_bar_int(sweep, "time", 0)
+
+    # ค้นหา parent ใน rates[:-1] (closed bars)
+    start_pi = max(0, len(rates) - 1 - lookback)
+    for pi in range(start_pi, len(rates) - 1):
+        parent  = rates[pi]
+        p_open  = float(parent["open"])
+        p_high  = float(parent["high"])
+        p_low   = float(parent["low"])
+        p_close = float(parent["close"])
+        p_range = p_high - p_low
+        if p_range < min_range:
+            continue
+        min_depth  = p_range * float(CRT_SWEEP_DEPTH_PCT)
+        parent_time = _s10_bar_int(parent, "time", 0)
+
+        # ตรวจว่ามีแท่งระหว่าง parent กับ sweep ทะลุ range ทั้งสองด้านไหม
+        inter_high_broken = False
+        inter_low_broken  = False
+        for mi in range(pi + 1, len(rates) - 1):
+            mid = rates[mi]
+            if float(mid["high"]) > p_high:
+                inter_high_broken = True
+            if float(mid["low"]) < p_low:
+                inter_low_broken = True
+            if inter_high_broken and inter_low_broken:
+                break
+        if inter_high_broken and inter_low_broken:
+            continue
+
+        candles = [_candle_dict(parent), _candle_dict(sweep)]
+
+        # BUY: sweep low < parent low (ลง sweep liquidity) + parent ต้องแดง
+        if (
+            not inter_low_broken
+            and s_low < p_low
+            and (p_low - s_low) >= min_depth
+            and p_close < p_open
+        ):
+            sl = round(s_low - buffer, 2)
+            tp = round(p_high, 2)
+            if sl >= tp:
+                continue
+            return {
+                "signal":        "BUY",
+                "pattern":       "ท่าที่ 10 CRT TBS 🟢 BUY — Pre-Sweep (pending close)",
+                "entry":         tp,   # placeholder; จะถูก override โดย Model 1/2/3
+                "sl":            sl,
+                "tp":            tp,
+                "order_mode":    "limit",
+                "candles":       candles,
+                "sweep_pending": True,
+                "reason": (
+                    f"[pre-sweep BUY] Parent[H:{p_high:.2f} L:{p_low:.2f}] "
+                    f"Sweep in-progress[L:{s_low:.2f} depth:{p_low-s_low:.2f}] — "
+                    f"รอ close ยืนยัน"
+                ),
+            }
+
+        # SELL: sweep high > parent high (ขึ้น sweep liquidity) + parent ต้องเขียว
+        if (
+            not inter_high_broken
+            and s_high > p_high
+            and (s_high - p_high) >= min_depth
+            and p_close > p_open
+        ):
+            sl = round(s_high + buffer, 2)
+            tp = round(p_low, 2)
+            if sl <= tp:
+                continue
+            return {
+                "signal":        "SELL",
+                "pattern":       "ท่าที่ 10 CRT TBS 🔴 SELL — Pre-Sweep (pending close)",
+                "entry":         tp,   # placeholder; จะถูก override โดย Model 1/2/3
+                "sl":            sl,
+                "tp":            tp,
+                "order_mode":    "limit",
+                "candles":       candles,
+                "sweep_pending": True,
+                "reason": (
+                    f"[pre-sweep SELL] Parent[H:{p_high:.2f} L:{p_low:.2f}] "
+                    f"Sweep in-progress[H:{s_high:.2f} depth:{s_high-p_high:.2f}] — "
+                    f"รอ close ยืนยัน"
+                ),
+            }
+
+    return {"signal": "WAIT", "reason": "[pre-sweep] ไม่พบ CRT parent + in-progress sweep"}
+
+
+def try_pre_arm_htf(htf_tf: str, htf_rates_with_current) -> bool:
+    """
+    ลองหา CRT pattern โดยให้ rates[-1] เป็น sweep bar in-progress (ยังไม่ปิด)
+    ถ้าพบ → arm state ทันที → return True
+    ถ้าไม่พบ หรือ arm อยู่แล้ว → return False
+
+    เรียกจาก scanner ระหว่าง LTF scan (ก่อน sweep HTF ปิด)
+    เพื่อให้ LTF สามารถหา Phase 1 + Model และ place order ได้ก่อน HTF candle ปิด
+    Sweep validity จะถูกเช็คใน trailing.py → S10_SWEEP_RECHECK ตอน HTF bar ถัดไปเปิด
+    """
+    if htf_tf not in _HTF_TO_LTF:
+        return False
+    if _armed_states.get(htf_tf):
+        return False  # arm อยู่แล้ว ไม่ต้อง pre-arm ซ้ำ
+    if htf_rates_with_current is None or len(htf_rates_with_current) < 2:
+        return False
+
+    # ใช้ rates[-1] = current open bar เป็น sweep candidate
+    # ก่อนรัน ต้องแน่ใจว่า rates[-1] เป็น bar ใหม่ (เปิดหลัง rates[-2])
+    try:
+        t_cur  = int(htf_rates_with_current[-1]["time"])
+        t_prev = int(htf_rates_with_current[-2]["time"])
+        if t_cur <= t_prev:
+            return False  # ไม่มี bar ใหม่
+    except Exception:
+        return False
+
+    # ตรวจว่าเคย fire order ด้วย bar นี้แล้วไหม (armed_at = current bar time)
+    if t_cur == _last_fired_armed_at.get(htf_tf):
+        return False
+
+    result = _strategy_10_2bar_pre_sweep(htf_rates_with_current)
+    if result.get("signal") not in ("BUY", "SELL"):
+        return False
+
+    _arm_htf_state(result, htf_tf, htf_rates_with_current)
+    return _armed_states.get(htf_tf) is not None
 
 
 def reset_mtf_state(htf_tf: str = ""):

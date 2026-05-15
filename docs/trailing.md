@@ -14,6 +14,7 @@
 - `check_cancel_pending_orders()`
 - `check_limit_sweep()`
 - `check_s12_management()`
+- `check_s1_zone_rules()`
 
 ## Entry Candle Quality
 
@@ -213,6 +214,15 @@ mode:
 - BUY: หา SL ที่สูงขึ้นแต่ยังสมเหตุผล
 - SELL: หา SL ที่ต่ำลงหรือป้องกันดีขึ้นตามฝั่ง
 
+หมายเหตุปัจจุบัน:
+- `S10`, `S12`, `S13` ไม่เข้า flow นี้
+- ถ้าเปิด `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`
+  - ระบบจะยอมให้ Trail SL ทำงานได้แม้ `TRAIL_SL_FOCUS_NEW_ENABLED` กำลัง freeze อยู่
+  - ใช้เฉพาะท่าที่ไม่ standalone
+  - ดูจากแท่งกลับตัวของฝั่งตรงข้ามบน `TF` ของ order
+  - BUY position: ยอม trail เมื่อเจอ bearish reversal
+  - SELL position: ยอม trail เมื่อเจอ bullish reversal
+
 ## Opposite Order Mode
 
 ฟังก์ชัน: `check_opposite_order_tp()`
@@ -222,6 +232,10 @@ mode:
 - `sl_protect`
 
 Master toggle: `OPPOSITE_ORDER_ENABLED` ถ้า `False` ฟังก์ชัน return ทันที
+
+หมายเหตุปัจจุบัน:
+- `S10`, `S12`, `S13` ไม่เข้า flow กลางนี้
+- `S13` ใช้ logic ปิดฝั่งตรงข้ามของตัวเองใน `scanner.py`
 
 ### tp_close
 
@@ -284,6 +298,29 @@ SELL:
 - cooldown เริ่มต้นจาก `check_s12_management()` (รัน BEFORE SCAN_SUMMARY)
 - `scan_s12()` รัน AFTER SCAN_SUMMARY → `_s12_scan_status` ที่ SCAN_SUMMARY เห็นเป็น cycle ก่อนหน้า
 
+## S1 Zone Rules
+
+ฟังก์ชัน: `check_s1_zone_rules()`
+
+หน้าที่:
+- ใช้กับ `S1` เมื่อ `S1_ZONE_MODE = "zone"`
+- แยกการตัดสินใจเรื่อง zone ออกจากขั้น detect pattern
+- ดูทั้ง pending order และ position ที่ fill แล้ว
+
+กฎปัจจุบัน:
+- pending `S1` ที่อยู่นอก zone -> ยกเลิก order
+- pending `S1` ที่ยังอยู่ใน zone -> คง order ไว้
+- position `S1` ที่อยู่นอก zone และ `profit < 0` -> ปิด position
+- position `S1` ที่อยู่นอก zone แต่ `profit >= 0` -> ไม่ปิด
+
+metadata ที่ใช้:
+- `pending_order_tf[ticket]["s1_zone_meta"]`
+- `position_zone_meta[ticket]`
+
+หมายเหตุ:
+- zone จะถูกประเมินซ้ำจาก rates ปัจจุบันทุก cycle
+- ถ้าไม่ได้ใช้ `S1_ZONE_MODE = "zone"` ฟังก์ชันนี้จะ return ทันที
+
 ## Auto Cancel Pending
 
 ฟังก์ชัน: `check_cancel_pending_orders()`
@@ -299,19 +336,23 @@ SELL:
 
 ## Pending RSI Recheck
 
-อยู่ใน flow ของ `check_cancel_pending_orders()`
+ตอนนี้ RSI recheck ไม่ได้ใช้กับ pending order แล้ว
 
 แนวคิด:
-- หลังจากมี pending `LIMIT` หรือ `STOP` รออยู่
-- เมื่อราคาเข้าใกล้ entry ในระยะ `PENDING_RSI_RECHECK_POINTS` (default 200 points)
-- ระบบจะเช็ก RSI ของ TF ที่ order นั้นผูกอยู่ ณ ตอนนั้น
-- `BUY LIMIT` / `BUY STOP`: ต้อง `RSI < PENDING_RSI_BUY_MAX` (default 50)
-- `SELL LIMIT` / `SELL STOP`: ต้อง `RSI > PENDING_RSI_SELL_MIN` (default 50)
-- ถ้าไม่ผ่าน ระบบยกเลิก pending order ก่อน fill
+- ตรวจตอน `order fill` ภายใน `check_entry_candle_quality()`
+- ถ้า `PENDING_RSI_RECHECK_ENABLED = False` จะข้ามทั้งก้อน
+- ใช้ RSI ของ `TF` เดียวกับ order ณ รอบที่ position fill
 
-config:
+เกณฑ์:
+- BUY: RSI ต้องไม่เกิน buy max
+- SELL: RSI ต้องไม่ต่ำกว่า sell min
+- ถ้าไม่ผ่าน จะปิด position หลัง fill ทันที
+
+หมายเหตุ:
+- `S13` ไม่เข้า flow นี้
+
+config ที่เกี่ยวข้อง:
 - `PENDING_RSI_RECHECK_ENABLED`
-- `PENDING_RSI_RECHECK_POINTS`
 - `PENDING_RSI_PERIOD`
 - `PENDING_RSI_APPLIED_PRICE`
 - `PENDING_RSI_BUY_MAX`
@@ -327,6 +368,9 @@ config:
 mode:
 - `separate`: ดูเฉพาะ TF เดียวกัน
 - `combined`: ดูทุก TF
+
+หมายเหตุปัจจุบัน:
+- `S10`, `S12`, `S13` ไม่เข้า `Limit Guard`
 
 ## Limit Sweep
 

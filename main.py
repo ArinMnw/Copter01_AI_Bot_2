@@ -12,7 +12,7 @@ from config import wrap_bot
 from scanner import auto_scan
 from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_breakeven_tp, check_opposite_order_tp,
-                      check_cancel_pending_orders, check_s6_trail,
+                      check_cancel_pending_orders, check_s1_zone_rules, check_s1_forward_confirm_rules, check_s6_trail,
                       check_limit_sweep)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
@@ -85,6 +85,88 @@ def main():
         except Exception as e:
             await _tg_error(app, "run_scan", e)
 
+    async def _close_btc_exposure_before_xau_switch():
+        """ปิด position และลบ pending ของ BTCUSD ก่อนสลับกลับ XAUUSD"""
+        btc_symbol = "BTCUSD.iux"
+        closed_positions = []
+        canceled_orders = []
+
+        try:
+            from trailing import pending_order_tf, position_tf, position_sid, position_pattern, position_zone_meta, _entry_state
+        except Exception:
+            pending_order_tf = {}
+            position_tf = {}
+            position_sid = {}
+            position_pattern = {}
+            position_zone_meta = {}
+            _entry_state = {}
+
+        btc_orders = mt5.orders_get(symbol=btc_symbol) or []
+        for o in btc_orders:
+            r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": o.ticket})
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                ticket = int(o.ticket)
+                canceled_orders.append(ticket)
+                pending_order_tf.pop(ticket, None)
+                position_tf.pop(ticket, None)
+                position_sid.pop(ticket, None)
+                position_pattern.pop(ticket, None)
+                position_zone_meta.pop(ticket, None)
+                _entry_state.pop(ticket, None)
+                log_event("ORDER_CANCELED", "BTC pending cleared before switching to XAUUSD.iux", symbol=btc_symbol, ticket=ticket)
+
+        btc_positions = mt5.positions_get(symbol=btc_symbol) or []
+        for pos in btc_positions:
+            tick = mt5.symbol_info_tick(btc_symbol)
+            if not tick:
+                continue
+            is_buy = pos.type == mt5.ORDER_TYPE_BUY
+            close_type = mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY
+            close_price = float(tick.bid if is_buy else tick.ask)
+            req = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": btc_symbol,
+                "position": pos.ticket,
+                "volume": pos.volume,
+                "type": close_type,
+                "price": close_price,
+                "deviation": 20,
+                "magic": 234001,
+                "comment": "switch_to_xau_close_btc",
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            }
+            r = mt5.order_send(req)
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                ticket = int(pos.ticket)
+                closed_positions.append(ticket)
+                pending_order_tf.pop(ticket, None)
+                position_tf.pop(ticket, None)
+                position_sid.pop(ticket, None)
+                position_pattern.pop(ticket, None)
+                position_zone_meta.pop(ticket, None)
+                _entry_state.pop(ticket, None)
+                log_event(
+                    "POSITION_CLOSED",
+                    "BTC position closed before switching to XAUUSD.iux",
+                    symbol=btc_symbol,
+                    ticket=ticket,
+                    close_price=close_price,
+                )
+
+        if closed_positions or canceled_orders:
+            lines = ["🧹 *ล้าง BTCUSD ก่อนสลับกลับ XAUUSD*"]
+            if closed_positions:
+                lines.append(f"📉 ปิด position BTC: `{', '.join(map(str, closed_positions))}`")
+            if canceled_orders:
+                lines.append(f"🗑️ ลบ pending BTC: `{', '.join(map(str, canceled_orders))}`")
+            await tg(app, "\n".join(lines))
+            print(
+                f"[{now_bkk().strftime('%H:%M:%S')}] 🧹 cleared BTC before switch "
+                f"positions={closed_positions} pending={canceled_orders}"
+            )
+        return bool(closed_positions or canceled_orders)
+
     async def check_symbol_switch():
         """ตรวจตลาด XAUUSD — ถ้าปิดสลับไป BTCUSD ถ้าเปิดสลับกลับ"""
         import config
@@ -115,6 +197,8 @@ def main():
             print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ check_symbol_switch error: {e}")
             return
         if xau_open and config.SYMBOL != "XAUUSD.iux":
+            if config.SYMBOL == "BTCUSD.iux":
+                await _close_btc_exposure_before_xau_switch()
             set_runtime_symbol("XAUUSD.iux")
             save_runtime_state()
             await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux")
@@ -156,6 +240,8 @@ def main():
         try:
             await check_entry_candle_quality(app)
             await check_sl_tp_hits(app)
+            await check_s1_zone_rules(app)
+            await check_s1_forward_confirm_rules(app)
             await check_cancel_pending_orders(app)
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
             await check_opposite_order_tp(app)

@@ -88,7 +88,7 @@ Keep the answer short and make the fix directly.
 | config, symbol, strategy toggle | `config.py` |
 | scan signal, create order, order message | `scanner.py` |
 | trailing, state machine, post-fill lifecycle | `trailing.py` |
-| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py` |
+| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py` |
 | swing helper | `strategy4.py` |
 | คำนวณ entry / TP / SL | `entry_calculator.py` |
 | utility ฝั่ง MT5 | `mt5_utils.py` |
@@ -144,6 +144,7 @@ state หลักอยู่ใน `trailing.py` และ `config.py`
 - `position_tf`
 - `position_sid`
 - `position_pattern`
+- `position_zone_meta`
 - `_trail_state`
 - `_bar_count`
 - `_entry_state`
@@ -169,14 +170,15 @@ state ถาวรถูกบันทึกลง `bot_state.json`
 ใช้รูปแบบประมาณนี้:
 
 ```text
-Bot_{TF}_S{SID}_{PATTERN_CODE}
+{TF}_S{SID}_{PATTERN_CODE}
 ```
 
 ตัวอย่าง:
 
-- `Bot_M1_S1_PA`
-- `Bot_H1_S2_FVG`
-- `Bot_M5_S6i_buy`
+- `M1_S1_PA`
+- `[M5_M15]_S2`
+- `[H1-M1]_S10_#1`
+- `M15_S13_EZ_#1`
 
 และต้องระวังไม่ให้ยาวเกิน limit ของ MT5
 
@@ -194,6 +196,7 @@ mode ที่รองรับ:
 - `close_percentage` เป็น mode แยกจาก `close`
 - กฎโครงสร้างแบบ limit sweep ควรทำงานได้ไม่ว่าตั้ง `ENTRY_CANDLE_MODE` เป็นอะไร
 - `ENTRY_CANDLE_ENABLED` เป็น master toggle - ถ้า `False` `check_entry_candle_quality()` จะ return ทันที
+- default ปัจจุบันคือ `ENTRY_CANDLE_ENABLED = False`
 
 ## พฤติกรรมสำคัญของระบบ
 
@@ -203,11 +206,15 @@ mode ที่รองรับ:
 - `TRAIL_SL_ENGULF_MODE` รองรับ `combined` และ `separate`
 - `TRAIL_SL_IMMEDIATE` คุมว่าจะ trail ได้ก่อน `_entry_state = done` หรือไม่
 - `TRAIL_SL_ENABLED` เป็น master toggle - ถ้า `False` `check_engulf_trail_sl()` จะ return ทันที
+- `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED` เป็น top-level toggle แยกจาก submenu อื่น
+- ถ้าเปิดอยู่ ระบบจะยอมให้ trail ผ่าน `Focus Opposite` ได้เมื่อแท่งล่าสุดบน TF ของ order เป็น reversal ฝั่งตรงข้าม
+- feature นี้ไม่ใช้กับท่า standalone (`S12`, `S13`) และ `S10`
 
 ### Limit Guard
 
 - ใช้ยกเลิก pending limit ที่ไกลจาก position ปัจจุบันมากเกินไป
 - มีทั้ง mode `separate` และ `combined`
+- ปัจจุบัน skip สำหรับ `S10`, `S12`, `S13`
 
 ### Limit Sweep
 
@@ -225,11 +232,30 @@ mode ที่รองรับ:
 
 - FVG ตรวจทั้ง engulf และ gap distance
 - ขั้นต่ำของ gap ใช้ค่าเดียวกับ engulf (`engulf_min_price()`) ไม่ใช่ค่า hardcoded
+- `S2` แบบปกติเท่านั้นที่จะย้อนดู `S1` / `S2` / `S3` ฝั่งเดียวกันใน `S2_NORMAL_CONFIRM_LOOKBACK_BARS` แท่งล่าสุดก่อนยอมใช้ order
+- `S2 parallel` ไม่ใช้กฎยืนยันย้อนหลังนี้
 - pattern ที่เปิดใช้งาน: `เขียวกลืนกิน`/`แดงกลืนกิน` และ `ปฏิเสธราคา`
 - pattern `ปฏิเสธราคา` รับได้ทั้งแท่งปิดเขียวและแดง (ไม่มีเงื่อนไขสี)
 - pattern default `แดง`/`เขียว` (pattern 3-4) ปิดใช้งาน แต่ยังคง classification logic ไว้เพื่อ log
 - pattern `ปฏิเสธราคา` ใช้ `cancel_bars = 1` - ถ้า limit ไม่ fill ภายใน 1 แท่งถัดไปจะยกเลิกอัตโนมัติ (ใช้กลไกเดิมใน `trailing.py`)
 - `Limit TP/SL Break Cancel` ไม่ใช้กับ pattern 1 (`เขียวกลืนกิน`/`แดงกลืนกิน`) - skip ผ่าน `c3_type` ใน `pending_order_tf`
+- comment ของ `S2 parallel` แบบปัจจุบันคือ `[TF1_TF2]_S2`
+
+### S1 Zone Mode
+
+- ถ้า `S1_ZONE_MODE = "zone"` ระบบจะไม่ block setup ตั้งแต่ขั้น detect แล้ว
+- จะเก็บ `s1_zone_meta` ติดไปกับ pending/position แล้วค่อยประเมินภายหลัง
+- pending ที่อยู่นอก zone -> ยกเลิก limit
+- pending ที่ยังอยู่ใน zone -> คง order ไว้
+- position ที่อยู่นอก zone และขาดทุน -> ปิด
+- position ที่อยู่นอก zone แต่กำไรหรือเสมอทุน -> ไม่ปิด
+- การเช็ก zone ใช้ `min low` / `max high` ของทุกแท่งใน pattern ไม่ได้อิงแค่แท่ง `[1]`
+- แยกจาก zone mode, `S1` ยังมี forward confirm rule อีกชุด:
+  - ตั้ง order ไปก่อนได้
+  - จากนั้นรอดู `S2` หรือ `S3` ฝั่งเดียวกันภายใน 5 แท่งข้างหน้าใน TF เดียวกัน
+  - ถ้ายังเป็น pending และครบ 5 แท่งแล้วไม่เจอ -> ยกเลิก order
+  - ถ้า fill แล้วและครบ 5 แท่งแล้วไม่เจอ -> ปิด position
+  - ถ้าเจอแล้ว ไม่ว่าจะยัง pending หรือ fill แล้ว -> ไม่ทำอะไรต่อ
 
 ### Opposite Order Mode
 
@@ -264,6 +290,7 @@ mode ที่รองรับ:
 **HTF detect filters (ทุก mode):**
 - Parent range ≥ `CRT_MIN_RANGE_POINTS × points_scale`
 - Sweep depth ≥ `CRT_SWEEP_DEPTH_PCT × parent range` (default 10%)
+- sweep candle ไม่บังคับสีแล้ว: BUY/SELL ใช้ได้ทั้งแท่งเขียวหรือแดง ถ้าโครงสร้าง sweep ผ่าน
 
 **HTF mode (Entry Model 2):**
 - ใช้ M15+ เท่านั้น
@@ -274,23 +301,25 @@ mode ที่รองรับ:
 - Phase 1: failed-push (BUY=RED+close<parent.low / SELL=GREEN+close>parent.high)
 - Phase 2: body engulf 2-bar (concept S1 - ไม่เรียก S1 จริง)
 - Models (คำนวณหลัง engulfing):
-  - #1 Order Block - opposite-color bar ก่อน engulf → entry = OB.open (LIMIT)
-  - #2 FVG 90% - 3-bar imbalance → entry @ 90% deep (concept S2 - ไม่เรียก S2 จริง)
-  - #3 MSS - swing low/high (log only, ไม่ใช้เป็น entry)
+  - #1 Order Block - ค้นต่อหลังแท่ง Phase 1 → entry = OB.open (LIMIT)
+  - #2 FVG 90% - ค้นต่อหลังแท่ง Phase 1 ด้วย 3-bar imbalance → entry @ 90% deep (concept S2 - ไม่เรียก S2 จริง) และ gap ต้อง >= `engulf_min_price()`
+  - #3 MSS - swing low/high แบบ lookback ย้อนจากแท่ง Phase 1 (log only, ไม่ใช้เป็น entry)
 - Priority: Model 1 → fallback Model 2 → ถ้าทั้งคู่ None ไม่เข้า
 - `order_mode = "limit"` (เปลี่ยนจาก market - รอ price retrace)
 - SL = HTF sweep level ± buffer (`state["sl_target"]`)
 - TP = HTF parent opposite (`state["tp_target"]`)
-- Search range ของ Model 1/3: `bar.time > armed_at` (no fixed lookback)
+- Search range ของ Model 1/2: หลังแท่ง `Phase 1`
+- Search range ของ Model 3: `armed_at < bar.time < phase1.time`
 
 **State:**
 - `_armed_states` save/restore ผ่าน `bot_state.json` (key `s10_armed_states`)
 - `armed_at` = HTF sweep candle's open time
 - expiry = `armed_at + 2 × htf_secs`
+- pending MTF ถูกยกเลิกทันทีถ้าก่อน fill ราคาไปแตะ HTF parent low/high ฝั่งตรงข้ามของ setup แล้ว
 
 **Comment format:**
-- HTF mode: `Bot_<TF>_S10_CRT`
-- MTF mode: `Bot_[<HTF>-<LTF>]_S10_CRT` (regex `MTF [HTF→LTF]` ใน mt5_utils)
+- HTF mode: `<TF>_S10`
+- MTF mode: `[<HTF>-<LTF>]_S10_#<model>`
 
 ### S11 Fibo S1
 
@@ -303,12 +332,31 @@ mode ที่รองรับ:
 
 ### S12 Range Trading
 
-- ระบุ range ด้วย swing high/low บน M5 → แบ่งเป็น buy/sell zone
+- ระบุ range ด้วย pivot swing บน M5 เป็นหลัก และ fallback raw high/low ถ้ายังไม่มี pivot
+- active zone ใช้ raw breakout extremes แบบ sticky เพื่อให้ขยับตาม `S12_RangeZone.mq5` และไม่ snap กลับทันที
 - ตั้ง limit order หลายชั้น (จำนวนสูงสุด = `S12_ORDER_COUNT`)
 - ปุ่ม `strategy_all_on` ไม่กระทบ S12 - default ON ต้องปิด/เปิดรายตัวเอง
 - cooldown 1800s หลัง SL hit (`S12_COOLDOWN_SECS`)
 - **SCAN_SUMMARY**: ระหว่าง cooldown จะ **ไม่แสดง** S12 block เลย (ป้องกัน body ค้างจากค่า 0.00 → ทำให้ force-log ทำงานได้ตามปกติ)
-- comment: `Bot_M5_S12_buy` / `Bot_M5_S12_sell`
+- comment โดยรวมยังอิง `M5_S12_...` จาก `mt5_utils.py`
+
+### S13 EzAlgo V5
+
+- strategy ใหม่แบบ standalone
+- ใช้สัญญาณ `supertrend crossover`
+- ใช้ได้ทุก TF ที่เปิด scan
+- ไม่เข้า flow กลางพวก `Entry Candle`, `Trail SL`, `Opposite Order`, `RSI recheck`, `Trend Filter` ของระบบหลัก
+- เจอสัญญาณแล้วจะเลือก mix ของ `market/limit` จากความสัมพันธ์ระหว่าง `current price` กับ `entry`
+- BUY:
+  - ถ้า `current price > entry` -> เปิด `market 1 order` ที่ `TP3` (`#3`) และตั้ง `limit 3 orders` (`L1/L2/L3`)
+  - ถ้า `current price <= entry` -> เปิด `market 3 orders` (`#1/#2/#3`) และตั้ง `limit 1 order` ที่ `TP3` (`L3`)
+- SELL:
+  - ถ้า `current price < entry` -> เปิด `market 1 order` ที่ `TP3` (`#3`) และตั้ง `limit 3 orders` (`L1/L2/L3`)
+  - ถ้า `current price >= entry` -> เปิด `market 3 orders` (`#1/#2/#3`) และตั้ง `limit 1 order` ที่ `TP3` (`L3`)
+- ถ้าเจอสัญญาณฝั่งตรงข้าม จะล้าง exposure ของ `S13` เฉพาะ TF เดียวกันก่อนเปิดฝั่งใหม่
+- comment:
+  - market: `<TF>_S13_EZ_#1`, `<TF>_S13_EZ_#2`, `<TF>_S13_EZ_#3`
+  - limit: `<TF>_S13_EZ_L1`, `<TF>_S13_EZ_L2`, `<TF>_S13_EZ_L3`
 
 ### BTC Lot / Points Scaling
 
@@ -328,6 +376,7 @@ mode ที่รองรับ:
 - ถ้า OFF ไม่แสดง suffix รายละเอียด (ไม่มี `|` ตามหลัง)
 - ฟังก์ชันที่มี master toggle และ submenu: Trail SL, Entry Candle Mode, Opposite Order
 - ฟังก์ชันที่ toggle ตรงจากหน้าหลัก: Entry Candle TP, Limit Sweep, Delay SL (3 mode)
+- มี top-level toggle แยก: `↩️ จุดกลับตัว -> Trail SL`
 
 ## Log และสรุปกำไร
 
@@ -345,6 +394,7 @@ mode ที่รองรับ:
 - **force-log ทุก 60 วินาที** แม้ body จะไม่เปลี่ยน (ทั้ง bot.log และ Telegram)
 - ควบคุมด้วย `SCAN_SUMMARY_FORCE_INTERVAL = 60` ใน `scanner.py`
 - S12 cooldown: ไม่แสดง S12 block ใน body ระหว่าง cooldown
+- `Scan Swing` ใน summary มี `AsOf`, `H✓`, `L✓` เพื่อบอกเวลาแท่งปิดล่าสุดและเวลาที่ swing confirm แล้ว
 
 ## กติกาเวลาแก้ไฟล์
 

@@ -66,8 +66,7 @@ def strategy_3(rates):
 
     if (
         is_bull(c2)
-        and body_pct(c2) >= min_body_pct
-        and (is_bear(c1) or (is_doji(c1) and not is_bull(c1)))
+        and (is_bear(c1) or (is_doji(c1) and not is_bull(c1)) or (is_bull(c1) and c1["cl"] < c2["h"]))
         and is_bull(c0)
         and bull_engulf(c0["cl"], c1["h"])
     ):
@@ -79,10 +78,18 @@ def strategy_3(rates):
         rr = round(abs(tp - entry) / abs(entry - sl), 2) if abs(entry - sl) > 0 else 0
         wick_top = round(c0["h"] - c0["cl"], 2)
 
+        if is_doji(c1):
+            c1_type = "G_DOJI" if is_bull(c1) else "R_DOJI"
+        elif is_bull(c1):
+            c1_type = "G"
+        else:
+            c1_type = "R"
+        buy_pattern = f"ท่าที่ 3 DM SP 🟢 BUY [C1:{c1_type}]"
+
         if maru_buy(c0):
             return {
                 "signal": "WAIT",
-                "pattern": "ท่าที่ 3 DM SP 🟢 BUY",
+                "pattern": buy_pattern,
                 "reason": (
                     f"⏳ [0] เขียวตัน ไม่มีไส้บน (wick={wick_top}) | "
                     f"รอแท่งถัดไปจบเขียว = ตั้ง Limit | จบแดง = ยกเลิก | "
@@ -94,19 +101,20 @@ def strategy_3(rates):
                     "sl": sl,
                     "tp": tp,
                     "candle_time": int(rates[-1]["time"]),
+                    "c1_type": c1_type,
                 },
             }
 
         return {
             "signal": "BUY",
-            "pattern": "ท่าที่ 3 DM SP 🟢 BUY",
+            "pattern": buy_pattern,
             "entry": entry,
             "sl": sl,
             "tp": tp,
             "tp_note": tp_note,
             "reason": (
                 f"[2]เขียว body:{body_pct(c2):.0f}% "
-                f"[1]แดง/doji "
+                f"[1]{c1_type} "
                 f"[0]เขียวกลืน Close:{c0['cl']:.2f}>High[1]:{c1['h']:.2f} "
                 f"Entry:{entry} SL:{sl} TP:{tp} RR1:{rr}"
             ),
@@ -119,12 +127,10 @@ def strategy_3(rates):
             "swing_low": c1["l"],
         }
     elif is_bull(c2):
-        if body_pct(c2) < min_body_pct:
-            buy_wait_reason = f"DM SP BUY: [2] body {body_pct(c2):.0f}% < {min_body_pct:.0f}%"
-        elif not (is_bear(c1) or (is_doji(c1) and not is_bull(c1))):
+        if not (is_bear(c1) or (is_doji(c1) and not is_bull(c1)) or (is_bull(c1) and c1["cl"] < c2["h"])):
             buy_wait_reason = (
-                f"DM SP BUY: [1] ต้องเป็นแดง/doji "
-                f"(O:{c1['o']:.2f} C:{c1['cl']:.2f} body:{body_pct(c1):.0f}%)"
+                f"DM SP BUY: [1] ต้องเป็นแดง/doji หรือเขียว Close < High[2] "
+                f"(O:{c1['o']:.2f} C:{c1['cl']:.2f} High[2]:{c2['h']:.2f} body:{body_pct(c1):.0f}%)"
             )
         elif not is_bull(c0):
             buy_wait_reason = f"DM SP BUY: [0] ยังไม่ปิดเขียว (O:{c0['o']:.2f} C:{c0['cl']:.2f})"
@@ -133,8 +139,7 @@ def strategy_3(rates):
 
     if (
         is_bear(c2)
-        and body_pct(c2) >= min_body_pct
-        and (is_bull(c1) or (is_doji(c1) and not is_bear(c1)))
+        and (is_bull(c1) or (is_doji(c1) and not is_bear(c1)) or (is_bear(c1) and c1["cl"] > c2["l"]))
         and is_bear(c0)
         and bear_engulf(c0["cl"], c1["l"])
     ):
@@ -146,10 +151,18 @@ def strategy_3(rates):
         rr = round(abs(tp - entry) / abs(sl - entry), 2) if abs(sl - entry) > 0 else 0
         wick_bot = round(c0["cl"] - c0["l"], 2)
 
+        if is_doji(c1):
+            c1_type = "G_DOJI" if is_bull(c1) else "R_DOJI"
+        elif is_bull(c1):
+            c1_type = "G"
+        else:
+            c1_type = "R"
+        sell_pattern = f"ท่าที่ 3 DM SP 🔴 SELL [C1:{c1_type}]"
+
         if maru_sell(c0):
             return {
                 "signal": "WAIT",
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL",
+                "pattern": sell_pattern,
                 "reason": (
                     f"⏳ [0] แดงตัน ไม่มีไส้ล่าง (wick={wick_bot}) | "
                     f"รอแท่งถัดไปจบแดง = ตั้ง Limit | จบเขียว = ยกเลิก | "
@@ -161,19 +174,20 @@ def strategy_3(rates):
                     "sl": sl,
                     "tp": tp,
                     "candle_time": int(rates[-1]["time"]),
+                    "c1_type": c1_type,
                 },
             }
 
         return {
             "signal": "SELL",
-            "pattern": "ท่าที่ 3 DM SP 🔴 SELL",
+            "pattern": sell_pattern,
             "entry": entry,
             "sl": sl,
             "tp": tp,
             "tp_note": tp_note,
             "reason": (
                 f"[2]แดง body:{body_pct(c2):.0f}% "
-                f"[1]เขียว/doji "
+                f"[1]{c1_type} "
                 f"[0]แดงกลืน Close:{c0['cl']:.2f}<Low[1]:{c1['l']:.2f} "
                 f"Entry:{entry} SL:{sl} TP:{tp} RR1:{rr}"
             ),
@@ -186,12 +200,10 @@ def strategy_3(rates):
             "swing_low": c0["l"],
         }
     elif is_bear(c2):
-        if body_pct(c2) < min_body_pct:
-            sell_wait_reason = f"DM SP SELL: [2] body {body_pct(c2):.0f}% < {min_body_pct:.0f}%"
-        elif not (is_bull(c1) or (is_doji(c1) and not is_bear(c1))):
+        if not (is_bull(c1) or (is_doji(c1) and not is_bear(c1)) or (is_bear(c1) and c1["cl"] > c2["l"])):
             sell_wait_reason = (
-                f"DM SP SELL: [1] ต้องเป็นเขียว/doji "
-                f"(O:{c1['o']:.2f} C:{c1['cl']:.2f} body:{body_pct(c1):.0f}%)"
+                f"DM SP SELL: [1] ต้องเป็นเขียว/doji หรือแดง Close > Low[2] "
+                f"(O:{c1['o']:.2f} C:{c1['cl']:.2f} Low[2]:{c2['l']:.2f} body:{body_pct(c1):.0f}%)"
             )
         elif not is_bear(c0):
             sell_wait_reason = f"DM SP SELL: [0] ยังไม่ปิดแดง (O:{c0['o']:.2f} C:{c0['cl']:.2f})"

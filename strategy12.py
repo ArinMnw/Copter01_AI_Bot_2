@@ -44,12 +44,13 @@ def s12_get_swing_context(rates, lookback: int):
     active_high = pivot_high
     active_low = pivot_low
 
-    if len(bars) >= 2:
-        last_closed = float(bars[-2]["close"])
-        if last_closed > pivot_high:
-            active_high = raw_high
-        if last_closed < pivot_low:
-            active_low = raw_low
+    # Keep the provisional breakout range sticky until a new confirmed pivot
+    # replaces it. If raw extremes already extend beyond the confirmed pivot
+    # anchors, use those active extremes instead of snapping back on the next bar.
+    if raw_high > pivot_high:
+        active_high = raw_high
+    if raw_low < pivot_low:
+        active_low = raw_low
 
     return {
         "pivot_swing_high": pivot_high,

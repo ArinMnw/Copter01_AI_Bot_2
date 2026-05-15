@@ -24,6 +24,53 @@ def _get_s1_structure(rates):
         ms["swing_low"] = float(sl_info["price"])
     return ms
 
+
+def _attach_s1_zone_meta(payload: dict, use_zone: bool, signal: str, zone_price: float, swing_price: float, zone_ok: bool):
+    payload["s1_zone_meta"] = {
+        "enabled": bool(use_zone),
+        "signal": str(signal or ""),
+        "zone_price": round(float(zone_price), 2),
+        "swing_price": round(float(swing_price), 2),
+        "zone_ok_initial": bool(zone_ok),
+    }
+    return payload
+
+
+def evaluate_s1_zone_status(rates, signal: str, zone_price: float) -> dict:
+    use_zone = (S1_ZONE_MODE == "zone")
+    if not use_zone:
+        return {
+            "enabled": False,
+            "in_zone": True,
+            "zone_price": float(zone_price),
+            "swing_price": 0.0,
+            "boundary_price": 0.0,
+            "buf": 0.0,
+        }
+
+    ms = _get_s1_structure(rates)
+    swing_high = float(ms["swing_high"])
+    swing_low = float(ms["swing_low"])
+    buf = float(ms["atr"]) * ZONE_BUFFER
+
+    if str(signal or "").upper() == "BUY":
+        boundary_price = swing_low + buf
+        in_zone = float(zone_price) <= boundary_price
+        swing_price = swing_low
+    else:
+        boundary_price = swing_high - buf
+        in_zone = float(zone_price) >= boundary_price
+        swing_price = swing_high
+
+    return {
+        "enabled": True,
+        "in_zone": bool(in_zone),
+        "zone_price": float(zone_price),
+        "swing_price": float(swing_price),
+        "boundary_price": float(boundary_price),
+        "buf": float(buf),
+    }
+
 def strategy_1(rates):
     if len(rates) < 3:
         return {"signal": "WAIT", "reason": "ข้อมูลไม่เพียงพอ"}
@@ -46,6 +93,11 @@ def strategy_1(rates):
     sl_z = ms["swing_low"]
     atr  = ms["atr"]
     buf  = atr * ZONE_BUFFER
+    zone_low_3 = min(l0, l1, l2)
+    zone_high_3 = max(h0, h1, h2)
+    if has_c3:
+        zone_low_4 = min(l0, l1, l2, l3)
+        zone_high_4 = max(h0, h1, h2, h3)
 
     # Zone mode: "zone" = ตรวจ zone ปกติ, "normal" = ไม่สนใจ zone
     use_zone = (S1_ZONE_MODE == "zone")
@@ -109,7 +161,7 @@ def strategy_1(rates):
     if not bull2 and bull1 and bull0:
         c1_engulf  = bull_engulf(cl1, h2)        # [1] กลืนกิน: Close > High[2] + gap
         c0_engulf  = bull_engulf(cl0, h1)        # [0] กลืนกิน: Close > High[1] + gap (ยืนยัน)
-        zone       = (not use_zone) or (l1 <= sl_z + buf)
+        zone       = (not use_zone) or (zone_low_3 <= sl_z + buf)
         # body ≥ 35% ของ [1] เท่านั้น ([2] ไม่จำกัด)
         r1 = h1 - l1; b1 = abs(cl1 - o1)
         r2 = h2 - l2; b2 = abs(cl2 - o2)
@@ -117,7 +169,7 @@ def strategy_1(rates):
         body1_pct = round(b1/r1*100) if r1 > 0 else 0
         body2_pct = round(b2/r2*100) if r2 > 0 else 0
 
-        if c1_engulf and c0_engulf and zone and body1_ok:
+        if c1_engulf and c0_engulf and body1_ok:
             # ข้อ 1: SL = min(l0,l1,l2) - SL_BUFFER() เหมือน Pattern B
             lowest   = min(l0, l1, l2)
             entry    = round((h1 + l1) / 2, 2)
@@ -125,7 +177,7 @@ def strategy_1(rates):
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน",
                 "reason": (
@@ -138,9 +190,9 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "BUY", zone_low_3, sl_z, zone)
         if not zone:
-            buy_wait_reason = f"⚠️ BUY A ไม่อยู่ Low Zone (Low:{l1:.2f} | Swing:{sl_z:.2f})"
+            buy_wait_reason = f"⚠️ BUY A ไม่อยู่ Low Zone (Low:{zone_low_3:.2f} | Swing:{sl_z:.2f})"
         elif not body1_ok:
             buy_wait_reason = f"⚠️ BUY A แท่ง[1] Body:{body1_pct}% < 35%"
         elif not c1_engulf:
@@ -164,9 +216,9 @@ def strategy_1(rates):
         c1_in_zone = h1 >= o2              # ไส้บน[1] เข้า zone แดง[2]
         c1_body_ok = (range1 > 0) and (body1 / range1 >= 0.35)  # ตำหนิ body ≥ 35%
         c0_engulf  = bull_engulf(cl0, h1)             # [0] กลืนกิน: Close > High[1] + gap
-        zone       = (not use_zone) or (l1 <= sl_z + buf)
+        zone       = (not use_zone) or (zone_low_3 <= sl_z + buf)
 
-        if c1_in_zone and c1_body_ok and c0_engulf and zone:
+        if c1_in_zone and c1_body_ok and c0_engulf:
             body1_pct = round(body1/range1*100) if range1 > 0 else 0
             entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
@@ -174,7 +226,7 @@ def strategy_1(rates):
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ตำหนิ",
                 "reason": (
@@ -187,7 +239,7 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "BUY", zone_low_3, sl_z, zone)
 
     # ══════════════════════════════════════════════
     #  SELL Pattern A — กลืนกิน
@@ -199,7 +251,7 @@ def strategy_1(rates):
     if bull2 and not bull1 and not bull0:
         c1_engulf  = bear_engulf(cl1, l2)        # [1] กลืนกิน: Close < Low[2] - gap
         c0_engulf  = bear_engulf(cl0, l1)        # [0] กลืนกิน: Close < Low[1] - gap (ยืนยัน)
-        zone       = (not use_zone) or (h1 >= sh - buf)
+        zone       = (not use_zone) or (zone_high_3 >= sh - buf)
         # body ≥ 35% ของ [1] เท่านั้น ([2] ไม่จำกัด)
         r1 = h1 - l1; b1 = abs(cl1 - o1)
         r2 = h2 - l2; b2 = abs(cl2 - o2)
@@ -207,7 +259,7 @@ def strategy_1(rates):
         body1_pct = round(b1/r1*100) if r1 > 0 else 0
         body2_pct = round(b2/r2*100) if r2 > 0 else 0
 
-        if c1_engulf and c0_engulf and zone and body1_ok:
+        if c1_engulf and c0_engulf and body1_ok:
             # ข้อ 1: SL = max(h0,h1,h2) + SL_BUFFER() เหมือน Pattern B
             highest  = max(h0, h1, h2)
             entry    = round((h1 + l1) / 2, 2)
@@ -215,7 +267,7 @@ def strategy_1(rates):
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
                 "reason": (
@@ -228,9 +280,9 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "SELL", zone_high_3, sh, zone)
         if not zone:
-            sell_wait_reason = f"⚠️ SELL A ไม่อยู่ High Zone (High:{h1:.2f} | Swing:{sh:.2f})"
+            sell_wait_reason = f"⚠️ SELL A ไม่อยู่ High Zone (High:{zone_high_3:.2f} | Swing:{sh:.2f})"
         elif not body1_ok:
             sell_wait_reason = f"⚠️ SELL A แท่ง[1] Body:{body1_pct}% < 35%"
         elif not c1_engulf:
@@ -254,9 +306,9 @@ def strategy_1(rates):
         c1_in_zone = l1 <= o2              # ไส้ล่าง[1] เข้า zone เขียว[2]
         c1_body_ok = (range1 > 0) and (body1 / range1 >= 0.35)  # ตำหนิ body ≥ 35%
         c0_engulf  = bear_engulf(cl0, l1)             # [0] กลืนกิน: Close < Low[1] - gap
-        zone       = (not use_zone) or (h1 >= sh - buf)
+        zone       = (not use_zone) or (zone_high_3 >= sh - buf)
 
-        if c1_in_zone and c1_body_ok and c0_engulf and zone:
+        if c1_in_zone and c1_body_ok and c0_engulf:
             body1_pct = round(body1/range1*100) if range1 > 0 else 0
             entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
@@ -264,7 +316,7 @@ def strategy_1(rates):
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
                 "reason": (
@@ -277,7 +329,7 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "SELL", zone_high_3, sh, zone)
 
     # ══════════════════════════════════════════════
     #  BUY Pattern C — ย้อนโครงสร้าง
@@ -288,16 +340,16 @@ def strategy_1(rates):
         r1_c = h1 - l1; b1_c = abs(cl1 - o1)
         body1_c_ok = r1_c > 0 and b1_c / r1_c >= 0.35  # [1] body ≥ 35%
         c0_engulf = bull_engulf(cl0, h1)
-        zone      = (not use_zone) or (l1 <= sl_z + buf)
+        zone      = (not use_zone) or (zone_low_3 <= sl_z + buf)
 
-        if c0_engulf and zone and body1_c_ok:
+        if c0_engulf and body1_c_ok:
             entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ย้อนโครงสร้าง",
                 "reason": (
@@ -310,7 +362,7 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "BUY", zone_low_3, sl_z, zone)
 
     # ══════════════════════════════════════════════
     #  SELL Pattern C — ย้อนโครงสร้าง
@@ -321,16 +373,16 @@ def strategy_1(rates):
         r1_c = h1 - l1; b1_c = abs(cl1 - o1)
         body1_c_ok = r1_c > 0 and b1_c / r1_c >= 0.35  # [1] body ≥ 35%
         c0_engulf = bear_engulf(cl0, l1)
-        zone      = (not use_zone) or (h1 >= sh - buf)
+        zone      = (not use_zone) or (zone_high_3 >= sh - buf)
 
-        if c0_engulf and zone and body1_c_ok:
+        if c0_engulf and body1_c_ok:
             entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
                 "reason": (
@@ -343,7 +395,7 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3],rates[-2],rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "SELL", zone_high_3, sh, zone)
 
     # ══════════════════════════════════════════════
     #  BUY Pattern E — กลืนกิน 2 แดง
@@ -356,16 +408,16 @@ def strategy_1(rates):
         body0_ok = r0 > 0 and b0 / r0 >= 0.35
         body0_pct = round(b0/r0*100) if r0 > 0 else 0
         c0_engulf = bull_engulf(cl0, h1)
-        zone = (not use_zone) or (l1 <= sl_z + buf)
+        zone = (not use_zone) or (zone_low_3 <= sl_z + buf)
 
-        if c0_engulf and body0_ok and zone:
+        if c0_engulf and body0_ok:
             entry    = round((h0 + l0) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp       = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง",
                 "cancel_bars": 1,
@@ -379,9 +431,9 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3], rates[-2], rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "BUY", zone_low_3, sl_z, zone)
         if not zone:
-            buy_e_wait_reason = f"⚠️ BUY E ไม่อยู่ Low Zone (Low[1]:{l1:.2f} | Swing:{sl_z:.2f})"
+            buy_e_wait_reason = f"⚠️ BUY E ไม่อยู่ Low Zone (Low:{zone_low_3:.2f} | Swing:{sl_z:.2f})"
         elif not body0_ok:
             buy_e_wait_reason = f"⚠️ BUY E แท่ง[0] Body:{body0_pct}% < 35%"
         else:
@@ -398,16 +450,16 @@ def strategy_1(rates):
         body0_ok = r0 > 0 and b0 / r0 >= 0.35
         body0_pct = round(b0/r0*100) if r0 > 0 else 0
         c0_engulf = bear_engulf(cl0, l1)
-        zone = (not use_zone) or (h1 >= sh - buf)
+        zone = (not use_zone) or (zone_high_3 >= sh - buf)
 
-        if c0_engulf and body0_ok and zone:
+        if c0_engulf and body0_ok:
             entry    = round((h0 + l0) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp       = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว",
                 "cancel_bars": 1,
@@ -421,9 +473,9 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-3], rates[-2], rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "SELL", zone_high_3, sh, zone)
         if not zone:
-            sell_e_wait_reason = f"⚠️ SELL E ไม่อยู่ High Zone (High[1]:{h1:.2f} | Swing:{sh:.2f})"
+            sell_e_wait_reason = f"⚠️ SELL E ไม่อยู่ High Zone (High:{zone_high_3:.2f} | Swing:{sh:.2f})"
         elif not body0_ok:
             sell_e_wait_reason = f"⚠️ SELL E แท่ง[0] Body:{body0_pct}% < 35%"
         else:
@@ -435,8 +487,8 @@ def strategy_1(rates):
     if has_c3 and (not bull3) and bull2 and bull1 and bull0 and cl1 < h2 and bull_engulf(cl0, h1):
         r2_d = h2 - l2; b2_d = abs(cl2 - o2)
         body2_d_ok = r2_d > 0 and b2_d / r2_d >= 0.35  # [2] body ≥ 35%
-        zone = (not use_zone) or (l2 <= sl_z + buf)
-        if zone and body2_d_ok:
+        zone = (not use_zone) or (zone_low_4 <= sl_z + buf)
+        if body2_d_ok:
             body2 = abs(cl2 - o2)
             entry = round((h2 + l2) / 2, 2)
             lowest = min(l0, l1, l2, l3)
@@ -444,7 +496,7 @@ def strategy_1(rates):
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ใหม่ 4 แท่ง",
                 "reason": (
@@ -457,15 +509,15 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-4], rates[-3], rates[-2], rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "BUY", zone_low_4, sl_z, zone)
 
     # SELL: [3] เขียว [2] แดง Body≥35% [1] แดงแต่ close > low[2] [0] แดง close <= low[1]
     # Entry = 50% body ของแท่ง [2]
     if has_c3 and bull3 and (not bull2) and (not bull1) and (not bull0) and cl1 > l2 and bear_engulf(cl0, l1):
         r2_d = h2 - l2; b2_d = abs(cl2 - o2)
         body2_d_ok = r2_d > 0 and b2_d / r2_d >= 0.35  # [2] body ≥ 35%
-        zone = (not use_zone) or (h2 >= sh - buf)
-        if zone and body2_d_ok:
+        zone = (not use_zone) or (zone_high_4 >= sh - buf)
+        if body2_d_ok:
             body2 = abs(cl2 - o2)
             entry = round((h2 + l2) / 2, 2)
             highest = max(h0, h1, h2, h3)
@@ -473,7 +525,7 @@ def strategy_1(rates):
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
-            return {
+            return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ใหม่ 4 แท่ง",
                 "reason": (
@@ -486,7 +538,7 @@ def strategy_1(rates):
                 ),
                 "candles": [rates[-4], rates[-3], rates[-2], rates[-1]],
                 "swing_high": sh, "swing_low": sl_z,
-            }
+            }, use_zone, "SELL", zone_high_4, sh, zone)
 
     if buy_e_wait_reason:
         return {"signal": "WAIT", "reason": buy_e_wait_reason}

@@ -53,6 +53,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     opp_label = "ตั้ง TP+ปิด" if config.OPPOSITE_ORDER_MODE == "tp_close" else "ตั้ง SL Protect"
     lg_label = f"ON ({config.LIMIT_GUARD_POINTS}pt)" if config.LIMIT_GUARD else "OFF"
     engulf_label = f"{config.ENGULF_MIN_POINTS}pt"
+    reversal_trail_suffix = "🟢ON" if config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED else "🔴OFF"
     lbc_on_tfs = [tf for tf, on in config.LIMIT_BREAK_CANCEL_TF.items() if on]
     lbc_label = f"ON ({len(lbc_on_tfs)}TF)" if config.LIMIT_BREAK_CANCEL else "OFF"
     ltr_label = f"ON ({config.LIMIT_TREND_RECHECK_POINTS}pt)" if config.LIMIT_TREND_RECHECK else "OFF"
@@ -79,6 +80,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 เลือก Strategy", callback_data="open_strategy_menu")],
         [InlineKeyboardButton(f"📐 Trail SL: {trail_suffix}", callback_data="open_trail_menu")],
+        [InlineKeyboardButton(f"↩️ จุดกลับตัว -> Trail SL: {reversal_trail_suffix}", callback_data="toggle_trail_reversal_override")],
         [InlineKeyboardButton(f"🕯 Entry Candle Mode: {entry_suffix}", callback_data="open_entry_candle_mode_menu")],
         [InlineKeyboardButton(f"🎯 Entry Candle TP: {entry_tp_suffix}", callback_data="toggle_entry_candle_tp")],
         [InlineKeyboardButton(f"🔄 Opposite Order: {opp_suffix}", callback_data="open_opposite_menu")],
@@ -101,6 +103,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         f"📋 Strategy: *{strat_summ}*\n"
         f"📊 ท่า 2 Mode: *{'ปกติ' if config.FVG_NORMAL else ''}{'+' if config.FVG_NORMAL and config.FVG_PARALLEL else ''}{'Parallel' if config.FVG_PARALLEL else ''}{'(ปิดหมด)' if not config.FVG_NORMAL and not config.FVG_PARALLEL else ''}*\n"
         f"📐 Trail SL: *{trail_suffix}*\n"
+        f"↩️ จุดกลับตัว -> Trail SL: *{reversal_trail_suffix}*\n"
         f"🕯 Entry Candle Mode: *{entry_suffix}*\n"
         f"🎯 Entry Candle TP: *{entry_tp_suffix}*\n"
         f"🔄 Opposite Order: *{opp_suffix}*\n"

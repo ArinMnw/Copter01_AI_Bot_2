@@ -186,14 +186,12 @@ bool FindActiveS12Swing(const double &m5_high[], const double &m5_low[], const d
    if(!found_low)
       swing_low = raw_low;
 
-   if(total >= 2)
-   {
-      double last_closed = m5_close[total - 2];
-      if(last_closed > swing_high)
-         swing_high = raw_high;
-      if(last_closed < swing_low)
-         swing_low = raw_low;
-   }
+   // Keep breakout range sticky until a new confirmed pivot replaces it.
+   // This prevents the zone from jumping back to the old pivot on a rebound.
+   if(raw_high > swing_high)
+      swing_high = raw_high;
+   if(raw_low < swing_low)
+      swing_low = raw_low;
    return true;
 }
 

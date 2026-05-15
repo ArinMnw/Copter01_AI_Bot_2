@@ -293,6 +293,14 @@ async def handle_callback(update, ctx):
             pass
         await query.answer(f"Trail SL: {'ON' if config.TRAIL_SL_ENABLED else 'OFF'}")
 
+    elif data == "toggle_trail_reversal_override":
+        config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED = not config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await query.answer(
+            f"จุดกลับตัว -> Trail SL: {'ON' if config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED else 'OFF'}"
+        )
+
     elif data == "toggle_entry_candle_enabled":
         config.ENTRY_CANDLE_ENABLED = not config.ENTRY_CANDLE_ENABLED
         save_runtime_state()

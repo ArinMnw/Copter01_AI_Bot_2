@@ -13,6 +13,9 @@ from strategy4 import (
     _find_hh,
     _find_ll,
 )
+from strategy2 import strategy_2
+from strategy3 import strategy_3
+from strategy11 import reset_state as s11_reset_state
 
 # FVG order quality tracking
 fvg_order_tickets: dict = {}
@@ -29,6 +32,8 @@ position_sid: dict = {}  # {ticket: 2|3}
 # mapping: position ticket -> pattern name
 position_pattern: dict = {}  # {ticket: "pattern string"}
 position_trend_filter: dict = {}  # {ticket: "bull_strong,sideway"}
+position_zone_meta: dict = {}  # {ticket: {"enabled", "signal", "zone_price", "swing_price", "zone_ok_initial"}}
+position_forward_meta: dict = {}  # {ticket: {"enabled", "signal", "detect_bar_time", "forward_bars", "confirmed"}}
 
 # Trail SL state per ticket
 _trail_state: dict = {}
@@ -379,6 +384,402 @@ def _close_position(pos, pos_type, comment):
         print(f"[{now_bkk().strftime('%H:%M:%S')}] CLOSE FAIL {pos_type} ticket={pos.ticket} retcode={retcode} reason=[{comment}]")
         log_event("POSITION_CLOSE_REQUEST", comment, ticket=pos.ticket, side=pos_type, entry=pos.price_open, bid=bid, ask=ask, spread=spread, ok=False, retcode=retcode)
     return success, close_price
+
+
+def _build_s1_forward_meta(signal: str, detect_bar_time: int, forward_bars: int = 5) -> dict:
+    return {
+        "enabled": True,
+        "signal": str(signal or "").upper(),
+        "detect_bar_time": int(detect_bar_time or 0),
+        "forward_bars": max(1, int(forward_bars or 5)),
+        "confirmed": False,
+        "confirmed_sid": 0,
+        "confirmed_bar_time": 0,
+    }
+
+
+async def _close_linked_s11_for_tf(app, tf_name: str, trigger_reason: str) -> None:
+    if not tf_name:
+        return
+
+    orders = mt5.orders_get(symbol=SYMBOL) or []
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    canceled_orders = []
+    closed_positions = []
+
+    for order in orders:
+        ticket = int(order.ticket)
+        if int(position_sid.get(ticket, 0) or 0) != 11:
+            continue
+        if str(position_tf.get(ticket, "")) != str(tf_name):
+            continue
+        r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+        if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+            info = pending_order_tf.pop(ticket, None)
+            position_tf.pop(ticket, None)
+            position_sid.pop(ticket, None)
+            position_pattern.pop(ticket, None)
+            position_trend_filter.pop(ticket, None)
+            position_zone_meta.pop(ticket, None)
+            position_forward_meta.pop(ticket, None)
+            canceled_orders.append(ticket)
+            log_event(
+                "ORDER_CANCELED",
+                f"S11 canceled because {trigger_reason}",
+                ticket=ticket,
+                tf=tf_name,
+                sid=11,
+                signal=(info or {}).get("signal", "") if isinstance(info, dict) else "",
+                entry=(info or {}).get("entry") if isinstance(info, dict) else None,
+                sl=(info or {}).get("sl") if isinstance(info, dict) else None,
+                tp=(info or {}).get("tp") if isinstance(info, dict) else None,
+            )
+
+    for pos in positions:
+        ticket = int(pos.ticket)
+        if int(position_sid.get(ticket, 0) or 0) != 11:
+            continue
+        if str(position_tf.get(ticket, "")) != str(tf_name):
+            continue
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        ok_close, close_price = _close_position(pos, pos_type, f"s11 linked close [{tf_name}]")
+        if ok_close:
+            position_tf.pop(ticket, None)
+            position_sid.pop(ticket, None)
+            position_pattern.pop(ticket, None)
+            position_trend_filter.pop(ticket, None)
+            position_zone_meta.pop(ticket, None)
+            position_forward_meta.pop(ticket, None)
+            closed_positions.append((ticket, close_price, pos_type))
+
+    if canceled_orders or closed_positions:
+        s11_reset_state(tf_name)
+        lines = [f"🧹 *S11 linked cleanup* [{tf_name}]"]
+        if canceled_orders:
+            lines.append(f"🗑️ Pending S11: `{', '.join(map(str, canceled_orders))}`")
+        if closed_positions:
+            lines.append(
+                "🔒 Position S11: " + ", ".join(
+                    f"`{ticket}` {side} @{close_price:.2f}" for ticket, close_price, side in closed_positions
+                )
+            )
+        lines.append(f"เหตุผล: {trigger_reason}")
+        await tg(app, "\n".join(lines))
+
+
+def _evaluate_s1_forward_confirm(rates, signal: str, detect_bar_time: int, tf_secs: int, forward_bars: int) -> dict:
+    signal = str(signal or "").upper()
+    detect_bar_time = int(detect_bar_time or 0)
+    tf_secs = int(tf_secs or 0)
+    forward_bars = max(1, int(forward_bars or 5))
+    if rates is None or len(rates) < 4 or detect_bar_time <= 0 or tf_secs <= 0:
+        return {
+            "confirmed": False,
+            "expired": False,
+            "last_closed_time": int(rates[-1]["time"]) if rates is not None and len(rates) else 0,
+            "checked_bars": 0,
+            "matched_sid": 0,
+            "matched_bar_time": 0,
+        }
+
+    deadline_time = detect_bar_time + (tf_secs * forward_bars)
+    last_closed_time = int(rates[-1]["time"])
+    matched_sid = 0
+    matched_bar_time = 0
+    checked_bars = 0
+
+    for idx in range(len(rates)):
+        bar_time = int(rates[idx]["time"])
+        if bar_time <= detect_bar_time:
+            continue
+        if bar_time > deadline_time:
+            break
+        if idx < 2:
+            continue
+        checked_bars += 1
+        sliced_rates = rates[: idx + 1]
+
+        try:
+            s2 = strategy_2(sliced_rates)
+        except Exception:
+            s2 = {}
+        if str(s2.get("signal", "")).upper() == "FVG_DETECTED":
+            fvg = s2.get("fvg") or {}
+            if str(fvg.get("signal", "")).upper() == signal:
+                matched_sid = 2
+                matched_bar_time = bar_time
+                break
+
+        try:
+            s3 = strategy_3(sliced_rates)
+        except Exception:
+            s3 = {}
+        if str(s3.get("signal", "")).upper() == signal:
+            matched_sid = 3
+            matched_bar_time = bar_time
+            break
+
+    return {
+        "confirmed": matched_sid in (2, 3),
+        "expired": last_closed_time >= deadline_time,
+        "last_closed_time": last_closed_time,
+        "checked_bars": checked_bars,
+        "matched_sid": matched_sid,
+        "matched_bar_time": matched_bar_time,
+        "deadline_time": deadline_time,
+    }
+
+
+async def check_s1_zone_rules(app):
+    if getattr(config, "S1_ZONE_MODE", "") != "zone":
+        return
+
+    from strategy1 import evaluate_s1_zone_status
+
+    now = now_bkk().strftime("%H:%M:%S")
+    orders = mt5.orders_get(symbol=SYMBOL) or []
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    open_order_tickets = {int(o.ticket) for o in orders}
+    open_pos_tickets = {int(p.ticket) for p in positions}
+
+    for t in list(position_zone_meta.keys()):
+        if t not in open_order_tickets and t not in open_pos_tickets:
+            position_zone_meta.pop(t, None)
+
+    # Pending S1: if still outside zone -> cancel limit, otherwise keep it.
+    for order in orders:
+        ticket = int(order.ticket)
+        info = pending_order_tf.get(ticket)
+        if not isinstance(info, dict) or int(info.get("sid", 0) or 0) != 1:
+            continue
+        zone_meta = info.get("s1_zone_meta") or {}
+        if not zone_meta.get("enabled"):
+            continue
+
+        tf = info.get("tf") or position_tf.get(ticket)
+        if not tf:
+            continue
+        tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+        lookback = TF_LOOKBACK.get(tf, SWING_LOOKBACK)
+        rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback + 6)
+        if rates is None or len(rates) < 5:
+            continue
+
+        zone_state = evaluate_s1_zone_status(
+            rates,
+            str(zone_meta.get("signal") or info.get("signal") or ""),
+            float(zone_meta.get("zone_price", 0.0) or 0.0),
+        )
+        if zone_state.get("in_zone", True):
+            continue
+
+        r = mt5.order_send({
+            "action": mt5.TRADE_ACTION_REMOVE,
+            "order": ticket,
+        })
+        if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+            pending_order_tf.pop(ticket, None)
+            sig = str(zone_meta.get("signal") or info.get("signal") or "")
+            side_icon = "🟢" if sig == "BUY" else "🔴"
+            zone_side = "Low Zone" if sig == "BUY" else "High Zone"
+            reason = (
+                f"S1 Zone Cancel [{tf}]: pending still outside {zone_side} | "
+                f"zone_price:{float(zone_state.get('zone_price', 0.0)):.2f} | "
+                f"boundary:{float(zone_state.get('boundary_price', 0.0)):.2f} | "
+                f"swing:{float(zone_state.get('swing_price', 0.0)):.2f}"
+            )
+            log_event(
+                "ORDER_CANCELED",
+                reason,
+                ticket=ticket,
+                tf=tf,
+                side=sig,
+                sid=1,
+                order_type=_pending_order_type_name(order),
+                entry=info.get("entry"),
+                sl=info.get("sl"),
+                tp=info.get("tp"),
+                flow_id=info.get("flow_id", ""),
+            )
+            await tg(app, (
+                f"🗑️ *S1 Zone Cancel*\n"
+                f"{side_icon} [{tf}] Ticket:`{ticket}`\n"
+                f"Entry:`{float(info.get('entry', 0.0)):.2f}`\n"
+                f"เหตุผล: {reason}"
+            ))
+            print(f"🗑️ [{now}] S1 zone cancel {ticket} [{tf}]: {reason}")
+
+    # Filled S1: if outside zone and losing -> close. If in profit, keep it.
+    for pos in positions:
+        ticket = int(pos.ticket)
+        if position_sid.get(ticket) != 1:
+            continue
+        zone_meta = position_zone_meta.get(ticket) or {}
+        if not zone_meta.get("enabled"):
+            continue
+
+        tf = position_tf.get(ticket)
+        if not tf:
+            continue
+        tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+        lookback = TF_LOOKBACK.get(tf, SWING_LOOKBACK)
+        rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback + 6)
+        if rates is None or len(rates) < 5:
+            continue
+
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        zone_state = evaluate_s1_zone_status(
+            rates,
+            str(zone_meta.get("signal") or pos_type or ""),
+            float(zone_meta.get("zone_price", 0.0) or 0.0),
+        )
+        if zone_state.get("in_zone", True) or float(pos.profit) >= 0.0:
+            continue
+
+        zone_side = "Low Zone" if pos_type == "BUY" else "High Zone"
+        reason = (
+            f"S1 Zone Loss Exit [{tf}]: outside {zone_side} with loss | "
+            f"profit:{float(pos.profit):.2f} | "
+            f"zone_price:{float(zone_state.get('zone_price', 0.0)):.2f} | "
+            f"boundary:{float(zone_state.get('boundary_price', 0.0)):.2f} | "
+            f"swing:{float(zone_state.get('swing_price', 0.0)):.2f}"
+        )
+        ok_close, close_price = _close_position(pos, pos_type, f"s1 zone loss exit [{tf}]")
+        if ok_close:
+            sig_e = "🟢" if pos_type == "BUY" else "🔴"
+            await tg(app, (
+                f"⚠️ *S1 Zone Loss Exit*\n"
+                f"{sig_e} Ticket:`{ticket}` [{pos_type}] [{tf}]\n"
+                f"Profit:`{float(pos.profit):.2f}`\n"
+                f"ปิดที่:`{close_price:.2f}`\n"
+                f"เหตุผล: {reason}"
+            ))
+            print(f"⚠️ [{now}] S1 zone loss exit {ticket} [{tf}] close={close_price:.2f} | {reason}")
+            await _close_linked_s11_for_tf(app, tf, f"S1 closed by zone loss exit [{tf}]")
+
+
+async def check_s1_forward_confirm_rules(app):
+    now = now_bkk().strftime("%H:%M:%S")
+    orders = mt5.orders_get(symbol=SYMBOL) or []
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    open_order_tickets = {int(o.ticket) for o in orders}
+    open_pos_tickets = {int(p.ticket) for p in positions}
+
+    for t in list(position_forward_meta.keys()):
+        if t not in open_order_tickets and t not in open_pos_tickets:
+            position_forward_meta.pop(t, None)
+
+    for order in orders:
+        ticket = int(order.ticket)
+        info = pending_order_tf.get(ticket)
+        if not isinstance(info, dict) or int(info.get("sid", 0) or 0) != 1:
+            continue
+        forward_meta = info.get("s1_forward_meta") or {}
+        if not forward_meta.get("enabled") or forward_meta.get("confirmed"):
+            continue
+
+        tf = info.get("tf") or position_tf.get(ticket)
+        if not tf:
+            continue
+        tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+        forward_bars = int(forward_meta.get("forward_bars", 5) or 5)
+        lookback = max(TF_LOOKBACK.get(tf, SWING_LOOKBACK), forward_bars + 8)
+        rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback + 10)
+        if rates is None or len(rates) < 5:
+            continue
+
+        state = _evaluate_s1_forward_confirm(
+            rates,
+            str(forward_meta.get("signal") or info.get("signal") or ""),
+            int(forward_meta.get("detect_bar_time", 0) or 0),
+            int(TF_SECONDS_MAP.get(tf, 0) or 0),
+            forward_bars,
+        )
+        if state.get("confirmed"):
+            forward_meta["confirmed"] = True
+            forward_meta["confirmed_sid"] = int(state.get("matched_sid", 0) or 0)
+            forward_meta["confirmed_bar_time"] = int(state.get("matched_bar_time", 0) or 0)
+            info["s1_forward_meta"] = forward_meta
+            continue
+        if not state.get("expired"):
+            continue
+
+        r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+        if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+            pending_order_tf.pop(ticket, None)
+            position_forward_meta.pop(ticket, None)
+            sig = str(forward_meta.get("signal") or info.get("signal") or "")
+            side_icon = "🟢" if sig == "BUY" else "🔴"
+            reason = f"S1 Forward Cancel [{tf}]: ไม่เจอ S2/S3 ฝั่งเดียวกันใน {forward_bars} แท่งข้างหน้า"
+            log_event(
+                "ORDER_CANCELED",
+                reason,
+                ticket=ticket,
+                tf=tf,
+                side=sig,
+                sid=1,
+                order_type=_pending_order_type_name(order),
+                entry=info.get("entry"),
+                sl=info.get("sl"),
+                tp=info.get("tp"),
+                flow_id=info.get("flow_id", ""),
+            )
+            await tg(app, (
+                f"🗑️ *S1 Forward Cancel*\n"
+                f"{side_icon} [{tf}] Ticket:`{ticket}`\n"
+                f"Entry:`{float(info.get('entry', 0.0)):.2f}`\n"
+                f"เหตุผล: {reason}"
+            ))
+            print(f"🗑️ [{now}] S1 forward cancel {ticket} [{tf}]: {reason}")
+
+    for pos in positions:
+        ticket = int(pos.ticket)
+        if position_sid.get(ticket) != 1:
+            continue
+        forward_meta = position_forward_meta.get(ticket) or {}
+        if not forward_meta.get("enabled") or forward_meta.get("confirmed"):
+            continue
+
+        tf = position_tf.get(ticket)
+        if not tf:
+            continue
+        tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+        forward_bars = int(forward_meta.get("forward_bars", 5) or 5)
+        lookback = max(TF_LOOKBACK.get(tf, SWING_LOOKBACK), forward_bars + 8)
+        rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback + 10)
+        if rates is None or len(rates) < 5:
+            continue
+
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        state = _evaluate_s1_forward_confirm(
+            rates,
+            str(forward_meta.get("signal") or pos_type or ""),
+            int(forward_meta.get("detect_bar_time", 0) or 0),
+            int(TF_SECONDS_MAP.get(tf, 0) or 0),
+            forward_bars,
+        )
+        if state.get("confirmed"):
+            forward_meta["confirmed"] = True
+            forward_meta["confirmed_sid"] = int(state.get("matched_sid", 0) or 0)
+            forward_meta["confirmed_bar_time"] = int(state.get("matched_bar_time", 0) or 0)
+            position_forward_meta[ticket] = forward_meta
+            continue
+        if not state.get("expired"):
+            continue
+
+        reason = f"S1 Forward Exit [{tf}]: ไม่เจอ S2/S3 ฝั่งเดียวกันใน {forward_bars} แท่งข้างหน้า"
+        ok_close, close_price = _close_position(pos, pos_type, f"s1 forward exit [{tf}]")
+        if ok_close:
+            position_forward_meta.pop(ticket, None)
+            side_icon = "🟢" if pos_type == "BUY" else "🔴"
+            await tg(app, (
+                f"🔒 *S1 Forward Exit*\n"
+                f"{side_icon} [{tf}] Ticket:`{ticket}`\n"
+                f"ปิดที่:`{close_price:.2f}`\n"
+                f"เหตุผล: {reason}"
+            ))
+            print(f"🔒 [{now}] S1 forward exit {ticket} [{tf}] close={close_price:.2f} | {reason}")
+            await _close_linked_s11_for_tf(app, tf, f"S1 closed by forward confirm miss [{tf}]")
 
 
 async def _cancel_s10_sibling_orders(app, filled_ticket: int, filled_info: dict, source_ticket: int | None = None) -> None:
@@ -782,6 +1183,52 @@ def _trend_filter_trail_override(ticket: int, pos_type: str, order_tf: str) -> t
     return False, ""
 
 
+def _reversal_trail_override(pos_type: str, order_tf: str, current_sl: float) -> tuple[bool, float, str]:
+    """
+    Allow Trail SL to bypass Focus Opposite when the latest closed candle shows
+    an opposite-side reversal pattern on the order TF.
+
+    BUY position  -> bearish reversal candle
+    SELL position -> bullish reversal candle
+    """
+    if not getattr(config, "TRAIL_SL_REVERSAL_OVERRIDE_ENABLED", False):
+        return False, 0.0, ""
+
+    tf_val = TF_OPTIONS.get(order_tf, mt5.TIMEFRAME_M1)
+    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, 3)
+    if rates is None or len(rates) < 2:
+        return False, 0.0, ""
+
+    cur = rates[-1]
+    prev = rates[-2]
+
+    cur_o = float(cur["open"])
+    cur_c = float(cur["close"])
+    cur_h = float(cur["high"])
+    cur_l = float(cur["low"])
+    prev_h = float(prev["high"])
+    prev_l = float(prev["low"])
+
+    if pos_type == "BUY":
+        if cur_c >= cur_o:
+            return False, 0.0, ""
+        candidate = round(cur_l - 1.0, 2)
+        if cur_c < prev_l and candidate > current_sl:
+            return True, candidate, f"reversal override [{order_tf}] red engulf"
+        if cur_l < prev_l and prev_l <= cur_c <= prev_h and candidate > current_sl:
+            return True, candidate, f"reversal override [{order_tf}] red rejection"
+        return False, 0.0, ""
+
+    candidate = round(cur_h + 1.0, 2)
+    if cur_c <= cur_o:
+        return False, 0.0, ""
+    if cur_c > prev_h and (current_sl == 0 or candidate < current_sl):
+        return True, candidate, f"reversal override [{order_tf}] green engulf"
+    if cur_h > prev_h and prev_l <= cur_c <= prev_h and (current_sl == 0 or candidate < current_sl):
+        return True, candidate, f"reversal override [{order_tf}] green rejection"
+    return False, 0.0, ""
+
+
 def reset_focus_frozen_side(feature: str):
     """Call this when the user toggles Focus Opposite from OFF back to ON."""
     if feature in _focus_frozen_side and _focus_frozen_side[feature] is not None:
@@ -1040,6 +1487,9 @@ async def check_entry_candle_quality(app):
     for pos in positions:
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        sid      = position_sid.get(ticket)
+        if sid in (10, 12, 13):
+            continue
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
         if _trade_debug_enabled():
@@ -1083,7 +1533,8 @@ async def check_entry_candle_quality(app):
             await tg(app, f"Trend At Fill: TF `{_fill_tf}` | Trend `{_fill_trend}`")
 
         if (
-            ticket not in _fill_rsi_checked
+            sid != 13
+            and ticket not in _fill_rsi_checked
             and getattr(config, "PENDING_RSI_RECHECK_ENABLED", False)
         ):
             _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
@@ -1256,6 +1707,10 @@ async def check_entry_candle_quality(app):
                             position_pattern[ticket] = pinfo.get("pattern", "")
                         if ticket not in position_trend_filter and pinfo.get("trend_filter"):
                             position_trend_filter[ticket] = pinfo.get("trend_filter", "")
+                        if ticket not in position_zone_meta and pinfo.get("s1_zone_meta"):
+                            position_zone_meta[ticket] = dict(pinfo.get("s1_zone_meta") or {})
+                        if ticket not in position_forward_meta and pinfo.get("s1_forward_meta"):
+                            position_forward_meta[ticket] = dict(pinfo.get("s1_forward_meta") or {})
                         pos_tf = position_tf[ticket]
                         meta_source = f"pending_price_match:{pticket}"
                         break
@@ -1267,6 +1722,10 @@ async def check_entry_candle_quality(app):
                 position_pattern[ticket] = matched_pending_info.get("pattern", "")
             if ticket not in position_trend_filter and matched_pending_info.get("trend_filter"):
                 position_trend_filter[ticket] = matched_pending_info.get("trend_filter", "")
+            if ticket not in position_zone_meta and matched_pending_info.get("s1_zone_meta"):
+                position_zone_meta[ticket] = dict(matched_pending_info.get("s1_zone_meta") or {})
+            if ticket not in position_forward_meta and matched_pending_info.get("s1_forward_meta"):
+                position_forward_meta[ticket] = dict(matched_pending_info.get("s1_forward_meta") or {})
             await _cancel_s10_sibling_orders(app, ticket, matched_pending_info, matched_pending_ticket)
 
         debug_tf = fvg_info.get("tf", "M1") if fvg_info else position_tf.get(ticket, pos_tf or "?")
@@ -2180,7 +2639,9 @@ async def check_engulf_trail_sl(app):
     for pos in positions:
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
-
+        sid      = position_sid.get(ticket)
+        if sid in (10, 12, 13):
+            continue
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
         order_tf = position_tf.get(ticket, "M1")
@@ -2200,7 +2661,10 @@ async def check_engulf_trail_sl(app):
                 continue
 
         trend_override, trend_override_reason = _trend_filter_trail_override(ticket, pos_type, order_tf)
-        if ticket in focus_skip_tickets and not trend_override:
+        reversal_override, reversal_sl, reversal_override_reason = _reversal_trail_override(
+            pos_type, order_tf, float(pos.sl)
+        )
+        if ticket in focus_skip_tickets and not trend_override and not reversal_override:
             continue
 
         mode = getattr(config, "TRAIL_SL_ENGULF_MODE", "separate")
@@ -2297,10 +2761,13 @@ async def check_engulf_trail_sl(app):
 
         # Protective SL if no engulf appears within 3 bars
         if not engulf_found:
+            if reversal_override and reversal_sl > 0:
+                new_sl = reversal_sl
+                label = f"Trail SL [{order_tf}] Reversal"
             main_tf  = group[0]
             key_cnt  = f"{ticket}_{main_tf}"
             bar_cnt  = _bar_count.get(key_cnt, 0)
-            if bar_cnt >= 3:
+            if new_sl == 0 and bar_cnt >= 3:
                 entry_price = pos.price_open
                 if pos_type == "BUY":
                     safe = round(entry_price + 0.5, 2)
@@ -2347,9 +2814,11 @@ async def check_engulf_trail_sl(app):
                         else:
                             phase_note = f"phase 2 pending (found on {engulf_tf}, waiting for price to pass entry)"
                 else:
-                    phase_note = "SL Protect"
+                    phase_note = "reversal override" if reversal_override else "SL Protect"
                 if trend_override:
                     phase_note = f"{phase_note} | override {trend_override_reason}"
+                if reversal_override:
+                    phase_note = f"{phase_note} | {reversal_override_reason}" if phase_note else reversal_override_reason
 
                 log_event(
                     "SL_CHANGED",
@@ -2395,8 +2864,8 @@ async def check_opposite_order_tp(app):
             _sl_protect_applied.discard(t)
 
     now      = now_bkk().strftime("%H:%M:%S")
-    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY]
-    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL]
+    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13)]
+    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13)]
 
     def _get_order_tf(ticket):
         info = pending_order_tf.get(ticket)
@@ -2404,11 +2873,17 @@ async def check_opposite_order_tp(app):
             return info.get("tf")
         return info
 
+    def _get_order_sid(ticket):
+        info = pending_order_tf.get(ticket)
+        if isinstance(info, dict):
+            return info.get("sid")
+        return None
+
     opp_mode = config.OPPOSITE_ORDER_MODE  # "tp_close" | "sl_protect"
 
     if pending and opp_mode == "tp_close":
-        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT]
-        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT]
+        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13)]
+        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13)]
 
         # BUY position in profit + SELL limit on same TF -> BUY TP = SELL limit entry
         for pos in buy_pos:
@@ -3406,7 +3881,24 @@ async def check_cancel_pending_orders(app):
     # Cleanup tickets that no longer exist
     for t in list(pending_order_tf.keys()):
         if t not in open_tickets:
-            pending_order_tf.pop(t, None)
+            info = pending_order_tf.pop(t, None)
+            position_tf.pop(t, None)
+            position_sid.pop(t, None)
+            position_pattern.pop(t, None)
+            if isinstance(info, dict):
+                log_event(
+                    "ORDER_CANCELED",
+                    "Pending disappeared from MT5 order list",
+                    tf=info.get("tf", ""),
+                    sid=info.get("sid", ""),
+                    signal=info.get("signal", ""),
+                    ticket=t,
+                    entry=info.get("entry"),
+                    sl=info.get("sl"),
+                    tp=info.get("tp"),
+                    flow_id=info.get("flow_id", ""),
+                    parent_flow_id=info.get("parent_flow_id", ""),
+                )
 
     for order in orders:
         ticket = order.ticket
@@ -3539,12 +4031,59 @@ async def check_cancel_pending_orders(app):
                     f"SELL pending touched parent low {s10_parent_low:.2f} before fill{touched_txt}"
                 )
 
+        # S10 pending invalidation: if BUY has already touched parent high before fill, cancel immediately
+        if (
+            not should_cancel
+            and isinstance(info, dict)
+            and info.get("sid") == 10
+            and str(info.get("signal", "")).upper() == "BUY"
+            and float(info.get("s10_parent_high", 0.0) or 0.0) > 0.0
+        ):
+            s10_parent_high = float(info.get("s10_parent_high", 0.0) or 0.0)
+            s10_parent_time = int(info.get("s10_parent_time", 0) or 0)
+            mon_tf = str(info.get("tf") or tf or "M1")
+            mon_tf_val = TF_OPTIONS.get(mon_tf, mt5.TIMEFRAME_M1)
+            mon_tf_secs = max(1, _get_tf_seconds(mon_tf_val))
+            now_ref_ts = int(candle_rates[-1]["time"]) if candle_rates is not None and len(candle_rates) > 0 else int(time.time())
+            bars_needed = max(10, min(500, int((max(0, now_ref_ts - s10_parent_time) // mon_tf_secs) + 10)))
+            mon_rates = mt5.copy_rates_from_pos(SYMBOL, mon_tf_val, 0, bars_needed)
+            touched_bar = None
+            if mon_rates is not None and len(mon_rates) > 0:
+                for _bar in mon_rates:
+                    if int(_bar["time"]) <= s10_parent_time:
+                        continue
+                    if float(_bar["high"]) >= s10_parent_high:
+                        touched_bar = _bar
+                        break
+            tick = mt5.symbol_info_tick(SYMBOL)
+            cur_ask = float(getattr(tick, "ask", 0.0) or 0.0) if tick else 0.0
+            if touched_bar is not None or (cur_ask > 0 and cur_ask >= s10_parent_high):
+                touched_txt = ""
+                if touched_bar is not None:
+                    touched_txt = (
+                        f" @ {fmt_mt5_bkk_ts(int(touched_bar['time']), '%H:%M %d-%b-%Y')} "
+                        f"(H:{float(touched_bar['high']):.2f})"
+                    )
+                elif cur_ask > 0:
+                    touched_txt = f" @ now (Ask:{cur_ask:.2f})"
+                should_cancel = True
+                reason = (
+                    f"S10 Parent High Touch Cancel [{info.get('s10_htf_tf', tf)}->{mon_tf}]: "
+                    f"BUY pending touched parent high {s10_parent_high:.2f} before fill{touched_txt}"
+                )
+
+        _order_sid = info.get("sid") if isinstance(info, dict) else None
+
         # Limit TP/SL Break Cancel: cancel when a confirmed candle breaks TP/SL on the selected TF
         # Skip S2 pattern 1 (green engulfing / red engulfing) by design
+        # Skip S10 (CRT TBS) — managed by parent touch cancel instead
         _skip_break = (
-            isinstance(info, dict)
-            and info.get("sid") == 2
-            and info.get("c3_type") in ("เขียวกลืนกิน", "แดงกลืนกิน")
+            _order_sid == 10
+            or (
+                isinstance(info, dict)
+                and info.get("sid") == 2
+                and info.get("c3_type") in ("เขียวกลืนกิน", "แดงกลืนกิน")
+            )
         )
         if (
             not should_cancel
@@ -3593,7 +4132,7 @@ async def check_cancel_pending_orders(app):
                     )
 
         # Limit Guard: cancel limits whose entry is too far from an existing open position
-        if not should_cancel and config.LIMIT_GUARD:
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"
@@ -3643,8 +4182,7 @@ async def check_cancel_pending_orders(app):
                             break
 
         # Limit Trend Recheck: verify trend before fill when price gets near entry
-        _order_sid = info.get("sid") if isinstance(info, dict) else None
-        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (1, 9, 10, 11):
+        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (1, 9, 10, 11, 12, 13):
             _tick = mt5.symbol_info_tick(SYMBOL)
             _sym  = mt5.symbol_info(SYMBOL)
             if _tick and _sym:
@@ -3672,7 +4210,7 @@ async def check_cancel_pending_orders(app):
                         )
 
         # Near Approach Cancel: cancel limit when price gets near entry then pulls away
-        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED:
+        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED and _order_sid != 10:
             _nac_sym = mt5.symbol_info(SYMBOL)
             if _nac_sym:
                 _pt = _nac_sym.point or 0.01

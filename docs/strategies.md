@@ -16,6 +16,7 @@
 - `10`: CRT TBS (Candle Range Theory + Three Bar Sweep)
 - `11`: Fibo S1
 - `12`: Range Trading
+- `13`: EzAlgo V5
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -25,7 +26,25 @@
 - ใช้แท่ง `[2]`, `[1]`, `[0]` เป็นแกน
 - มีทั้งฝั่ง `BUY` และ `SELL`
 - ใช้ `engulf_min_price()` เป็นระยะขั้นต่ำของคำว่า "กลืนกิน"
-- ถ้าเปิด `S1_ZONE_MODE = "zone"` จะต้องอยู่ใกล้ swing zone ด้วย
+- ถ้าเปิด `S1_ZONE_MODE = "zone"` ระบบจะยังยอมให้ตั้ง order ได้ก่อน แล้วค่อยใช้กฎ zone หลังจากมี pending หรือมี position แล้ว
+- การเช็ก zone ของ S1 ปัจจุบันใช้ `min low` หรือ `max high` ของทุกแท่งใน pattern ไม่ได้อิงแค่แท่ง `[1]`
+
+### S1 Zone Mode (behavior ปัจจุบัน)
+
+- ขั้น detect pattern จะไม่ block setup เพราะหลุด zone แล้ว
+- ถ้ายังเป็น pending และอยู่นอก zone -> ยกเลิก limit
+- ถ้ายังเป็น pending และยังอยู่ใน zone -> ไม่ยกเลิก
+- ถ้า fill แล้ว แต่อยู่นอก zone และ `profit < 0` -> ปิด position
+- ถ้า fill แล้ว แต่อยู่นอก zone แต่ `profit >= 0` -> ไม่ปิด
+- metadata ของ zone จะถูกแนบไปกับ setup ในชื่อ `s1_zone_meta`
+
+### S1 Forward Confirm
+
+- `S1` จะตั้ง order ไปก่อน
+- จากนั้นรอดู `S2` หรือ `S3` ฝั่งเดียวกันใน TF เดียวกันภายใน 5 แท่งข้างหน้า
+- ถ้ายังไม่ fill และครบ 5 แท่งแล้วไม่เจอ -> ยกเลิก pending
+- ถ้า fill แล้วและครบ 5 แท่งแล้วไม่เจอ -> ปิด position
+- ถ้าเจอแล้ว ไม่ว่าจะยัง pending หรือ fill แล้ว -> ไม่ทำอะไรต่อ
 
 ### Pattern A
 
@@ -34,7 +53,7 @@ BUY:
 - `[1]` เขียว และ `Close[1] > High[2] + gap`
 - `[0]` เขียว และ `Close[0] > High[1] + gap`
 - body ของแท่ง `[1]` ต้องอย่างน้อย `35%`
-- ถ้าใช้ zone mode ต้องใกล้ `Swing Low`
+- ถ้าใช้ zone mode ตัวอ้างอิงฝั่ง BUY จะดู `min low` ของแท่งใน pattern เทียบกับ `Swing Low`
 
 SELL:
 - สลับสีตรงข้าม
@@ -42,7 +61,7 @@ SELL:
 - `[1]` แดง และ `Close[1] < Low[2] - gap`
 - `[0]` แดง และ `Close[0] < Low[1] - gap`
 - body ของแท่ง `[1]` ต้องอย่างน้อย `35%`
-- ถ้าใช้ zone mode ต้องใกล้ `Swing High`
+- ถ้าใช้ zone mode ตัวอ้างอิงฝั่ง SELL จะดู `max high` ของแท่งใน pattern เทียบกับ `Swing High`
 
 ### Pattern B
 
@@ -123,6 +142,9 @@ SELL:
 - เหตุผลย่อยของแท่ง `[0]` เช่น เขียว, แดง, กลืนกิน, ปฏิเสธราคา ถูกใช้ในข้อความแจ้งเตือน
 - มีทั้ง mode ปกติและ mode parallel ตาม config ปัจจุบัน
 
+- `S2` แบบปกติจะต้องเจอ `S1` / `S2` / `S3` ฝั่งเดียวกันย้อนหลังภายใน `S2_NORMAL_CONFIRM_LOOKBACK_BARS` แท่งก่อน จึงจะยอมตั้ง order
+- `S2 parallel` ไม่ใช้กฎยืนยันย้อนหลังนี้
+
 ## ท่าที่ 3: DM / SP / Marubozu
 
 ไฟล์หลัก: `strategy3.py`
@@ -131,6 +153,7 @@ SELL:
 - ใช้ 3 แท่งหลัก `[2]`, `[1]`, `[0]`
 - เน้นแท่งต้นทางมี body ชัด, แท่งกลางพัก, แท่งล่าสุดกลืนกลับ
 - ใช้ `ENGULF_MIN_POINTS` เช่นกัน
+- ก่อนตั้ง order จริง `S3` จะย้อนดู `S1` / `S2` / `S3` ฝั่งเดียวกันย้อนหลังภายใน `8` แท่งก่อน
 
 ### BUY
 
@@ -325,21 +348,26 @@ Phase 2: Body engulf 2-bar (entry trigger search)
   BUY engulf:  prev RED + curr GREEN + curr.close > prev.open
   SELL engulf: prev GREEN + curr RED + curr.close < prev.open
   ค้นต่อจาก phase1_idx + 1
-  (concept จาก S1 — ไม่เรียก S1 จริง)
+  (concept จาก S1 - ไม่เรียก S1 จริง)
 
-Models (คำนวณพร้อมกันหลังเจอ Phase 2):
+Models:
   #1 Order Block — RECOMMENDED
+       ค้นต่อหลังแท่ง Phase 1
        SELL: ย้อนหา GREEN bar → entry = OB.open
        BUY:  ย้อนหา RED   bar → entry = OB.open
   #2 FVG 90% (concept S2 — ไม่เรียก S2 จริง)
+       ค้นต่อหลังแท่ง Phase 1
        3-bar imbalance: B1=engulf-2, B3=engulf
+       gap ต้อง >= `engulf_min_price()`
        Bullish FVG (BUY):  B3.low > B1.high → entry @ 90% deep ใน gap
        Bearish FVG (SELL): B1.low > B3.high → entry @ 90% deep ใน gap
   #3 MSS — confirmation only (log)
-       SELL: lowest low ใน range / BUY: highest high
+       lookback ย้อนจากแท่ง Phase 1
+       SELL: lowest low ใน range (armed_at, phase1_idx)
+       BUY:  highest high ใน range (armed_at, phase1_idx)
 
-Search range ของ Model 1/3: bar.time > armed_at ถึง engulf_idx-1
-                              (ไม่ใช้ lookback คงที่ — boundary คือ HTF sweep open)
+Search range ของ Model 1/2: หลังแท่ง Phase 1
+Search range ของ Model 3:   armed_at < bar.time < phase1.time
 ```
 
 **Entry priority:**
@@ -364,12 +392,12 @@ Search range ของ Model 1/3: bar.time > armed_at ถึง engulf_idx-1
 
 ### Comment / Pattern code
 
-| Mode | Pattern ตัวอย่าง | Comment |
+| Mode | Pattern โดยย่อ | Comment |
 |---|---|---|
-| HTF 2bar | `... — Sweep Low (2bar)` | `Bot_M30_S10_CRT` |
-| HTF 3bar | `... — Sweep High (3bar)` | `Bot_H1_S10_CRT` |
-| MTF | `... — MTF [M30→M1] Model1` | `Bot_[M30-M1]_S10_CRT` |
-| MTF | `... — MTF [H4→M5] Model2` | `Bot_[H4-M5]_S10_CRT` |
+| HTF 2bar | `... BUY/SELL Sweep (2bar)` | `M30_S10` |
+| HTF 3bar | `... BUY/SELL Sweep (3bar)` | `H1_S10` |
+| MTF | `... MTF [M30→M1] Model1` | `[M30-M1]_S10_#1` |
+| MTF | `... MTF [H4→M5] Model2` | `[H4-M5]_S10_#2` |
 
 ### Telegram message
 
@@ -454,36 +482,122 @@ Reason log แสดงราคา Model 1, 2, 3 ทั้งหมด + ระ
 ไฟล์หลัก: `strategy12.py`
 
 แนวคิด:
-- ระบุ range ด้วย swing high และ swing low บน M5
+- หา range จาก pivot swing high/low บน M5 เป็นหลัก
+- ถ้ายังหา pivot confirm ไม่พอ จะ fallback ไปใช้ raw high/low ตาม lookback
 - แบ่ง range เป็น buy zone (ใกล้ swing low) และ sell zone (ใกล้ swing high)
-- ตั้ง limit order หลายชั้นใน zone ที่เหมาะสม
-- จัดการ order หลาย ticket พร้อมกันภายใต้ `S12_ORDER_COUNT`
+- active zone จะใช้ breakout extreme แบบ sticky ให้สอดคล้องกับ `mql5/S12_RangeZone.mq5`
+- เมื่อราคาทะลุ pivot เดิมแล้ว zone ใหม่จะค้างอยู่จนกว่าจะมี pivot ใหม่มายืนยัน ไม่ snap กลับทันที
+- ใช้ limit order หลายชั้นใน zone เดียวกันได้
+- จำนวน order ต่อชุดคุมด้วย `S12_ORDER_COUNT`
 - default `active_strategies[12] = True`
-- ปุ่ม "เปิดทั้งหมด" ไม่กระทบ S12 (ต้องเปิด/ปิดรายตัว)
+- ปุ่ม "เลือกทั้งหมด" ไม่กระทบ S12 (ต้องเปิด/ปิดรายตัว)
 
 ### Config หลัก
 
 | key | ความหมาย |
 |---|---|
-| `S12_ORDER_COUNT` | จำนวน order สูงสุดต่อด้าน (default 3) |
+| `S12_ORDER_COUNT` | จำนวน order ต่อหนึ่งชุด (default 3) |
 | `S12_COOLDOWN_SECS` | เวลา cooldown หลัง SL hit (default 1800s = 30 นาที) |
 
 ### Cooldown
 
-- หลัง SL hit ระบบตั้ง `_s12_state["last_sl_time"]` ผ่าน `s12_cleanup_tickets()`
-- ระหว่าง cooldown S12 จะไม่เข้า order ใหม่
-- `_s12_scan_status = {"cooldown": "⏳ S12 cooldown N นาที (หลัง SL)"}` ระหว่างนี้
-- SCAN_SUMMARY จะไม่แสดง S12 block เลยระหว่าง cooldown
+- หลัง SL hit จะเก็บเวลาใน `_s12_state["last_sl_time"]` และ cleanup ticket ผ่าน `s12_cleanup_tickets()`
+- ระหว่าง cooldown S12 จะไม่สร้าง order ใหม่
+- `_s12_scan_status = {"cooldown": "⏳ S12 cooldown N นาที (หลัง SL)"}` ใช้เป็นข้อความสถานะ
+- SCAN_SUMMARY จะไม่แสดง S12 block ระหว่าง cooldown
 
 ### Comment format
 
-```
-Bot_M5_S12_buy
-Bot_M5_S12_sell
+```text
+M5_S12_...
 ```
 
 ### State
 
 - `_s12_state`: `{"last_sl_time": float}`
-- `_s12_scan_status`: dict สรุปสถานะรอบปัจจุบัน (ดูรายละเอียดใน `runtime-state.md`)
-- ไม่ persist ผ่าน `bot_state.json` (restart แล้วนับใหม่)
+- `_s12_scan_status`: dict สำหรับข้อความสถานะ scan (ดูเพิ่มใน `runtime-state.md`)
+- มี persist ลง `bot_state.json` (restart แล้วยังจำได้)
+
+## ท่าที่ 13: EzAlgo V5
+
+ไฟล์หลัก: `strategy13.py`
+
+แนวคิด:
+- ใช้ `supertrend crossover` เป็นสัญญาณหลัก
+- ใช้ config:
+  - `S13_SENSITIVITY`
+  - `S13_SUPERTREND_ATR`
+  - `S13_STOP_ATR_LEN`
+  - `S13_STOP_ATR_MULT`
+  - `S13_TP1_RR`
+  - `S13_TP2_RR`
+  - `S13_TP3_RR`
+
+### Signal
+
+BUY:
+- `close` ตัดขึ้นเหนือ supertrend
+
+SELL:
+- `close` ตัดลงใต้ supertrend
+
+### Entry / SL / TP
+
+- `entry` = ราคาปิดของแท่งสัญญาณ
+- `SL`
+  - BUY: `signal low - ATR(stop) × multiplier`
+  - SELL: `signal high + ATR(stop) × multiplier`
+- `TP`
+  - `TP1 = 0.7R`
+  - `TP2 = 1.2R`
+  - `TP3 = 1.5R`
+
+### Order flow
+
+- ระบบจะเลือก mix ของ `market/limit` จากความสัมพันธ์ระหว่าง `current price` กับ `entry`
+- BUY:
+  - ถ้า `current price > entry`
+    - เข้า `market 1 order`
+    - `#3 -> TP3`
+    - และตั้ง `limit 3 orders`
+    - `L1 -> TP1`, `L2 -> TP2`, `L3 -> TP3`
+  - ถ้า `current price <= entry`
+    - เข้า `market 3 orders`
+    - `#1 -> TP1`, `#2 -> TP2`, `#3 -> TP3`
+    - และตั้ง `limit 1 order`
+    - `L3 -> TP3`
+- SELL:
+  - ถ้า `current price < entry`
+    - เข้า `market 1 order`
+    - `#3 -> TP3`
+    - และตั้ง `limit 3 orders`
+    - `L1 -> TP1`, `L2 -> TP2`, `L3 -> TP3`
+  - ถ้า `current price >= entry`
+    - เข้า `market 3 orders`
+    - `#1 -> TP1`, `#2 -> TP2`, `#3 -> TP3`
+    - และตั้ง `limit 1 order`
+    - `L3 -> TP3`
+- ก่อนเข้าใหม่จะล้างฝั่งตรงข้ามของ `S13` ใน TF เดียวกันก่อน
+- แยกการจัดการตาม TF (`M5 ล้าง M5`, `M15 ล้าง M15`)
+
+### Standalone behavior
+
+- `S13` เป็น standalone คล้ายแนวคิดของ S12
+- ไม่เข้า flow กลางเหล่านี้:
+  - `Entry Candle`
+  - `Trail SL`
+  - `Opposite Order`
+  - `RSI Recheck`
+  - `Trend Filter`
+  - `Limit Guard`
+
+### Comment format
+
+```text
+M15_S13_EZ_#1
+M15_S13_EZ_#2
+M15_S13_EZ_#3
+M15_S13_EZ_L1
+M15_S13_EZ_L2
+M15_S13_EZ_L3
+```

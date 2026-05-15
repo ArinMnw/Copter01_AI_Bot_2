@@ -49,6 +49,17 @@ logs/
 - **force-log ทุก 60 วินาที** แม้ body จะไม่เปลี่ยน (ทั้ง bot.log และ Telegram)
 - ควบคุมด้วย `SCAN_SUMMARY_FORCE_INTERVAL = 60` ใน `scanner.py`
 - S12 ที่อยู่ใน cooldown จะ **ไม่แสดง** ใน SCAN_SUMMARY (ป้องกัน body ค้างจากค่า 0.00)
+- ส่วน `Scan Swing` ใน summary ปัจจุบันมีข้อมูลเวลาเพิ่ม:
+  - `AsOf` = สรุปจากแท่งปิดล่าสุดเวลาไหน
+  - `H✓` = swing high ล่าสุด confirm ตั้งแต่เวลาไหน
+  - `L✓` = swing low ล่าสุด confirm ตั้งแต่เวลาไหน
+- ใช้ช่วยไล่เคส pivot `right bars` ว่าพร้อมใช้งานจริงตั้งแต่เมื่อไร
+
+## PATTERN_FOUND
+
+- `PATTERN_FOUND` จะ log หลัง shared TP ถูกคำนวณแล้ว เพื่อให้ `tp` และ `flow_id` ตรงกับ order จริงที่กำลังจะถูกสร้าง
+- มี Telegram pattern alert แยกด้วย และ dedup ตาม `flow_id` เพื่อไม่ให้เด้งซ้ำทุก 5 วินาที
+- ใช้ดูจังหวะเจอ pattern ก่อน `ORDER_CREATED` และช่วยตามรอยกรณี order ถูก skip หรือ failed ได้ง่ายขึ้น
 
 ## Log Retention
 

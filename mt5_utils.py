@@ -1,9 +1,6 @@
 import re
 from config import *
 
-# Match S10 MTF marker: "MTF [HTF→LTF]" or "MTF [HTF->LTF]"
-_MTF_TF_RE = re.compile(r"MTF\s*\[\s*([A-Za-z0-9]+)\s*(?:→|->)\s*([A-Za-z0-9]+)\s*\]")
-
 
 def _pattern_comment_code(pattern: str, sid="") -> str:
     text = (pattern or "").upper()
@@ -29,10 +26,15 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
             return "P1"
 
     if sid_text == "3":
-        if "MARUBOZU" in text:
-            return "P2"
         if "DM SP" in text:
-            return "P1"
+            m = re.search(r'\[C1:([A-Z_]+)\]', raw)
+            if m:
+                return m.group(1)
+            return "DMSP"
+
+    if sid_text == "13":
+        if "EZALGO" in text:
+            return "EZ"
 
     if "PATTERN A" in text:
         return "PA"
@@ -47,6 +49,9 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
     if "4 แท่ง" in raw or "PATTERN ใหม่ 4" in text:
         return "P4"
     if "DM SP" in text:
+        m = re.search(r'\[C1:([A-Z_]+)\]', raw)
+        if m:
+            return m.group(1)
         return "DMSP"
     if "MARUBOZU" in text:
         return "MARU"
@@ -75,18 +80,27 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
 
 
 def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str = "",
-                         parallel_tfs: list = None, parallel_patterns: list = None) -> str:
-    # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF-LTF]"
+                         parallel_tfs: list = None, parallel_patterns: list = None,
+                         order_index=None) -> str:
+    # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF_LTF]"
     tf_label = tf
-    if pattern:
-        m = _MTF_TF_RE.search(pattern)
-        if not m:
-            m = re.search(r"\[\s*([A-Za-z0-9]+)\s*(?:→|->)\s*([A-Za-z0-9]+)\s*\]", pattern)
-        if m:
-            htf_tf = (m.group(1) or "").strip()
-            ltf_tf = (m.group(2) or "").strip()
-            if htf_tf and ltf_tf:
-                tf_label = f"[{htf_tf}-{ltf_tf}]"
+    if pattern and str(sid or "") == "10":
+        left_bracket = pattern.find("[")
+        right_bracket = pattern.find("]", left_bracket + 1) if left_bracket != -1 else -1
+        if left_bracket != -1 and right_bracket != -1:
+            inner = pattern[left_bracket + 1:right_bracket].strip()
+            parts = None
+            if "?" in inner:
+                parts = inner.split("?", 1)
+            elif "→" in inner:   # → Unicode right arrow (ใช้ใน pattern จริง)
+                parts = inner.split("→", 1)
+            elif "->" in inner:
+                parts = inner.split("->", 1)
+            if parts and len(parts) == 2:
+                htf_tf = parts[0].strip()
+                ltf_tf = parts[1].strip()
+                if htf_tf and ltf_tf and htf_tf.isalnum() and ltf_tf.isalnum():
+                    tf_label = f"[{htf_tf}_{ltf_tf}]"
     base = f"{tf_label}_S{sid}" if tf_label and sid else (f"{tf_label}" if tf_label else fallback)
     code = _pattern_comment_code(pattern, sid)
     if not code:
@@ -94,17 +108,13 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
 
     candidate = f"{base}_{code}"
 
+    if str(sid or "") == "10":
+        candidate = base
+
     if str(sid or "") == "2" and parallel_tfs and len(parallel_tfs) > 1:
         tf_parts = [str(t).strip() for t in parallel_tfs if str(t).strip()]
-        pattern_parts = parallel_patterns or []
-        code_parts = []
-        for idx, tf_part in enumerate(tf_parts):
-            part_pattern = pattern_parts[idx] if idx < len(pattern_parts) else pattern
-            part_code = _pattern_comment_code(part_pattern, sid) or code
-            if part_code:
-                code_parts.append(part_code)
-        if tf_parts and code_parts and len(tf_parts) == len(code_parts):
-            parallel_comment = f"[{'_'.join(tf_parts)}]_S{sid}_[{'_'.join(code_parts)}]"
+        if tf_parts:
+            parallel_comment = f"[{'_'.join(tf_parts)}]_S{sid}"
             if len(parallel_comment) <= 31:
                 return parallel_comment
 
@@ -114,6 +124,22 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
             candidate_with_model = f"{candidate}_#{m_model.group(1)}"
             if len(candidate_with_model) <= 31:
                 candidate = candidate_with_model
+        if str(sid or "") == "13":
+            idx_text = str(order_index).strip() if order_index is not None else ""
+            if idx_text in ("1", "2", "3"):
+                candidate_with_tp = f"{candidate}_#{idx_text}"
+                if len(candidate_with_tp) <= 31:
+                    candidate = candidate_with_tp
+            elif idx_text.upper() in ("L1", "L2", "L3"):
+                candidate_with_tp = f"{candidate}_{idx_text.upper()}"
+                if len(candidate_with_tp) <= 31:
+                    candidate = candidate_with_tp
+            else:
+                m_tp = re.search(r"TP\s*([123])", pattern.upper())
+                if m_tp:
+                    candidate_with_tp = f"{candidate}_#{m_tp.group(1)}"
+                    if len(candidate_with_tp) <= 31:
+                        candidate = candidate_with_tp
     if len(candidate) > 31:
         return base
 
@@ -238,7 +264,7 @@ def get_existing_tp(signal: str, entry: float = 0.0, tf: str = "", requester_sid
     - ถ้าส่ง entry มาด้วย จะตรวจ direction ของ TP vs entry
       BUY: TP ต้องสูงกว่า entry / SELL: TP ต้องต่ำกว่า entry
     """
-    if requester_sid == 12:
+    if requester_sid in (12, 13):
         return 0.0
 
     from trailing import position_tf as _pos_tf, position_sid as _pos_sid
@@ -325,7 +351,7 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
 
 
 def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern="",
-               parallel_tfs=None, parallel_patterns=None):
+               parallel_tfs=None, parallel_patterns=None, order_index=None):
     """
     ตั้ง Limit Order ที่ entry_price
     BUY  → BUY_LIMIT  (รอราคาลงมาแตะ)
@@ -383,6 +409,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             tf, sid, pattern, "Strategy1_Limit",
             parallel_tfs=parallel_tfs,
             parallel_patterns=parallel_patterns,
+            order_index=order_index,
         ),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,
@@ -410,7 +437,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     return {"success": False, "error": f"{err_code} — {err_msg}"}
 
 
-def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern=""):
+def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_index=None):
     """
     Market order — fill ทันทีที่ราคาปัจจุบัน
     BUY  → ส่ง market BUY  (ask)
@@ -433,7 +460,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern=""):
         "tp":           tp,
         "deviation":    20,
         "magic":        234001,
-        "comment":      _build_order_comment(tf, sid, pattern, "Strategy_Market"),
+        "comment":      _build_order_comment(tf, sid, pattern, "Strategy_Market", order_index=order_index),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_FOK,
     })
@@ -503,4 +530,3 @@ def should_cancel_pending(rates, signal: str, entry: float) -> tuple:
     # ── Condition 3 ถูกปิด ── (กลืนกิน Swing High/Low)
 
     return False, ""
-

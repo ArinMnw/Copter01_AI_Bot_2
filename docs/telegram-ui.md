@@ -77,3 +77,10 @@
 - แสดง BUY / SELL breakdown ต่อ strategy
 - กดปุ่ม trend filter เพื่อ filter สรุปกำไรตาม trend ตอนเปิดออเดอร์
 - callback parsing: ใช้ `"_".join(parts[5:])` สำหรับ key ที่มี underscore เช่น `bull_strong`
+
+## Toggle จุดกลับตัว -> Trail SL
+
+- `↩️ จุดกลับตัว -> Trail SL`
+- เป็น toggle แยกที่อยู่หน้า settings ชั้นนอกสุด ไม่รวมอยู่ใน submenu อื่น
+- callback: `toggle_trail_reversal_override`
+- ใช้ config `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`

@@ -13,6 +13,7 @@
 - `position_tf`: timeframe ของ position แยกตาม ticket
 - `position_sid`: strategy id ของ position แยกตาม ticket
 - `position_pattern`: ชื่อ pattern ของ position แยกตาม ticket
+- `position_zone_meta`: metadata ของ zone ที่ติดมากับ position (ใช้กับ `S1 zone`)
 - `_entry_state`: state ของ entry candle แยกตาม ticket
 - `_s6_state`: state ของท่า 6
 - `_s6i_state`: state ของ S6i
@@ -63,6 +64,7 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 - runtime state จะถูกบันทึกลง `bot_state.json`
 - helper สำหรับ save/restore อยู่ใน `config.py`
 - ถ้ามีการเปลี่ยนโครงสร้าง state ต้องเช็กเสมอว่า save และ restore ยังสอดคล้องกัน
+- `position_zone_meta` ถูก persist ผ่าน `save_runtime_state()` / `restore_runtime_state()` แล้ว
 
 ## หลักการใช้งาน
 
@@ -74,6 +76,7 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 
 - `TRAIL_SL_ENABLED`: gate `check_engulf_trail_sl()`
 - `ENTRY_CANDLE_ENABLED`: gate `check_entry_candle_quality()`
+- `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`: toggle สำหรับยอมให้ Trail SL bypass `Focus Opposite` เมื่อเจอ reversal candle ฝั่งตรงข้าม
 - `OPPOSITE_ORDER_ENABLED`: gate `check_opposite_order_tp()`
 - `ENTRY_CANDLE_UPDATE_TP`: toggle ตรงจากหน้าหลัก
 - `LIMIT_SWEEP`: toggle ตรงจากหน้าหลัก
