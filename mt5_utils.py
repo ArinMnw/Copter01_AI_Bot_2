@@ -1,5 +1,98 @@
 import re
+import config
 from config import *
+
+
+def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
+                              entry: float = 0.0, tp: float = 0.0) -> tuple:
+    """
+    คำนวณ TSO scaled volume ตาม TP เดิมของ order (dynamic steps)
+    Return: (scaled_volume, effective_steps_list)
+      - effective_steps_list = list of step distances (หน่วยราคา) — empty ถ้าไม่ scale
+
+    Logic:
+      - skip S13 (มี logic แยก)
+      - skip ถ้า TSO disabled หรือ TP/entry invalid
+      - คำนวณ tp_orig_dist + effective_steps จาก config.compute_tso_effective_steps
+      - scaled_volume = len(effective_steps) × base_volume
+    """
+    try:
+        if str(sid) == "13":
+            return float(base_volume), []
+        if not config.SCALE_OUT_ENABLED or base_volume <= 0:
+            return float(base_volume), []
+        if entry <= 0 or tp <= 0 or direction not in ("BUY", "SELL"):
+            return float(base_volume), []
+        # คำนวณ tp_orig_dist (price units, positive)
+        if direction == "BUY":
+            tp_orig_dist = tp - entry
+        else:
+            tp_orig_dist = entry - tp
+        if tp_orig_dist <= 0:
+            return float(base_volume), []
+        effective_steps = config.compute_tso_effective_steps(tp_orig_dist)
+        if not effective_steps:
+            return float(base_volume), []
+        scaled = round(float(base_volume) * len(effective_steps), 2)
+        return scaled, effective_steps
+    except Exception:
+        return float(base_volume), []
+
+
+def _scale_out_register_ticket(ticket: int, direction: str, entry: float,
+                               base_volume: float, scaled_volume: float,
+                               sid="", tp_original: float = 0.0,
+                               effective_steps: list = None):
+    """
+    ลงทะเบียน ticket TSO ลง config.scale_out_state
+    effective_steps = list ของ step distances (หน่วยราคา) ที่คำนวณตาม TP เดิม
+    """
+    try:
+        if not ticket or ticket <= 0:
+            return
+        per_tp = float(base_volume)   # ปิดทีละ base_volume ต่อ step (ไม่ใช่ scale_out_per_tp_volume เดิม)
+        tp_distances = list(effective_steps or [])
+        # fallback: ถ้าไม่ได้ส่ง effective_steps มา ให้ใช้ tp_distances default (legacy)
+        if not tp_distances:
+            tp_distances = list(config.scale_out_tp_distances())
+        n_steps = len(tp_distances)
+        config.scale_out_state[int(ticket)] = {
+            "direction":       direction,
+            "entry":           float(entry),
+            "original_volume": float(scaled_volume),
+            "base_volume":     float(base_volume),       # lot เดิมก่อน scale (ไว้ revert ตอน OFF)
+            "per_tp_volume":   float(per_tp),
+            "tp_distances":   list(tp_distances),
+            "step":           0,                          # ปิดไปแล้วกี่ขั้น
+            "is_pending":     True,                       # True = ยังไม่ fill
+            "sid":            str(sid) if sid else "",    # ใช้สำหรับ S10 special rule
+            "tp_original":    float(tp_original or 0.0), # TP เดิมจาก order
+        }
+        # ── log event เพื่อให้พี่ชายเห็นใน bot.log ว่า ticket ไหนเป็น TSO ──
+        try:
+            from bot_log import log_event
+            steps_str = ",".join(f"{d:.2f}" for d in tp_distances)
+            log_event(
+                "TSO_REGISTERED",
+                f"TSO ON ×{n_steps} | base={base_volume} → scaled={scaled_volume} | "
+                f"per_tp={per_tp} | effective steps (price)=[{steps_str}]",
+                ticket=int(ticket),
+                side=direction,
+                sid=sid,
+                entry=float(entry),
+                scaled_volume=float(scaled_volume),
+                base_volume=float(base_volume),
+                tp_original=float(tp_original or 0.0),
+                n_steps=n_steps,
+            )
+        except Exception:
+            pass
+    except Exception as e:
+        try:
+            from datetime import datetime
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ TSO register error: {e}")
+        except Exception:
+            pass
 
 
 def _pattern_comment_code(pattern: str, sid="") -> str:
@@ -329,10 +422,17 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
             }
         ot = mt5.ORDER_TYPE_SELL_STOP
 
+    # ── Triple Scale-Out: ขยาย volume ตาม TP เดิม (skip S13) ──
+    base_volume = float(volume)
+    send_volume, effective_steps = _scale_out_resolve_volume(
+        base_volume, sid=sid, direction=signal, entry=price, tp=tp
+    )
+    is_scaled = bool(effective_steps)
+
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_PENDING,
         "symbol":       SYMBOL,
-        "volume":       volume,
+        "volume":       send_volume,
         "type":         ot,
         "price":        price,
         "sl":           sl,
@@ -345,7 +445,12 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
     })
     if r and r.retcode == mt5.TRADE_RETCODE_DONE:
         name = "BUY STOP" if signal == "BUY" else "SELL STOP"
-        return {"success": True, "ticket": r.order, "price": price, "order_type": name}
+        if is_scaled:
+            _scale_out_register_ticket(r.order, signal, price, base_volume, send_volume,
+                                       sid=sid, tp_original=tp,
+                                       effective_steps=effective_steps)
+        return {"success": True, "ticket": r.order, "price": price, "order_type": name,
+                "scale_out": is_scaled, "scaled_volume": send_volume if is_scaled else None}
     err = r.retcode if r else "no result"
     return {"success": False, "error": f"{err}"}
 
@@ -395,10 +500,17 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             }
         ot = mt5.ORDER_TYPE_SELL_LIMIT
 
+    # ── Triple Scale-Out: ขยาย volume ตาม TP เดิม (dynamic steps) ──
+    base_volume = float(volume)
+    send_volume, effective_steps = _scale_out_resolve_volume(
+        base_volume, sid=sid, direction=signal, entry=price, tp=tp
+    )
+    is_scaled = bool(effective_steps)
+
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_PENDING,
         "symbol":       SYMBOL,
-        "volume":       volume,
+        "volume":       send_volume,
         "type":         ot,
         "price":        price,
         "sl":           sl,
@@ -427,7 +539,12 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             mt5.ORDER_TYPE_SELL_LIMIT:  "SELL LIMIT",
             mt5.ORDER_TYPE_SELL_STOP:   "SELL STOP",
         }.get(ot, "LIMIT")
-        return {"success": True, "ticket": r.order, "price": price, "order_type": order_type_name}
+        if is_scaled:
+            _scale_out_register_ticket(r.order, signal, price, base_volume, send_volume,
+                                       sid=sid, tp_original=tp,
+                                       effective_steps=effective_steps)
+        return {"success": True, "ticket": r.order, "price": price, "order_type": order_type_name,
+                "scale_out": is_scaled, "scaled_volume": send_volume if is_scaled else None}
     err_code = r.retcode if r else "no result"
     err_msg  = r.comment if r else ""
     if str(err_code) == "10027":

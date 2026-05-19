@@ -20,7 +20,7 @@ from strategy10 import strategy_10
 from strategy11 import strategy_11, record_s1_pattern as s11_record_s1_pattern
 from strategy13 import strategy_13
 from pending import check_fvg_pending, check_pb_pending
-from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta
+from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
 _first_scan_done = False
 _scan_results: dict = {}   # {tf_name: dict}
@@ -304,6 +304,48 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
         await tg(app, f"❌ [{tf_name}] S13 ไม่มี TP levels")
         return False
 
+    # ── Triple Scale-Out (TSO) สำหรับ S13 — Dynamic effective steps ─────────────
+    # คำนวณ effective steps จาก TP เดิม (max TP ของ S13 = tp_levels[-1])
+    # สร้าง orders 1-4 ชุดตามจำนวน effective steps
+    # ตัวอย่าง: TP เดิม 1200pt → 4 orders (300, 700, 1000, 1200pt)
+    #          TP เดิม 500pt  → 2 orders (300, 500pt)
+    tso_applied = False
+    tso_distances_for_market = None
+    if config.SCALE_OUT_ENABLED:
+        try:
+            # TP เดิมสุดของ S13 = tp_levels[-1] (RR-based TP3)
+            tp_orig_max = float(tp_levels[-1]) if tp_levels else 0.0
+            if signal == "BUY":
+                tp_orig_dist = tp_orig_max - entry
+            else:
+                tp_orig_dist = entry - tp_orig_max
+            effective_steps = config.compute_tso_effective_steps(tp_orig_dist)
+            if effective_steps:
+                if signal == "BUY":
+                    new_tp_levels = [round(entry + d, 2) for d in effective_steps]
+                else:
+                    new_tp_levels = [round(entry - d, 2) for d in effective_steps]
+                # ตรวจสอบ side validity
+                valid = all(
+                    (signal == "BUY" and tp > entry) or (signal == "SELL" and tp < entry)
+                    for tp in new_tp_levels
+                )
+                if valid:
+                    tso_pts = list(config.SCALE_OUT_TP_POINTS)
+                    log_event(
+                        "S13_TSO_TP_OVERRIDE",
+                        f"TSO override TPs — tp_orig_dist={tp_orig_dist:.2f} | "
+                        f"effective_steps={[round(d,2) for d in effective_steps]} | "
+                        f"original_tp_levels={tp_levels} → new={new_tp_levels} | "
+                        f"orders count: {len(tp_levels)} → {len(new_tp_levels)}",
+                        tf=tf_name, sid=13, signal=signal, entry=entry,
+                    )
+                    tp_levels = new_tp_levels
+                    tso_applied = True
+                    tso_distances_for_market = list(effective_steps)
+        except Exception as e:
+            log_event("S13_TSO_TP_OVERRIDE_ERROR", str(e), tf=tf_name, sid=13)
+
     if _has_same_side_s13_exposure(tf_name, signal):
         _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า13: มี {signal} ค้างอยู่แล้ว")
         return False
@@ -311,12 +353,15 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
     market_tickets = []
     limit_tickets = []
     volume = get_volume()
+    # จำนวน orders = จำนวน tp_levels (1-4 ตาม TSO effective steps)
+    all_idx = list(range(1, len(tp_levels) + 1))
+    last_idx = [all_idx[-1]] if all_idx else []
     if signal == "BUY":
-        market_targets = [3] if current_price > entry else [1, 2, 3]
-        limit_targets = [1, 2, 3] if current_price > entry else [3]
+        market_targets = last_idx if current_price > entry else all_idx
+        limit_targets = all_idx if current_price > entry else last_idx
     else:
-        market_targets = [3] if current_price < entry else [1, 2, 3]
-        limit_targets = [1, 2, 3] if current_price < entry else [3]
+        market_targets = last_idx if current_price < entry else all_idx
+        limit_targets = all_idx if current_price < entry else last_idx
 
     async with _get_lock():
         for idx in market_targets:
@@ -332,6 +377,48 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
             )
             if order.get("success"):
                 ticket = order["ticket"]
+                # ── TSO Market Fill Adjust ─────────────────────────────
+                # market order มี slippage → ต้อง re-target TP จาก actual fill price
+                # เพื่อให้ระยะ TP ตรงตามสเปค TSO (300/700/1000pt) จาก fill จริง
+                if tso_applied and tso_distances_for_market and idx <= len(tso_distances_for_market):
+                    try:
+                        pos_list = mt5.positions_get(ticket=ticket)
+                        if pos_list:
+                            actual_fill = float(pos_list[0].price_open)
+                            tso_d = float(tso_distances_for_market[idx - 1])
+                            if signal == "BUY":
+                                new_tp = round(actual_fill + tso_d, 2)
+                            else:
+                                new_tp = round(actual_fill - tso_d, 2)
+                            slip = abs(actual_fill - entry)
+                            # update เฉพาะถ้า TP ใหม่ต่างจากเดิม > 1 point (0.01)
+                            if abs(new_tp - tp) > 0.005:
+                                res = mt5.order_send({
+                                    "action":   mt5.TRADE_ACTION_SLTP,
+                                    "symbol":   SYMBOL,
+                                    "position": ticket,
+                                    "sl":       sl,
+                                    "tp":       new_tp,
+                                })
+                                if res and res.retcode == mt5.TRADE_RETCODE_DONE:
+                                    log_event(
+                                        "S13_TSO_TP_FILL_ADJUST",
+                                        f"TP#{idx} {tp:.2f}→{new_tp:.2f} (fill={actual_fill:.2f}, slip={slip:.2f})",
+                                        tf=tf_name, sid=13, signal=signal, ticket=ticket,
+                                    )
+                                    tp = new_tp   # อัปเดต tp สำหรับ log/notify ด้านล่าง
+                                else:
+                                    rc = res.retcode if res else "None"
+                                    log_event(
+                                        "S13_TSO_TP_FILL_ADJUST_FAIL",
+                                        f"TP modify ล้มเหลว retcode={rc} target={new_tp:.2f}",
+                                        tf=tf_name, sid=13, ticket=ticket,
+                                    )
+                    except Exception as e:
+                        log_event(
+                            "S13_TSO_TP_FILL_ADJUST_ERROR", str(e),
+                            tf=tf_name, sid=13, ticket=ticket,
+                        )
                 market_tickets.append((idx, ticket, tp))
                 position_tf[ticket] = tf_name
                 position_sid[ticket] = 13
@@ -424,6 +511,29 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
     save_runtime_state()
 
     rr = abs(tp_levels[0] - entry) / max(abs(entry - sl), 0.0001)
+    # ── Trend & RSI สำหรับแจ้งเตือน ─────────────────────────────
+    _trend_label = get_trend_label(tf_name)
+    _trend_ok, _trend_why = trend_allows_signal(tf_name, signal)
+    _trend_mark = "✅" if _trend_ok else "⚠️"
+    try:
+        _rsi_val = _latest_pending_rsi(tf_name)
+    except Exception:
+        _rsi_val = None
+    _rsi_period = getattr(config, "PENDING_RSI_PERIOD", 14)
+    if _rsi_val is None:
+        _rsi_line = f"📊 RSI({_rsi_period}) [{tf_name}]: `?` (ไม่มีข้อมูล)"
+    else:
+        if signal == "BUY":
+            _rsi_thr = getattr(config, "PENDING_RSI_BUY_MAX", 50.0)
+            _rsi_ok = _rsi_val < _rsi_thr
+            _rule = f"BUY < {_rsi_thr:g}"
+        else:
+            _rsi_thr = getattr(config, "PENDING_RSI_SELL_MIN", 50.0)
+            _rsi_ok = _rsi_val > _rsi_thr
+            _rule = f"SELL > {_rsi_thr:g}"
+        _rsi_mark = "✅" if _rsi_ok else "⚠️"
+        _rsi_line = f"📊 RSI({_rsi_period}) [{tf_name}]: `{_rsi_val:.2f}` {_rsi_mark} ({_rule})"
+
     lines = [
         f"{sig_e} *[{tf_name}] S13 {signal}*",
         f"📌 Entry: `{entry:.2f}`",
@@ -435,6 +545,8 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
         lines.append(f"🪤 LIMIT TP{idx}: `{tp:.2f}` | Ticket:`{ticket}`")
     if reason:
         lines.append(f"📝 {reason.splitlines()[0]}")
+    lines.append(f"🧭 Trend [{tf_name}]: `{_trend_label}` {_trend_mark}")
+    lines.append(_rsi_line)
     lines.append(f"⚖️ R:R TP1 `1:{rr:.2f}` | 📦 `{volume}` lot/order")
     await tg(app, "\n".join(lines))
     return True
@@ -751,16 +863,44 @@ def _export_trend_state_for_mt5():
     ให้ MQL5 indicator (TrendFilterLines.mq5) อ่านไปวาดเส้นบน chart
     เฉพาะ TF ที่ Per-TF ติ๊กไว้ใน Trend Filter เท่านั้น (ดู per_tf_on flag)
     """
+    import os
+    ts = now_bkk().strftime('%H:%M:%S')
+
+    def _log_err(err_type: str, e: Exception, detail: str = ""):
+        msg = f"{err_type}: {e}"
+        if detail:
+            msg = f"{err_type}: {e} | {detail}"
+        print(f"[{ts}] ⚠️ export trend_state {msg}")
+        try:
+            log_event(
+                "EXPORT_TREND_STATE_ERROR",
+                msg,
+                err_type=err_type,
+                err_message=str(e),
+                detail=detail,
+            )
+        except Exception:
+            pass
+
     try:
         info = mt5.terminal_info()
         if not info:
+            _log_err("MT5_NOT_CONNECTED", RuntimeError("terminal_info() returned None"))
             return
         common_path = getattr(info, "commondata_path", None)
         if not common_path:
+            _log_err("NO_COMMONDATA_PATH", RuntimeError("commondata_path attribute missing"))
             return
-        import os
         files_dir = os.path.join(common_path, "Files")
-        os.makedirs(files_dir, exist_ok=True)
+        try:
+            os.makedirs(files_dir, exist_ok=True)
+        except PermissionError as e:
+            _log_err("PERMISSION_DENIED_MKDIR", e, detail=files_dir)
+            return
+        except OSError as e:
+            _log_err("OS_ERROR_MKDIR", e, detail=files_dir)
+            return
+
         symbol_name = str(SYMBOL or "").strip() or "UNKNOWN"
         target_default = os.path.join(files_dir, "trend_state.txt")
         target_symbol = os.path.join(files_dir, f"trend_state_{symbol_name}.txt")
@@ -804,11 +944,21 @@ def _export_trend_state_for_mt5():
         payload = "\n".join(lines) + "\n"
         for target in (target_default, target_symbol):
             tmp = target + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                f.write(payload)
-            os.replace(tmp, target)
+            try:
+                with open(tmp, "w", encoding="utf-8") as f:
+                    f.write(payload)
+                os.replace(tmp, target)
+            except FileNotFoundError as e:
+                _log_err("FILE_NOT_FOUND", e, detail=tmp)
+            except PermissionError as e:
+                _log_err("PERMISSION_DENIED_WRITE", e, detail=tmp)
+            except OSError as e:
+                # WinError 32 = file in use, 17 = cross-device, etc.
+                _log_err("OS_ERROR_WRITE", e, detail=tmp)
+            except UnicodeEncodeError as e:
+                _log_err("ENCODING_ERROR", e, detail="payload contains invalid chars")
     except Exception as e:
-        print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ export trend_state error: {e}")
+        _log_err("UNEXPECTED_ERROR", e, detail=f"type={type(e).__name__}")
 
 
 def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
@@ -1935,9 +2085,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
 
             # parallel เปิดอยู่แต่เจอ TF เดียว → ข้ามถ้าไม่ได้เปิด normal ด้วย
             if len(parallel_tfs) < 2 and config.FVG_PARALLEL and not config.FVG_NORMAL:
-                scan_results.append({"tf": tf_name, "sid": 2, "signal": "WAIT",
-                    "reason": f"FVG {fvg['signal']} [{tf_name}] รอ TF อื่นซ้อนทับ (parallel)"})
-                fvg_pending[fvg_key] = True
+                _scan_results[tf_name] = _parse_pattern(
+                    "", "WAIT",
+                    f"FVG {fvg['signal']} [{tf_name}] รอ TF อื่นซ้อนทับ (parallel)"
+                )
+                # ไม่ assign fvg_pending[fvg_key] = True เพราะ pending.py expect dict
+                # ถ้า TF อื่นมา parallel ภายหลัง จะเข้า path ที่ assign dict ที่บรรทัด 2150
                 return False
 
             s2_confirm_ref = None
@@ -1955,8 +2108,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         f"ใน {lookback_bars} แท่งย้อนหลัง"
                     )
                     _log_confirm_lookback_block(tf_name, 2, fvg["signal"], lookback_bars, fvg["pattern"])
-                    scan_results.append({"tf": tf_name, "sid": 2, "signal": "WAIT", "reason": wait_reason})
-                    fvg_pending[fvg_key] = True
+                    _scan_results[tf_name] = _parse_pattern("", "WAIT", wait_reason)
+                    # ไม่ assign fvg_pending[fvg_key] = True เพราะ pending.py expect dict
+                    # ถ้าเจอ S1/S2/S3 ภายหลัง จะเข้า path ที่ assign dict ที่บรรทัด 2150
                     _print_skip_once(
                         tf_name,
                         f"⏳ [{now}] {tf_label(tf_name)} ท่า2 FVG: {wait_reason}"
@@ -2035,8 +2189,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     tf_val = TF_OPTIONS.get(tf_for_candles)
                     if tf_val is None:
                         return ""
-                    tf_rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, 4)
-                    if tf_rates is None or len(tf_rates) < 4:
+                    # ใช้ start_pos=1 (ข้าม in-progress bar) เพื่อให้ตรงกับที่ strategy ใช้จริง
+                    # strategy_2 รับ rates ที่ scanner ดึงด้วย start_pos=1 (scanner.py:1819)
+                    # แสดง bar ที่ปิดแล้ว = bar ที่เกิด pattern จริง
+                    tf_rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, 4)
+                    if tf_rates is None or len(tf_rates) < 3:
                         return ""
                     labels_local = ["[2]", "[1]", "[0]"]
                     rows = [f"📚 แท่ง {tf_for_candles}"]
@@ -2403,14 +2560,24 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         if _htf_candles:
             _hn = len(_htf_candles)
             _hlabels = [f"[{_hn - 1 - i}]" for i in range(_hn)]
+            # คำนวณ tf_secs ของ HTF เพื่อตรวจว่า bar ปิดหรือยัง (รองรับ pre-arm)
+            try:
+                _htf_secs = TF_SECONDS_MAP.get(_htf_tf, 0)
+            except Exception:
+                _htf_secs = 0
+            from datetime import datetime as _dt, timezone as _tz
+            _now_ts = int(_dt.now(_tz.utc).timestamp())
             candle_txt += f"📍 *HTF {_htf_tf}* (เจอ CRT):\n"
             for i, c in enumerate(_htf_candles):
                 o, h, l, cl = float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])
                 clr = "🟢" if cl > o else "🔴"
                 ts = int(c.get("time", 0))
+                # tag ถ้า bar ยังไม่ปิด (ts + tf_secs > now)
+                in_progress = bool(_htf_secs and ts and (ts + _htf_secs) > _now_ts)
+                progress_tag = " ⏳(in-progress)" if in_progress else ""
                 candle_txt += (
                     f"{clr} แท่ง{_hlabels[i]}: O:`{o:.2f}` H:`{h:.2f}` "
-                    f"L:`{l:.2f}` C:`{cl:.2f}` {_fmt_swing_dt(ts)}\n"
+                    f"L:`{l:.2f}` C:`{cl:.2f}` {_fmt_swing_dt(ts)}{progress_tag}\n"
                 )
             candle_txt += f"📍 *LTF {tf_name}* (trigger):\n"
         _candles_list = result.get("candles", [])
@@ -2567,6 +2734,16 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             s10_group_id = ""
             if len(success_tickets) > 1:
                 s10_group_id = f"{tf_name}|{signal}|{int(result.get('armed_at', 0) or 0)}|{int(result.get('s10_parent_time', 0) or 0)}|{int(result.get('s10_sweep_time', 0) or 0)}"
+
+            # ── S10: register fired tickets ลง arm state (สำหรับ continuous re-trigger) ──
+            if sid == 10 and success_tickets:
+                try:
+                    from strategy10 import register_fired_tickets
+                    _s10_htf = result.get("htf_tf", "")
+                    if _s10_htf:
+                        register_fired_tickets(_s10_htf, success_tickets)
+                except Exception:
+                    pass
 
             for order in placed_orders:
                 place_entry = round(float(order.get("_entry", entry)), 2)

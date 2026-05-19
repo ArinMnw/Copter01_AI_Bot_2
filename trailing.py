@@ -4,7 +4,7 @@ import re
 import inspect
 import os
 from bot_log import LOG_DIR, log_event
-from mt5_utils import connect_mt5
+from mt5_utils import connect_mt5, TF_SECONDS_MAP
 from strategy4 import (
     _find_prev_swing_high,
     _find_prev_swing_low,
@@ -348,6 +348,298 @@ async def _notify_sltp_audit_v2(app, source: str, pos, old_sl: float, old_tp: fl
         f"TP: `{old_tp:.2f}` -> `{new_tp:.2f}`"
     ))
     _last_sltp_tg_key = key
+
+
+# ============================================================
+#  Triple Scale-Out (TSO) — Partial close watcher + cleanup
+# ============================================================
+def _tso_close_partial(pos, pos_type: str, volume: float, reason: str) -> bool:
+    """ปิด lot บางส่วนของ position (partial close) — return True ถ้าสำเร็จ"""
+    tick = mt5.symbol_info_tick(SYMBOL)
+    if not tick:
+        return False
+    bid = float(getattr(tick, "bid", 0.0))
+    ask = float(getattr(tick, "ask", 0.0))
+    close_price = bid if pos_type == "BUY" else ask
+    info = mt5.symbol_info(SYMBOL)
+    try:
+        vol_min  = float(getattr(info, "volume_min", 0.01) or 0.01)
+        vol_step = float(getattr(info, "volume_step", 0.01) or 0.01)
+        # round ลง step + ไม่ต่ำกว่า min
+        steps = max(1, int(round(volume / vol_step)))
+        send_vol = round(steps * vol_step, 2)
+        if send_vol < vol_min:
+            send_vol = vol_min
+    except Exception:
+        send_vol = volume
+    # ไม่เกิน volume ปัจจุบันของ position
+    send_vol = min(send_vol, float(pos.volume))
+    r = mt5.order_send({
+        "action":        mt5.TRADE_ACTION_DEAL,
+        "symbol":        SYMBOL,
+        "volume":        send_vol,
+        "type":          mt5.ORDER_TYPE_SELL if pos_type == "BUY" else mt5.ORDER_TYPE_BUY,
+        "position":      pos.ticket,
+        "price":         close_price,
+        "deviation":     20,
+        "magic":         0,
+        "comment":       reason,
+        "type_time":     mt5.ORDER_TIME_GTC,
+        "type_filling":  _get_filling_mode(),
+    })
+    ok = r is not None and r.retcode == mt5.TRADE_RETCODE_DONE
+    ts = now_bkk().strftime('%H:%M:%S')
+    if ok:
+        print(f"[{ts}] TSO partial close ticket={pos.ticket} {pos_type} vol={send_vol} price={close_price:.2f} reason=[{reason}]")
+    else:
+        retcode = r.retcode if r is not None else "None"
+        print(f"[{ts}] TSO partial close FAIL ticket={pos.ticket} retcode={retcode}")
+    return ok
+
+
+async def check_scale_out_partial(app):
+    """
+    ทยอยปิด lot ตาม TSO levels:
+    XAU: 300/700/1000 pt | BTC: ×4 อัตโนมัติ
+    เมื่อปิดครบ step จะลบ ticket ออกจาก scale_out_state
+    """
+    if not config.scale_out_state:
+        return
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    pos_by_ticket = {int(p.ticket): p for p in positions}
+    pending_orders = mt5.orders_get(symbol=SYMBOL) or []
+    pending_tickets = {int(o.ticket) for o in pending_orders}
+
+    # cleanup: ลบ ticket ที่ไม่มีอยู่แล้ว (ปิดไปแล้ว)
+    for tk in list(config.scale_out_state.keys()):
+        if tk not in pos_by_ticket and tk not in pending_tickets:
+            config.scale_out_state.pop(tk, None)
+
+    tick = mt5.symbol_info_tick(SYMBOL)
+    if not tick:
+        return
+    bid = float(getattr(tick, "bid", 0.0))
+    ask = float(getattr(tick, "ask", 0.0))
+
+    for tk, st in list(config.scale_out_state.items()):
+        # ข้ามถ้ายังเป็น pending (รอ fill)
+        if tk not in pos_by_ticket:
+            continue
+        pos = pos_by_ticket[tk]
+        direction = st.get("direction", "BUY")
+        entry     = float(st.get("entry", pos.price_open))
+        per_tp    = float(st.get("per_tp_volume", 0.01))
+        distances = st.get("tp_distances", [])
+        step      = int(st.get("step", 0))
+        sid_str   = str(st.get("sid", "") or "")
+
+        if step >= len(distances):
+            continue
+
+        # อัปเดต flag is_pending = False (เพราะถูก fill แล้ว)
+        if st.get("is_pending"):
+            st["is_pending"] = False
+            # อัปเดต entry เป็น price_open จริงของ position (กรณี slippage)
+            try:
+                st["entry"] = float(pos.price_open)
+                entry = st["entry"]
+            except Exception:
+                pass
+
+        # ── คำนวณ TP เดิมของ order (สำหรับ cap rule) ───────────
+        # ใช้ค่าจาก position.tp (ค่าจริงปัจจุบันใน MT5) เพื่อรองรับกรณีโดน trail/edit
+        try:
+            tp_orig = float(pos.tp or 0)
+        except Exception:
+            tp_orig = 0.0
+        if tp_orig > 0:
+            if direction == "BUY":
+                tp_orig_dist = tp_orig - entry
+            else:
+                tp_orig_dist = entry - tp_orig
+        else:
+            tp_orig_dist = 0.0  # ไม่มี TP → ไม่ cap
+
+        # คำนวณว่าราคาวิ่งผ่าน entry ไปแล้วเท่าไหร่
+        cur_price = bid if direction == "BUY" else ask
+        if direction == "BUY":
+            passed = cur_price - entry
+        else:
+            passed = entry - cur_price
+
+        if passed <= 0:
+            continue
+
+        # ── effective distance ต่อ step ────────────────────────
+        # กฎทั่วไป: ถ้า TP เดิม < TSO_dist → ใช้ TP เดิม (cap)
+        # S10 พิเศษ: ขั้นสุดท้าย (step == last) → ใช้ TP เดิมเสมอ (ถ้ามี)
+        last_step_idx = len(distances) - 1
+
+        def _effective_dist(i):
+            tso_d = float(distances[i])
+            if sid_str == "10" and i == last_step_idx and tp_orig_dist > 0:
+                return tp_orig_dist                           # S10 TP3 = TP เดิม เสมอ
+            if tp_orig_dist > 0 and tp_orig_dist < tso_d:
+                return tp_orig_dist                           # cap by TP เดิม
+            return tso_d
+
+        # check ทีละขั้น (อาจปิดหลายขั้นในรอบเดียวถ้าราคากระโดด)
+        while step < len(distances) and passed >= _effective_dist(step):
+            tp_pts = config.SCALE_OUT_TP_POINTS[step] if step < len(config.SCALE_OUT_TP_POINTS) else 0
+            eff_d = _effective_dist(step)
+            tso_d = float(distances[step])
+            # สร้าง reason ที่บอก cap ด้วย (debug-friendly)
+            if eff_d < tso_d:
+                reason = f"TSO TP{step+1} ({tp_pts}pt cap→{eff_d:.2f})"
+            elif sid_str == "10" and step == last_step_idx and tp_orig_dist > 0:
+                reason = f"TSO TP{step+1} (S10 TP_orig {eff_d:.2f})"
+            else:
+                reason = f"TSO TP{step+1} ({tp_pts}pt)"
+            ok = _tso_close_partial(pos, direction, per_tp, reason)
+            if not ok:
+                break
+            step += 1
+            st["step"] = step
+            # ── log event TSO_PARTIAL_CLOSE_TP{step} ──
+            try:
+                log_event(
+                    f"TSO_PARTIAL_CLOSE_TP{step}",
+                    f"TP{step}/{len(distances)} | {reason}",
+                    ticket=int(tk),
+                    side=direction,
+                    sid=sid_str,
+                    step=step,
+                    target_dist=round(eff_d, 2),
+                    passed_dist=round(passed, 2),
+                    close_volume=float(per_tp),
+                    close_price=round(cur_price, 2),
+                    entry=round(entry, 2),
+                    remaining_steps=len(distances) - step,
+                )
+            except Exception:
+                pass
+            try:
+                from notifications import tg_queue
+                await tg(app,
+                    f"📈 *Scale-Out TP{step}*\n"
+                    f"━━━━━━━━━━━━━━━━━\n"
+                    f"Ticket: `{tk}`\n"
+                    f"{direction} | ปิด {per_tp} lot @ {cur_price:.2f}\n"
+                    f"ระยะผ่าน entry: {passed:.2f} (target {eff_d:.2f})\n"
+                    f"ขั้นที่เหลือ: {len(distances) - step}/{len(distances)}"
+                )
+            except Exception:
+                pass
+            # refresh position หลัง partial close
+            new_pos = mt5.positions_get(ticket=tk)
+            if not new_pos:
+                # ปิดหมดแล้ว → ลบ state
+                config.scale_out_state.pop(tk, None)
+                break
+
+        if step >= len(distances):
+            # ปิดครบทุกขั้นแล้ว
+            config.scale_out_state.pop(tk, None)
+
+
+def scale_out_cleanup_on_disable() -> dict:
+    """
+    เรียกตอน toggle Scale-Out 3X จาก ON → OFF:
+    - Position ที่ลงทะเบียน TSO: ปิดทั้งหมด
+    - Pending ที่ลงทะเบียน TSO: ยกเลิก + สร้างใหม่ด้วย lot เดิม (base_volume)
+    Return summary dict
+    """
+    closed = 0
+    reset_pending = 0
+    errors = []
+
+    if not config.scale_out_state:
+        return {"closed": 0, "reset_pending": 0, "errors": []}
+
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    pos_by_ticket = {int(p.ticket): p for p in positions}
+    pending_orders = mt5.orders_get(symbol=SYMBOL) or []
+    pending_by_ticket = {int(o.ticket): o for o in pending_orders}
+
+    for tk, st in list(config.scale_out_state.items()):
+        direction = st.get("direction", "BUY")
+        base_vol  = float(st.get("base_volume", 0.01))
+
+        # ── 1) เป็น position ที่ fill แล้ว → ปิดทั้งหมด ──
+        if tk in pos_by_ticket:
+            pos = pos_by_ticket[tk]
+            ok, _ = _close_position(pos, direction, "TSO disabled → close all")
+            if ok:
+                closed += 1
+            else:
+                errors.append(f"close pos {tk} fail")
+            config.scale_out_state.pop(tk, None)
+            continue
+
+        # ── 2) เป็น pending → ยกเลิก + สร้างใหม่ด้วย base_volume ──
+        if tk in pending_by_ticket:
+            order = pending_by_ticket[tk]
+            try:
+                # ยกเลิกของเดิม
+                cancel_r = mt5.order_send({
+                    "action":  mt5.TRADE_ACTION_REMOVE,
+                    "order":   tk,
+                })
+                cancel_ok = cancel_r is not None and cancel_r.retcode == mt5.TRADE_RETCODE_DONE
+                if not cancel_ok:
+                    rc = cancel_r.retcode if cancel_r else "None"
+                    errors.append(f"cancel pending {tk} fail (retcode {rc})")
+                    config.scale_out_state.pop(tk, None)
+                    continue
+
+                # สร้างใหม่ด้วย base_volume — ใช้ field เดิมทั้งหมด
+                # ปิด SCALE_OUT_ENABLED ชั่วคราวเพื่อไม่ให้ตัวมัน scale ซ้ำ
+                send = {
+                    "action":       mt5.TRADE_ACTION_PENDING,
+                    "symbol":       SYMBOL,
+                    "volume":       base_vol,
+                    "type":         order.type,
+                    "price":        float(order.price_open),
+                    "sl":           float(order.sl) if order.sl else 0.0,
+                    "tp":           float(order.tp) if order.tp else 0.0,
+                    "deviation":    20,
+                    "magic":        int(order.magic or 234001),
+                    "comment":      str(order.comment or ""),
+                    "type_time":    mt5.ORDER_TIME_GTC,
+                    "type_filling": mt5.ORDER_FILLING_RETURN,
+                }
+                r2 = mt5.order_send(send)
+                ok2 = r2 is not None and r2.retcode == mt5.TRADE_RETCODE_DONE
+                if ok2:
+                    reset_pending += 1
+                    # อัปเดต pending_order_tf mapping ให้ ticket ใหม่ใช้ค่าเดิม
+                    try:
+                        old_info = pending_order_tf.pop(tk, None)
+                        if old_info is not None:
+                            pending_order_tf[int(r2.order)] = old_info
+                        old_ptf = position_tf.pop(tk, None)
+                        if old_ptf is not None:
+                            position_tf[int(r2.order)] = old_ptf
+                        old_psid = position_sid.pop(tk, None)
+                        if old_psid is not None:
+                            position_sid[int(r2.order)] = old_psid
+                        old_ppat = position_pattern.pop(tk, None)
+                        if old_ppat is not None:
+                            position_pattern[int(r2.order)] = old_ppat
+                    except Exception:
+                        pass
+                else:
+                    rc = r2.retcode if r2 else "None"
+                    errors.append(f"recreate pending {tk}→? fail (retcode {rc})")
+            except Exception as e:
+                errors.append(f"pending {tk} exc: {e}")
+            config.scale_out_state.pop(tk, None)
+            continue
+
+        # ── 3) ticket หายไปแล้ว (ปิด/cancel ไปก่อนหน้า) ──
+        config.scale_out_state.pop(tk, None)
+
+    return {"closed": closed, "reset_pending": reset_pending, "errors": errors}
 
 
 def _close_position(pos, pos_type, comment):
@@ -1183,50 +1475,102 @@ def _trend_filter_trail_override(ticket: int, pos_type: str, order_tf: str) -> t
     return False, ""
 
 
-def _reversal_trail_override(pos_type: str, order_tf: str, current_sl: float) -> tuple[bool, float, str]:
+def _reversal_trail_override(pos_type: str, order_tf: str, current_sl: float, pos_time: int = 0) -> tuple[bool, float, str]:
     """
-    Allow Trail SL to bypass Focus Opposite when the latest closed candle shows
-    an opposite-side reversal pattern on the order TF.
+    เมื่อเจอแท่งจุดกลับตัวฝั่งตรงข้าม ให้ lookback หา Main Engulf ล่าสุด
+    ที่อยู่ก่อนแท่งจุดกลับตัว แล้วใช้ SL จาก engulf นั้น
 
-    BUY position  -> bearish reversal candle
-    SELL position -> bullish reversal candle
+    BUY  → เจอ Red Rejection/Engulf → หา Green Engulf ก่อนหน้า → SL = engulf.low − 1.0
+    SELL → เจอ Green Rejection/Engulf → หา Red Engulf ก่อนหน้า → SL = engulf.high + 1.0
     """
     if not getattr(config, "TRAIL_SL_REVERSAL_OVERRIDE_ENABLED", False):
         return False, 0.0, ""
 
     tf_val = TF_OPTIONS.get(order_tf, mt5.TIMEFRAME_M1)
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, 3)
+    lookback = min(TF_LOOKBACK.get(order_tf, SWING_LOOKBACK), 50)
+    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback)
     if rates is None or len(rates) < 2:
         return False, 0.0, ""
 
-    cur = rates[-1]
-    prev = rates[-2]
+    # กรอง bars ตั้งแต่ entry bar เป็นต้นไป
+    bars = [r for r in rates if pos_time == 0 or int(r["time"]) >= pos_time]
+    if len(bars) < 2:
+        return False, 0.0, ""
 
-    cur_o = float(cur["open"])
-    cur_c = float(cur["close"])
-    cur_h = float(cur["high"])
-    cur_l = float(cur["low"])
+    # ตรวจแท่งปิดล่าสุด (= แท่งจุดกลับตัว)
+    cur  = bars[-1]
+    prev = bars[-2]
+    cur_o  = float(cur["open"])
+    cur_c  = float(cur["close"])
+    cur_h  = float(cur["high"])
+    cur_l  = float(cur["low"])
     prev_h = float(prev["high"])
     prev_l = float(prev["low"])
 
+    reversal_found = False
+    reversal_type  = ""
+
     if pos_type == "BUY":
-        if cur_c >= cur_o:
-            return False, 0.0, ""
-        candidate = round(cur_l - 1.0, 2)
-        if cur_c < prev_l and candidate > current_sl:
-            return True, candidate, f"reversal override [{order_tf}] red engulf"
-        if cur_l < prev_l and prev_l <= cur_c <= prev_h and candidate > current_sl:
-            return True, candidate, f"reversal override [{order_tf}] red rejection"
+        if cur_c < cur_o:  # Red candle
+            if cur_c < prev_l:
+                reversal_found = True
+                reversal_type  = "red engulf"
+            elif cur_l < prev_l and prev_l <= cur_c <= prev_h:
+                reversal_found = True
+                reversal_type  = "red rejection"
+    else:
+        if cur_c > cur_o:  # Green candle
+            if cur_c > prev_h:
+                reversal_found = True
+                reversal_type  = "green engulf"
+            elif cur_h > prev_h and prev_l <= cur_c <= prev_h:
+                reversal_found = True
+                reversal_type  = "green rejection"
+
+    if not reversal_found:
         return False, 0.0, ""
 
-    candidate = round(cur_h + 1.0, 2)
-    if cur_c <= cur_o:
+    # lookback หา Main Engulf ล่าสุดที่อยู่ก่อนแท่งจุดกลับตัว
+    # ค้นใน bars[1 : len-1] (ข้าม entry bar, ไม่รวม reversal bar)
+    reversal_idx = len(bars) - 1
+    best_sl = 0.0
+    best_label = ""
+
+    for i in range(1, reversal_idx):
+        b    = bars[i]
+        bprev = bars[i - 1]
+        b_c  = float(b["close"])
+        b_o  = float(b["open"])
+        b_h  = float(b["high"])
+        b_l  = float(b["low"])
+        ph   = float(bprev["high"])
+        pl   = float(bprev["low"])
+
+        if pos_type == "BUY":
+            # Green Engulf: bull candle, close > prev_high
+            if b_c > b_o and b_c > ph:
+                candidate = round(b_l - 1.0, 2)
+                if candidate > best_sl:
+                    best_sl    = candidate
+                    best_label = f"[{order_tf}] green engulf before {reversal_type}"
+        else:
+            # Red Engulf: bear candle, close < prev_low
+            if b_c < b_o and b_c < pl:
+                candidate = round(b_h + 1.0, 2)
+                if best_sl == 0.0 or candidate < best_sl:
+                    best_sl    = candidate
+                    best_label = f"[{order_tf}] red engulf before {reversal_type}"
+
+    if best_sl == 0.0:
         return False, 0.0, ""
-    if cur_c > prev_h and (current_sl == 0 or candidate < current_sl):
-        return True, candidate, f"reversal override [{order_tf}] green engulf"
-    if cur_h > prev_h and prev_l <= cur_c <= prev_h and (current_sl == 0 or candidate < current_sl):
-        return True, candidate, f"reversal override [{order_tf}] green rejection"
-    return False, 0.0, ""
+
+    # SL ใหม่ต้องดีกว่า SL เดิม
+    if pos_type == "BUY" and best_sl <= current_sl:
+        return False, 0.0, ""
+    if pos_type == "SELL" and current_sl > 0 and best_sl >= current_sl:
+        return False, 0.0, ""
+
+    return True, best_sl, f"reversal override {best_label}"
 
 
 def reset_focus_frozen_side(feature: str):
@@ -1419,6 +1763,154 @@ async def _run_limit_sweep_followup(app, ticket: int, pos_type: str, tf: str,
 
 
 # -------------------------------------------------------------
+async def check_limit_fill_notify(app):
+    """
+    แจ้งเตือน Limit Fill — independent จาก ENTRY_CANDLE_ENABLED
+    ทำงานทุกครั้งที่มี position fill ใหม่ (ทำงานก่อน RSI Recheck)
+    Skip: sid=13 (S13 มี notification ของตัวเอง), S12 (มี flow แยก)
+    First-run guard: suppress positions ที่อายุเกิน _FILL_INIT_SUPPRESS_SEC (กัน re-notify หลัง restart)
+    """
+    global _fill_initialized
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+
+    # First run: suppress only truly old positions
+    if not _fill_initialized:
+        _fill_initialized = True
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        for p in positions:
+            fill_age = max(0, now_ts - int(getattr(p, "time", 0) or 0))
+            if fill_age >= _FILL_INIT_SUPPRESS_SEC:
+                _fill_notified[p.ticket] = True
+
+    now = now_bkk().strftime("%H:%M:%S")
+    for pos in positions:
+        ticket = pos.ticket
+        if ticket in _fill_notified:
+            continue
+        sid = position_sid.get(ticket)
+        if sid in (12, 13):
+            _fill_notified[ticket] = True   # mark to skip future calls
+            continue
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        sig_e = "🟢" if pos_type == "BUY" else "🔴"
+        fvg_info = fvg_order_tickets.get(ticket)
+        pattern_name = position_pattern.get(ticket, "") or ""
+        reverse_tag = " [Reverse]" if pattern_name.startswith("Reverse ") else ""
+        _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
+        try:
+            from scanner import get_trend_label as _gtl
+            _fill_trend = _gtl(_fill_tf)
+        except Exception:
+            _fill_trend = "?"
+
+        _fill_notified[ticket] = True
+        fill_time = _fmt_bkk_ts(int(pos.time))
+        log_event(
+            "ENTRY_FILL",
+            "Limit fill detected",
+            ticket=ticket,
+            side=pos_type,
+            tf=_fill_tf,
+            sid=sid,
+            pattern=pattern_name,
+            price=pos.price_open,
+            sl=pos.sl,
+            tp=pos.tp,
+            fill_time=fill_time,
+            trend=_fill_trend,
+        )
+        await tg(app, (f"🔔 *Limit Fill - {pos_type}{reverse_tag}*\n"
+                      f"{sig_e} Ticket:`{ticket}`\n"
+                      f"📝 Pattern: `{pattern_name or '-'}`\n"
+                      f"📌 เปิดที่: `{pos.price_open:.2f}`\n"
+                      f"🛑 SL: `{pos.sl:.2f}` | 🎯 TP: `{pos.tp:.2f}`\n"
+                      f"🕐 Fill Time: `{fill_time}`"))
+        print(f"[{now}] fill {pos_type} {ticket}={pos.price_open:.2f}")
+        await tg(app, f"Trend At Fill: TF `{_fill_tf}` | Trend `{_fill_trend}`")
+
+
+# -------------------------------------------------------------
+async def check_fill_rsi_recheck(app):
+    """
+    RSI Fill Recheck — เช็ค RSI ตอน position เพิ่ง fill (independent จาก Entry Candle Mode)
+    Gate: `PENDING_RSI_RECHECK_ENABLED`
+    Rule:
+      BUY  → ต้อง RSI < PENDING_RSI_BUY_MAX (default 50) ไม่งั้นปิด position
+      SELL → ต้อง RSI > PENDING_RSI_SELL_MIN (default 50) ไม่งั้นปิด position
+    Skip: sid=13 (S13 มี TP คนละแบบ)
+    """
+    if not getattr(config, "PENDING_RSI_RECHECK_ENABLED", False):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+
+    now = now_bkk().strftime("%H:%M:%S")
+    for pos in positions:
+        ticket = pos.ticket
+        if ticket in _fill_rsi_checked:
+            continue
+        sid = position_sid.get(ticket)
+        # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        sig_e = "🟢" if pos_type == "BUY" else "🔴"
+        fvg_info = fvg_order_tickets.get(ticket)
+        pattern_name = position_pattern.get(ticket, "") or ""
+        _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
+
+        _rsi_result = _pending_rsi_rule_result(pos_type, _fill_tf)
+        if _rsi_result is None:
+            log_event(
+                "ENTRY_FILL_RSI_RECHECK_SKIP",
+                "RSI unavailable after fill",
+                ticket=ticket,
+                side=pos_type,
+                tf=_fill_tf,
+                sid=sid,
+                pattern=pattern_name,
+            )
+            # อย่า mark checked เผื่อ RSI พร้อมรอบหน้า
+            continue
+        if not _rsi_result["allowed"]:
+            _reason = (
+                f"Fill RSI Recheck Fail [{_fill_tf}]: {pos_type} entry:{float(pos.price_open):.2f} | "
+                f"RSI({config.PENDING_RSI_PERIOD})={_rsi_result['rsi']:.2f} | "
+                f"เกณฑ์: BUY < {_rsi_result['threshold_text']} / SELL > {_rsi_result['threshold_text']} | "
+                f"ไม่ผ่าน {_rsi_result['rule']}"
+            )
+            log_event(
+                "ENTRY_FILL_RSI_RECHECK_FAIL",
+                _reason,
+                ticket=ticket,
+                side=pos_type,
+                tf=_fill_tf,
+                sid=sid,
+                pattern=pattern_name,
+                price=pos.price_open,
+                rsi=_rsi_result["rsi"],
+            )
+            ok_close, close_price = _close_position(pos, pos_type, f"fill rsi fail [{_fill_tf}]")
+            status = "ส่งปิดแล้ว" if ok_close else "ส่งปิดไม่สำเร็จ"
+            await tg(app, (
+                f"⚠️ *Fill RSI Recheck ไม่ผ่าน - ปิดทันที*\n"
+                f"{sig_e} Ticket:`{ticket}` [{pos_type}]\n"
+                f"📝 Pattern: `{pattern_name or '-'}`\n"
+                f"📍 TF: `{_fill_tf}`\n"
+                f"📌 Entry: `{float(pos.price_open):.2f}`\n"
+                f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_rsi_result['rsi']:.2f}`\n"
+                f"📏 เกณฑ์: `BUY < {_rsi_result['threshold_text']} / SELL > {_rsi_result['threshold_text']}`\n"
+                f"สถานะ: `{status}`"
+            ))
+            if ok_close:
+                _fill_rsi_checked.add(ticket)
+                print(f"[{now}] fill_rsi_close {pos_type} {ticket} close={close_price:.2f}")
+        else:
+            _fill_rsi_checked.add(ticket)
+
+
+# -------------------------------------------------------------
 async def check_entry_candle_quality(app):
     """
     Check the entry candle for all strategies.
@@ -1437,7 +1929,7 @@ async def check_entry_candle_quality(app):
       BUY:  close>=entry -> close position | close<entry -> SL=next.low-1.0, TP=next.open -> done
       SELL: close<=entry -> close position | close>entry -> SL=next.high+1.0, TP=next.open -> done
     """
-    global _fill_initialized, _last_meta_map_key
+    global _last_meta_map_key
     if not getattr(config, "ENTRY_CANDLE_ENABLED", True):
         return
     positions = mt5.positions_get(symbol=SYMBOL)
@@ -1451,15 +1943,7 @@ async def check_entry_candle_quality(app):
         if t not in open_pos_tickets and t not in open_order_tickets:
             _s8_fill_sl.pop(t, None)
 
-    # First run: suppress only truly old positions to avoid re-notify after restart.
-    # Newly filled positions should still get Limit Fill even if the bot just started.
-    if not _fill_initialized:
-        _fill_initialized = True
-        now_ts = int(datetime.now(timezone.utc).timestamp())
-        for p in positions:
-            fill_age = max(0, now_ts - int(getattr(p, "time", 0) or 0))
-            if fill_age >= _FILL_INIT_SUPPRESS_SEC:
-                _fill_notified[p.ticket] = True
+    # หมายเหตุ: first-run guard ของ _fill_initialized ย้ายไป check_limit_fill_notify() แล้ว
 
     now = now_bkk().strftime("%H:%M:%S")
     open_tickets = {p.ticket for p in positions}
@@ -1495,96 +1979,12 @@ async def check_entry_candle_quality(app):
         if _trade_debug_enabled():
             print(f"[{now}] entry_check: {pos_type} {ticket} state={state} fvg={bool(fvg_order_tickets.get(ticket))} pos_tf={position_tf.get(ticket)}")
 
-        # Notify Limit fill the first time before any focus-skip branch can hide it
+        # ── Limit Fill notify ย้ายไป check_limit_fill_notify() แล้ว (อิสระจาก ENTRY_CANDLE_ENABLED) ──
         fvg_info = fvg_order_tickets.get(ticket)
         pattern_name = position_pattern.get(ticket, "") or ""
-        reverse_tag = " [Reverse]" if pattern_name.startswith("Reverse ") else ""
-        if ticket not in _fill_notified:
-            _fill_notified[ticket] = True
-            fill_time = _fmt_bkk_ts(int(pos.time))
-            _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
-            try:
-                from scanner import get_trend_label as _gtl
-                _fill_trend = _gtl(_fill_tf)
-            except Exception:
-                _fill_trend = "?"
-            log_event(
-                "ENTRY_FILL",
-                "Limit fill detected",
-                ticket=ticket,
-                side=pos_type,
-                tf=_fill_tf,
-                sid=position_sid.get(ticket),
-                pattern=position_pattern.get(ticket, ""),
-                price=pos.price_open,
-                sl=pos.sl,
-                tp=pos.tp,
-                fill_time=fill_time,
-                trend=_fill_trend,
-            )
-            await tg(app, (f"🔔 *Limit Fill - {pos_type}{reverse_tag}*\n"
-                          f"{sig_e} Ticket:`{ticket}`\n"
-                          f"📝 Pattern: `{pattern_name or '-'}`\n"
-                          f"📌 เปิดที่: `{pos.price_open:.2f}`\n"
-                          f"🛑 SL: `{pos.sl:.2f}` | 🎯 TP: `{pos.tp:.2f}`\n"
-                          f"🕐 Fill Time: `{fill_time}`"))
-            print(f"[{now}] fill {pos_type} {ticket}={pos.price_open:.2f}")
 
-            await tg(app, f"Trend At Fill: TF `{_fill_tf}` | Trend `{_fill_trend}`")
-
-        if (
-            sid != 13
-            and ticket not in _fill_rsi_checked
-            and getattr(config, "PENDING_RSI_RECHECK_ENABLED", False)
-        ):
-            _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
-            _rsi_result = _pending_rsi_rule_result(pos_type, _fill_tf)
-            if _rsi_result is None:
-                log_event(
-                    "ENTRY_FILL_RSI_RECHECK_SKIP",
-                    "RSI unavailable after fill",
-                    ticket=ticket,
-                    side=pos_type,
-                    tf=_fill_tf,
-                    sid=position_sid.get(ticket),
-                    pattern=position_pattern.get(ticket, ""),
-                )
-            elif not _rsi_result["allowed"]:
-                _reason = (
-                    f"Fill RSI Recheck Fail [{_fill_tf}]: {pos_type} entry:{float(pos.price_open):.2f} | "
-                    f"RSI({config.PENDING_RSI_PERIOD})={_rsi_result['rsi']:.2f} | "
-                    f"เกณฑ์: BUY < {_rsi_result['threshold_text']} / SELL > {_rsi_result['threshold_text']} | "
-                    f"ไม่ผ่าน {_rsi_result['rule']}"
-                )
-                log_event(
-                    "ENTRY_FILL_RSI_RECHECK_FAIL",
-                    _reason,
-                    ticket=ticket,
-                    side=pos_type,
-                    tf=_fill_tf,
-                    sid=position_sid.get(ticket),
-                    pattern=position_pattern.get(ticket, ""),
-                    price=pos.price_open,
-                    rsi=_rsi_result["rsi"],
-                )
-                ok_close, close_price = _close_position(pos, pos_type, f"fill rsi fail [{_fill_tf}]")
-                status = "ส่งปิดแล้ว" if ok_close else "ส่งปิดไม่สำเร็จ"
-                await tg(app, (
-                    f"⚠️ *Fill RSI Recheck ไม่ผ่าน - ปิดทันที*\n"
-                    f"{sig_e} Ticket:`{ticket}` [{pos_type}]\n"
-                    f"📝 Pattern: `{pattern_name or '-'}`\n"
-                    f"📍 TF: `{_fill_tf}`\n"
-                    f"📌 Entry: `{float(pos.price_open):.2f}`\n"
-                    f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_rsi_result['rsi']:.2f}`\n"
-                    f"📏 เกณฑ์: `BUY < {_rsi_result['threshold_text']} / SELL > {_rsi_result['threshold_text']}`\n"
-                    f"สถานะ: `{status}`"
-                ))
-                if ok_close:
-                    _fill_rsi_checked.add(ticket)
-                    print(f"[{now}] fill_rsi_close {pos_type} {ticket} close={close_price:.2f}")
-                    continue
-            else:
-                _fill_rsi_checked.add(ticket)
+        # ── RSI Fill Recheck ย้ายไป check_fill_rsi_recheck() แล้ว ──
+        # (อิสระจาก ENTRY_CANDLE_ENABLED — ถ้า RSI fail position จะถูกปิดก่อนถึงตรงนี้)
 
         if ticket in entry_focus_skip_tickets:
             continue
@@ -2662,7 +3062,7 @@ async def check_engulf_trail_sl(app):
 
         trend_override, trend_override_reason = _trend_filter_trail_override(ticket, pos_type, order_tf)
         reversal_override, reversal_sl, reversal_override_reason = _reversal_trail_override(
-            pos_type, order_tf, float(pos.sl)
+            pos_type, order_tf, float(pos.sl), int(pos.time)
         )
         if ticket in focus_skip_tickets and not trend_override and not reversal_override:
             continue
@@ -4182,7 +4582,9 @@ async def check_cancel_pending_orders(app):
                             break
 
         # Limit Trend Recheck: verify trend before fill when price gets near entry
-        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (1, 9, 10, 11, 12, 13):
+        # Skip: S1 (zone-based), S9 (RSI div), S10 (CRT-managed), S11 (Fibo)
+        # S12, S13 — ใช้ Trend Recheck (ตามคำขอ 2026-05-18)
+        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (1, 9, 10, 11):
             _tick = mt5.symbol_info_tick(SYMBOL)
             _sym  = mt5.symbol_info(SYMBOL)
             if _tick and _sym:

@@ -817,6 +817,29 @@ async def handle_callback(update, ctx):
         await show_main_settings_menu(query, is_query=True)
         await query.answer(f"Limit Sweep: {'ON' if config.LIMIT_SWEEP else 'OFF'}")
 
+    elif data == "toggle_scale_out":
+        # ── Toggle Triple Scale-Out (TSO) ──────────────────────────
+        new_state = not config.SCALE_OUT_ENABLED
+        config.SCALE_OUT_ENABLED = new_state
+        # ถ้าเปลี่ยนเป็น OFF → ปิด position TSO ทั้งหมด + ลด lot pending กลับเป็น base
+        cleanup_msg = ""
+        if not new_state:
+            try:
+                from trailing import scale_out_cleanup_on_disable
+                summary = scale_out_cleanup_on_disable()
+                cleanup_msg = (
+                    f"\n• ปิด position: {summary.get('closed', 0)}"
+                    f"\n• Reset pending lot: {summary.get('reset_pending', 0)}"
+                )
+                if summary.get("errors"):
+                    cleanup_msg += f"\n⚠️ errors: {summary['errors']}"
+            except Exception as e:
+                cleanup_msg = f"\n⚠️ cleanup error: {e}"
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        status_label = "ON" if new_state else "OFF"
+        await query.answer(f"Scale-Out 3X: {status_label}{cleanup_msg}")
+
     elif data == "cycle_delay_sl":
         cycle = {"off": "time", "time": "price", "price": "off"}
         config.DELAY_SL_MODE = cycle.get(config.DELAY_SL_MODE, "off")

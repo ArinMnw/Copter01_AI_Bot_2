@@ -77,6 +77,10 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     if config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED:
         tf_parts.append("TrailSL")
     trend_filter_suffix = f"🟢ON | {' + '.join(tf_parts)}" if tf_parts else "🔴OFF"
+    scale_out_suffix = (
+        f"🟢ON | ×{config.SCALE_OUT_MULTIPLIER} ({config.scale_out_total_volume()})"
+        if config.SCALE_OUT_ENABLED else "🔴OFF"
+    )
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 เลือก Strategy", callback_data="open_strategy_menu")],
         [InlineKeyboardButton(f"📐 Trail SL: {trail_suffix}", callback_data="open_trail_menu")],
@@ -94,6 +98,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         [InlineKeyboardButton("⏰ ตั้งค่า Scan", callback_data="open_scan_menu")],
         [InlineKeyboardButton("🕐 เลือก Timeframe", callback_data="open_tf_menu")],
         [InlineKeyboardButton(f"📦 Lot Size Auto: {config.AUTO_VOLUME}", callback_data="open_lot_menu")],
+        [InlineKeyboardButton(f"📈 Scale-Out 3X: {scale_out_suffix}", callback_data="toggle_scale_out")],
         [InlineKeyboardButton("♻️ Reset Config", callback_data="reset_config_prompt")],
         [InlineKeyboardButton("🔙 กลับ", callback_data="close_settings")],
     ])
@@ -116,7 +121,8 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         f"🧪 Debug: *Queue {'ON' if config.TG_QUEUE_DEBUG else 'OFF'} | SLTP {'ON' if config.SLTP_AUDIT_DEBUG else 'OFF'} | Trade {'ON' if config.TRADE_DEBUG else 'OFF'}*\n"
         f"⏰ Scan: *ทุก {config.SCAN_INTERVAL} นาที*\n"
         f"🕐 Timeframe: *{tf_summary}*\n"
-        f"📦 Lot Auto: *{config.AUTO_VOLUME}*\n\n"
+        f"📦 Lot Auto: *{config.AUTO_VOLUME}*\n"
+        f"📈 Scale-Out 3X: *{scale_out_suffix}*\n\n"
         f"เลือกเมนูที่ต้องการ:"
     )
     if is_query:

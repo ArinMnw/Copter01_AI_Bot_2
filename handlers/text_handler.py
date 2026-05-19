@@ -20,6 +20,40 @@ from handlers.keyboard import main_keyboard
 from datetime import datetime, timedelta
 
 
+# ── Markdown escape helper ─────────────────────────────────────
+# Telegram Markdown มีตัวอักษรพิเศษที่ทำให้ parser พังถ้าไม่ escape:
+#   ` * _ [ ] (และ \ เอง)
+# ใช้ทั้ง user input และค่าจาก MT5 ที่อาจมี backtick ใน comment
+def _md_escape(s) -> str:
+    if s is None:
+        return ""
+    text = str(s)
+    # escape \ ก่อน (เพื่อไม่ให้กระทบ escape ตัวอื่น)
+    text = text.replace("\\", "\\\\")
+    for ch in ("`", "*", "_", "[", "]"):
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
+
+# ── Safe reply: ลอง Markdown ก่อน ถ้า parse fail → fallback plain text ──
+async def _safe_reply_md(message, text: str, **kwargs):
+    """
+    พยายามตอบด้วย parse_mode='Markdown' ถ้า BadRequest (entity error)
+    → ลอง plain text เป็น fallback
+    """
+    try:
+        return await message.reply_text(text, parse_mode="Markdown", **kwargs)
+    except Exception as e:
+        emsg = str(e).lower()
+        if "can't parse entities" in emsg or "parse entities" in emsg:
+            # Markdown พัง — fallback plain text
+            try:
+                return await message.reply_text(text, **kwargs)
+            except Exception:
+                pass
+        raise
+
+
 # Route map: ข้อความปุ่ม → handler function
 BUTTON_ROUTES = {
     "📈 ราคาทอง":        handle_btn_price,
@@ -236,9 +270,9 @@ async def _handle_ticket_lookup(update, ticket: int):
 
 
     if not pos and not cur_order and not linked_orders and not linked_deals:
-        await update.message.reply_text(
+        await _safe_reply_md(
+            update.message,
             f"🔎 ไม่พบข้อมูล ticket `{ticket}` ใน current/history 30 วัน",
-            parse_mode="Markdown",
             reply_markup=main_keyboard()
         )
         return
@@ -246,47 +280,53 @@ async def _handle_ticket_lookup(update, ticket: int):
     lines = [
         f"🔎 *Ticket Lookup*",
         f"🔖 Ticket: `{ticket}`",
-        f"🕒 Time Mode: `{tz_summary}`",
-        f"🕐 TF: `{tf_name}` | SID: `{sid}`",
-        f"🏷 Pattern: `{pattern}`",
-        f"📋 Entry state: `{entry_state}`",
+        f"🕒 Time Mode: `{_md_escape(tz_summary)}`",
+        f"🕐 TF: `{_md_escape(tf_name)}` | SID: `{_md_escape(sid)}`",
+        f"🏷 Pattern: `{_md_escape(pattern)}`",
+        f"📋 Entry state: `{_md_escape(entry_state)}`",
     ]
 
     if trail_state:
-        lines.append(f"📐 Trail state: `{trail_state}`")
+        lines.append(f"📐 Trail state: `{_md_escape(trail_state)}`")
 
     if pos:
         side = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         lines += [
             "",
             "*Current Position*",
-            f"{side} {pos.symbol} vol=`{pos.volume}`",
+            f"{side} {_md_escape(pos.symbol)} vol=`{pos.volume}`",
             f"📌 Open:`{pos.price_open}` | 🛑 SL:`{pos.sl}` | 🎯 TP:`{pos.tp}`",
-            f"💵 Profit:`{pos.profit}` | Time:`{_fmt_dt(pos.time)}`",
+            f"💵 Profit:`{pos.profit}` | Time:`{_md_escape(_fmt_dt(pos.time))}`",
         ]
 
     if cur_order:
         lines += [
             "",
             "*Current Pending/Order*",
-            f"`{_order_type_name(cur_order.type)}` {cur_order.symbol} vol=`{getattr(cur_order, 'volume_current', cur_order.volume_initial)}`",
+            f"`{_md_escape(_order_type_name(cur_order.type))}` {_md_escape(cur_order.symbol)} "
+            f"vol=`{getattr(cur_order, 'volume_current', cur_order.volume_initial)}`",
             f"📌 Open:`{cur_order.price_open}` | 🛑 SL:`{cur_order.sl}` | 🎯 TP:`{cur_order.tp}`",
-            f"🕐 Time:`{_fmt_dt(cur_order.time_setup)}` | Comment:`{getattr(cur_order, 'comment', '')}`",
+            f"🕐 Time:`{_md_escape(_fmt_dt(cur_order.time_setup))}` | "
+            f"Comment:`{_md_escape(getattr(cur_order, 'comment', ''))}`",
         ]
 
     if linked_orders:
         lines += ["", "*Order History*"]
         for o in sorted(linked_orders, key=lambda x: getattr(x, "time_setup", 0))[-8:]:
             lines.append(
-                f"`{_fmt_dt(getattr(o, 'time_setup', 0))}` {_order_type_name(o.type)} state=`{getattr(o, 'state', '-')}` "
-                f"open=`{getattr(o, 'price_open', 0)}` sl=`{getattr(o, 'sl', 0)}` tp=`{getattr(o, 'tp', 0)}`"
+                f"`{_md_escape(_fmt_dt(getattr(o, 'time_setup', 0)))}` "
+                f"{_md_escape(_order_type_name(o.type))} "
+                f"state=`{_md_escape(getattr(o, 'state', '-'))}` "
+                f"open=`{getattr(o, 'price_open', 0)}` "
+                f"sl=`{getattr(o, 'sl', 0)}` tp=`{getattr(o, 'tp', 0)}`"
             )
 
     if linked_deals:
         lines += ["", "*Deal History*"]
         for d in sorted(linked_deals, key=lambda x: getattr(x, "time", 0))[-12:]:
             lines.append(
-                f"`{_fmt_dt(getattr(d, 'time', 0))}` {_deal_type_name(d.type)}/{_deal_entry_name(d.entry)} "
+                f"`{_md_escape(_fmt_dt(getattr(d, 'time', 0)))}` "
+                f"{_md_escape(_deal_type_name(d.type))}/{_md_escape(_deal_entry_name(d.entry))} "
                 f"price=`{getattr(d, 'price', 0)}` vol=`{getattr(d, 'volume', 0)}` "
                 f"profit=`{round(float(getattr(d, 'profit', 0.0)), 2)}`"
             )
@@ -295,7 +335,7 @@ async def _handle_ticket_lookup(update, ticket: int):
     if len(text) > 3900:
         text = text[:3900] + "\n\n`...truncated...`"
 
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_keyboard())
+    await _safe_reply_md(update.message, text, reply_markup=main_keyboard())
 
 async def start(update, context):
     if not auth(update):

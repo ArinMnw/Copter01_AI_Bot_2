@@ -84,3 +84,28 @@
 - เป็น toggle แยกที่อยู่หน้า settings ชั้นนอกสุด ไม่รวมอยู่ใน submenu อื่น
 - callback: `toggle_trail_reversal_override`
 - ใช้ config `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`
+
+## Toggle Scale-Out 3X (Triple Scale-Out)
+
+- ปุ่ม: `📈 Scale-Out 3X: 🟢ON | ×N` / `🔴OFF`
+  - `N` = จำนวน effective steps (dynamic ตาม TP เดิม) — 1 ถึง 4
+- อยู่หน้า settings ชั้นนอกสุด ใต้ปุ่ม `📦 Lot Size Auto`
+- callback: `toggle_scale_out`
+- ใช้ config `SCALE_OUT_ENABLED` (default `True`)
+- Dynamic effective steps (ตั้งแต่ 2026-05-18):
+  - คำนวณ steps จาก TP เดิมของ order ผ่าน `config.compute_tso_effective_steps(tp_orig_dist)`
+  - filter `SCALE_OUT_TP_POINTS = [300, 700, 1000]` ที่ ≤ TP เดิม + append TP เดิมเป็น step สุดท้าย
+  - ถ้า TP เดิม < 300pt → ใช้ TP1 step เดียว (override TP)
+  - Lot รวม = `len(effective_steps) × base_volume`
+- เมื่อกดปิด (ON→OFF) จะเรียก `scale_out_cleanup_on_disable()` ใน `trailing.py` ทันที:
+  - position TSO ที่ fill แล้ว → ปิดทั้งหมด
+  - pending TSO → cancel + สร้างใหม่ด้วย lot เดิม
+  - callback notification แสดงสรุป `closed: N` / `reset_pending: M`
+- **S13**: ไม่ scale lot แต่สร้าง orders 1-4 ตาม effective steps (TP ของแต่ละ order = step distance)
+
+## Markdown Safety ใน ticket lookup
+
+- helper `_md_escape(s)` ใน `handlers/text_handler.py` — escape `\`, `` ` ``, `*`, `_`, `[`, `]`
+- `_safe_reply_md(message, text, **kwargs)` — ลอง `parse_mode="Markdown"` ก่อน
+  - ถ้า `BadRequest` (`can't parse entities`) → **fallback เป็น plain text**
+- ใช้ใน `_handle_ticket_lookup` เพื่อกัน silent fail เมื่อ comment/pattern มีตัวอักษรพิเศษ

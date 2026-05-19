@@ -197,6 +197,20 @@ async def check_sl_tp_hits(app):
                 )
             except Exception:
                 pass
+
+        # ── S10: notify strategy10 ว่า ticket ปิดแล้ว (สำหรับ continuous re-trigger) ──
+        try:
+            if sid_label == 10:
+                from strategy10 import handle_ticket_closed
+                from trailing import pending_order_tf, position_tf as _ptf
+                # หา htf_tf จาก pending_order_tf หรือ position metadata
+                _info = pending_order_tf.get(ticket) or {}
+                _htf_tf = _info.get("s10_htf_tf", "")
+                if _htf_tf:
+                    handle_ticket_closed(_htf_tf, ticket, close_type)
+        except Exception:
+            pass
+
         _config.tracked_positions.pop(ticket, None)
 
     # อัพเดท tracked_positions ด้วย positions ใหม่ + sync SL/TP ที่เปลี่ยนไป

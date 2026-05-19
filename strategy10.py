@@ -32,6 +32,47 @@ from config import (
 )
 import config as _config
 
+try:
+    import MetaTrader5 as mt5
+except Exception:
+    mt5 = None
+
+
+def _min_sl_distance() -> float:
+    """
+    คำนวณ minimum SL distance (price units) ที่ broker ยอมรับ
+    ใช้ symbol_info.stops_level (broker's freeze level) + safety buffer
+    fallback = 30 points (= $0.30 บน XAU, $1.20 บน BTC ผ่าน points_scale)
+    """
+    try:
+        if mt5 is None:
+            raise RuntimeError("mt5 not available")
+        info = mt5.symbol_info(_config.SYMBOL)
+        if info is None:
+            raise RuntimeError("symbol_info None")
+        point = float(getattr(info, "point", 0.01) or 0.01)
+        stops_level = int(getattr(info, "trade_stops_level", 0) or 0)
+        # buffer เพิ่มเพื่อกัน slippage + spread
+        buffer_pts = 20
+        min_pts = max(stops_level + buffer_pts, 30)
+        return float(min_pts) * point * _config.points_scale()
+    except Exception:
+        # fallback: 30 points × points_scale
+        return 0.30 * _config.points_scale()
+
+
+def _sl_distance_ok(direction: str, entry: float, sl: float) -> tuple:
+    """
+    เช็คว่า SL ห่าง entry พอที่ broker จะรับได้ไหม
+    return (ok, actual_dist, min_dist)
+    """
+    if direction == "BUY":
+        actual = entry - sl
+    else:
+        actual = sl - entry
+    min_d = _min_sl_distance()
+    return (actual >= min_d, actual, min_d)
+
 # ── LTF mapping for MTF mode ──────────────────────────────────────
 _HTF_TO_LTF = {
     "D1":  "M15",
@@ -53,8 +94,21 @@ _TF_SECONDS = {
 # ── Armed states for MTF mode ─────────────────────────────────────
 # {htf_tf: {direction, sl_target, tp_target, armed_at, htf_tf, ltf_tf, candles, pattern_base}}
 _armed_states: dict = {}
-# track armed_at ที่เคย fire order แล้ว — ป้องกัน re-arm ด้วย HTF bar เดิม
-_last_fired_armed_at: dict = {}  # {htf_tf: armed_at}
+# track HTF bar window (start unix time) ที่เคย fire order ไปแล้ว
+# ป้องกัน re-fire ใน HTF bar เดียวกัน ไม่ว่ามาจาก main-scan arm หรือ pre-arm
+_last_fired_armed_at: dict = {}  # {htf_tf: htf_bar_start_unix}  (legacy name kept for state restore)
+
+
+def _current_htf_bar_start(htf_tf: str) -> int:
+    """
+    คืน unix timestamp ของ HTF bar ที่กำลังเปิดอยู่ตอนนี้ (in-progress bar open time).
+    ใช้เป็น key กลางสำหรับ guard ทั้ง main-scan และ pre-arm
+    เพื่อให้ทั้ง 2 paths กัน re-fire ใน HTF bar เดียวกัน
+    """
+    import time as _time
+    secs = _TF_SECONDS.get(htf_tf, 3600)
+    now_unix = int(_time.time())
+    return (now_unix // secs) * secs
 
 
 def _candle_dict(c):
@@ -247,6 +301,14 @@ def _strategy_10_2bar(rates):
                         f"(SL:{sl:.2f} Entry:{entry:.2f} TP:{tp:.2f})"
                     )
                     continue
+                # Min SL distance guard
+                sl_ok, sl_dist, sl_min = _sl_distance_ok("BUY", entry, sl)
+                if not sl_ok:
+                    last_reason = (
+                        f"[2bar BUY] Sweep {sweep_ts} SL ชิด entry เกิน "
+                        f"({sl_dist:.2f} < {sl_min:.2f})"
+                    )
+                    continue
                 risk = entry - sl
                 rr   = round((tp - entry) / risk, 2) if risk > 0 else 0
                 best_si     = si
@@ -279,6 +341,14 @@ def _strategy_10_2bar(rates):
                     last_reason = (
                         f"[2bar SELL] Sweep {sweep_ts} SL/TP ไม่ valid "
                         f"(TP:{tp:.2f} Entry:{entry:.2f} SL:{sl:.2f})"
+                    )
+                    continue
+                # Min SL distance guard
+                sl_ok, sl_dist, sl_min = _sl_distance_ok("SELL", entry, sl)
+                if not sl_ok:
+                    last_reason = (
+                        f"[2bar SELL] Sweep {sweep_ts} SL ชิด entry เกิน "
+                        f"({sl_dist:.2f} < {sl_min:.2f})"
                     )
                     continue
                 risk = sl - entry
@@ -354,6 +424,11 @@ def _strategy_10_3bar(rates):
         tp    = round(p_high, 2)
         if not (sl < entry < tp):
             return {"signal": "WAIT", "reason": "[3bar BUY] SL/TP ไม่ valid"}
+        # Min SL distance guard
+        sl_ok, sl_dist, sl_min = _sl_distance_ok("BUY", entry, sl)
+        if not sl_ok:
+            return {"signal": "WAIT",
+                    "reason": f"[3bar BUY] SL ชิด entry เกิน ({sl_dist:.2f} < {sl_min:.2f})"}
         risk = entry - sl
         rr = round((tp - entry) / risk, 2) if risk > 0 else 0
         return {
@@ -383,6 +458,11 @@ def _strategy_10_3bar(rates):
         tp    = round(p_low, 2)
         if not (tp < entry < sl):
             return {"signal": "WAIT", "reason": "[3bar SELL] SL/TP ไม่ valid"}
+        # Min SL distance guard
+        sl_ok, sl_dist, sl_min = _sl_distance_ok("SELL", entry, sl)
+        if not sl_ok:
+            return {"signal": "WAIT",
+                    "reason": f"[3bar SELL] SL ชิด entry เกิน ({sl_dist:.2f} < {sl_min:.2f})"}
         risk = sl - entry
         rr = round((entry - tp) / risk, 2) if risk > 0 else 0
         return {
@@ -482,10 +562,17 @@ def _strategy_10_mtf(rates, tf_name: str):
         if _is_armed_expired(state, rates, htf):
             _armed_states.pop(htf, None)
             continue
+        # ถ้ามี fired_tickets ที่ยัง open อยู่ — รอ position ปิดก่อน (ไม่ search Model ใหม่)
+        if state.get("fired_tickets"):
+            continue
         trigger = _check_ltf_trigger(rates, state, tf_name, htf)
         if trigger:
-            _last_fired_armed_at[htf] = state["armed_at"]  # กัน re-arm ด้วย bar เดิม
-            _armed_states.pop(htf, None)   # consumed
+            # ใช้ current HTF bar window เป็น guard (เพื่อ track fire activity)
+            _last_fired_armed_at[htf] = _current_htf_bar_start(htf)
+            # ── ไม่ pop armed state — เก็บไว้สำหรับ continuous re-trigger ──
+            # หลัง orders fill + ปิด (TP/SL) → trailing.py จะ reset fired_tickets
+            # หรือ scanner.py จะ append tickets ลง state["fired_tickets"]
+            state["fire_count"] = int(state.get("fire_count", 0)) + 1
             return trigger
 
     # Step 2: ถ้า TF นี้เป็น HTF ใน mapping → run detection + arm
@@ -503,22 +590,32 @@ def _strategy_10_mtf(rates, tf_name: str):
     return {"signal": "WAIT", "reason": f"S10 MTF: TF {tf_name} ไม่อยู่ใน HTF/LTF mapping"}
 
 
-def _arm_htf_state(htf_result, htf_tf: str, rates):
+def _arm_htf_state(htf_result, htf_tf: str, rates, pre_arm: bool = False):
     if rates is None or len(rates) == 0:
         return
+    # ถ้ามี arm เดิมที่ยัง alive (มี fired_tickets) — ไม่ต้อง re-arm
+    existing = _armed_states.get(htf_tf)
+    if existing and existing.get("fired_tickets"):
+        return  # มี active orders → keep existing arm
     last_bar = rates[-1]
     new_armed_at = int(last_bar["time"])
-    if new_armed_at == _last_fired_armed_at.get(htf_tf):
-        return  # HTF bar นี้เคย fire order ไปแล้ว — ไม่ re-arm
+    # guard ด้วย current HTF bar window — ครอบทั้ง main-scan และ pre-arm
+    if _current_htf_bar_start(htf_tf) == _last_fired_armed_at.get(htf_tf):
+        return  # HTF bar ปัจจุบันเคย fire order ไปแล้ว — ไม่ re-arm
     new_state = {
-        "direction":    htf_result["signal"],
-        "sl_target":    float(htf_result["sl"]),
-        "tp_target":    float(htf_result["tp"]),
-        "armed_at":     int(last_bar["time"]),
-        "htf_tf":       htf_tf,
-        "ltf_tf":       _HTF_TO_LTF[htf_tf],
-        "candles":      htf_result.get("candles", []),
-        "pattern_base": htf_result.get("pattern", ""),
+        "direction":      htf_result["signal"],
+        "sl_target":      float(htf_result["sl"]),
+        "tp_target":      float(htf_result["tp"]),
+        "armed_at":       int(last_bar["time"]),
+        "htf_tf":         htf_tf,
+        "ltf_tf":         _HTF_TO_LTF[htf_tf],
+        "candles":        htf_result.get("candles", []),
+        "pattern_base":   htf_result.get("pattern", ""),
+        # ── New fields สำหรับ continuous re-arm ──
+        "pre_arm":        bool(pre_arm),         # True ถ้ามาจาก pre-arm path
+        "fired_tickets":  [],                     # tickets ที่ fire ปัจจุบัน (รอ close)
+        "awaiting_choch": False,                  # รอ Model 3 (CHoCH) confirm
+        "fire_count":     0,                      # นับครั้ง fire ของ arm นี้
     }
     # ถ้าแท่ง HTF ที่เป็น sweep แตะ target ไปแล้ว setup ถือว่าหมดความสด ไม่ต้อง arm
     if _arm_target_hit_reason(new_state, rates, htf_tf):
@@ -812,15 +909,71 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
                 "entry_label": "BUY LIMIT ที่" if direction == "BUY" else "SELL LIMIT ที่",
             })
 
-    if not model_orders:
+    # ── New rule: ต้องเจอทั้ง Model 1 AND Model 2 (ไม่ใช่ OR) ──
+    # ถ้าตัวใดตัวหนึ่งหายไป → ยังไม่ fire (รอเจอครบ)
+    if len(model_orders) < 2:
         return None
 
+    # ── CHoCH gate: ถ้า awaiting_choch (หลัง SL ของ pre-arm orders) ──
+    # ต้องมี Model 3 ใหม่ + Model 1/2 ต้องอยู่ก่อนแท่ง CHoCH
+    awaiting_choch = bool(state.get("awaiting_choch", False))
+    if awaiting_choch:
+        if m3_idx is None:
+            try:
+                from bot_log import log_event
+                log_event(
+                    "S10_AWAIT_CHOCH",
+                    f"รอ Model 3 (CHoCH) confirm ก่อนเข้า Model 1, 2 ใหม่",
+                    tf=ltf_tf, sid=10, signal=direction, htf_ltf=f"{htf_tf}_{ltf_tf}",
+                )
+            except Exception:
+                pass
+            return None
+        # Model 1, 2 ต้องอยู่ก่อนแท่ง CHoCH (m3_idx)
+        if (m1_idx is None or m1_idx >= m3_idx) or (m2_idx is None or m2_idx >= m3_idx):
+            try:
+                from bot_log import log_event
+                log_event(
+                    "S10_AWAIT_MODELS_BEFORE_CHOCH",
+                    f"Model 1, 2 ต้องอยู่ก่อนแท่ง CHoCH ({m3_idx}) — m1_idx={m1_idx}, m2_idx={m2_idx}",
+                    tf=ltf_tf, sid=10, signal=direction,
+                )
+            except Exception:
+                pass
+            return None
+
     trigger_idx = max(i for i in (m1_idx, m2_idx, m3_idx, phase1_idx) if i is not None)
+    risk = abs(round(float(model_orders[0]["entry"]), 2) - sl)
+    reward = abs(tp - round(float(model_orders[0]["entry"]), 2))
+    rr = round(reward / risk, 2) if risk > 0 else 0
+
+    # ── Min SL distance guard (เช็คทุก order ใน list) ───────────
+    valid_orders = []
+    for spec in model_orders:
+        spec_entry = round(float(spec.get("entry", 0)), 2)
+        sl_ok, sl_dist, sl_min = _sl_distance_ok(direction, spec_entry, sl)
+        if sl_ok:
+            valid_orders.append(spec)
+        else:
+            try:
+                from bot_log import log_event
+                log_event(
+                    "S10_TRIGGER_SKIP_MIN_SL",
+                    f"SL ชิด entry เกิน — actual={sl_dist:.2f} min={sl_min:.2f} | "
+                    f"{direction} entry={spec_entry} sl={sl} (Model{spec.get('model')})",
+                    tf=ltf_tf, sid=10, signal=direction, htf_ltf=f"{htf_tf}_{ltf_tf}",
+                    entry=spec_entry, sl=sl, tp=tp,
+                )
+            except Exception:
+                pass
+
+    # ต้องผ่าน Min SL ทั้ง 2 ครบถึงจะ fire
+    if len(valid_orders) < 2:
+        return None
+
+    model_orders = valid_orders
     entry = round(float(model_orders[0]["entry"]), 2)
     model_used = int(model_orders[0]["model"])
-    risk = abs(entry - sl)
-    reward = abs(tp - entry)
-    rr = round(reward / risk, 2) if risk > 0 else 0
 
     return {
         "signal":     direction,
@@ -986,15 +1139,17 @@ def try_pre_arm_htf(htf_tf: str, htf_rates_with_current) -> bool:
     except Exception:
         return False
 
-    # ตรวจว่าเคย fire order ด้วย bar นี้แล้วไหม (armed_at = current bar time)
-    if t_cur == _last_fired_armed_at.get(htf_tf):
+    # ตรวจว่าเคย fire order ใน HTF bar window ปัจจุบันแล้วไหม
+    # (ครอบทั้ง main-scan และ pre-arm — ใช้ค่าเดียวกัน)
+    if _current_htf_bar_start(htf_tf) == _last_fired_armed_at.get(htf_tf):
         return False
 
     result = _strategy_10_2bar_pre_sweep(htf_rates_with_current)
     if result.get("signal") not in ("BUY", "SELL"):
         return False
 
-    _arm_htf_state(result, htf_tf, htf_rates_with_current)
+    # pre_arm=True เพื่อให้ trailing.py รู้ว่าต้องรอ CHoCH หลัง SL hit
+    _arm_htf_state(result, htf_tf, htf_rates_with_current, pre_arm=True)
     return _armed_states.get(htf_tf) is not None
 
 
@@ -1006,3 +1161,47 @@ def reset_mtf_state(htf_tf: str = ""):
     else:
         _armed_states.clear()
         _last_fired_armed_at.clear()
+
+
+def register_fired_tickets(htf_tf: str, tickets: list):
+    """เรียกจาก scanner.py หลัง fire S10 orders สำเร็จ — บันทึก ticket ลง arm state"""
+    state = _armed_states.get(htf_tf)
+    if not state:
+        return
+    state.setdefault("fired_tickets", []).extend([int(t) for t in tickets if t])
+
+
+def handle_ticket_closed(htf_tf: str, ticket: int, close_reason: str = ""):
+    """
+    เรียกจาก trailing.py เมื่อ S10 ticket ปิด (TP/SL hit หรือ manual close)
+    - TP hit (close ใกล้ tp_target) → consume arm (success)
+    - SL hit → ลบ ticket ออกจาก fired_tickets
+       - ถ้า pre_arm=True และ fired_tickets ว่างหมด → set awaiting_choch=True
+       - ถ้า pre_arm=False และ fired_tickets ว่างหมด → ready for next Model 1+2 search
+    - ราคาทะลุ parent → invalidate arm (handled in _arm_target_hit_reason)
+    """
+    state = _armed_states.get(htf_tf)
+    if not state:
+        return
+    fired = state.get("fired_tickets", [])
+    try:
+        ticket_int = int(ticket)
+    except Exception:
+        return
+    if ticket_int in fired:
+        fired.remove(ticket_int)
+    state["fired_tickets"] = fired
+
+    reason_lower = (close_reason or "").lower()
+    if "tp" in reason_lower:
+        # TP hit — arm success → cleanup completely
+        _armed_states.pop(htf_tf, None)
+        _last_fired_armed_at.pop(htf_tf, None)
+        return
+
+    # SL hit หรือ close อื่น → เช็คว่าทั้ง 2 ticket ปิดหมดหรือยัง
+    if not fired:
+        if state.get("pre_arm"):
+            state["awaiting_choch"] = True
+        # reset fire window guard เพื่อให้ retry ใน HTF bar เดิมได้
+        _last_fired_armed_at.pop(htf_tf, None)

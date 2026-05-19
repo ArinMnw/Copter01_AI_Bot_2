@@ -19,6 +19,9 @@
 - `_s6i_state`: state ของ S6i
 - `_armed_states` (`strategy10.py`): per-HTF armed state ของท่า 10 MTF mode — เก็บ `direction, sl_target, tp_target, armed_at, htf_tf, ltf_tf, candles, pattern_base`
 - `_s11_state` (`strategy11.py`): per-TF anchor + phase ของท่า 11 (ไม่ persist)
+- `scale_out_state` (`config.py`): per-ticket state ของ Triple Scale-Out — เก็บ `direction, entry, original_volume, base_volume, per_tp_volume, tp_distances (dynamic 1-4 steps), step, is_pending, sid, tp_original`
+  - `tp_distances` ถูกคำนวณ runtime ตาม TP เดิมของ order ผ่าน `compute_tso_effective_steps()` (1-4 effective steps)
+  - `step` ขึ้นถึง `len(tp_distances) - 1`
 
 ## S12 State
 
@@ -81,10 +84,14 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 - `ENTRY_CANDLE_UPDATE_TP`: toggle ตรงจากหน้าหลัก
 - `LIMIT_SWEEP`: toggle ตรงจากหน้าหลัก
 - `DELAY_SL_MODE`: `off` / `time` / `price`
+- `SCALE_OUT_ENABLED`: gate ของ Triple Scale-Out (default `True`)
 
 State อื่น ๆ ที่ persist:
 
 - `s10_armed_states`: snapshot ของ `_armed_states` ใน `strategy10.py` (in-place restore)
+  - field ใหม่ (2026-05-18): `pre_arm`, `fired_tickets`, `awaiting_choch`, `fire_count`
+  - ใช้สำหรับ continuous re-trigger flow + CHoCH gate
+- `scale_out_state`: snapshot ของ TSO state - restore เฉพาะ ticket ที่ยังมีจริงใน MT5
 
 ## BTC Lot / Points Scaling
 

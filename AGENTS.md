@@ -198,6 +198,39 @@ mode ที่รองรับ:
 - `ENTRY_CANDLE_ENABLED` เป็น master toggle - ถ้า `False` `check_entry_candle_quality()` จะ return ทันที
 - default ปัจจุบันคือ `ENTRY_CANDLE_ENABLED = False`
 
+## Limit Fill Notify
+
+- ฟังก์ชัน: `check_limit_fill_notify(app)` ใน `trailing.py`
+- **อิสระจาก `ENTRY_CANDLE_ENABLED`** — ทำงานทุกครั้งเมื่อมี position fill ใหม่
+- รันใน `main.py` `run_position_check` **ก่อนสุด** (ก่อน RSI recheck และ entry candle)
+- ใช้ set `_fill_notified` กันแจ้งซ้ำ
+- First-run guard: positions ที่อายุเกิน `_FILL_INIT_SUPPRESS_SEC` (180s) จะถูก mark notified ตอน restart (กัน re-notify)
+- Skip: `sid=12, 13` (มี flow notification ของตัวเอง)
+- ส่ง Telegram 2 ข้อความ: "Limit Fill" + "Trend At Fill"
+- log event: `ENTRY_FILL`
+
+## RSI Fill Recheck
+
+- ฟังก์ชัน: `check_fill_rsi_recheck(app)` ใน `trailing.py`
+- **อิสระจาก `ENTRY_CANDLE_ENABLED`** — gate ด้วย `PENDING_RSI_RECHECK_ENABLED` เท่านั้น
+- รันใน `main.py` `run_position_check` **ก่อน** `check_entry_candle_quality` (ถ้า fail จะปิด position ทันที)
+- ครอบคลุม **ทุก sid** (รวม S12, S13 — เปิดตั้งแต่ 2026-05-18)
+
+## Limit Trend Recheck
+
+- อยู่ใน `check_cancel_pending_orders` (trailing.py)
+- เช็ค trend ก่อน fill เมื่อราคาใกล้ entry (`LIMIT_TREND_RECHECK_POINTS` = 300pt)
+- ถ้า trend ไม่ allow → cancel pending
+- **Skip**: S1 (zone-based), S9 (RSI div), S10 (CRT-managed), S11 (Fibo)
+- **Apply**: S2, S3, S4, S5, S6, S8, **S12, S13** (เปิดตั้งแต่ 2026-05-18)
+- กฎ:
+  - BUY  → ต้อง `RSI < PENDING_RSI_BUY_MAX` (default `50.0`) ไม่งั้นปิด
+  - SELL → ต้อง `RSI > PENDING_RSI_SELL_MIN` (default `50.0`) ไม่งั้นปิด
+- ใช้ `_pending_rsi_rule_result(side, tf)` คำนวณ RSI ของ TF ที่ position เปิด
+- เก็บใน set `_fill_rsi_checked` กันไม่ให้เช็คซ้ำต่อ ticket
+- skip: `sid=13` (S13 มี TP/SL คนละแบบ)
+- log events: `ENTRY_FILL_RSI_RECHECK_FAIL`, `ENTRY_FILL_RSI_RECHECK_SKIP` (กรณี RSI unavailable)
+
 ## พฤติกรรมสำคัญของระบบ
 
 ### Trail SL
@@ -296,6 +329,22 @@ mode ที่รองรับ:
 - ใช้ M15+ เท่านั้น
 - Market BUY/SELL ทันที่ HTF sweep ปิดยืนยัน
 
+**MTF mode — Continuous re-trigger flow (ใหม่):**
+
+- Trigger ต้องเจอ **ทั้ง Model 1 AND Model 2** (ไม่ใช่ OR เหมือนเดิม) ก่อน fire
+- เมื่อเจอครบ → fire **2 orders** (entry Model 1 + entry Model 2)
+- หลัง fire — `register_fired_tickets()` บันทึก ticket ลง `arm_state["fired_tickets"]`
+- `arm_state` **ไม่ถูก consume** หลัง fire — เก็บไว้สำหรับ re-trigger
+- ถ้ามี `fired_tickets` ใน arm → ไม่ search Model ใหม่ (รอ position ปิดก่อน)
+- เมื่อ ticket ปิด (TP/SL) → `handle_ticket_closed()` ลบจาก list
+  - **TP hit** → consume arm (success cleanup)
+  - **SL hit ทั้งคู่** → reset ready for next search
+    - ถ้า `pre_arm=True` → set `awaiting_choch=True` (รอ CHoCH ก่อนค่อยหา Model ใหม่)
+    - ถ้า `pre_arm=False` (normal arm) → ค้น Model 1+2 ใหม่ได้ทันที
+- ถ้า `awaiting_choch=True`:
+  - ค้น Model 3 (MSS) — ถ้าไม่เจอ → wait
+  - ถ้าเจอ Model 3 — Model 1, 2 ใหม่ต้องอยู่**ก่อนแท่ง CHoCH** ถึงจะ valid
+
 **MTF mode (Entry Model 3 - CRT TBS Classic):**
 - LTF mapping: D1/H12→M15, H4→M5, H1/M30/M15→M1
 - Phase 1: failed-push (BUY=RED+close<parent.low / SELL=GREEN+close>parent.high)
@@ -316,6 +365,21 @@ mode ที่รองรับ:
 - `armed_at` = HTF sweep candle's open time
 - expiry = `armed_at + 2 × htf_secs`
 - pending MTF ถูกยกเลิกทันทีถ้าก่อน fill ราคาไปแตะ HTF parent low/high ฝั่งตรงข้ามของ setup แล้ว
+
+**Re-arm guard (กัน duplicate orders ใน HTF bar เดียวกัน):**
+
+- `_last_fired_armed_at[htf_tf]` เก็บ **HTF bar window start (unix)** ของ bar ที่ fire ไปแล้ว
+- helper `_current_htf_bar_start(htf_tf)` = `(now // htf_secs) * htf_secs`
+- main scan และ pre-arm ใช้ค่าเดียวกัน → guard ครอบทั้ง 2 paths
+- ก่อนหน้านี้เคยเกิด bug: main scan ตั้ง `_last_fired = last_closed_bar_time`, pre-arm ตั้ง = `in-progress_bar_time` → 2 paths ไม่กัน → duplicate orders
+
+**Min SL Distance Guard:**
+
+- helper `_sl_distance_ok(direction, entry, sl)` เช็คก่อน return result
+- ใช้ `mt5.symbol_info(SYMBOL).trade_stops_level + 20pt buffer` (fallback 30pt × `points_scale`)
+- ป้องกัน broker reject pending order ที่ SL ชิด entry เกินไป
+- ใช้ใน: `_check_ltf_trigger` (MTF mode), `_strategy_10_2bar`/`_strategy_10_3bar` (HTF mode)
+- ถ้าไม่ผ่าน — return None/`WAIT` พร้อม log `S10_TRIGGER_SKIP_MIN_SL`
 
 **Comment format:**
 - HTF mode: `<TF>_S10`
@@ -364,11 +428,83 @@ mode ที่รองรับ:
 - ใช้กับ `get_volume()` และระยะ point ทุกจุด (engulf min, CRT min/buffer, trailing offsets)
 - Telegram UI ยังเห็นค่า config base ของ XAUUSD - scaling ทำหลังบ้าน
 
+### Triple Scale-Out (TSO) — `📈 Scale-Out 3X`
+
+- master toggle: `SCALE_OUT_ENABLED` (default `True`) - ปุ่มอยู่บนหน้าเมนู `⚙️ ตั้งค่า` หลัก
+- คอนเซปต์: ขยาย lot ของ pending/limit order ใหม่เป็น `×SCALE_OUT_MULTIPLIER` (default `3`) แล้วทยอยปิดเป็น 3 ขั้นเมื่อราคาผ่าน entry
+- pulse close ครั้งละ `SCALE_OUT_TP_LOT × points_scale()` (XAU = 0.01, BTC = 0.04)
+- ระยะ TP แต่ละขั้นมาจาก `SCALE_OUT_TP_POINTS = [300, 700, 1000]` (XAU point - BTC auto ×4 ผ่าน `points_scale`)
+
+**Scope:**
+
+- ใช้กับ pending/limit ที่สร้างผ่าน `open_order()` และ `open_order_stop()` เท่านั้น
+- `open_order_market()` ไม่ scale (ตามสเปคปัจจุบัน)
+- **`sid=13` (S13 EzAlgo V5)** ถูก **ยกเว้น**: ไม่ขยาย lot และไม่ทยอยปิด - ใช้ TSO ปรับ TP ของแต่ละ S13 order แทน (TP1=300pt, TP2=700pt, TP3=1000pt)
+
+**Dynamic Effective Steps (ปัจจุบัน — ตั้งแต่ 2026-05-18):**
+
+- คำนวณ TSO steps แบบ **dynamic** ตาม TP เดิมของ order
+- helper: `config.compute_tso_effective_steps(tp_orig_dist)`
+- Logic:
+  - ถ้า `tp_orig < TP1` (= 300pt × scale) → ใช้ TP1 step เดียว (override TP)
+  - filter `SCALE_OUT_TP_POINTS` ที่ `<= tp_orig`
+  - append `tp_orig` เป็น step สุดท้าย (ถ้ายังไม่ match exact)
+- ตัวอย่าง:
+  - TP เดิม 100pt (< 300) → 1 step ที่ 300pt → lot 0.01
+  - TP เดิม 300pt → 1 step → lot 0.01
+  - TP เดิม 500pt → 2 steps (300, 500) → lot 0.02
+  - TP เดิม 700pt (= TP2) → 2 steps (300, 700) → lot 0.02
+  - TP เดิม 800pt → 3 steps (300, 700, 800) → lot 0.03
+  - TP เดิม 1000pt (= TP3) → 3 steps (300, 700, 1000) → lot 0.03
+  - TP เดิม 1200pt → 4 steps (300, 700, 1000, 1200) → lot 0.04
+- **ทุกท่า** (S1-S12 + S10) ใช้ logic เดียวกัน — lot รวม = `len(effective_steps) × base_volume`
+- **S13** ใช้เหมือนกันแต่ออกเป็น **orders แยก** (1-4 orders) แทน 1 order ที่ partial close
+
+**State และ lifecycle:**
+
+- state `scale_out_state` อยู่ใน `config.py` (key: `ticket`) - persist ใน `bot_state.json` (`scale_out_state`)
+- watcher: `check_scale_out_partial(app)` ใน `trailing.py` ถูกเรียกจาก `run_position_check` ใน `main.py`
+- ตอน register ticket จะเก็บ `direction`, `entry`, `base_volume`, `per_tp_volume`, `tp_distances`, `step`, `is_pending`
+- เมื่อ pending fill กลายเป็น position - flag `is_pending` ถูก update ใน watcher และ entry refresh จาก `pos.price_open`
+
+**Cleanup ตอน toggle OFF (`scale_out_cleanup_on_disable`):**
+
+- position TSO ที่ fill แล้ว → ปิดทั้งหมด (`_close_position` ด้วย `pos.volume` ปัจจุบัน)
+- pending TSO ที่ยังไม่ fill → cancel + สร้างใหม่ด้วย `base_volume` (lot เดิมก่อน scale)
+- **S13 ไม่ถูกแตะ** (เพราะไม่ถูก register ใน `scale_out_state`)
+- S10 ถูก register แล้ว → จะถูก cleanup ตามกฎทั่วไปเหมือนท่าอื่น
+- callback แจ้ง summary `closed: N` / `reset_pending: M`
+
+**ข้อควรระวัง:**
+
+- การ scale ทำที่ `_scale_out_resolve_volume()` ใน `mt5_utils.py` - ต้องรับ `sid` ทุกครั้ง (skip ถ้า `sid == "13"`)
+- `scale_out_state` ต้องเก็บ `sid` + `tp_original` (ใช้ตอน partial close)
+- TP cap คำนวณจาก `pos.tp` (ค่าจริงปัจจุบัน) ในแต่ละรอบ scan — รองรับกรณี TP ถูก edit ภายหลัง
+- ค่า return ของ `open_order()` เพิ่ม key `scale_out`, `scaled_volume` (additive - ไม่กระทบ caller เดิม)
+- S13 TP override ทำใน `_place_s13_split_orders` (scanner.py) ก่อนเริ่มลูปสร้าง order - validate side ก่อนใช้ ถ้า invalid จะ fallback กลับใช้ RR เดิม
+- Reset Config ไม่ trigger cleanup TSO state - order เดิมที่ลงทะเบียนไว้ยังทำงานต่อจนกว่าจะปิดเอง
+
 ### numpy rates check
 
 - `rates` ที่ส่งให้ `strategy_*` เป็น numpy structured array
 - `if not rates:` จะ throw `ValueError: ambiguous` - **ห้ามใช้**
 - ใช้ `if rates is None or len(rates) == 0:` แทน
+
+### Export Trend State (สำหรับ MT5 indicator)
+
+- ฟังก์ชัน: `_export_trend_state_for_mt5()` ใน `scanner.py`
+- เขียนสถานะ trend ลงไฟล์ `<MT5 commondata>/Files/trend_state.txt` และ `trend_state_<SYMBOL>.txt`
+- MQL5 indicator `TrendFilterLines.mq5` อ่านไฟล์เพื่อวาดเส้น trend บน chart
+- รัน auto ทุก scan loop จาก `scanner.auto_scan`
+- Error categorization (2026-05-18): `MT5_NOT_CONNECTED`, `NO_COMMONDATA_PATH`, `PERMISSION_DENIED_*`, `FILE_NOT_FOUND`, `OS_ERROR_*`, `ENCODING_ERROR`, `UNEXPECTED_ERROR`
+- ทุก error log ลง `bot.log` ผ่าน `log_event("EXPORT_TREND_STATE_ERROR", ...)` พร้อม `err_type`, `err_message`, `detail`
+
+### Markdown Safety (Telegram replies)
+
+- helper `_md_escape(s)` ใน `handlers/text_handler.py` — escape `\`, `` ` ``, `*`, `_`, `[`, `]`
+- `_safe_reply_md(message, text, **kwargs)` — ลอง Markdown ก่อน, fallback plain text ถ้า `BadRequest: can't parse entities`
+- ใช้ใน `_handle_ticket_lookup` เพื่อกัน silent fail เมื่อ comment/pattern มีตัวอักษรพิเศษ
+- ถ้าต้องเพิ่ม Telegram reply ใหม่ที่ใช้ dynamic content — ใช้ pattern นี้
 
 ## Telegram Toggle Icons
 
