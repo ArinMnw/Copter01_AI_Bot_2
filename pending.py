@@ -23,6 +23,9 @@ async def check_fvg_pending(app):
     to_remove = []
 
     for key, p in fvg_pending.items():
+        if not isinstance(p, dict):
+            to_remove.append(key)
+            continue
         tf         = p["tf"]
         signal     = p["signal"]
         entry      = p["entry"]
@@ -170,6 +173,9 @@ async def check_pb_pending(app):
     to_remove = []
 
     for key, p in pb_pending.items():
+        if not isinstance(p, dict):
+            to_remove.append(key)
+            continue
         entry  = p["entry"]
         signal = p["signal"]
         tf     = p["tf"]

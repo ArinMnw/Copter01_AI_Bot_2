@@ -435,11 +435,17 @@ PENDING_RSI_PERIOD = 14
 PENDING_RSI_APPLIED_PRICE = "close"
 PENDING_RSI_BUY_MAX = 50.0
 PENDING_RSI_SELL_MIN = 50.0
+# Mode: 1 = ค่า RSI ปัจจุบัน (เดิม), 2 = State machine crossover, 3 = ทั้งคู่
+PENDING_RSI_RECHECK_MODE = 2
+# Mode 2 levels
+RSI_MODE2_OB  = 70.0   # Overbought — cross ลง → SELL_ONLY
+RSI_MODE2_OS  = 30.0   # Oversold   — cross ขึ้น → BUY_ONLY
+RSI_MODE2_MID = 50.0   # Midline    — cross ขึ้น/ลง เปลี่ยน state
 
 # ── Near Approach Cancel: ยกเลิก limit เมื่อราคาเข้าใกล้แล้วกลับตัว ──
 # SELL LIMIT: high เข้ามาใน N pt ของ entry แล้ว bar ถัดไปกลับออก → ยกเลิก
 # BUY LIMIT:  low เข้ามาใน N pt ของ entry แล้ว bar ถัดไปกลับออก → ยกเลิก
-NEAR_APPROACH_CANCEL_ENABLED = True
+NEAR_APPROACH_CANCEL_ENABLED = False
 NEAR_APPROACH_CANCEL_POINTS = 200  # ระยะใกล้สุดที่ถือว่า "เข้าใกล้" (points)
 NEAR_APPROACH_CANCEL_LOOKBACK = 3  # จำนวน bars ย้อนหลังที่ตรวจ approach
 
@@ -593,18 +599,18 @@ C_TP    = "\033[38;5;46m"    # เขียว  — TP
 STATE_FILE = "bot_state.json"
 
 # ── Triple Scale-Out (TSO) — Config ───────────────────────────
-# เปิด/ปิด ผ่านปุ่ม Telegram (📈 Scale-Out 3X)
+# เปิด/ปิด ผ่านปุ่ม Telegram (📈 Scale-Out 4X)
 # เมื่อ ON:
-#   - Pending/Limit order ใหม่ ใช้ volume × SCALE_OUT_MULTIPLIER (XAU 0.01→0.03, BTC 0.04→0.12)
+#   - Pending/Limit order ใหม่ ใช้ volume × SCALE_OUT_MULTIPLIER (0.04 × 4 = 0.16)
 #   - เมื่อราคาผ่าน entry ไป SCALE_OUT_TP_POINTS[i] (point ของ XAU; BTC auto ×4)
-#     จะปิด lot ทีละ SCALE_OUT_TP_LOT (XAU 0.01, BTC ×4 = 0.04) จนครบ
+#     จะปิด lot ทีละ SCALE_OUT_TP_LOT (0.04) จนครบ
 # เมื่อ OFF:
 #   - Position ที่เปิดอยู่: ปิดทั้งหมด
-#   - Pending ที่ยังไม่ fill: ยกเลิก + สร้างใหม่ด้วย lot เดิม (0.01 XAU / 0.04 BTC)
-SCALE_OUT_ENABLED       = True             # default ON
-SCALE_OUT_MULTIPLIER    = 3                # ×3 lot
-SCALE_OUT_TP_POINTS     = [300, 700, 1000] # XAU point (BTC auto ×4 ผ่าน points_scale)
-SCALE_OUT_TP_LOT        = 0.01             # XAU lot (BTC auto ×4 ผ่าน points_scale)
+#   - Pending ที่ยังไม่ fill: ยกเลิก + สร้างใหม่ด้วย lot เดิม
+SCALE_OUT_ENABLED       = True                    # default ON
+SCALE_OUT_MULTIPLIER    = 4                       # ×4 lot
+SCALE_OUT_TP_POINTS     = [300, 700, 1000, 1400]  # XAU point (BTC auto ×4 ผ่าน points_scale)
+SCALE_OUT_TP_LOT        = 0.04                    # lot per step
 
 
 def scale_out_total_volume() -> float:
@@ -868,6 +874,7 @@ def save_runtime_state():
             "limit_trend_recheck": LIMIT_TREND_RECHECK,
             "limit_trend_recheck_points": LIMIT_TREND_RECHECK_POINTS,
             "pending_rsi_recheck_enabled": PENDING_RSI_RECHECK_ENABLED,
+            "pending_rsi_recheck_mode": PENDING_RSI_RECHECK_MODE,
             "pending_rsi_period": PENDING_RSI_PERIOD,
             "pending_rsi_applied_price": PENDING_RSI_APPLIED_PRICE,
             "pending_rsi_buy_max": PENDING_RSI_BUY_MAX,
@@ -1026,6 +1033,9 @@ def restore_runtime_state():
         if saved_ltr_pts is not None:
             LIMIT_TREND_RECHECK_POINTS = int(saved_ltr_pts)
         PENDING_RSI_RECHECK_ENABLED = bool(state.get("pending_rsi_recheck_enabled", PENDING_RSI_RECHECK_ENABLED))
+        saved_rsi_mode = state.get("pending_rsi_recheck_mode")
+        if saved_rsi_mode is not None:
+            PENDING_RSI_RECHECK_MODE = int(saved_rsi_mode)
         saved_prr_period = state.get("pending_rsi_period")
         if saved_prr_period is not None:
             PENDING_RSI_PERIOD = max(2, int(saved_prr_period))
@@ -1105,14 +1115,25 @@ def restore_runtime_state():
         if saved_crt_entry in ("htf", "mtf"):
             CRT_ENTRY_MODE = saved_crt_entry
         # S10 MTF armed states — restore in-place เพื่อให้ strategy10 module เห็นข้อมูลเดียวกัน
+        # NOTE: skip arm ที่เก่าเกินไป (armed_at + 2 HTF bars < now) เพื่อกัน stale state
+        # หลัง bot restart ที่อาจถือ parent candle เก่าหลายวัน
         try:
-            from strategy10 import _armed_states as _s10_armed
+            from strategy10 import _armed_states as _s10_armed, _TF_SECONDS as _s10_tf_secs
+            import time as _t
             _s10_armed.clear()
             saved_s10_armed = state.get("s10_armed_states", {})
+            _now_unix = int(_t.time())
             if isinstance(saved_s10_armed, dict):
                 for htf_tf, st in saved_s10_armed.items():
-                    if isinstance(st, dict) and st.get("direction") in ("BUY", "SELL"):
-                        _s10_armed[htf_tf] = dict(st)
+                    if not (isinstance(st, dict) and st.get("direction") in ("BUY", "SELL")):
+                        continue
+                    # ตรวจความสดของ arm — armed_at + 2 HTF bars ต้องยังไม่ผ่าน
+                    _armed_at  = int(st.get("armed_at", 0) or 0)
+                    _htf_secs  = _s10_tf_secs.get(htf_tf, 3600)
+                    if _armed_at > 0 and (_armed_at + 2 * _htf_secs) < _now_unix:
+                        # arm นี้หมดอายุไปแล้ว — ไม่ต้อง restore
+                        continue
+                    _s10_armed[htf_tf] = dict(st)
         except Exception:
             pass
         RSI9_PLOT_BULLISH = bool(state.get("rsi9_plot_bullish", RSI9_PLOT_BULLISH))

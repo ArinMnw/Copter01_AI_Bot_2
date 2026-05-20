@@ -627,11 +627,36 @@ def _is_armed_expired(state, rates, htf_tf: str) -> bool:
     if rates is None or len(rates) == 0:
         return False
     htf_secs = _TF_SECONDS.get(htf_tf, 3600)
-    # armed_at = HTF bar open time → HTF close = armed_at + htf_secs
-    # expire 1 HTF bar หลัง HTF close (รวม 2 HTF bars หลัง armed)
-    expiry = state["armed_at"] + 2 * htf_secs
+    armed_at = int(state.get("armed_at", 0) or 0)
+
+    # 1) Time-based expiry — expire 2 HTF bars after armed (logic เดิม)
+    expiry = armed_at + 2 * htf_secs
     last_time = int(rates[-1]["time"])
-    return last_time > expiry
+    if last_time > expiry:
+        return True
+
+    # 2) Parent staleness — parent candle ต้องอยู่ใน HTF lookback window (10 bars)
+    #    ป้องกัน state ที่โหลดมาจาก disk หรือค้างจาก fired_tickets เก่า
+    #    แล้วยังถือ parent candle เก่ามากๆ (เช่น 3 วันก่อน) ทั้งที่ armed_at อัปเดตแล้ว
+    htf_candles = state.get("candles") or []
+    if htf_candles and armed_at > 0:
+        parent_time = _s10_bar_int(htf_candles[0], "time", 0)
+        if parent_time > 0:
+            # CRT lookback = 10 HTF bars; ให้ tolerance +1 bar
+            stale_threshold = armed_at - 11 * htf_secs
+            if parent_time < stale_threshold:
+                return True
+
+    # 3) Parent ต้องไม่เก่ากว่า LTF rates ที่กำลังสแกน (parent ควรเห็นได้ใน rates)
+    #    ถ้า parent_time < rates[0].time แปลว่า state ค้างมาจากรอบก่อนที่หาย flush
+    if htf_candles:
+        parent_time = _s10_bar_int(htf_candles[0], "time", 0)
+        first_time = int(rates[0]["time"]) if len(rates) > 0 else 0
+        # ให้ tolerance: parent อาจเก่ากว่า rates[0] ได้ไม่เกิน 12 HTF bars
+        if parent_time > 0 and first_time > 0 and parent_time < first_time - 12 * htf_secs:
+            return True
+
+    return False
 
 
 # Model 1/3 search range = LTF bars จาก armed_at+1 ถึง engulf_idx-1

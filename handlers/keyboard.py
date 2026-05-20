@@ -98,7 +98,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         [InlineKeyboardButton("⏰ ตั้งค่า Scan", callback_data="open_scan_menu")],
         [InlineKeyboardButton("🕐 เลือก Timeframe", callback_data="open_tf_menu")],
         [InlineKeyboardButton(f"📦 Lot Size Auto: {config.AUTO_VOLUME}", callback_data="open_lot_menu")],
-        [InlineKeyboardButton(f"📈 Scale-Out 3X: {scale_out_suffix}", callback_data="toggle_scale_out")],
+        [InlineKeyboardButton(f"📈 Scale-Out {config.SCALE_OUT_MULTIPLIER}X: {scale_out_suffix}", callback_data="toggle_scale_out")],
         [InlineKeyboardButton("♻️ Reset Config", callback_data="reset_config_prompt")],
         [InlineKeyboardButton("🔙 กลับ", callback_data="close_settings")],
     ])
@@ -122,7 +122,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         f"⏰ Scan: *ทุก {config.SCAN_INTERVAL} นาที*\n"
         f"🕐 Timeframe: *{tf_summary}*\n"
         f"📦 Lot Auto: *{config.AUTO_VOLUME}*\n"
-        f"📈 Scale-Out 3X: *{scale_out_suffix}*\n\n"
+        f"📈 Scale-Out {config.SCALE_OUT_MULTIPLIER}X: *{scale_out_suffix}*\n\n"
         f"เลือกเมนูที่ต้องการ:"
     )
     if is_query:
@@ -1550,8 +1550,16 @@ def build_trend_filter_keyboard():
         if config.PENDING_RSI_RECHECK_ENABLED
         else "🔴 Pending RSI Recheck: OFF"
     )
+    _rsi_mode = int(getattr(config, "PENDING_RSI_RECHECK_MODE", 1))
+    _mode_labels = {1: "Mode 1 (RSI level)", 2: "Mode 2 (Cross)", 3: "Mode 3 (Both)"}
+    rsi_mode_label = f"📊 RSI Mode: {_mode_labels.get(_rsi_mode, str(_rsi_mode))}"
     rows.append([InlineKeyboardButton("━ Pending RSI Recheck ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(prr_label, callback_data="toggle_pending_rsi_recheck")])
+    rows.append([
+        InlineKeyboardButton("1️⃣ Level" if _rsi_mode != 1 else "✅ Level",  callback_data="set_rsi_mode_1"),
+        InlineKeyboardButton("2️⃣ Cross" if _rsi_mode != 2 else "✅ Cross",  callback_data="set_rsi_mode_2"),
+        InlineKeyboardButton("3️⃣ Both"  if _rsi_mode != 3 else "✅ Both",   callback_data="set_rsi_mode_3"),
+    ])
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
 
