@@ -14,7 +14,7 @@ def _ema(values, period):
         ema = v * k + ema * (1 - k)
     return ema
 
-def _check_filters(rates, signal, entry, atr, ms, now_h):
+def _check_filters(rates, signal, entry, atr, ms, now_h, tf=""):
     """คืน (ok, reason_fail)"""
     # 1. Time filter
     for (h_start, h_end) in S5_NO_TRADE_HOURS:
@@ -43,6 +43,19 @@ def _check_filters(rates, signal, entry, atr, ms, now_h):
     # 4. Zone filter
     sh = ms["swing_high"]
     sl_z = ms["swing_low"]
+
+    # Override ด้วย HHLL swing ถ้า tf ระบุ
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            sh_pt, sl_pt = get_swing_hl_pts(tf)
+            if sh_pt:
+                sh = float(sh_pt["price"])
+            if sl_pt:
+                sl_z = float(sl_pt["price"])
+        except Exception:
+            pass
+
     zone_buf = atr * S5_ZONE_BUFFER
     if signal == "BUY" and sh - entry < zone_buf:
         return False, f"🚧 Zone: ใกล้ Swing High {sh:.2f} (ห่าง {sh-entry:.2f} < {zone_buf:.2f})"
@@ -51,7 +64,7 @@ def _check_filters(rates, signal, entry, atr, ms, now_h):
 
     return True, ""
 
-def strategy_5(rates):
+def strategy_5(rates, tf=""):
     """
     ท่าที่ 5 — Scalping (M1/M5/M15)
     Filters: Time / ATR / Trend(EMA20) / Zone(Swing H/L)
@@ -94,7 +107,7 @@ def strategy_5(rates):
         sl    = round(min(l0,l1) - atr*0.5, 2)
         tp    = round(entry + atr*1.0, 2)
         rr    = round((tp-entry)/(entry-sl), 2) if entry > sl else 0
-        ok, fail = _check_filters(rates, "BUY", entry, atr, ms, now_h)
+        ok, fail = _check_filters(rates, "BUY", entry, atr, ms, now_h, tf=tf)
         if not ok:
             return {"signal": "WAIT", "reason": f"[ท่า5 BUY Momentum] {fail}"}
         return {
@@ -118,7 +131,7 @@ def strategy_5(rates):
         tp    = round(entry + atr*1.5, 2)
         rr    = round((tp-entry)/(entry-sl), 2) if entry > sl else 0
         kind  = "Doji" if is_doji1 else "ตำหนิ"
-        ok, fail = _check_filters(rates, "BUY", entry, atr, ms, now_h)
+        ok, fail = _check_filters(rates, "BUY", entry, atr, ms, now_h, tf=tf)
         if not ok:
             return {"signal": "WAIT", "reason": f"[ท่า5 BUY Reversal] {fail}"}
         return {
@@ -136,7 +149,7 @@ def strategy_5(rates):
         sl    = round(max(h0,h1) + atr*0.5, 2)
         tp    = round(entry - atr*1.0, 2)
         rr    = round((entry-tp)/(sl-entry), 2) if sl > entry else 0
-        ok, fail = _check_filters(rates, "SELL", entry, atr, ms, now_h)
+        ok, fail = _check_filters(rates, "SELL", entry, atr, ms, now_h, tf=tf)
         if not ok:
             return {"signal": "WAIT", "reason": f"[ท่า5 SELL Momentum] {fail}"}
         return {
@@ -159,7 +172,7 @@ def strategy_5(rates):
         tp    = round(entry - atr*1.5, 2)
         rr    = round((entry-tp)/(sl-entry), 2) if sl > entry else 0
         kind  = "Doji" if is_doji1_s else "ตำหนิ"
-        ok, fail = _check_filters(rates, "SELL", entry, atr, ms, now_h)
+        ok, fail = _check_filters(rates, "SELL", entry, atr, ms, now_h, tf=tf)
         if not ok:
             return {"signal": "WAIT", "reason": f"[ท่า5 SELL Reversal] {fail}"}
         return {

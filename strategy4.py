@@ -317,7 +317,61 @@ def _get_s4_prev_swing_low(rates, lookback=100):
     return _find_prev_pivot_swing_low(rates, lookback=lookback, left=left, right=right) or _find_prev_swing_low(rates, lookback=lookback)
 
 
-def strategy_4(rates):
+def _hhll_sh_info(rates, tf):
+    """สร้าง sh_info จาก HHLL swing high — compatible กับ _find_prev_swing_high()"""
+    try:
+        from hhll_swing import get_swing_hl_pts
+        sh_pt, _ = get_swing_hl_pts(tf)
+        if not sh_pt:
+            return None
+        sh_time = int(sh_pt["time"])
+        total = len(rates)
+        for i, r in enumerate(rates):
+            if int(r["time"]) == sh_time:
+                return {
+                    "price": float(sh_pt["price"]),
+                    "bar_from_2": (total - 3) - i,
+                    "time": sh_time,
+                    "candle": {
+                        "open":  float(r["open"]),
+                        "high":  float(r["high"]),
+                        "low":   float(r["low"]),
+                        "close": float(r["close"]),
+                    },
+                }
+    except Exception:
+        pass
+    return None
+
+
+def _hhll_sl_info(rates, tf):
+    """สร้าง sl_info จาก HHLL swing low — compatible กับ _find_prev_swing_low()"""
+    try:
+        from hhll_swing import get_swing_hl_pts
+        _, sl_pt = get_swing_hl_pts(tf)
+        if not sl_pt:
+            return None
+        sl_time = int(sl_pt["time"])
+        total = len(rates)
+        for i, r in enumerate(rates):
+            if int(r["time"]) == sl_time:
+                return {
+                    "price": float(sl_pt["price"]),
+                    "bar_from_2": (total - 3) - i,
+                    "time": sl_time,
+                    "candle": {
+                        "open":  float(r["open"]),
+                        "high":  float(r["high"]),
+                        "low":   float(r["low"]),
+                        "close": float(r["close"]),
+                    },
+                }
+    except Exception:
+        pass
+    return None
+
+
+def strategy_4(rates, tf=""):
     """
     ท่าที่ 4 — นัยยะสำคัญ FVG
 
@@ -361,7 +415,7 @@ def strategy_4(rates):
     # Swing High ต้องอยู่ในช่วง gap: High[2] < Swing High < Low[0]
     # BUY FVG: [1] เขียว + Low[0] > High[2] → gap จริง
     if bull1 and h1 > h2 and l0 > h2:
-        sh_info = _get_s4_prev_swing_high(rates)
+        sh_info = (tf and _hhll_sh_info(rates, tf)) or _get_s4_prev_swing_high(rates)
         prev_sh  = sh_info["price"] if sh_info else None
         swing_in_gap = prev_sh is not None and h2 < prev_sh < l0
         _s4_debug(
@@ -375,7 +429,7 @@ def strategy_4(rates):
         if prev_sh and cl1 > prev_sh + engulf_gap and swing_in_gap and gap_open:
             entry    = round(prev_sh, 2)
             sl       = round(l1 - SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry - sl), 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (fallback)"
             rr       = round(abs(tp - entry) / abs(entry - sl), 2) if abs(entry - sl) > 0 else 0
@@ -434,7 +488,7 @@ def strategy_4(rates):
     # Swing Low ต้องอยู่ในช่วง gap: High[0] < Swing Low < Low[2]
     # SELL FVG: [1] แดง + High[0] < Low[2] → gap จริง
     if not bull1 and l1 < l2 and h0 < l2:
-        sl_info = _get_s4_prev_swing_low(rates)
+        sl_info = (tf and _hhll_sl_info(rates, tf)) or _get_s4_prev_swing_low(rates)
         prev_sl  = sl_info["price"] if sl_info else None
         swing_in_gap = prev_sl is not None and h0 < prev_sl < l2
         _s4_debug(
@@ -448,7 +502,7 @@ def strategy_4(rates):
         if prev_sl and cl1 < prev_sl - engulf_gap and swing_in_gap and gap_open:
             entry    = round(prev_sl, 2)
             sl       = round(h1 + SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl - entry), 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (fallback)"
             rr       = round(abs(tp - entry) / abs(sl - entry), 2) if abs(sl - entry) > 0 else 0

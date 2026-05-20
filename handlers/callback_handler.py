@@ -13,17 +13,26 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     show_trail_focus_menu, show_entry_focus_menu,
     show_trend_filter_menu)
 
+
+async def _qanswer(query, text=""):
+    """Safe wrapper — silently ignores 'Query is too old' errors."""
+    try:
+        await query.answer(text)
+    except Exception:
+        pass
+
+
 async def handle_callback(update, ctx):
     global SCAN_INTERVAL, TF_CURRENT, TF_ACTIVE, active_strategies
     query = update.callback_query
     if update.effective_user.id != MY_USER_ID:
-        await query.answer()
+        await _qanswer(query)
         return
     data = query.data
 
     if data == "cancel":
         await query.edit_message_reply_markup(reply_markup=None)
-        await query.answer("ปิดแล้ว")
+        await _qanswer(query,"ปิดแล้ว")
 
     elif data == "toggle_auto":
         config.auto_active = not config.auto_active
@@ -45,7 +54,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"{'เปิด' if config.auto_active else 'หยุด'} Auto แล้ว")
+        await _qanswer(query,f"{'เปิด' if config.auto_active else 'หยุด'} Auto แล้ว")
 
     elif data == "open_strategy_menu":
         active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
@@ -65,7 +74,7 @@ async def handle_callback(update, ctx):
         except Exception as e:
             if "not modified" not in str(e).lower():
                 pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "reset_config_prompt":
         kb = InlineKeyboardMarkup([[
@@ -84,12 +93,12 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "confirm_reset_config":
         config.reset_runtime_config_to_defaults(save_state=True)
         await show_main_settings_menu(query, is_query=True)
-        await query.answer("รีเซท config ตาม config.py แล้ว")
+        await _qanswer(query,"รีเซท config ตาม config.py แล้ว")
 
     elif data == "lot_custom_input":
         # เข้าสู่ mode รับ input lot สำหรับ auto
@@ -105,7 +114,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer("พิมพ์ lot size ใน chat ได้เลย")
+        await _qanswer(query,"พิมพ์ lot size ใน chat ได้เลย")
 
     elif data.startswith("lot_manual_"):
         # format: lot_manual_{direction}_custom_{price}
@@ -125,7 +134,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer("พิมพ์ lot size ใน chat ได้เลย")
+        await _qanswer(query,"พิมพ์ lot size ใน chat ได้เลย")
 
     elif data == "open_lot_menu":
         try:
@@ -137,7 +146,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data.startswith("set_lot_"):
         new_lot = float(data.split("_")[-1])
@@ -154,7 +163,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"✅ Lot Auto = {config.AUTO_VOLUME}")
+        await _qanswer(query,f"✅ Lot Auto = {config.AUTO_VOLUME}")
 
     elif data == "open_scan_menu":
         try:
@@ -165,7 +174,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "open_trail_menu":
         trail_mode_label = "รวม phase" if config.TRAIL_SL_ENGULF_MODE == "combined" else "แยก phase"
@@ -181,7 +190,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "open_trail_engulf_menu":
         trail_mode_label = "รวม phase" if config.TRAIL_SL_ENGULF_MODE == "combined" else "แยก phase"
@@ -198,7 +207,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "open_tf_menu":
         active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
@@ -211,68 +220,68 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "back_to_settings":
         await show_main_settings_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "toggle_entry_candle_tp":
         config.ENTRY_CANDLE_UPDATE_TP = not config.ENTRY_CANDLE_UPDATE_TP
         save_runtime_state()
         await show_main_settings_menu(query, is_query=True)
         status = "ON" if config.ENTRY_CANDLE_UPDATE_TP else "OFF"
-        await query.answer(f"Entry Candle TP: {status}")
+        await _qanswer(query,f"Entry Candle TP: {status}")
 
     elif data == "open_entry_candle_mode_menu":
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "set_entry_candle_mode_classic":
         config.ENTRY_CANDLE_MODE = "classic"
         save_runtime_state()
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer("Entry Candle Mode: Classic")
+        await _qanswer(query,"Entry Candle Mode: Classic")
 
     elif data == "set_entry_candle_mode_close":
         config.ENTRY_CANDLE_MODE = "close"
         save_runtime_state()
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer("Entry Candle Mode: Close")
+        await _qanswer(query,"Entry Candle Mode: Close")
 
     elif data == "set_entry_candle_mode_close_percentage":
         config.ENTRY_CANDLE_MODE = "close_percentage"
         save_runtime_state()
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer("Entry Candle Mode: Close Percentage")
+        await _qanswer(query,"Entry Candle Mode: Close Percentage")
 
     elif data == "toggle_entry_close_reverse_market":
         config.ENTRY_CLOSE_REVERSE_MARKET = not config.ENTRY_CLOSE_REVERSE_MARKET
         save_runtime_state()
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer(f"Close -> Market: {'ON' if config.ENTRY_CLOSE_REVERSE_MARKET else 'OFF'}")
+        await _qanswer(query,f"Close -> Market: {'ON' if config.ENTRY_CLOSE_REVERSE_MARKET else 'OFF'}")
 
     elif data == "toggle_entry_close_reverse_limit":
         config.ENTRY_CLOSE_REVERSE_LIMIT = not config.ENTRY_CLOSE_REVERSE_LIMIT
         save_runtime_state()
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer(f"Close -> Limit: {'ON' if config.ENTRY_CLOSE_REVERSE_LIMIT else 'OFF'}")
+        await _qanswer(query,f"Close -> Limit: {'ON' if config.ENTRY_CLOSE_REVERSE_LIMIT else 'OFF'}")
 
     elif data == "open_opposite_menu":
         await show_opposite_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "set_opposite_mode_tp_close":
         config.OPPOSITE_ORDER_MODE = "tp_close"
         save_runtime_state()
         await show_opposite_menu(query, is_query=True)
-        await query.answer("Opposite Order: ตั้ง TP+ปิด")
+        await _qanswer(query,"Opposite Order: ตั้ง TP+ปิด")
 
     elif data == "set_opposite_mode_sl_protect":
         config.OPPOSITE_ORDER_MODE = "sl_protect"
         save_runtime_state()
         await show_opposite_menu(query, is_query=True)
-        await query.answer("Opposite Order: ตั้ง SL Protect")
+        await _qanswer(query,"Opposite Order: ตั้ง SL Protect")
 
     elif data == "toggle_trail_sl_enabled":
         config.TRAIL_SL_ENABLED = not config.TRAIL_SL_ENABLED
@@ -291,13 +300,13 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"Trail SL: {'ON' if config.TRAIL_SL_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Trail SL: {'ON' if config.TRAIL_SL_ENABLED else 'OFF'}")
 
     elif data == "toggle_trail_reversal_override":
         config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED = not config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED
         save_runtime_state()
         await show_main_settings_menu(query, is_query=True)
-        await query.answer(
+        await _qanswer(query,
             f"จุดกลับตัว -> Trail SL: {'ON' if config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED else 'OFF'}"
         )
 
@@ -305,17 +314,17 @@ async def handle_callback(update, ctx):
         config.ENTRY_CANDLE_ENABLED = not config.ENTRY_CANDLE_ENABLED
         save_runtime_state()
         await show_entry_candle_mode_menu(query, is_query=True)
-        await query.answer(f"Entry Candle: {'ON' if config.ENTRY_CANDLE_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Entry Candle: {'ON' if config.ENTRY_CANDLE_ENABLED else 'OFF'}")
 
     elif data == "toggle_opposite_enabled":
         config.OPPOSITE_ORDER_ENABLED = not config.OPPOSITE_ORDER_ENABLED
         save_runtime_state()
         await show_opposite_menu(query, is_query=True)
-        await query.answer(f"Opposite Order: {'ON' if config.OPPOSITE_ORDER_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Opposite Order: {'ON' if config.OPPOSITE_ORDER_ENABLED else 'OFF'}")
 
     elif data == "open_debug_menu":
         await show_debug_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "toggle_debug_queue":
         config.TG_QUEUE_DEBUG = not config.TG_QUEUE_DEBUG
@@ -326,7 +335,7 @@ async def handle_callback(update, ctx):
             pass
         save_runtime_state()
         await show_debug_menu(query, is_query=True)
-        await query.answer(f"Queue Debug: {'ON' if config.TG_QUEUE_DEBUG else 'OFF'}")
+        await _qanswer(query,f"Queue Debug: {'ON' if config.TG_QUEUE_DEBUG else 'OFF'}")
 
     elif data == "toggle_debug_sltp":
         config.SLTP_AUDIT_DEBUG = not config.SLTP_AUDIT_DEBUG
@@ -337,7 +346,7 @@ async def handle_callback(update, ctx):
             pass
         save_runtime_state()
         await show_debug_menu(query, is_query=True)
-        await query.answer(f"SL/TP Audit Debug: {'ON' if config.SLTP_AUDIT_DEBUG else 'OFF'}")
+        await _qanswer(query,f"SL/TP Audit Debug: {'ON' if config.SLTP_AUDIT_DEBUG else 'OFF'}")
 
     elif data == "toggle_debug_trade":
         config.TRADE_DEBUG = not config.TRADE_DEBUG
@@ -348,14 +357,14 @@ async def handle_callback(update, ctx):
             pass
         save_runtime_state()
         await show_debug_menu(query, is_query=True)
-        await query.answer(f"Trade Debug: {'ON' if config.TRADE_DEBUG else 'OFF'}")
+        await _qanswer(query,f"Trade Debug: {'ON' if config.TRADE_DEBUG else 'OFF'}")
 
     elif data == "close_settings":
         try:
             await query.message.delete()
         except Exception:
             pass
-        await query.answer("ปิดเมนูแล้ว")
+        await _qanswer(query,"ปิดเมนูแล้ว")
 
     elif data.startswith("set_interval_"):
         SCAN_INTERVAL = int(data.split("_")[-1])
@@ -379,7 +388,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"✅ Scan ทุก {config.SCAN_INTERVAL} นาที")
+        await _qanswer(query,f"✅ Scan ทุก {config.SCAN_INTERVAL} นาที")
 
     elif data.startswith("set_tf_"):
         tf_key = data.replace("set_tf_", "")
@@ -418,7 +427,7 @@ async def handle_callback(update, ctx):
         except Exception:
             pass
         save_runtime_state()
-        await query.answer(msg_answer)
+        await _qanswer(query,msg_answer)
 
     elif data.startswith("set_s1_zone_mode_"):
         mode = data.replace("set_s1_zone_mode_", "")   # "zone" หรือ "normal"
@@ -441,7 +450,7 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"✅ ท่า 1: {label}")
+        await _qanswer(query,f"✅ ท่า 1: {label}")
 
     elif data in ("toggle_rsi9_regular", "toggle_rsi9_hidden"):
         # Toggle bull+bear ของแต่ละแบบพร้อมกัน — ON ก็ต่อเมื่อทั้งคู่ ON, มิฉะนั้น OFF
@@ -462,7 +471,7 @@ async def handle_callback(update, ctx):
             await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
         except Exception:
             pass
-        await query.answer(f"✅ ท่า 9: {label}")
+        await _qanswer(query,f"✅ ท่า 9: {label}")
 
     elif data.startswith("set_crt_bar_mode_"):
         mode = data.replace("set_crt_bar_mode_", "")
@@ -473,9 +482,9 @@ async def handle_callback(update, ctx):
                 await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
             except Exception:
                 pass
-            await query.answer(f"✅ ท่า 10: {mode}")
+            await _qanswer(query,f"✅ ท่า 10: {mode}")
         else:
-            await query.answer("Mode ไม่ถูกต้อง")
+            await _qanswer(query,"Mode ไม่ถูกต้อง")
 
     elif data.startswith("set_crt_entry_mode_"):
         mode = data.replace("set_crt_entry_mode_", "")
@@ -487,9 +496,9 @@ async def handle_callback(update, ctx):
             except Exception:
                 pass
             label = "HTF entry" if mode == "htf" else "MTF (LTF entry)"
-            await query.answer(f"✅ ท่า 10: {label}")
+            await _qanswer(query,f"✅ ท่า 10: {label}")
         else:
-            await query.answer("Entry mode ไม่ถูกต้อง")
+            await _qanswer(query,"Entry mode ไม่ถูกต้อง")
 
     elif data in ("toggle_fvg_normal", "toggle_fvg_parallel"):
         if data == "toggle_fvg_normal":
@@ -519,12 +528,12 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"✅ ท่า 2: {label}")
+        await _qanswer(query,f"✅ ท่า 2: {label}")
 
     elif data.startswith("set_trail_engulf_mode_"):
         mode = data.replace("set_trail_engulf_mode_", "")
         if mode not in ("combined", "separate"):
-            await query.answer("ไม่พบโหมดนี้")
+            await _qanswer(query,"ไม่พบโหมดนี้")
             return
 
         config.TRAIL_SL_MODE = "engulf"
@@ -552,7 +561,7 @@ async def handle_callback(update, ctx):
         except Exception:
             pass
         save_runtime_state()
-        await query.answer(f"✅ Trail SL Engulf: {trail_mode_label}")
+        await _qanswer(query,f"✅ Trail SL Engulf: {trail_mode_label}")
 
     elif data == "toggle_trail_immediate":
         config.TRAIL_SL_IMMEDIATE = not config.TRAIL_SL_IMMEDIATE
@@ -571,11 +580,11 @@ async def handle_callback(update, ctx):
             )
         except Exception:
             pass
-        await query.answer(f"Trail ทันที: {imm_status}")
+        await _qanswer(query,f"Trail ทันที: {imm_status}")
 
     elif data == "open_trail_focus_menu":
         await show_trail_focus_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "toggle_trail_focus_new":
         config.TRAIL_SL_FOCUS_NEW_ENABLED = not config.TRAIL_SL_FOCUS_NEW_ENABLED
@@ -584,7 +593,7 @@ async def handle_callback(update, ctx):
             reset_focus_frozen_side("trail_sl")
         save_runtime_state()
         await show_trail_focus_menu(query, is_query=True)
-        await query.answer(f"Trail Focus: {'ON' if config.TRAIL_SL_FOCUS_NEW_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Trail Focus: {'ON' if config.TRAIL_SL_FOCUS_NEW_ENABLED else 'OFF'}")
 
     elif data == "toggle_tfn_tf_mode":
         config.TRAIL_SL_FOCUS_NEW_TF_MODE = (
@@ -593,18 +602,18 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_trail_focus_menu(query, is_query=True)
         tf_desc = "รวมทุก TF" if config.TRAIL_SL_FOCUS_NEW_TF_MODE == "combined" else "แยกตาม TF"
-        await query.answer(f"Trail Focus TF: {tf_desc}")
+        await _qanswer(query,f"Trail Focus TF: {tf_desc}")
 
     elif data.startswith("set_tfn_pts_"):
         pts = int(data.replace("set_tfn_pts_", ""))
         config.TRAIL_SL_FOCUS_NEW_POINTS = pts
         save_runtime_state()
         await show_trail_focus_menu(query, is_query=True)
-        await query.answer(f"Trail Focus Threshold: {pts} จุด")
+        await _qanswer(query,f"Trail Focus Threshold: {pts} จุด")
 
     elif data == "open_entry_focus_menu":
         await show_entry_focus_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "toggle_entry_focus_new":
         config.ENTRY_CANDLE_FOCUS_NEW_ENABLED = not config.ENTRY_CANDLE_FOCUS_NEW_ENABLED
@@ -613,7 +622,7 @@ async def handle_callback(update, ctx):
             reset_focus_frozen_side("entry_candle")
         save_runtime_state()
         await show_entry_focus_menu(query, is_query=True)
-        await query.answer(f"Entry Focus: {'ON' if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Entry Focus: {'ON' if config.ENTRY_CANDLE_FOCUS_NEW_ENABLED else 'OFF'}")
 
     elif data == "toggle_efn_tf_mode":
         config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE = (
@@ -622,18 +631,18 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_entry_focus_menu(query, is_query=True)
         tf_desc = "รวมทุก TF" if config.ENTRY_CANDLE_FOCUS_NEW_TF_MODE == "combined" else "แยกตาม TF"
-        await query.answer(f"Entry Focus TF: {tf_desc}")
+        await _qanswer(query,f"Entry Focus TF: {tf_desc}")
 
     elif data.startswith("set_efn_pts_"):
         pts = int(data.replace("set_efn_pts_", ""))
         config.ENTRY_CANDLE_FOCUS_NEW_POINTS = pts
         save_runtime_state()
         await show_entry_focus_menu(query, is_query=True)
-        await query.answer(f"Entry Focus Threshold: {pts} จุด")
+        await _qanswer(query,f"Entry Focus Threshold: {pts} จุด")
 
     elif data == "open_trend_filter_menu":
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data.startswith("toggle_trend_filter_per_tf_"):
         tf = data.replace("toggle_trend_filter_per_tf_", "")
@@ -643,29 +652,29 @@ async def handle_callback(update, ctx):
                 config.TREND_FILTER_PER_TF[t] = not all_on
             save_runtime_state()
             await show_trend_filter_menu(query, is_query=True)
-            await query.answer("ยกเลิกทุก TF" if all_on else "เลือกทุก TF")
+            await _qanswer(query,"ยกเลิกทุก TF" if all_on else "เลือกทุก TF")
         elif tf in config.TREND_FILTER_PER_TF:
             config.TREND_FILTER_PER_TF[tf] = not config.TREND_FILTER_PER_TF[tf]
             save_runtime_state()
             await show_trend_filter_menu(query, is_query=True)
-            await query.answer(f"Per-TF {tf}: {'ON' if config.TREND_FILTER_PER_TF[tf] else 'OFF'}")
+            await _qanswer(query,f"Per-TF {tf}: {'ON' if config.TREND_FILTER_PER_TF[tf] else 'OFF'}")
         else:
-            await query.answer("TF ไม่ถูกต้อง")
+            await _qanswer(query,"TF ไม่ถูกต้อง")
 
     elif data == "noop_trend_filter":
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "toggle_trend_filter_higher_tf":
         config.TREND_FILTER_HIGHER_TF_ENABLED = not config.TREND_FILTER_HIGHER_TF_ENABLED
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Trend Filter Higher TF: {'ON' if config.TREND_FILTER_HIGHER_TF_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Trend Filter Higher TF: {'ON' if config.TREND_FILTER_HIGHER_TF_ENABLED else 'OFF'}")
 
     elif data == "toggle_trend_filter_trail_sl_override":
         config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = not config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(
+        await _qanswer(query,
             f"Trend Filter Trail SL Override: {'ON' if config.TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED else 'OFF'}"
         )
 
@@ -675,9 +684,9 @@ async def handle_callback(update, ctx):
             config.TREND_FILTER_HIGHER_TF = tf
             save_runtime_state()
             await show_trend_filter_menu(query, is_query=True)
-            await query.answer(f"Higher TF: {tf}")
+            await _qanswer(query,f"Higher TF: {tf}")
         else:
-            await query.answer("TF ไม่ถูกต้อง")
+            await _qanswer(query,"TF ไม่ถูกต้อง")
 
     elif data.startswith("set_trend_filter_mode_"):
         mode = data.replace("set_trend_filter_mode_", "")
@@ -685,9 +694,9 @@ async def handle_callback(update, ctx):
             config.TREND_FILTER_MODE = mode
             save_runtime_state()
             await show_trend_filter_menu(query, is_query=True)
-            await query.answer(f"Trend Filter Mode: {mode}")
+            await _qanswer(query,f"Trend Filter Mode: {mode}")
         else:
-            await query.answer("Mode ไม่ถูกต้อง")
+            await _qanswer(query,"Mode ไม่ถูกต้อง")
 
     elif data.startswith("toggle_strategy_"):
         sid = int(data.split("_")[-1])
@@ -714,7 +723,7 @@ async def handle_callback(update, ctx):
             except Exception as e:
                 if "not modified" not in str(e).lower():
                     raise
-            await query.answer(f"{name}: {status_th}")
+            await _qanswer(query,f"{name}: {status_th}")
 
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
@@ -740,10 +749,10 @@ async def handle_callback(update, ctx):
         except Exception as e:
             if "not modified" not in str(e).lower():
                 raise
-        await query.answer("เปิดทั้งหมด ✅" if turn_on else "ปิดทั้งหมด ❌")
+        await _qanswer(query,"เปิดทั้งหมด ✅" if turn_on else "ปิดทั้งหมด ❌")
 
     elif data == "cancel_pending":
-        await query.answer("⏳ กำลังยกเลิก...")
+        await _qanswer(query,"⏳ กำลังยกเลิก...")
         if not connect_mt5():
             await query.edit_message_text("❌ MT5 ไม่ได้เชื่อมต่อ")
             return
@@ -797,25 +806,25 @@ async def handle_callback(update, ctx):
             if r.retcode == mt5.TRADE_RETCODE_DONE:
                 closed += 1
         await query.edit_message_text(f"✅ ปิดสำเร็จ {closed} Order")
-        await query.answer("ปิด Order แล้ว")
+        await _qanswer(query,"ปิด Order แล้ว")
 
     elif data == "open_limit_guard_menu":
         await show_limit_guard_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "open_limit_break_menu":
         await show_limit_break_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "open_engulf_menu":
         await show_engulf_menu(query, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data == "toggle_limit_sweep":
         config.LIMIT_SWEEP = not config.LIMIT_SWEEP
         save_runtime_state()
         await show_main_settings_menu(query, is_query=True)
-        await query.answer(f"Limit Sweep: {'ON' if config.LIMIT_SWEEP else 'OFF'}")
+        await _qanswer(query,f"Limit Sweep: {'ON' if config.LIMIT_SWEEP else 'OFF'}")
 
     elif data == "toggle_scale_out":
         # ── Toggle Triple Scale-Out (TSO) ──────────────────────────
@@ -838,7 +847,7 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_main_settings_menu(query, is_query=True)
         status_label = "ON" if new_state else "OFF"
-        await query.answer(f"Scale-Out 3X: {status_label}{cleanup_msg}")
+        await _qanswer(query,f"Scale-Out 3X: {status_label}{cleanup_msg}")
 
     elif data == "cycle_delay_sl":
         cycle = {"off": "time", "time": "price", "price": "off"}
@@ -846,51 +855,59 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         label = {"off": "ปิด", "time": "ช่วงท้าย TF", "price": "ราคาผ่าน Entry"}.get(config.DELAY_SL_MODE, "ปิด")
         await show_main_settings_menu(query, is_query=True)
-        await query.answer(f"Delay SL: {label}")
+        await _qanswer(query,f"Delay SL: {label}")
 
     elif data == "toggle_trend_filter_scan_block":
         config.TREND_FILTER_SCAN_BLOCK = not config.TREND_FILTER_SCAN_BLOCK
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Scan Block: {'ON' if config.TREND_FILTER_SCAN_BLOCK else 'OFF'}")
+        await _qanswer(query,f"Scan Block: {'ON' if config.TREND_FILTER_SCAN_BLOCK else 'OFF'}")
 
     elif data == "toggle_limit_trend_recheck":
         config.LIMIT_TREND_RECHECK = not config.LIMIT_TREND_RECHECK
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Trend Recheck: {'ON' if config.LIMIT_TREND_RECHECK else 'OFF'}")
+        await _qanswer(query,f"Trend Recheck: {'ON' if config.LIMIT_TREND_RECHECK else 'OFF'}")
 
     elif data.startswith("set_ltr_pts_"):
         pts = int(data.replace("set_ltr_pts_", ""))
         config.LIMIT_TREND_RECHECK_POINTS = pts
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Trend Recheck: {pts}pt")
+        await _qanswer(query,f"Trend Recheck: {pts}pt")
 
     elif data == "toggle_near_approach_cancel":
         config.NEAR_APPROACH_CANCEL_ENABLED = not config.NEAR_APPROACH_CANCEL_ENABLED
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Near Approach Cancel: {'ON' if config.NEAR_APPROACH_CANCEL_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Near Approach Cancel: {'ON' if config.NEAR_APPROACH_CANCEL_ENABLED else 'OFF'}")
 
     elif data.startswith("set_nac_pts_"):
         pts = int(data.replace("set_nac_pts_", ""))
         config.NEAR_APPROACH_CANCEL_POINTS = pts
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Near Approach Cancel: {pts}pt")
+        await _qanswer(query,f"Near Approach Cancel: {pts}pt")
 
     elif data == "toggle_pending_rsi_recheck":
         config.PENDING_RSI_RECHECK_ENABLED = not config.PENDING_RSI_RECHECK_ENABLED
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await query.answer(f"Pending RSI Recheck: {'ON' if config.PENDING_RSI_RECHECK_ENABLED else 'OFF'}")
+        await _qanswer(query,f"Pending RSI Recheck: {'ON' if config.PENDING_RSI_RECHECK_ENABLED else 'OFF'}")
+
+    elif data in ("set_rsi_mode_1", "set_rsi_mode_2", "set_rsi_mode_3"):
+        _mode_map  = {"set_rsi_mode_1": 1, "set_rsi_mode_2": 2, "set_rsi_mode_3": 3}
+        _mode_name = {"set_rsi_mode_1": "Level", "set_rsi_mode_2": "Cross", "set_rsi_mode_3": "Both"}
+        config.PENDING_RSI_RECHECK_MODE = _mode_map[data]
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query,f"RSI Mode: {_mode_name[data]}")
 
     elif data == "toggle_limit_break_cancel":
         config.LIMIT_BREAK_CANCEL = not config.LIMIT_BREAK_CANCEL
         save_runtime_state()
         await show_limit_break_menu(query, is_query=True)
-        await query.answer(f"Limit TP/SL Break: {'ON' if config.LIMIT_BREAK_CANCEL else 'OFF'}")
+        await _qanswer(query,f"Limit TP/SL Break: {'ON' if config.LIMIT_BREAK_CANCEL else 'OFF'}")
 
     elif data == "toggle_lbc_tf_ALL":
         all_on = all(config.LIMIT_BREAK_CANCEL_TF.values())
@@ -898,7 +915,7 @@ async def handle_callback(update, ctx):
             config.LIMIT_BREAK_CANCEL_TF[tf_name] = not all_on
         save_runtime_state()
         await show_limit_break_menu(query, is_query=True)
-        await query.answer("เลือกทุก TF แล้ว" if not all_on else "ยกเลิกทุก TF แล้ว")
+        await _qanswer(query,"เลือกทุก TF แล้ว" if not all_on else "ยกเลิกทุก TF แล้ว")
 
     elif data.startswith("toggle_lbc_tf_"):
         tf_name = data.replace("toggle_lbc_tf_", "")
@@ -906,36 +923,36 @@ async def handle_callback(update, ctx):
             config.LIMIT_BREAK_CANCEL_TF[tf_name] = not config.LIMIT_BREAK_CANCEL_TF[tf_name]
             save_runtime_state()
             await show_limit_break_menu(query, is_query=True)
-            await query.answer(f"Limit TP/SL Break TF {tf_name}: {'ON' if config.LIMIT_BREAK_CANCEL_TF[tf_name] else 'OFF'}")
+            await _qanswer(query,f"Limit TP/SL Break TF {tf_name}: {'ON' if config.LIMIT_BREAK_CANCEL_TF[tf_name] else 'OFF'}")
         else:
-            await query.answer("ไม่พบ TF นี้")
+            await _qanswer(query,"ไม่พบ TF นี้")
 
     elif data == "toggle_limit_guard":
         config.LIMIT_GUARD = not config.LIMIT_GUARD
         save_runtime_state()
         await show_limit_guard_menu(query, is_query=True)
-        await query.answer(f"Limit Guard: {'ON' if config.LIMIT_GUARD else 'OFF'}")
+        await _qanswer(query,f"Limit Guard: {'ON' if config.LIMIT_GUARD else 'OFF'}")
 
     elif data == "toggle_lg_tf_mode":
         config.LIMIT_GUARD_TF_MODE = "combined" if config.LIMIT_GUARD_TF_MODE == "separate" else "separate"
         save_runtime_state()
         await show_limit_guard_menu(query, is_query=True)
         tf_desc = "รวมทุก TF" if config.LIMIT_GUARD_TF_MODE == "combined" else "แยกตาม TF"
-        await query.answer(f"Limit Guard TF: {tf_desc}")
+        await _qanswer(query,f"Limit Guard TF: {tf_desc}")
 
     elif data.startswith("set_lg_pts_"):
         pts = int(data.replace("set_lg_pts_", ""))
         config.LIMIT_GUARD_POINTS = pts
         save_runtime_state()
         await show_limit_guard_menu(query, is_query=True)
-        await query.answer(f"Limit Guard: {pts} จุด")
+        await _qanswer(query,f"Limit Guard: {pts} จุด")
 
     elif data.startswith("set_engulf_pts_"):
         pts = int(data.replace("set_engulf_pts_", ""))
         config.ENGULF_MIN_POINTS = pts
         save_runtime_state()
         await show_engulf_menu(query, is_query=True)
-        await query.answer(f"Engulf ขั้นต่ำ: {pts} จุด")
+        await _qanswer(query,f"Engulf ขั้นต่ำ: {pts} จุด")
 
     elif data.startswith("profit_sid_"):
         # format: profit_sid_{year}_{month}_{sid}_{trend_filter}
@@ -946,7 +963,7 @@ async def handle_callback(update, ctx):
         sid = int(parts[4])
         trend_filter_key = "_".join(parts[5:]) if len(parts) > 5 else "all"
         await show_profit_strategy_detail(query, year, month, sid, trend_filter_key, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data.startswith("profit_"):
         # format: profit_{year}_{month}_{trend_filter}
@@ -956,7 +973,7 @@ async def handle_callback(update, ctx):
         month = int(parts[2])
         trend_filter_key = "_".join(parts[3:]) if len(parts) > 3 else "all"
         await show_profit_summary(query, year, month, trend_filter_key, is_query=True)
-        await query.answer()
+        await _qanswer(query)
 
     elif data.startswith("buy_") or data.startswith("sell_"):
         parts     = data.split("_")
@@ -986,10 +1003,10 @@ async def handle_callback(update, ctx):
                 f"✅ *เปิดสำเร็จ!* {e} {direction.upper()} {volume}lot @ `{price}`\n🛑`{sl}` 🎯`{tp}` 🔖`{r.order}`",
                 parse_mode='Markdown'
             )
-            await query.answer('เปิด Order สำเร็จ!')
+            await _qanswer(query,'เปิด Order สำเร็จ!')
         else:
             await query.edit_message_text(f"❌ ไม่สำเร็จ: {r.retcode} — {r.comment}")
-            await query.answer('เปิด Order ไม่สำเร็จ')
+            await _qanswer(query,'เปิด Order ไม่สำเร็จ')
 
 
 # ============================================================

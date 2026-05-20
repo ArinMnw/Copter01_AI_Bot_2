@@ -167,9 +167,29 @@ def _find_prev_swing_low_before_index(rates, idx: int):
         return None
 
 
+def _hhll_tp(tf: str, signal: str, entry: float, sl: float):
+    """หา TP จาก HHLL swing ถ้า RR >= 1:1 มิเช่นนั้นคืน None"""
+    if not tf:
+        return None
+    try:
+        from hhll_swing import get_swing_hl_pts
+        sh_pt, sl_pt = get_swing_hl_pts(tf)
+        if signal == "BUY" and sh_pt:
+            tp = float(sh_pt["price"])
+            if tp > entry and (tp - entry) >= (entry - sl):
+                return tp
+        elif signal == "SELL" and sl_pt:
+            tp = float(sl_pt["price"])
+            if tp < entry and (entry - tp) >= (sl - entry):
+                return tp
+    except Exception:
+        pass
+    return None
+
+
 def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
                          left: int, right: int, min_range: int, max_range: int,
-                         hidden: bool):
+                         hidden: bool, tf: str = ""):
     lows = _find_rsi_pivot_lows(rsi_values, left, right)
     if len(lows) < 2:
         return None
@@ -211,7 +231,7 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
     sl = round(cur_price_low - SL_BUFFER(), 2)
     if sl >= entry:
         return None
-    tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+    tp_swing = _hhll_tp(tf, "BUY", entry, sl) or find_swing_tp(rates, "BUY", entry, sl)
     tp = tp_swing if tp_swing else round(entry + (entry - sl), 2)
 
     return {
@@ -243,7 +263,7 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
 
 def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
                          left: int, right: int, min_range: int, max_range: int,
-                         hidden: bool):
+                         hidden: bool, tf: str = ""):
     highs = _find_rsi_pivot_highs(rsi_values, left, right)
     if len(highs) < 2:
         return None
@@ -285,7 +305,7 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
     sl = round(cur_price_high + SL_BUFFER(), 2)
     if sl <= entry:
         return None
-    tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+    tp_swing = _hhll_tp(tf, "SELL", entry, sl) or find_swing_tp(rates, "SELL", entry, sl)
     tp = tp_swing if tp_swing else round(entry - (sl - entry), 2)
 
     return {
@@ -315,7 +335,7 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
     }
 
 
-def strategy_9(rates):
+def strategy_9(rates, tf=""):
     """ท่าที่ 9: RSI Pivot Divergence ให้สอดคล้องกับ indicator RSIDivergencePane.mq5"""
     period = int(getattr(config, "RSI9_PERIOD", 14))
     applied_price = str(getattr(config, "RSI9_APPLIED_PRICE", "close"))
@@ -336,28 +356,28 @@ def strategy_9(rates):
 
     if plot_bullish:
         bullish = _build_bullish_setup(
-            rates, rsi_values, period, applied_price, left, right, min_range, max_range, False
+            rates, rsi_values, period, applied_price, left, right, min_range, max_range, False, tf=tf
         )
         if bullish:
             return bullish
 
     if plot_hidden_bullish:
         hidden_bullish = _build_bullish_setup(
-            rates, rsi_values, period, applied_price, left, right, min_range, max_range, True
+            rates, rsi_values, period, applied_price, left, right, min_range, max_range, True, tf=tf
         )
         if hidden_bullish:
             return hidden_bullish
 
     if plot_bearish:
         bearish = _build_bearish_setup(
-            rates, rsi_values, period, applied_price, left, right, min_range, max_range, False
+            rates, rsi_values, period, applied_price, left, right, min_range, max_range, False, tf=tf
         )
         if bearish:
             return bearish
 
     if plot_hidden_bearish:
         hidden_bearish = _build_bearish_setup(
-            rates, rsi_values, period, applied_price, left, right, min_range, max_range, True
+            rates, rsi_values, period, applied_price, left, right, min_range, max_range, True, tf=tf
         )
         if hidden_bearish:
             return hidden_bearish

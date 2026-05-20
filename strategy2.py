@@ -2,7 +2,7 @@ from config import *
 from mt5_utils import get_structure
 
 
-def detect_fvg(rates):
+def detect_fvg(rates, tf=""):
     """
     Strategy 2 - FVG
 
@@ -33,6 +33,18 @@ def detect_fvg(rates):
     ms = get_structure(rates)
     sh = ms["swing_high"]
     sl_z = ms["swing_low"]
+
+    # Override ด้วย HHLL swing ถ้า tf ระบุ
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            sh_pt, sl_pt = get_swing_hl_pts(tf)
+            if sh_pt:
+                sh = float(sh_pt["price"])
+            if sl_pt:
+                sl_z = float(sl_pt["price"])
+        except Exception:
+            pass
 
     if bull1 and cl1 > h2 + engulf_gap:
         if l0 <= h2:
@@ -134,8 +146,8 @@ def detect_fvg(rates):
     )
 
 
-def strategy_2(rates):
-    fvg, reason = detect_fvg(rates)
+def strategy_2(rates, tf=""):
+    fvg, reason = detect_fvg(rates, tf=tf)
     if fvg:
         def c(i):
             r = rates[i]

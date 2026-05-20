@@ -87,13 +87,31 @@ _sweep_last_bar: dict = {}  # {ticket: last_checked_bar_time}
 _focus_frozen_side: dict = {"trail_sl": None, "entry_candle": None}
 
 
-def _get_s6_prev_swing_high(rates, lookback=100):
+def _get_s6_prev_swing_high(rates, lookback=100, tf=""):
+    """Swing High สำหรับ S6/S6i — ใช้ HHLL ก่อน fallback pivot/simple"""
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            sh_pt, _ = get_swing_hl_pts(tf)
+            if sh_pt:
+                return {"price": float(sh_pt["price"]), "time": int(sh_pt["time"])}
+        except Exception:
+            pass
     left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
     right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
     return _find_prev_pivot_swing_high(rates, lookback=lookback, left=left, right=right) or _find_prev_swing_high(rates, lookback=lookback)
 
 
-def _get_s6_prev_swing_low(rates, lookback=100):
+def _get_s6_prev_swing_low(rates, lookback=100, tf=""):
+    """Swing Low สำหรับ S6/S6i — ใช้ HHLL ก่อน fallback pivot/simple"""
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            _, sl_pt = get_swing_hl_pts(tf)
+            if sl_pt:
+                return {"price": float(sl_pt["price"]), "time": int(sl_pt["time"])}
+        except Exception:
+            pass
     left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
     right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
     return _find_prev_pivot_swing_low(rates, lookback=lookback, left=left, right=right) or _find_prev_swing_low(rates, lookback=lookback)
@@ -227,6 +245,100 @@ def _pending_rsi_rule_result(side: str, tf: str) -> dict | None:
         "allowed": bool(allowed),
         "rule": rule,
         "threshold_text": f"{threshold:.2f}",
+    }
+
+
+# -------------------------------------------------------------
+def _rsi2_get_state(tf: str) -> str:
+    """
+    Mode 2: หา RSI state จาก crossover ล่าสุดใน history
+    Returns: "SELL_ONLY" | "BUY_ONLY" | "ANY"
+
+    Rules (scan จากแท่งล่าสุดย้อนหลัง หยุดที่ event แรกที่เจอ):
+      RSI > OB (ปัจจุบัน)          → SELL_ONLY  (absolute rule 5)
+      cross ลงจาก OB (prev>OB, cur<OB)  → SELL_ONLY
+      cross ลงจาก MID (prev>MID, cur<MID) → SELL_ONLY
+      cross ขึ้นจาก OS (prev<OS, cur>OS)  → BUY_ONLY
+      cross ขึ้นจาก MID (prev<MID, cur>MID) → BUY_ONLY
+    """
+    period = max(2, int(getattr(config, "PENDING_RSI_PERIOD", 14) or 14))
+    ob  = float(getattr(config, "RSI_MODE2_OB",  70.0))
+    os_ = float(getattr(config, "RSI_MODE2_OS",  30.0))
+    mid = float(getattr(config, "RSI_MODE2_MID", 50.0))
+
+    tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, period + 60)
+    if rates is None or len(rates) <= period:
+        return "ANY"
+    try:
+        from strategy9 import _calc_rsi_values
+        rsi_values = _calc_rsi_values(
+            rates, period=period,
+            applied_price=getattr(config, "PENDING_RSI_APPLIED_PRICE", "close"),
+        )
+        vals = [v for v in rsi_values if v is not None]
+        if not vals:
+            return "ANY"
+
+        # Rule 5: RSI > OB absolute → SELL_ONLY เสมอ
+        if vals[-1] > ob:
+            return "SELL_ONLY"
+
+        # สแกนจากแท่งล่าสุดย้อนหลัง หยุดที่ crossover แรกที่เจอ
+        for i in range(len(vals) - 1, 0, -1):
+            cur  = vals[i]
+            prev = vals[i - 1]
+            # cross ลงจาก OB
+            if prev > ob and cur <= ob:
+                return "SELL_ONLY"
+            # cross ลงจาก MID
+            if prev >= mid and cur < mid:
+                return "SELL_ONLY"
+            # cross ขึ้นจาก OS
+            if prev <= os_ and cur > os_:
+                return "BUY_ONLY"
+            # cross ขึ้นจาก MID
+            if prev < mid and cur >= mid:
+                return "BUY_ONLY"
+
+        return "ANY"
+    except Exception as e:
+        log_event("RSI2_STATE_ERROR", str(e), tf=tf)
+        return "ANY"
+
+
+def _pending_rsi_mode2_result(side: str, tf: str) -> dict | None:
+    """
+    Mode 2 RSI Recheck — state machine crossover
+    BUY  fill: ต้องการ state != SELL_ONLY
+    SELL fill: ต้องการ state != BUY_ONLY
+    """
+    if side not in ("BUY", "SELL"):
+        return None
+
+    rsi_value = _latest_pending_rsi(tf)
+    if rsi_value is None:
+        return None
+
+    ob  = float(getattr(config, "RSI_MODE2_OB",  70.0))
+    os_ = float(getattr(config, "RSI_MODE2_OS",  30.0))
+    mid = float(getattr(config, "RSI_MODE2_MID", 50.0))
+
+    state = _rsi2_get_state(tf)
+
+    if side == "BUY":
+        allowed = (state != "SELL_ONLY")
+        rule    = f"Mode2 BUY block=SELL_ONLY state={state}"
+    else:
+        allowed = (state != "BUY_ONLY")
+        rule    = f"Mode2 SELL block=BUY_ONLY state={state}"
+
+    return {
+        "rsi":            float(rsi_value),
+        "state":          state,
+        "allowed":        bool(allowed),
+        "rule":           rule,
+        "threshold_text": f"OB={ob:g}/MID={mid:g}/OS={os_:g}",
     }
 
 
@@ -383,7 +495,7 @@ def _tso_close_partial(pos, pos_type: str, volume: float, reason: str) -> bool:
         "price":         close_price,
         "deviation":     20,
         "magic":         0,
-        "comment":       reason,
+        "comment":       getattr(pos, "comment", "") or "",  # คง comment เดิมของ position
         "type_time":     mt5.ORDER_TIME_GTC,
         "type_filling":  _get_filling_mode(),
     })
@@ -857,10 +969,19 @@ async def check_s1_zone_rules(app):
         if rates is None or len(rates) < 5:
             continue
 
+        # รอ 7 แท่งหลัง detect ก่อน — zone อาจยังไม่ก่อตัว
+        _fwd_meta = info.get("s1_forward_meta") or {}
+        _detect_bar_time = int(_fwd_meta.get("detect_bar_time", 0) or 0)
+        if _detect_bar_time > 0:
+            _candles_passed = sum(1 for r in rates if int(r["time"]) > _detect_bar_time)
+            if _candles_passed < 7:
+                continue  # ยังไม่ถึง 7 แท่ง ข้ามไปก่อน
+
         zone_state = evaluate_s1_zone_status(
             rates,
             str(zone_meta.get("signal") or info.get("signal") or ""),
             float(zone_meta.get("zone_price", 0.0) or 0.0),
+            tf=tf,
         )
         if zone_state.get("in_zone", True):
             continue
@@ -924,6 +1045,7 @@ async def check_s1_zone_rules(app):
             rates,
             str(zone_meta.get("signal") or pos_type or ""),
             float(zone_meta.get("zone_price", 0.0) or 0.0),
+            tf=tf,
         )
         if zone_state.get("in_zone", True) or float(pos.profit) >= 0.0:
             continue
@@ -1625,8 +1747,8 @@ async def _run_limit_sweep_followup(app, ticket: int, pos_type: str, tf: str,
     bar_close = float(bar["close"])
     bar_time = int(bar["time"])
 
-    sh_info = _find_prev_swing_high(rates)
-    sl_info = _find_prev_swing_low(rates)
+    sh_info = _get_s6_prev_swing_high(rates, tf=tf)
+    sl_info = _get_s6_prev_swing_low(rates, tf=tf)
 
     if pos_type == "BUY":
         target_info = _find_ll(rates, sl_info)
@@ -1807,6 +1929,19 @@ async def check_limit_fill_notify(app):
 
         _fill_notified[ticket] = True
         fill_time = _fmt_bkk_ts(int(pos.time))
+
+        # RSI value ณ เวลา fill
+        _fill_rsi_val  = _latest_pending_rsi(_fill_tf)
+        _fill_rsi_str  = f"{_fill_rsi_val:.2f}" if _fill_rsi_val is not None else "?"
+
+        # RSI Mode 2 state (crossover)
+        _fill_rsi2_state = _rsi2_get_state(_fill_tf) if _fill_rsi_val is not None else "?"
+
+        # RSI cross label
+        _rsi2_emoji = {"SELL_ONLY": "🔴 SELL_ONLY", "BUY_ONLY": "🟢 BUY_ONLY", "ANY": "⚪ ANY"}.get(
+            _fill_rsi2_state, f"? {_fill_rsi2_state}"
+        )
+
         log_event(
             "ENTRY_FILL",
             "Limit fill detected",
@@ -1820,15 +1955,20 @@ async def check_limit_fill_notify(app):
             tp=pos.tp,
             fill_time=fill_time,
             trend=_fill_trend,
+            rsi=_fill_rsi_val,
+            rsi2_state=_fill_rsi2_state,
         )
-        await tg(app, (f"🔔 *Limit Fill - {pos_type}{reverse_tag}*\n"
-                      f"{sig_e} Ticket:`{ticket}`\n"
-                      f"📝 Pattern: `{pattern_name or '-'}`\n"
-                      f"📌 เปิดที่: `{pos.price_open:.2f}`\n"
-                      f"🛑 SL: `{pos.sl:.2f}` | 🎯 TP: `{pos.tp:.2f}`\n"
-                      f"🕐 Fill Time: `{fill_time}`"))
+        await tg(app, (
+            f"🔔 *Limit Fill - {pos_type}{reverse_tag}*\n"
+            f"{sig_e} Ticket:`{ticket}`\n"
+            f"📝 Pattern: `{pattern_name or '-'}`\n"
+            f"📌 เปิดที่: `{pos.price_open:.2f}`\n"
+            f"🛑 SL: `{pos.sl:.2f}` | 🎯 TP: `{pos.tp:.2f}`\n"
+            f"🕐 Fill Time: `{fill_time}`\n"
+            f"📈 Trend: `{_fill_tf}` → `{_fill_trend}`\n"
+            f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_fill_rsi_str}` | Cross: `{_rsi2_emoji}`"
+        ))
         print(f"[{now}] fill {pos_type} {ticket}={pos.price_open:.2f}")
-        await tg(app, f"Trend At Fill: TF `{_fill_tf}` | Trend `{_fill_trend}`")
 
 
 # -------------------------------------------------------------
@@ -1860,8 +2000,16 @@ async def check_fill_rsi_recheck(app):
         pattern_name = position_pattern.get(ticket, "") or ""
         _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
 
-        _rsi_result = _pending_rsi_rule_result(pos_type, _fill_tf)
-        if _rsi_result is None:
+        # Route ตาม mode — 1=mode1, 2=mode2, 3=ทั้งคู่
+        _mode = int(getattr(config, "PENDING_RSI_RECHECK_MODE", 1))
+
+        _r1 = _pending_rsi_rule_result(pos_type, _fill_tf)  if _mode in (1, 3) else None
+        _r2 = _pending_rsi_mode2_result(pos_type, _fill_tf) if _mode in (2, 3) else None
+
+        # ถ้าข้อมูล RSI ไม่พร้อมทุก mode ที่เลือก → skip รอรอบหน้า
+        if (_mode == 1 and _r1 is None) or \
+           (_mode == 2 and _r2 is None) or \
+           (_mode == 3 and _r1 is None and _r2 is None):
             log_event(
                 "ENTRY_FILL_RSI_RECHECK_SKIP",
                 "RSI unavailable after fill",
@@ -1871,14 +2019,33 @@ async def check_fill_rsi_recheck(app):
                 sid=sid,
                 pattern=pattern_name,
             )
-            # อย่า mark checked เผื่อ RSI พร้อมรอบหน้า
             continue
-        if not _rsi_result["allowed"]:
+
+        # รวบ fail reasons (ถ้ามี)
+        _fail_parts = []
+        _rsi_val = None
+
+        if _r1 is not None:
+            _rsi_val = _r1["rsi"]
+            if not _r1["allowed"]:
+                _fail_parts.append(
+                    f"[Mode1] ไม่ผ่าน {_r1['rule']} "
+                    f"(BUY<{_r1['threshold_text']} / SELL>{_r1['threshold_text']})"
+                )
+
+        if _r2 is not None:
+            _rsi_val = _rsi_val or _r2["rsi"]
+            if not _r2["allowed"]:
+                _state = _r2.get("state", "?")
+                _fail_parts.append(
+                    f"[Mode2] State={_state} → block {pos_type} | {_r2['threshold_text']}"
+                )
+
+        if _fail_parts:
             _reason = (
                 f"Fill RSI Recheck Fail [{_fill_tf}]: {pos_type} entry:{float(pos.price_open):.2f} | "
-                f"RSI({config.PENDING_RSI_PERIOD})={_rsi_result['rsi']:.2f} | "
-                f"เกณฑ์: BUY < {_rsi_result['threshold_text']} / SELL > {_rsi_result['threshold_text']} | "
-                f"ไม่ผ่าน {_rsi_result['rule']}"
+                f"RSI({config.PENDING_RSI_PERIOD})={_rsi_val:.2f} | "
+                + " | ".join(_fail_parts)
             )
             log_event(
                 "ENTRY_FILL_RSI_RECHECK_FAIL",
@@ -1889,18 +2056,20 @@ async def check_fill_rsi_recheck(app):
                 sid=sid,
                 pattern=pattern_name,
                 price=pos.price_open,
-                rsi=_rsi_result["rsi"],
+                rsi=_rsi_val,
+                mode=_mode,
             )
             ok_close, close_price = _close_position(pos, pos_type, f"fill rsi fail [{_fill_tf}]")
             status = "ส่งปิดแล้ว" if ok_close else "ส่งปิดไม่สำเร็จ"
+            _fail_text = "\n".join(f"  • {p}" for p in _fail_parts)
             await tg(app, (
-                f"⚠️ *Fill RSI Recheck ไม่ผ่าน - ปิดทันที*\n"
+                f"⚠️ *Fill RSI Recheck ไม่ผ่าน - ปิดทันที* (Mode {_mode})\n"
                 f"{sig_e} Ticket:`{ticket}` [{pos_type}]\n"
                 f"📝 Pattern: `{pattern_name or '-'}`\n"
                 f"📍 TF: `{_fill_tf}`\n"
                 f"📌 Entry: `{float(pos.price_open):.2f}`\n"
-                f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_rsi_result['rsi']:.2f}`\n"
-                f"📏 เกณฑ์: `BUY < {_rsi_result['threshold_text']} / SELL > {_rsi_result['threshold_text']}`\n"
+                f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_rsi_val:.2f}`\n"
+                f"❌ เหตุผล:\n{_fail_text}\n"
                 f"สถานะ: `{status}`"
             ))
             if ok_close:
@@ -2503,7 +2672,7 @@ async def check_entry_candle_quality(app):
 
                 elif not bull and current_price <= pos.price_open:
                     rates_swing = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, 120)
-                    swing_info = _find_prev_swing_low(rates_swing) if rates_swing is not None else None
+                    swing_info = _get_s6_prev_swing_low(rates_swing, tf=tf_name) if rates_swing is not None else None
                     swing_sl = round(swing_info["price"] - 1.0, 2) if swing_info else round(entry_low - 1.0, 2)
                     bad_tp = round(float(entry_bar["open"]) - spread_price, 2)
                     reason = f"แดง High>{prev_high:.2f}" if entry_high > prev_high else (
@@ -2731,7 +2900,7 @@ async def check_entry_candle_quality(app):
 
                 elif bull and current_price >= pos.price_open:
                     rates_swing = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, 120)
-                    swing_info = _find_prev_swing_high(rates_swing) if rates_swing is not None else None
+                    swing_info = _get_s6_prev_swing_high(rates_swing, tf=tf_name) if rates_swing is not None else None
                     swing_sl = round(swing_info["price"] + 1.0, 2) if swing_info else round(entry_high + 1.0, 2)
                     bad_tp = round(float(entry_bar["open"]) + spread_price, 2)
                     reason = f"เขียว Low<{prev_low:.2f}" if entry_low < prev_low else (
@@ -3061,9 +3230,20 @@ async def check_engulf_trail_sl(app):
                 continue
 
         trend_override, trend_override_reason = _trend_filter_trail_override(ticket, pos_type, order_tf)
-        reversal_override, reversal_sl, reversal_override_reason = _reversal_trail_override(
-            pos_type, order_tf, float(pos.sl), int(pos.time)
+        # Reversal override เฉพาะเมื่อ SL lock profit แล้ว
+        # BUY: SL > entry | SELL: SL < entry (SL = 0 ยังไม่ตั้ง → ข้าม)
+        _entry_price = float(pos.price_open)
+        _cur_sl      = float(pos.sl)
+        _sl_in_profit = (
+            (pos_type == "BUY"  and _cur_sl > _entry_price) or
+            (pos_type == "SELL" and _cur_sl > 0 and _cur_sl < _entry_price)
         )
+        if _sl_in_profit:
+            reversal_override, reversal_sl, reversal_override_reason = _reversal_trail_override(
+                pos_type, order_tf, _cur_sl, int(pos.time)
+            )
+        else:
+            reversal_override, reversal_sl, reversal_override_reason = False, 0.0, ""
         if ticket in focus_skip_tickets and not trend_override and not reversal_override:
             continue
 
@@ -3634,10 +3814,10 @@ async def _s6_process_ticket(app, pos, positions, state_dict, mode_tag, now,
     # Init state
     if ticket not in state_dict:
         if pos_type == "BUY":
-            sh_info = _find_prev_swing_high(rates)
+            sh_info = _get_s6_prev_swing_high(rates, tf=tf_name)
             swing_ref = sh_info["price"] if sh_info else None
         else:
-            sl_info = _find_prev_swing_low(rates)
+            sl_info = _get_s6_prev_swing_low(rates, tf=tf_name)
             swing_ref = sl_info["price"] if sl_info else None
 
         if not swing_ref:
@@ -3717,10 +3897,10 @@ async def _s6_process_ticket(app, pos, positions, state_dict, mode_tag, now,
 
         # Find a new swing from the breakout candle -> reset state
         if pos_type == "BUY":
-            sh_info = _find_prev_swing_high(rates)
+            sh_info = _get_s6_prev_swing_high(rates, tf=tf_name)
             new_swing = sh_info["price"] if sh_info and sh_info["price"] > swing_h else None
         else:
-            sl_info = _find_prev_swing_low(rates)
+            sl_info = _get_s6_prev_swing_low(rates, tf=tf_name)
             new_swing = sl_info["price"] if sl_info and sl_info["price"] < swing_h else None
 
         if new_swing:
@@ -3838,9 +4018,9 @@ async def _s6i_process_ticket(app, pos, now,
     if rates is None or len(rates) < 5:
         return
 
-    # Side-dependent references
-    find_swing    = _find_prev_swing_low  if is_buy else _find_prev_swing_high
-    find_swing_tp = _find_prev_swing_high if is_buy else _find_prev_swing_low
+    # Side-dependent references — ใช้ HHLL ก่อน fallback pivot/simple
+    find_swing    = (lambda r: _get_s6_prev_swing_low(r, tf=tf_name))  if is_buy else (lambda r: _get_s6_prev_swing_high(r, tf=tf_name))
+    find_swing_tp = (lambda r: _get_s6_prev_swing_high(r, tf=tf_name)) if is_buy else (lambda r: _get_s6_prev_swing_low(r, tf=tf_name))
     has_s1        = _has_s1_buy_pattern   if is_buy else _has_s1_sell_pattern
     has_s3        = _has_s3_buy_pattern   if is_buy else _has_s3_sell_pattern
     order_side    = "BUY" if is_buy else "SELL"
@@ -4277,14 +4457,18 @@ async def check_cancel_pending_orders(app):
 
     now = now_bkk().strftime("%H:%M:%S")
     open_tickets = {o.ticket for o in orders}
+    # tickets ที่กลายเป็น position แล้ว (filled) → ไม่ pop position_tf ออก
+    _open_pos_tickets = {p.ticket for p in (mt5.positions_get(symbol=SYMBOL) or [])}
 
     # Cleanup tickets that no longer exist
     for t in list(pending_order_tf.keys()):
         if t not in open_tickets:
             info = pending_order_tf.pop(t, None)
-            position_tf.pop(t, None)
-            position_sid.pop(t, None)
-            position_pattern.pop(t, None)
+            # ถ้า fill กลายเป็น position → คง position_tf/sid/pattern ไว้ให้ notify_limit_fills ใช้
+            if t not in _open_pos_tickets:
+                position_tf.pop(t, None)
+                position_sid.pop(t, None)
+                position_pattern.pop(t, None)
             if isinstance(info, dict):
                 log_event(
                     "ORDER_CANCELED",
@@ -4734,16 +4918,15 @@ async def check_cancel_pending_orders(app):
 
         # S8 Swing Limit: cancel when swing changes
         if not should_cancel and isinstance(info, dict) and info.get("swing_price") and info.get("sid") == 8:
-            from strategy4 import _find_prev_swing_high, _find_prev_swing_low
             old_swing = info["swing_price"]
             sig = info.get("signal", "")
             if sig == "SELL":
-                new_sh = _find_prev_swing_high(rates)
+                new_sh = _get_s6_prev_swing_high(rates, tf=tf)
                 if new_sh and abs(new_sh["price"] - old_swing) > 0.01:
                     should_cancel = True
                     reason = f"Swing High changed {old_swing:.2f} -> {new_sh['price']:.2f}"
             elif sig == "BUY":
-                new_sl = _find_prev_swing_low(rates)
+                new_sl = _get_s6_prev_swing_low(rates, tf=tf)
                 if new_sl and abs(new_sl["price"] - old_swing) > 0.01:
                     should_cancel = True
                     reason = f"Swing Low changed {old_swing:.2f} -> {new_sl['price']:.2f}"
@@ -4914,8 +5097,8 @@ async def check_limit_sweep(app):
         print(f"[{now}] 🧹 Limit Sweep: ปิด {pos_type} #{ticket} [{tf}] {reason_detail}")
 
         # -- 2) หา Swing LL (BUY) หรือ HH (SELL) --
-        sh_info = _find_prev_swing_high(rates)
-        sl_info = _find_prev_swing_low(rates)
+        sh_info = _get_s6_prev_swing_high(rates, tf=tf)
+        sl_info = _get_s6_prev_swing_low(rates, tf=tf)
 
         if pos_type == "BUY":
             target_info = _find_ll(rates, sl_info)  # LL = swing low ที่ต่ำกว่า L

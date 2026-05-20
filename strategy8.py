@@ -2,13 +2,48 @@ from config import *
 from strategy4 import _find_prev_swing_high, _find_prev_swing_low
 
 
-def strategy_8(rates):
+def strategy_8(rates, tf=""):
     """ท่าที่ 8: กินไส้ Swing วาง LIMIT สูตรเดิม แล้วค่อยใส่ SL ตอน breakout"""
     if len(rates) < 10:
         return {"signal": "WAIT", "reason": "ข้อมูลไม่เพียงพอ", "orders": []}
 
-    sh_info = _find_prev_swing_high(rates)
-    sl_info = _find_prev_swing_low(rates)
+    sh_info = None
+    sl_info = None
+
+    # ใช้ HHLL swing (HHLLStrategy) เป็นหลัก
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            sh_pt, sl_pt = get_swing_hl_pts(tf)
+            if sh_pt:
+                # หาแท่งเทียนใน rates ที่ตรงกับเวลา HHLL เพื่อเอา H/L ของแท่งนั้น
+                sh_candle = next(
+                    (r for r in rates if int(r["time"]) == int(sh_pt["time"])), None
+                )
+                if sh_candle:
+                    sh_info = {
+                        "price": float(sh_pt["price"]),
+                        "time": int(sh_pt["time"]),
+                        "candle": sh_candle,
+                    }
+            if sl_pt:
+                sl_candle = next(
+                    (r for r in rates if int(r["time"]) == int(sl_pt["time"])), None
+                )
+                if sl_candle:
+                    sl_info = {
+                        "price": float(sl_pt["price"]),
+                        "time": int(sl_pt["time"]),
+                        "candle": sl_candle,
+                    }
+        except Exception:
+            pass
+
+    # Fallback: ใช้ swing detection เดิม ถ้า HHLL ไม่มีข้อมูล
+    if sh_info is None:
+        sh_info = _find_prev_swing_high(rates)
+    if sl_info is None:
+        sl_info = _find_prev_swing_low(rates)
     orders = []
     # Swing High -> SELL LIMIT
     if sh_info and sl_info:

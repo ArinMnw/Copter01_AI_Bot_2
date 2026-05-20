@@ -9,7 +9,7 @@ from entry_calculator import (
 )
 
 
-def _get_s1_structure(rates):
+def _get_s1_structure(rates, tf=""):
     ms = get_structure(rates)
     left = max(1, int(getattr(config, "SWING_PIVOT_LEFT", 15) or 15))
     right = max(1, int(getattr(config, "SWING_PIVOT_RIGHT", 10) or 10))
@@ -22,6 +22,19 @@ def _get_s1_structure(rates):
         ms["swing_high"] = float(sh_info["price"])
     if sl_info:
         ms["swing_low"] = float(sl_info["price"])
+
+    # Overrideด้วย HHLL swing (HHLLStrategy) ถ้า tf ระบุและมีข้อมูล
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            sh_pt, sl_pt = get_swing_hl_pts(tf)
+            if sh_pt:
+                ms["swing_high"] = float(sh_pt["price"])
+            if sl_pt:
+                ms["swing_low"] = float(sl_pt["price"])
+        except Exception:
+            pass  # fallback: ใช้ pivot swing เดิม
+
     return ms
 
 
@@ -36,7 +49,7 @@ def _attach_s1_zone_meta(payload: dict, use_zone: bool, signal: str, zone_price:
     return payload
 
 
-def evaluate_s1_zone_status(rates, signal: str, zone_price: float) -> dict:
+def evaluate_s1_zone_status(rates, signal: str, zone_price: float, tf="") -> dict:
     use_zone = (S1_ZONE_MODE == "zone")
     if not use_zone:
         return {
@@ -48,7 +61,7 @@ def evaluate_s1_zone_status(rates, signal: str, zone_price: float) -> dict:
             "buf": 0.0,
         }
 
-    ms = _get_s1_structure(rates)
+    ms = _get_s1_structure(rates, tf=tf)
     swing_high = float(ms["swing_high"])
     swing_low = float(ms["swing_low"])
     buf = float(ms["atr"]) * ZONE_BUFFER
@@ -71,7 +84,7 @@ def evaluate_s1_zone_status(rates, signal: str, zone_price: float) -> dict:
         "buf": float(buf),
     }
 
-def strategy_1(rates):
+def strategy_1(rates, tf=""):
     if len(rates) < 3:
         return {"signal": "WAIT", "reason": "ข้อมูลไม่เพียงพอ"}
 
@@ -88,7 +101,7 @@ def strategy_1(rates):
     if has_c3:
         o3,h3,l3,cl3,bull3 = c(-4)
 
-    ms   = _get_s1_structure(rates)
+    ms   = _get_s1_structure(rates, tf=tf)
     sh   = ms["swing_high"]
     sl_z = ms["swing_low"]
     atr  = ms["atr"]
@@ -174,7 +187,7 @@ def strategy_1(rates):
             lowest   = min(l0, l1, l2)
             entry    = round((h1 + l1) / 2, 2)
             sl       = round(lowest - SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -223,7 +236,7 @@ def strategy_1(rates):
             entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -264,7 +277,7 @@ def strategy_1(rates):
             highest  = max(h0, h1, h2)
             entry    = round((h1 + l1) / 2, 2)
             sl       = round(highest + SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -313,7 +326,7 @@ def strategy_1(rates):
             entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -346,7 +359,7 @@ def strategy_1(rates):
             entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -379,7 +392,7 @@ def strategy_1(rates):
             entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -414,7 +427,7 @@ def strategy_1(rates):
             entry    = round((h0 + l0) / 2, 2)
             lowest   = min(l0, l1, l2)
             sl       = round(lowest - SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -456,7 +469,7 @@ def strategy_1(rates):
             entry    = round((h0 + l0) / 2, 2)
             highest  = max(h0, h1, h2)
             sl       = round(highest + SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
             return _attach_s1_zone_meta({
@@ -493,7 +506,7 @@ def strategy_1(rates):
             entry = round((h2 + l2) / 2, 2)
             lowest = min(l0, l1, l2, l3)
             sl = round(lowest - SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
             return _attach_s1_zone_meta({
@@ -522,7 +535,7 @@ def strategy_1(rates):
             entry = round((h2 + l2) / 2, 2)
             highest = max(h0, h1, h2, h3)
             sl = round(highest + SL_BUFFER(), 2)
-            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
             return _attach_s1_zone_meta({

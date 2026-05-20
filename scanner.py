@@ -22,6 +22,8 @@ from strategy13 import strategy_13
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
+import amp_trend
+import hhll_swing
 _first_scan_done = False
 _scan_results: dict = {}   # {tf_name: dict}
 _scan_lock = None
@@ -913,17 +915,69 @@ def _export_trend_state_for_mt5():
             "sh_time,sh_price,prev_sh_time,prev_sh_price,"
             "sl_time,sl_price,prev_sl_time,prev_sl_price,"
             "break_flag,per_tf_on",
+            "# trend determined from HH/HL/LH/LL (HHLLStrategy algorithm)",
         ]
         for tf_name, sw in _swing_data.items():
-            trend = sw.get("trend") or {}
+            # ── HHLL data (HHLLStrategy algorithm) ──────────────────────
+            hhll = hhll_swing.get_hhll_data(tf_name)
+            hh = hhll.get("hh")   # {"price", "time"} | None
+            lh = hhll.get("lh")
+            hl = hhll.get("hl")
+            ll = hhll.get("ll")
+
+            # Sort swing highs by time → older = prev_sh, newer = sh
+            if hh and lh:
+                if hh["time"] >= lh["time"]:
+                    pt_sh, pt_psh, recent_high = hh, lh, "HH"
+                else:
+                    pt_sh, pt_psh, recent_high = lh, hh, "LH"
+            elif hh:
+                pt_sh, pt_psh, recent_high = hh, None, "HH"
+            elif lh:
+                pt_sh, pt_psh, recent_high = lh, None, "LH"
+            else:
+                pt_sh = pt_psh = None
+                recent_high = None
+
+            # Sort swing lows by time → older = prev_sl, newer = sl
+            if hl and ll:
+                if hl["time"] >= ll["time"]:
+                    pt_sl, pt_psl, recent_low = hl, ll, "HL"
+                else:
+                    pt_sl, pt_psl, recent_low = ll, hl, "LL"
+            elif hl:
+                pt_sl, pt_psl, recent_low = hl, None, "HL"
+            elif ll:
+                pt_sl, pt_psl, recent_low = ll, None, "LL"
+            else:
+                pt_sl = pt_psl = None
+                recent_low = None
+
+            # Trend from HHLL structure
+            #   most recent high = HH AND most recent low = HL → BULL
+            #   most recent high = LH AND most recent low = LL → BEAR
+            #   otherwise → SIDEWAY
+            if recent_high == "HH" and recent_low == "HL":
+                t        = "BULL"
+                strength = "strong"
+            elif recent_high == "LH" and recent_low == "LL":
+                t        = "BEAR"
+                strength = "strong"
+            elif recent_high is not None or recent_low is not None:
+                t        = "SIDEWAY"
+                strength = "weak"
+            else:
+                t        = "UNKNOWN"
+                strength = "-"
+
+            # Break flag จาก swing data เดิม (ยังใช้ได้)
             breakout = sw.get("breakout") or {}
-            t = trend.get("trend", "UNKNOWN")
-            strength = trend.get("strength", "-")
             break_flag = "-"
             if breakout.get("break_up"):
                 break_flag = "break_up"
             elif breakout.get("break_down"):
                 break_flag = "break_down"
+
             per_tf_on = 1 if per_tf_map.get(tf_name, False) else 0
 
             def _num(v, is_price=True):
@@ -933,12 +987,18 @@ def _export_trend_state_for_mt5():
                     return f"{float(v):.2f}"
                 return str(int(v))
 
+            def _pt_t(pt):
+                return _num(pt["time"] if pt else None, False)
+
+            def _pt_p(pt):
+                return _num(pt["price"] if pt else None, True)
+
             lines.append(
                 f"{tf_name},{t},{strength},"
-                f"{_num(sw.get('sh_time'), False)},{_num(sw.get('sh_price'))},"
-                f"{_num(sw.get('prev_sh_time'), False)},{_num(sw.get('prev_sh_price'))},"
-                f"{_num(sw.get('sl_time'), False)},{_num(sw.get('sl_price'))},"
-                f"{_num(sw.get('prev_sl_time'), False)},{_num(sw.get('prev_sl_price'))},"
+                f"{_pt_t(pt_sh)},{_pt_p(pt_sh)},"
+                f"{_pt_t(pt_psh)},{_pt_p(pt_psh)},"
+                f"{_pt_t(pt_sl)},{_pt_p(pt_sl)},"
+                f"{_pt_t(pt_psl)},{_pt_p(pt_psl)},"
                 f"{break_flag},{per_tf_on}"
             )
         payload = "\n".join(lines) + "\n"
@@ -947,11 +1007,28 @@ def _export_trend_state_for_mt5():
             try:
                 with open(tmp, "w", encoding="utf-8") as f:
                     f.write(payload)
-                os.replace(tmp, target)
+                # retry os.replace 3 ครั้ง — MT5 อาจ lock ไฟล์ .txt ชั่วคราว
+                import time as _t
+                _replaced = False
+                for _attempt in range(3):
+                    try:
+                        os.replace(tmp, target)
+                        _replaced = True
+                        break
+                    except PermissionError:
+                        _t.sleep(0.05)
+                if not _replaced:
+                    # fallback: เขียนตรงๆ ข้าม tmp
+                    try:
+                        os.remove(tmp)
+                    except OSError:
+                        pass
+                    with open(target, "w", encoding="utf-8") as f:
+                        f.write(payload)
             except FileNotFoundError as e:
                 _log_err("FILE_NOT_FOUND", e, detail=tmp)
             except PermissionError as e:
-                _log_err("PERMISSION_DENIED_WRITE", e, detail=tmp)
+                _log_err("PERMISSION_DENIED_WRITE", e, detail=target)
             except OSError as e:
                 # WinError 32 = file in use, 17 = cross-device, etc.
                 _log_err("OS_ERROR_WRITE", e, detail=tmp)
@@ -1295,16 +1372,35 @@ def _format_scan_summary_telegram_clean(show_tfs: list[str]) -> tuple[str, str]:
         trend_line = f"│ 🧭 Trend:{trend_lbl}"
         if break_lbl:
             trend_line += f"  {break_lbl}"
+        _amp_lbl  = amp_trend.get_amp_trend(tf).get("label") or "—"
+        _hhll     = hhll_swing.get_hhll_data(tf)
+        _hhll_struct = hhll_swing.get_hhll_structure_label(tf, 4)
+        def _hfmt(pt):
+            if not pt:
+                return "—"
+            return f"{pt['price']:.2f} {fmt_mt5_bkk_ts(pt['time'], '%H:%M %d-%b')}"
+        _hh_pt = _hhll.get("hh"); _lh_pt = _hhll.get("lh")
+        _hl_pt = _hhll.get("hl"); _ll_pt = _hhll.get("ll")
+        _lb = sw.get("last_bar") or {}
+        _bar_line = ""
+        if _lb:
+            # M5/M15/M30/H1 — แสดง close time (open + tf_duration) เพราะ trader อ่านแท่งด้วยเวลาปิด
+            _TF_CLOSE_SECS = {"M5": 300, "M15": 900, "M30": 1800, "H1": 3600}
+            _bar_ts = _lb["time"] + _TF_CLOSE_SECS.get(tf, 0)
+            _bt = fmt_mt5_bkk_ts(_bar_ts, "%H:%M %d-%b-%Y")
+            _bar_line = (f"│ 🕯️ {_bt}"
+                         f"  O:{_lb['open']:.2f}"
+                         f"  H:{_lb['high']:.2f}"
+                         f"  L:{_lb['low']:.2f}"
+                         f"  C:{_lb['close']:.2f}")
         swing_lines.append(f"┌─ {tf_icon} {tf}")
         swing_lines.append(trend_line)
-        if sw.get("mode") == "pivot":
-            swing_lines.append(f"│ 🕒 AsOf:{asof_lbl} | H✓:{sh_confirm_lbl} | L✓:{sl_confirm_lbl}")
-        swing_lines.append(f"│ 📈 H:{sw['sh']}")
-        swing_lines.append(f"│ 📈 HH:{sw.get('hh', '—')}")
-        swing_lines.append(f"│ 📈 Prev H:{sw.get('prev_sh', '—')}")
-        swing_lines.append(f"│ 📉 L:{sw['sl']}")
-        swing_lines.append(f"│ 📉 LL:{sw.get('ll', '—')}")
-        swing_lines.append(f"│ 📉 Prev L:{sw.get('prev_sl', '—')}")
+        swing_lines.append(f"│ 📐 AMP:  {_amp_lbl}")
+        if _bar_line:
+            swing_lines.append(_bar_line)
+        swing_lines.append(f"│ 🏷️ HHLL: {_hhll_struct}")
+        swing_lines.append(f"│ 📈 HH:{_hfmt(_hh_pt)}  LH:{_hfmt(_lh_pt)}")
+        swing_lines.append(f"│ 📉 HL:{_hfmt(_hl_pt)}  LL:{_hfmt(_ll_pt)}")
         swing_lines.append("└────────────────")
     if swing_lines:
         body_lines.append("━━━━━━━━━━━━━━━━━\n📊 Scan Swing\n\n" + "\n".join(swing_lines))
@@ -1666,18 +1762,34 @@ async def auto_scan(app):
                 trend_line = f"  │ 🧭 {C_SW}Trend:{trend_lbl}{RESET}"
                 if break_lbl:
                     trend_line += f"  {C_SW}{break_lbl}{RESET}"
+                _hhll_c      = hhll_swing.get_hhll_data(tf)
+                _hhll_str_c  = hhll_swing.get_hhll_structure_label(tf, 4)
+                def _hfmt_c(pt):
+                    if not pt:
+                        return "—"
+                    return f"{pt['price']:.2f} {fmt_mt5_bkk_ts(pt['time'], '%H:%M %d-%b')}"
+                _hh_c = _hhll_c.get("hh"); _lh_c = _hhll_c.get("lh")
+                _hl_c = _hhll_c.get("hl"); _ll_c = _hhll_c.get("ll")
+                _amp_lbl_c = amp_trend.get_amp_trend(tf).get("label") or "—"
+                _lb_c = sw.get("last_bar") or {}
+                _bar_line_c = ""
+                if _lb_c:
+                    _TF_CLOSE_SECS_C = {"M5": 300, "M15": 900, "M30": 1800, "H1": 3600}
+                    _bar_ts_c = _lb_c["time"] + _TF_CLOSE_SECS_C.get(tf, 0)
+                    _bt_c = fmt_mt5_bkk_ts(_bar_ts_c, "%H:%M %d-%b-%Y")
+                    _bar_line_c = (f"  │ 🕯️ {C_SW}{_bt_c}"
+                                   f"  O:{_lb_c['open']:.2f}"
+                                   f"  H:{_lb_c['high']:.2f}"
+                                   f"  L:{_lb_c['low']:.2f}"
+                                   f"  C:{_lb_c['close']:.2f}{RESET}")
                 swing_lines.append(f"  ┌─ {c}{tf}{RESET}")
                 swing_lines.append(trend_line)
-                if sw.get("mode") == "pivot":
-                    swing_lines.append(
-                        f"  │ 🕒 {C_SW}AsOf:{asof_lbl} | H✓:{sh_confirm_lbl} | L✓:{sl_confirm_lbl}{RESET}"
-                    )
-                swing_lines.append(f"  │ 📈 {C_SW}H:{sw['sh']}{RESET}")
-                swing_lines.append(f"  │ 📈 {C_SW}HH:{sw.get('hh', '—')}{RESET}")
-                swing_lines.append(f"  │ 📈 {C_SW}Prev H:{sw.get('prev_sh', '—')}{RESET}")
-                swing_lines.append(f"  │ 📉 {C_SW}L:{sw['sl']}{RESET}")
-                swing_lines.append(f"  │ 📉 {C_SW}LL:{sw.get('ll', '—')}{RESET}")
-                swing_lines.append(f"  │ 📉 {C_SW}Prev L:{sw.get('prev_sl', '—')}{RESET}")
+                swing_lines.append(f"  │ 📐 {C_SW}AMP:  {_amp_lbl_c}{RESET}")
+                if _bar_line_c:
+                    swing_lines.append(_bar_line_c)
+                swing_lines.append(f"  │ 🏷️ {C_SW}HHLL: {_hhll_str_c}{RESET}")
+                swing_lines.append(f"  │ 📈 {C_SW}HH:{_hfmt_c(_hh_c)}  LH:{_hfmt_c(_lh_c)}{RESET}")
+                swing_lines.append(f"  │ 📉 {C_SW}HL:{_hfmt_c(_hl_c)}  LL:{_hfmt_c(_ll_c)}{RESET}")
                 swing_lines.append("  └────────────────")
             if swing_lines:
                 blocks.append("\n".join(swing_lines))
@@ -1903,12 +2015,23 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         _prev_prev_sl_info = _find_previous_swing_info(rates, _prev_sl_info, _find_sl)
         _hh_info = _find_higher_h(rates, _sh_info)
         _ll_info = _find_lower_l(rates, _sl_info)
-    _trend_info = _compute_trend_info(
+    # Fetch HHLL swing ก่อน (HHLLStrategy algorithm) เพื่อให้ได้ข้อมูลสดสำหรับ trend + breakout
+    try:
+        hhll_swing.fetch_hhll(tf_name)
+    except Exception:
+        pass
+    # คำนวณ trend จาก HHLL structure (เหมือน TrendFilterLines.mq5) — fallback เป็น bar-scan เดิม
+    _trend_info = hhll_swing.get_trend_from_structure(tf_name) or _compute_trend_info(
         _sh_info, _prev_sh_info, _prev_prev_sh_info,
         _sl_info, _prev_sl_info, _prev_prev_sl_info,
     )
+    # ใช้ HHLL swing สำหรับ breakout check (HHLLStrategy)
+    _hhll_sh_pt, _hhll_sl_pt = hhll_swing.get_swing_hl_pts(tf_name)
     _breakout_info = _compute_breakout_info(
-        rates, _sh_info, _sl_info, _prev_sh_info, _prev_sl_info,
+        rates,
+        _hhll_sh_pt or _sh_info,
+        _hhll_sl_pt or _sl_info,
+        _prev_sh_info, _prev_sl_info,
     )
     def _swing_fmt(info, label):
         if not info:
@@ -1939,7 +2062,19 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         "sh_confirm_time": _confirm_ts(_sh_info),
         "sl_confirm_time": _confirm_ts(_sl_info),
         "asof_time": last_candle_time,
+        "last_bar": {
+            "time":  int(rates[-1]["time"]),
+            "open":  float(rates[-1]["open"]),
+            "high":  float(rates[-1]["high"]),
+            "low":   float(rates[-1]["low"]),
+            "close": float(rates[-1]["close"]),
+        },
     }
+    # Fetch AMP trend สำหรับ TF นี้ (ใช้แสดงใน Scan Swing summary)
+    try:
+        amp_trend.fetch_amp_trend(tf_name)
+    except Exception:
+        pass
     # Guard: แท่งล่าสุดจะถือว่าปิดสมบูรณ์ ก็ต่อเมื่อแท่งใหม่เริ่มแล้ว
     # ดังนั้นใช้ current_bar_time > last_candle_time ก็พอ
     # ตัวอย่าง M5: last=14:44 และ current=14:45 แปลว่าแท่ง 14:44 ปิดแล้ว
@@ -1958,13 +2093,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # (ท่าต่างกันสามารถ trade แท่งติดกันได้)
 
     # ── รัน 3 Strategy พร้อมกันอิสระ ────────────────────────────
-    r1 = strategy_1(rates) if active_strategies.get(1, False) else {"signal": "WAIT", "reason": "S1 ปิด"}
-    r2 = strategy_2(rates) if active_strategies.get(2, False) else {"signal": "WAIT", "reason": "S2 ปิด"}
+    r1 = strategy_1(rates, tf=tf_name) if active_strategies.get(1, False) else {"signal": "WAIT", "reason": "S1 ปิด"}
+    r2 = strategy_2(rates, tf=tf_name) if active_strategies.get(2, False) else {"signal": "WAIT", "reason": "S2 ปิด"}
     r3 = strategy_3(rates) if active_strategies.get(3, False) else {"signal": "WAIT", "reason": "S3 ปิด"}
-    r4 = strategy_4(rates) if active_strategies.get(4, False) else {"signal": "WAIT", "reason": "S4 ปิด"}
-    r5 = strategy_5(rates) if active_strategies.get(5, False) else {"signal": "WAIT", "reason": "S5 ปิด"}
-    r8 = strategy_8(rates) if active_strategies.get(8, False) else {"signal": "WAIT", "reason": "S8 ปิด", "orders": []}
-    r9 = strategy_9(rates) if active_strategies.get(9, False) else {"signal": "WAIT", "reason": "S9 ปิด"}
+    r4 = strategy_4(rates, tf=tf_name) if active_strategies.get(4, False) else {"signal": "WAIT", "reason": "S4 ปิด"}
+    r5 = strategy_5(rates, tf=tf_name) if active_strategies.get(5, False) else {"signal": "WAIT", "reason": "S5 ปิด"}
+    r8 = strategy_8(rates, tf=tf_name) if active_strategies.get(8, False) else {"signal": "WAIT", "reason": "S8 ปิด", "orders": []}
+    r9 = strategy_9(rates, tf=tf_name) if active_strategies.get(9, False) else {"signal": "WAIT", "reason": "S9 ปิด"}
     if r9.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 9, r9["signal"], last_candle_time, r9)
     # S10 CRT TBS — branch ตาม CRT_ENTRY_MODE
@@ -2039,7 +2174,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         # adjacent bar check per-sid
         _s2_adjacent = _adjacent_sid_blocked(tf_name, 2, last_candle_time, tf_secs)
         if fvg_key not in fvg_pending and last_traded_per_tf.get(tf_name) != last_candle_time and not _s2_adjacent:
-            tp_swing = find_swing_tp(rates, fvg["signal"], fvg["entry"], fvg["sl"])
+            tp_swing = find_swing_tp(rates, fvg["signal"], fvg["entry"], fvg["sl"], tf=tf_name)
             tp = tp_swing if tp_swing else round(
                 fvg["entry"] + abs(fvg["entry"] - fvg["sl"]) if fvg["signal"] == "BUY"
                 else fvg["entry"] - abs(fvg["sl"] - fvg["entry"]), 2

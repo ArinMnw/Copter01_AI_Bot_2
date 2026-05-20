@@ -267,12 +267,12 @@ def get_structure(rates, lookback=None):
     }
 
 
-def find_swing_tp(rates, signal: str, entry: float, sl: float, n_long=40) -> float | None:
+def find_swing_tp(rates, signal: str, entry: float, sl: float, n_long=40, tf: str = "") -> float | None:
     """
     หา TP ที่ Swing High/Low ที่ใกล้ที่สุด RR ≥ 1:1
-    - ค้นหาทั้ง Swing ย่อย (2 แท่งข้าง) และ Swing หลัก (4 แท่งข้าง)
+    - ลอง HHLL swing (HHLLStrategy) ก่อน ถ้า tf ระบุ
+    - Fallback: ค้นหาทั้ง Swing ย่อย (2 แท่งข้าง) และ Swing หลัก (4 แท่งข้าง)
     - เลือกอันที่ใกล้ที่สุดที่ RR ≥ 1:1
-    - ไม่จำกัด RR สูงสุด (ยิ่งไกลยิ่งดี ถ้าเป็น Swing จริง)
     """
     if len(rates) < 6:
         return None
@@ -280,6 +280,22 @@ def find_swing_tp(rates, signal: str, entry: float, sl: float, n_long=40) -> flo
     risk = abs(entry - sl)
     if risk <= 0:
         return None
+
+    # ── HHLL swing TP (HHLLStrategy) ────────────────────────────
+    if tf:
+        try:
+            from hhll_swing import get_swing_hl_pts
+            sh_pt, sl_pt = get_swing_hl_pts(tf)
+            if signal == "BUY" and sh_pt:
+                tp = float(sh_pt["price"])
+                if tp > entry and (tp - entry) / risk >= 1.0:
+                    return round(tp, 2)
+            elif signal == "SELL" and sl_pt:
+                tp = float(sl_pt["price"])
+                if tp < entry and (entry - tp) / risk >= 1.0:
+                    return round(tp, 2)
+        except Exception:
+            pass
 
     # ค้นหาจากแท่งที่ปิดแล้ว ย้อนหลัง n_long แท่ง
     lookback = min(n_long + 2, len(rates) - 1)
