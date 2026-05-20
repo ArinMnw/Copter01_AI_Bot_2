@@ -9,6 +9,8 @@
 - `TrendFilterLines.mq5` — source code ของ indicator
 - `RSIDivergencePane.mq5` — RSI แยกหน้าต่างล่างสำหรับท่าที่ 9
 - `SwingHLLevels.mq5` — วาดเส้น Pivot Swing High / Pivot Swing Low ล่าสุดของแต่ละ TF ไปทางขวาประมาณ 5 แท่ง แบบเส้นล้วน
+- `HHLLStrategy.mq5` — วาด HH/HL/LH/LL text labels บน chart ด้วย zigzag pivot detection
+- `PremiumDiscount.mq5` — คำนวณ EQ = (H+L)/2 จาก HHLL labels แล้ววาดเส้น Premium/EQ/Discount
 - `trend_state.txt` / `trend_state_<symbol>.txt` — ไฟล์ที่ Python bot เขียน แล้ว indicator อ่าน
   (Location: `<MT5 Common>\Files\trend_state*.txt`)
 
@@ -18,9 +20,10 @@
 2. ไปเส้นทาง `MQL5\Indicators\` (ของ terminal ตัวที่ใช้)
 3. copy `TrendFilterLines.mq5` จากโฟลเดอร์ `mql5/` ของ bot ลงไปวางที่นี่
 4. copy `RSIDivergencePane.mq5` ลงไปวางที่โฟลเดอร์เดียวกัน ถ้าต้องการ RSI pane
-5. เปิด MetaEditor (F4 จาก MT5) → เปิดไฟล์ที่ต้องการ → กด `Compile` (F7)
-6. กลับ MT5 → ใน Navigator panel → Refresh → หา indicator ใต้ `Indicators`
-7. ลาก indicator ไปวางบน chart ที่ต้องการ
+5. copy `HHLLStrategy.mq5` และ `PremiumDiscount.mq5` ลงไปวางที่โฟลเดอร์เดียวกัน ถ้าต้องการ HHLL/PD zone
+6. เปิด MetaEditor (F4 จาก MT5) → เปิดไฟล์ที่ต้องการ → กด `Compile` (F7)
+7. กลับ MT5 → ใน Navigator panel → Refresh → หา indicator ใต้ `Indicators`
+8. ลาก indicator ไปวางบน chart ที่ต้องการ
 
 ## RSIDivergencePane
 
@@ -262,6 +265,57 @@ H1,BEAR,strong,...
 - ลบ indicator ออกจาก chart (right-click chart → Indicators list → remove)
 - indicator `OnDeinit` จะลบ object ที่สร้างไว้อัตโนมัติ (prefix `TFL_`)
 - ไฟล์ `trend_state.txt` ปล่อยไว้ได้ bot จะ overwrite เอง
+
+## HHLLStrategy
+
+indicator สำหรับวาด HH/HL/LH/LL text labels บน chart ด้วย zigzag pivot detection
+
+ไฟล์: `HHLLStrategy.mq5`
+
+### หลักการทำงาน
+
+- ใช้ zigzag pivot detection ด้วย Left bars / Right bars
+- วาด text label แต่ละ pivot ที่ตรวจพบ
+- object prefix: `HHLL_`
+- label objects ชื่อ `HHLL_L_{timestamp}`
+- Label text: `HH`, `HL`, `LH`, `LL`
+
+### หมายเหตุ
+
+- SR lines feature ถูก remove ออกทั้งหมด — มีแต่ text labels
+- `PremiumDiscount.mq5` อ่าน labels จาก indicator นี้ ต้องแนบบน chart เดียวกันก่อน
+
+---
+
+## PremiumDiscount
+
+indicator สำหรับคำนวณและวาด Premium/Discount zone จาก HHLL labels
+
+ไฟล์: `PremiumDiscount.mq5`
+
+### หลักการทำงาน
+
+- อ่าน H/L จาก object labels ของ `HHLLStrategy.mq5` (prefix `HHLL_L_`)
+  - H = newest time among HH/LH text labels
+  - L = newest time among HL/LL text labels
+- คำนวณ EQ = (H + L) / 2
+- วาดเส้น: H (Tomato), EQ (Gold), L (LimeGreen)
+- วาด text labels: `PREMIUM {price}`, `EQ {price}`, `DISCOUNT {price}`
+- object prefix: `PD_`
+- มี signature check ป้องกัน repaint
+
+### Input หลัก
+
+| Parameter | Default | คำอธิบาย |
+|---|---|---|
+| `InpHHLLPrefix` | `HHLL_L_` | prefix label ของ HHLLStrategy |
+
+### ข้อกำหนด
+
+- ต้องแนบ `HHLLStrategy.mq5` บน chart เดียวกันก่อน
+- ใช้ร่วมกับ Python bot — `_pd_zone_process()` ใน `trailing.py` อ่าน H/L จาก `hhll_swing.py` ในฝั่ง Python
+
+---
 
 ## Troubleshooting
 

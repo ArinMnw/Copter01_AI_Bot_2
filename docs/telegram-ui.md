@@ -103,6 +103,40 @@
   - callback notification แสดงสรุป `closed: N` / `reset_pending: M`
 - **S13**: ไม่ scale lot แต่สร้าง orders 1-4 ตาม effective steps (TP ของแต่ละ order = step distance)
 
+## PD Zone Recheck Toggle
+
+อยู่ใน Trend Filter menu ต่อท้าย section "Pending RSI Recheck"
+
+section header: `━ Premium/Discount Zone ━`
+
+ปุ่ม toggle:
+- ON: `🟢 PD Zone Recheck: ON`
+- OFF: `🔴 PD Zone Recheck: OFF`
+
+- callback: `toggle_pd_zone_check`
+- config: `PD_ZONE_CHECK_ENABLED` (persist ใน `bot_state.json` key `pd_zone_check_enabled`)
+- handler: ใน `handlers/callback_handler.py` → toggle `config.PD_ZONE_CHECK_ENABLED`, save, refresh menu
+
+**พฤติกรรมเมื่อ ON:**
+- เปิด `_pd_zone_process()` ใน `trailing.py`
+- ตรวจ 3 รอบ 2/3 ว่า entry อยู่ใน Premium หรือ Discount zone
+- ส่ง Telegram แจ้งทุกรอบ
+
+## Triple Recheck
+
+ไม่มีปุ่ม toggle แยกสำหรับ Triple Recheck — เปิดอัตโนมัติเมื่อ:
+
+- `PD_ZONE_CHECK_ENABLED = True`
+- `LIMIT_TREND_RECHECK = True`
+- `PENDING_RSI_RECHECK_ENABLED = True`
+
+ทั้งสามเปิดพร้อมกัน
+
+**พฤติกรรม:**
+- แต่ละ recheck จะไม่ตัดสินทันที แต่ record ผลใน `_triple_check_state`
+- เมื่อได้ผลครบ 2/3: fails ≥ 2 → cancel/close, passes ≥ 2 → keep
+- Telegram แจ้งสรุป `RSI ✅/❌ | Trend ✅/❌ | PD ✅/❌` เมื่อตัดสินแล้ว
+
 ## Markdown Safety ใน ticket lookup
 
 - helper `_md_escape(s)` ใน `handlers/text_handler.py` — escape `\`, `` ` ``, `*`, `_`, `[`, `]`

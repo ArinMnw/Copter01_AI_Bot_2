@@ -90,10 +90,13 @@ Keep the answer short and make the fix directly.
 | trailing, state machine, post-fill lifecycle | `trailing.py` |
 | logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py` |
 | swing helper | `strategy4.py` |
+| HHLL swing structure, trend from structure | `hhll_swing.py` |
 | คำนวณ entry / TP / SL | `entry_calculator.py` |
 | utility ฝั่ง MT5 | `mt5_utils.py` |
 | Telegram notify และ close detection | `notifications.py` |
 | เมนู Telegram | `handlers/keyboard.py`, `handlers/callback_handler.py` |
+| MT5 indicator HHLL labels | `mql5/HHLLStrategy.mq5` |
+| MT5 indicator Premium/Discount zone | `mql5/PremiumDiscount.mq5` |
 
 ## เอกสารแยก
 
@@ -118,6 +121,7 @@ Keep the answer short and make the fix directly.
 - `ENTRY_CANDLE_MODE`
 - `LIMIT_GUARD`
 - `LIMIT_SWEEP`
+- `PD_ZONE_CHECK_ENABLED` (default `True`) — gate สำหรับ PD Zone Recheck ใน `trailing.py`, persist ใน `bot_state.json` key `pd_zone_check_enabled`
 
 หมายเหตุ:
 
@@ -157,6 +161,11 @@ state ที่เกี่ยวข้องใน `config.py`:
 - `pb_pending`
 - `last_traded_per_tf`
 - `tracked_positions`
+
+state เพิ่มเติมใน `trailing.py`:
+
+- `_pd_zone_state: dict` — per-ticket state ของ PD Zone Recheck (round, results, tf, signal)
+- `_triple_check_state: dict` — per-ticket state ของ Triple Recheck เก็บ `{rsi, trend, pd, tf, signal}` แต่ละตัวเป็น `None|True|False`
 
 ข้อควรระวัง:
 
@@ -215,6 +224,7 @@ mode ที่รองรับ:
 - **อิสระจาก `ENTRY_CANDLE_ENABLED`** — gate ด้วย `PENDING_RSI_RECHECK_ENABLED` เท่านั้น
 - รันใน `main.py` `run_position_check` **ก่อน** `check_entry_candle_quality` (ถ้า fail จะปิด position ทันที)
 - ครอบคลุม **ทุก sid** (รวม S12, S13 — เปิดตั้งแต่ 2026-05-18)
+- **Triple mode**: ถ้าเปิดครบทั้ง 3 (`PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED`) จะไม่ปิด position ทันที แต่ record ผลใน `_triple_check_state[ticket]["rsi"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 ## Limit Trend Recheck
 
@@ -230,6 +240,57 @@ mode ที่รองรับ:
 - เก็บใน set `_fill_rsi_checked` กันไม่ให้เช็คซ้ำต่อ ticket
 - skip: `sid=13` (S13 มี TP/SL คนละแบบ)
 - log events: `ENTRY_FILL_RSI_RECHECK_FAIL`, `ENTRY_FILL_RSI_RECHECK_SKIP` (กรณี RSI unavailable)
+- **Triple mode**: ถ้าเปิดครบทั้ง 3 จะไม่ cancel pending ทันที แต่ record ผลใน `_triple_check_state[ticket]["trend"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+
+## PD Zone Recheck
+
+- ฟังก์ชัน: `_pd_zone_process(ticket, app)` ใน `trailing.py`
+- gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
+- Return `(status: str, tg_msgs: list)` — status เป็น `"pass"` / `"fail"` / `"wait"`
+- state: `_pd_zone_state: dict` (module-level ใน `trailing.py`)
+
+**Logic การเช็ค 3 รอบ 2/3 ชั้นใน:**
+
+- H = swing high ล่าสุด (HH/LH) จาก `hhll_swing.get_swing_hl_pts(tf)`
+- L = swing low ล่าสุด (HL/LL) จาก `hhll_swing.get_swing_hl_pts(tf)`
+- EQ = (H + L) / 2
+- รอบ 1: เมื่อ order เกิด → เช็ค entry vs EQ ณ ขณะนั้น
+- รอบ 2: H หรือ L เปลี่ยนครั้งแรก → เช็ค EQ ใหม่
+- รอบ 3: H หรือ L เปลี่ยนครั้งที่สอง (หลังรอบ 2) → เช็ค EQ ใหม่
+
+**กฎ pass/fail:**
+
+- `entry < EQ` → BUY ผ่าน (Discount zone) / SELL ล้มเหลว
+- `entry > EQ` → SELL ผ่าน (Premium zone) / BUY ล้มเหลว
+- pass ≥ 2 → `"pass"` / fail ≥ 2 → `"fail"` / ยังไม่ครบ → `"wait"`
+
+**Telegram:** ส่งทุกรอบบอกว่าอยู่ Premium/Discount zone + pass/fail
+
+**Zone:**
+- Premium (entry > EQ) → SELL ✅ BUY ❌
+- Discount (entry < EQ) → BUY ✅ SELL ❌
+
+**Triple mode:** เมื่อเปิดครบทั้ง 3 และได้ผล "pass"/"fail" จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+
+## Triple Recheck (Combined 2/3)
+
+- เปิดทำงานเมื่อ: `PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED` ทั้งสามพร้อมกัน
+- helper: `_triple_check_all_enabled() -> bool`
+- state: `_triple_check_state: dict` = `{ticket: {rsi: None|True|False, trend: None|True|False, pd: None|True|False, tf, signal}}`
+- helper: `_triple_check_record(ticket, key, result, tf, signal)`
+- helper: `_triple_check_evaluate(ticket) -> "cancel"|"keep"|"wait"`
+
+**ตัดสิน:**
+- fails ≥ 2 → `"cancel"` → cancel pending หรือ close position ทันที
+- passes ≥ 2 → `"keep"` → คง order ไว้, clear state
+- อื่น → `"wait"` → รอข้อมูลเพิ่ม
+
+**Telegram:** เมื่อตัดสินแล้วส่งสรุป `RSI ✅/❌ | Trend ✅/❌ | PD ✅/❌`
+
+**log events:** `TRIPLE_RECHECK` + `CANCEL` หรือ `KEEP`
+
+**พฤติกรรมเมื่อปิดบางตัว (individual mode):**
+- แต่ละตัวทำงานอิสระเหมือนเดิม ไม่รอ 2/3
 
 ## พฤติกรรมสำคัญของระบบ
 
@@ -489,6 +550,27 @@ mode ที่รองรับ:
 - `rates` ที่ส่งให้ `strategy_*` เป็น numpy structured array
 - `if not rates:` จะ throw `ValueError: ambiguous` - **ห้ามใช้**
 - ใช้ `if rates is None or len(rates) == 0:` แทน
+
+### hhll_swing.py — HHLL Swing Structure
+
+- เก็บ swing structure data แบบ per-TF ใน `_hhll_data[tf]`
+- `get_swing_hl_pts(tf)` → `(H, L)` คืน swing high/low ล่าสุด
+  - H = ราคา swing high ล่าสุด (HH หรือ LH)
+  - L = ราคา swing low ล่าสุด (HL หรือ LL)
+- `get_trend_from_structure(tf_name)` → `{"trend": "BULL"/"BEAR"/"SIDEWAY"/"UNKNOWN", "strength": "strong"/"weak"/"-", "label": str}`
+  - อ่าน `_hhll_data[tf]["structure"]` list (newest-first)
+  - แยก H-labels (HH/LH) และ L-labels (HL/LL)
+  - BULL strong: h0="HH", l0="HL", h1="HH", l1="HL"
+  - BULL weak: h0="HH", l0="HL" (แต่ไม่ครบ 2 คู่)
+  - BEAR strong: h0="LH", l0="LL", h1="LH", l1="LL"
+  - BEAR weak: h0="LH", l0="LL" (แต่ไม่ครบ 2 คู่)
+  - SIDEWAY: กรณีอื่น
+
+### scanner.py — Trend filter sync กับ HHLLStrategy
+
+- `fetch_hhll(tf_name)` รันก่อน `_compute_trend_info()` ทุกรอบ scan
+- `_trend_info` ใช้ `hhll_swing.get_trend_from_structure(tf_name)` เป็นหลัก
+- fallback: `_compute_trend_info(...)` เดิม ถ้า HHLL ไม่มีข้อมูล
 
 ### Export Trend State (สำหรับ MT5 indicator)
 

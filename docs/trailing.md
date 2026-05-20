@@ -7,6 +7,7 @@
 ฟังก์ชันหลักที่เกี่ยวข้อง:
 
 - `check_entry_candle_quality()`
+- `check_fill_rsi_recheck()`
 - `check_engulf_trail_sl()`
 - `check_opposite_order_tp()`
 - `check_breakeven_tp()`
@@ -334,22 +335,23 @@ metadata ที่ใช้:
 - reverse limit หมดอายุ
 - S8 arm SL / retry logic ก็พัวพันใน flow นี้ด้วย
 
-## Pending RSI Recheck
+## RSI Fill Recheck (Pending RSI Recheck)
 
-ตอนนี้ RSI recheck ไม่ได้ใช้กับ pending order แล้ว
+ฟังก์ชัน: `check_fill_rsi_recheck(app)` ใน `trailing.py`
 
-แนวคิด:
-- ตรวจตอน `order fill` ภายใน `check_entry_candle_quality()`
-- ถ้า `PENDING_RSI_RECHECK_ENABLED = False` จะข้ามทั้งก้อน
+- **อิสระจาก `ENTRY_CANDLE_ENABLED`** — gate ด้วย `PENDING_RSI_RECHECK_ENABLED` เท่านั้น
+- รันใน `main.py` `run_position_check` **ก่อน** `check_entry_candle_quality`
 - ใช้ RSI ของ `TF` เดียวกับ order ณ รอบที่ position fill
 
 เกณฑ์:
-- BUY: RSI ต้องไม่เกิน buy max
-- SELL: RSI ต้องไม่ต่ำกว่า sell min
-- ถ้าไม่ผ่าน จะปิด position หลัง fill ทันที
+- BUY: RSI ต้องไม่เกิน buy max (`PENDING_RSI_BUY_MAX`, default `50.0`)
+- SELL: RSI ต้องไม่ต่ำกว่า sell min (`PENDING_RSI_SELL_MIN`, default `50.0`)
+- ถ้าไม่ผ่าน — **individual mode**: ปิด position หลัง fill ทันที
+- ถ้าไม่ผ่าน — **triple mode** (เปิดครบทั้ง 3): record ผลใน `_triple_check_state[ticket]["rsi"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 หมายเหตุ:
-- `S13` ไม่เข้า flow นี้
+- ครอบคลุมทุก sid รวม S12, S13 (เปิดตั้งแต่ 2026-05-18)
+- log events: `ENTRY_FILL_RSI_RECHECK_FAIL`, `ENTRY_FILL_RSI_RECHECK_SKIP`
 
 config ที่เกี่ยวข้อง:
 - `PENDING_RSI_RECHECK_ENABLED`
@@ -357,6 +359,87 @@ config ที่เกี่ยวข้อง:
 - `PENDING_RSI_APPLIED_PRICE`
 - `PENDING_RSI_BUY_MAX`
 - `PENDING_RSI_SELL_MIN`
+
+## PD Zone Recheck
+
+ฟังก์ชัน: `_pd_zone_process(ticket, app)` ใน `trailing.py`
+
+gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
+
+Return: `(status: str, tg_msgs: list)` — `"pass"` / `"fail"` / `"wait"`
+
+state: `_pd_zone_state: dict` (module-level)
+
+### ที่มาของ H/L
+
+- H = swing high ล่าสุด (HH/LH) จาก `hhll_swing.get_swing_hl_pts(tf)`
+- L = swing low ล่าสุด (HL/LL) จาก `hhll_swing.get_swing_hl_pts(tf)`
+- EQ = (H + L) / 2
+
+### การเช็ค 3 รอบ 2/3 ชั้นใน
+
+- รอบ 1: เมื่อ order เกิด → เช็ค entry vs EQ ณ ขณะนั้น
+- รอบ 2: H หรือ L เปลี่ยนครั้งแรก → เช็ค EQ ใหม่
+- รอบ 3: H หรือ L เปลี่ยนครั้งที่สอง (หลังรอบ 2) → เช็ค EQ ใหม่
+
+### กฎ zone
+
+- `entry < EQ` (Discount zone) → BUY ผ่าน, SELL ล้มเหลว
+- `entry > EQ` (Premium zone) → SELL ผ่าน, BUY ล้มเหลว
+
+### การตัดสิน
+
+- pass ≥ 2 → `"pass"`
+- fail ≥ 2 → `"fail"`
+- ยังไม่ครบ → `"wait"`
+
+ส่ง Telegram ทุกรอบบอกว่าอยู่ Premium/Discount zone + pass/fail
+
+### Triple mode
+
+- ถ้าเปิดครบทั้ง 3 และได้ผล `"pass"` หรือ `"fail"` จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+- ถ้าเปิดเฉพาะตัว: เมื่อ `"fail"` จะ cancel pending หรือ close position ทันที
+
+## Triple Recheck (Combined 2/3)
+
+เปิดทำงานเมื่อ: `PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED` ทั้งสามพร้อมกัน
+
+helper: `_triple_check_all_enabled() -> bool`
+
+state: `_triple_check_state: dict`
+
+```python
+{
+    ticket: {
+        "rsi":    None | True | False,
+        "trend":  None | True | False,
+        "pd":     None | True | False,
+        "tf":     str,
+        "signal": str,
+    }
+}
+```
+
+helper:
+- `_triple_check_record(ticket, key, result, tf, signal)` — บันทึกผลแต่ละตัว
+- `_triple_check_evaluate(ticket) -> "cancel"|"keep"|"wait"` — ตัดสิน 2/3
+
+### การตัดสิน
+
+- fails ≥ 2 → `"cancel"` → cancel pending หรือ close position ทันที
+- passes ≥ 2 → `"keep"` → คง order ไว้, clear state
+- อื่น → `"wait"` → รอข้อมูลเพิ่ม
+
+Telegram: เมื่อตัดสินแล้วส่งสรุป `RSI ✅/❌ | Trend ✅/❌ | PD ✅/❌`
+
+log events: `TRIPLE_RECHECK` + `CANCEL` หรือ `KEEP`
+
+### พฤติกรรมเมื่อเปิดไม่ครบ 3 (individual mode)
+
+แต่ละตัวทำงานอิสระเหมือนเดิม:</p>
+- Trend Recheck: cancel pending ทันทีถ้า trend ไม่ผ่าน
+- PD Zone: cancel/close ทันทีถ้า fail
+- RSI Fill Recheck: close position ทันทีถ้าไม่ผ่าน
 
 ## Limit Guard
 

@@ -1560,6 +1560,15 @@ def build_trend_filter_keyboard():
         InlineKeyboardButton("2️⃣ Cross" if _rsi_mode != 2 else "✅ Cross",  callback_data="set_rsi_mode_2"),
         InlineKeyboardButton("3️⃣ Both"  if _rsi_mode != 3 else "✅ Both",   callback_data="set_rsi_mode_3"),
     ])
+    # === Premium/Discount Zone Recheck ===
+    pd_zone_label = (
+        "🟢 PD Zone Recheck: ON"
+        if getattr(config, "PD_ZONE_CHECK_ENABLED", False)
+        else "🔴 PD Zone Recheck: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Premium/Discount Zone ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(pd_zone_label, callback_data="toggle_pd_zone_check")])
+
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
 

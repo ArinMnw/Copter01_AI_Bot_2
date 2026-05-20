@@ -428,6 +428,13 @@ LIMIT_TREND_RECHECK = True
 LIMIT_TREND_RECHECK_POINTS = 300  # ระยะห่างจาก entry (points) ที่จะเริ่ม recheck
 TREND_FILTER_SCAN_BLOCK = False   # False = ไม่ block ตอน scan ให้ Limit Recheck จัดการแทน
 
+# ── Premium/Discount Zone Recheck ──────────────────────────────────
+# เช็ค limit order ว่าอยู่ใน zone ที่ถูกต้องไหม (ตาม HHLL swing H/L)
+# BUY ต้องอยู่ใต้ EQ (Discount), SELL ต้องอยู่เหนือ EQ (Premium)
+# ตรวจ 3 รอบ: (1) เมื่อเจอ order (2) H หรือ L ใหม่ (3) ทั้ง H และ L ใหม่
+# ยกเลิก order ถ้า < 2/3 รอบผ่าน
+PD_ZONE_CHECK_ENABLED = True
+
 # ── Pending RSI Recheck: เช็ค RSI ตอน order fill ──
 # BUY ต้อง RSI < BUY_MAX, SELL ต้อง RSI > SELL_MIN ของ TF ที่ order นั้นใช้
 PENDING_RSI_RECHECK_ENABLED = True
@@ -880,6 +887,7 @@ def save_runtime_state():
             "pending_rsi_buy_max": PENDING_RSI_BUY_MAX,
             "pending_rsi_sell_min": PENDING_RSI_SELL_MIN,
             "trend_filter_scan_block": TREND_FILTER_SCAN_BLOCK,
+            "pd_zone_check_enabled": PD_ZONE_CHECK_ENABLED,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
             "trail_sl_immediate": TRAIL_SL_IMMEDIATE,
@@ -1049,6 +1057,7 @@ def restore_runtime_state():
         if saved_prr_sell is not None:
             PENDING_RSI_SELL_MIN = float(saved_prr_sell)
         TREND_FILTER_SCAN_BLOCK = bool(state.get("trend_filter_scan_block", TREND_FILTER_SCAN_BLOCK))
+        PD_ZONE_CHECK_ENABLED = bool(state.get("pd_zone_check_enabled", PD_ZONE_CHECK_ENABLED))
         NEAR_APPROACH_CANCEL_ENABLED = bool(state.get("near_approach_cancel_enabled", NEAR_APPROACH_CANCEL_ENABLED))
         saved_nac_pts = state.get("near_approach_cancel_points")
         if saved_nac_pts is not None:

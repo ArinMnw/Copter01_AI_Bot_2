@@ -889,6 +889,12 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query,f"Near Approach Cancel: {pts}pt")
 
+    elif data == "toggle_pd_zone_check":
+        config.PD_ZONE_CHECK_ENABLED = not config.PD_ZONE_CHECK_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"PD Zone Recheck: {'ON' if config.PD_ZONE_CHECK_ENABLED else 'OFF'}")
+
     elif data == "toggle_pending_rsi_recheck":
         config.PENDING_RSI_RECHECK_ENABLED = not config.PENDING_RSI_RECHECK_ENABLED
         save_runtime_state()

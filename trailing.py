@@ -39,6 +39,59 @@ position_forward_meta: dict = {}  # {ticket: {"enabled", "signal", "detect_bar_t
 _trail_state: dict = {}
 _trend_filter_last_dir: dict = {}  # {"ticket|tf": "BULL"|"BEAR"|"SIDEWAY"}
 
+# Premium/Discount zone recheck state per pending order ticket
+# Format: {ticket: {"signal", "tf", "price", "h1", "l1", "checks": [int,int,int],
+#                   "cur_h", "cur_l"}}
+# checks[i]: 0 = not yet done, 1 = pass, -1 = fail
+_pd_zone_state: dict = {}
+
+# ── Triple Recheck combined state ────────────────────────────────────────────
+# {ticket: {"rsi": None|True|False, "trend": None|True|False,
+#            "pd": None|True|False, "tf": str, "signal": str}}
+# None = ยังไม่ได้เช็ค, True = pass, False = fail
+_triple_check_state: dict = {}
+
+
+def _triple_check_all_enabled() -> bool:
+    """True เมื่อเปิดครบทั้ง 3 check — ใช้ combined 2/3 mode"""
+    return (
+        getattr(config, "PD_ZONE_CHECK_ENABLED",       False) and
+        getattr(config, "LIMIT_TREND_RECHECK",          False) and
+        getattr(config, "PENDING_RSI_RECHECK_ENABLED", False)
+    )
+
+
+def _triple_check_record(ticket: int, key: str, result: bool,
+                          tf: str = "", signal: str = "") -> None:
+    """บันทึกผล check ของ key ('rsi'|'trend'|'pd') ลงใน state"""
+    if ticket not in _triple_check_state:
+        _triple_check_state[ticket] = {
+            "rsi": None, "trend": None, "pd": None,
+            "tf": tf, "signal": signal,
+        }
+    _triple_check_state[ticket][key] = result
+
+
+def _triple_r(v) -> str:
+    """แสดงสถานะ check เป็น emoji"""
+    if v is True:  return "✅"
+    if v is False: return "❌"
+    return "⏳"
+
+
+def _triple_check_evaluate(ticket: int) -> str:
+    """Return 'cancel' | 'keep' | 'wait'"""
+    state = _triple_check_state.get(ticket)
+    if not state:
+        return "wait"
+    vals   = [state["rsi"], state["trend"], state["pd"]]
+    passes = sum(1 for v in vals if v is True)
+    fails  = sum(1 for v in vals if v is False)
+    if fails  >= 2: return "cancel"
+    if passes >= 2: return "keep"
+    return "wait"
+
+
 # Rule 4: count bars after order entry
 _bar_count: dict = {}
 
@@ -2041,7 +2094,64 @@ async def check_fill_rsi_recheck(app):
                     f"[Mode2] State={_state} → block {pos_type} | {_r2['threshold_text']}"
                 )
 
-        if _fail_parts:
+        rsi_passed = len(_fail_parts) == 0
+
+        if _triple_check_all_enabled():
+            # ── Triple mode: record RSI result และให้ combined evaluator ตัดสิน ──
+            _triple_check_record(ticket, "rsi", rsi_passed,
+                                 tf=_fill_tf, signal=pos_type)
+            _rsi_str = f"{_rsi_val:.2f}" if _rsi_val is not None else "-"
+            await tg(app, (
+                f"📊 *RSI Fill Recheck (Triple mode)*\n"
+                f"{sig_e} Ticket:`{ticket}` [{pos_type}] `{_fill_tf}`\n"
+                f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_rsi_str}`\n"
+                f"ผล: {'✅ PASS' if rsi_passed else '❌ FAIL'}"
+            ))
+            tc_dec = _triple_check_evaluate(ticket)
+            if tc_dec == "cancel":
+                tc_st = _triple_check_state.pop(ticket, {})
+                _reason = (
+                    f"Triple Recheck < 2/3: "
+                    f"RSI {_triple_r(tc_st.get('rsi'))} "
+                    f"Trend {_triple_r(tc_st.get('trend'))} "
+                    f"PD {_triple_r(tc_st.get('pd'))}"
+                )
+                log_event("TRIPLE_RECHECK_FAIL", _reason, ticket=ticket,
+                          side=pos_type, tf=_fill_tf)
+                ok_close, close_price = _close_position(pos, pos_type, "triple recheck fail")
+                status = "ส่งปิดแล้ว" if ok_close else "ส่งปิดไม่สำเร็จ"
+                await tg(app, (
+                    f"⚠️ *Triple Recheck < 2/3 — ปิด position*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{pos_type}] `{_fill_tf}`\n"
+                    f"RSI {_triple_r(tc_st.get('rsi'))} | "
+                    f"Trend {_triple_r(tc_st.get('trend'))} | "
+                    f"PD {_triple_r(tc_st.get('pd'))}\n"
+                    f"สถานะ: `{status}`"
+                ))
+                if ok_close:
+                    _fill_rsi_checked.add(ticket)
+                    print(f"[{now}] triple_recheck_close {pos_type} {ticket} close={close_price:.2f}")
+            elif tc_dec == "keep":
+                tc_st = _triple_check_state.pop(ticket, {})
+                _tc_line = (
+                    f"RSI {_triple_r(tc_st.get('rsi'))} | "
+                    f"Trend {_triple_r(tc_st.get('trend'))} | "
+                    f"PD {_triple_r(tc_st.get('pd'))}"
+                )
+                log_event(
+                    "TRIPLE_RECHECK", "KEEP",
+                    ticket=ticket, tf=_fill_tf,
+                    rsi=tc_st.get("rsi"), trend=tc_st.get("trend"), pd=tc_st.get("pd"),
+                )
+                await tg(app, (
+                    f"✅ *Triple Recheck ผ่าน 2/3 — Keep Position*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{pos_type}] `{_fill_tf}`\n"
+                    f"{_tc_line}"
+                ))
+                _fill_rsi_checked.add(ticket)
+            # tc_dec == "wait" → ยังรอผลจาก check อื่น ไม่ทำอะไร
+        elif _fail_parts:
+            # ── Individual mode: RSI fail → close ทันที ──
             _reason = (
                 f"Fill RSI Recheck Fail [{_fill_tf}]: {pos_type} entry:{float(pos.price_open):.2f} | "
                 f"RSI({config.PENDING_RSI_PERIOD})={_rsi_val:.2f} | "
@@ -4442,6 +4552,155 @@ async def check_s6_trail(app):
                                       _get_s6_prev_swing_high, _get_s6_prev_swing_low)
 
 
+def _pd_zone_in_zone(order_price: float, signal: str, h: float, l: float) -> bool:
+    """True ถ้า order_price อยู่ใน zone ที่ถูกต้อง
+    BUY  → ต่ำกว่า EQ (Discount zone)
+    SELL → สูงกว่า EQ (Premium zone)
+    """
+    if h <= l:
+        return True  # invalid range → pass
+    eq = (h + l) / 2.0
+    if signal == "BUY":
+        return order_price < eq
+    elif signal == "SELL":
+        return order_price > eq
+    return True
+
+
+def _pd_zone_process(ticket: int, order, info: dict) -> tuple:
+    """Premium/Discount zone recheck per ticket — 3 รอบ, ตัดสิน 2/3
+    เรียกจาก check_cancel_pending_orders ทุก cycle
+    Return (status: str, tg_msgs: list[str])
+      status: "pass" | "fail" | "wait"
+
+    รอบที่ 1 : เมื่อ order เกิด — เช็ค EQ ปัจจุบัน
+    รอบที่ 2 : H หรือ L ต่อไปครั้งแรก
+    รอบที่ 3 : H หรือ L ต่อไปครั้งที่สอง (หลังรอบ 2 fire แล้ว)
+
+    กฎ: entry < EQ → BUY ผ่าน / entry > EQ → SELL ผ่าน
+    ตัดสิน: pass ≥ 2 → "pass" | fail ≥ 2 → "fail" | อื่น → "wait"
+    """
+    if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
+        return "wait", []
+
+    signal = info.get("signal", "")
+    if signal not in ("BUY", "SELL"):
+        ot = getattr(order, "type", None)
+        signal = "BUY" if ot == mt5.ORDER_TYPE_BUY_LIMIT else "SELL" if ot == mt5.ORDER_TYPE_SELL_LIMIT else ""
+    if not signal:
+        return "wait", []
+
+    tf = info.get("tf", "")
+    order_price = float(order.price_open)
+    sig_e   = _pending_order_icon(order)
+    ot_name = _pending_order_type_name(order)
+
+    from hhll_swing import get_swing_hl_pts
+    sh_pt, sl_pt = get_swing_hl_pts(tf)
+    if not sh_pt or not sl_pt:
+        return "wait", []
+    h = float(sh_pt["price"])
+    l = float(sl_pt["price"])
+    if h <= l:
+        return "wait", []
+
+    eq      = (h + l) / 2.0
+    state   = _pd_zone_state.get(ticket)
+    tg_msgs = []
+
+    def _chk_msg(rnd: int, changed: str, result: bool) -> str:
+        _p = sum(1 for c in state["checks"] if c == 1)
+        _f = sum(1 for c in state["checks"] if c == -1)
+        _chg = f"{changed} เปลี่ยน | " if changed else ""
+        _zone = "Premium 🔴" if order_price > eq else "Discount 🟢"
+        _zone_ok = (signal == "SELL" and order_price > eq) or (signal == "BUY" and order_price < eq)
+        _zone_str = f"{_zone} {'✅' if _zone_ok else '❌'}"
+        return (
+            f"📊 *PD Zone Check — รอบ {rnd}/3*\n"
+            f"{sig_e} {ot_name} [{tf}] `#{ticket}`\n"
+            f"{_chg}EQ: `{round(eq,5)}`\n"
+            f"Entry: `{order_price}` | H: `{h}` | L: `{l}`\n"
+            f"Zone: {_zone_str}\n"
+            f"ผล: {'✅ PASS' if result else '❌ FAIL'} [{_p}P/{_f}F]"
+        )
+
+    # ─── รอบที่ 1: เมื่อ order เกิด ─────────────────────────────────
+    if state is None:
+        result = _pd_zone_in_zone(order_price, signal, h, l)
+        _pd_zone_state[ticket] = {
+            "signal": signal, "tf": tf, "price": order_price,
+            "cur_h": h, "cur_l": l,
+            "checks": [1 if result else -1, 0, 0],
+        }
+        state = _pd_zone_state[ticket]
+        log_event("PD_ZONE_CHECK", "round1",
+                  ticket=ticket, signal=signal, tf=tf,
+                  price=order_price, h=h, l=l, eq=round(eq, 5),
+                  result="PASS" if result else "FAIL")
+        tg_msgs.append(_chk_msg(1, "", result))
+        # ตรวจ early decision หลัง round 1 (ยังไม่มี 2/3 แน่ — แต่ตรวจ fail ≥2 ไม่ได้)
+        return "wait", tg_msgs  # รอ H/L ถัดไปเสมอ
+
+    # ─── รอบที่ 2 & 3: H/L เปลี่ยน ──────────────────────────────────
+    h_changed = abs(h - state["cur_h"]) > 0.01
+    l_changed = abs(l - state["cur_l"]) > 0.01
+    hl_changed = h_changed or l_changed
+
+    if hl_changed:
+        changed_parts = []
+        if h_changed: changed_parts.append("H")
+        if l_changed: changed_parts.append("L")
+        changed_str = "/".join(changed_parts)
+
+        if state["checks"][1] == 0:
+            # รอบที่ 2: H/L เปลี่ยนครั้งแรก
+            result = _pd_zone_in_zone(order_price, signal, h, l)
+            state["checks"][1] = 1 if result else -1
+            state["cur_h"] = h
+            state["cur_l"] = l
+            log_event("PD_ZONE_CHECK", "round2",
+                      ticket=ticket, signal=signal, tf=tf,
+                      price=order_price, h=h, l=l, eq=round(eq, 5),
+                      changed=changed_str,
+                      result="PASS" if result else "FAIL")
+            tg_msgs.append(_chk_msg(2, changed_str, result))
+
+        elif state["checks"][2] == 0:
+            # รอบที่ 3: H/L เปลี่ยนครั้งที่สอง (หลัง round 2)
+            result = _pd_zone_in_zone(order_price, signal, h, l)
+            state["checks"][2] = 1 if result else -1
+            state["cur_h"] = h
+            state["cur_l"] = l
+            log_event("PD_ZONE_CHECK", "round3",
+                      ticket=ticket, signal=signal, tf=tf,
+                      price=order_price, h=h, l=l, eq=round(eq, 5),
+                      changed=changed_str,
+                      result="PASS" if result else "FAIL")
+            tg_msgs.append(_chk_msg(3, changed_str, result))
+
+    _pd_zone_state[ticket] = state
+
+    # ─── ตัดสินใจ 2/3 ────────────────────────────────────────────────
+    checks = state["checks"]
+    passes = sum(1 for c in checks if c == 1)
+    fails  = sum(1 for c in checks if c == -1)
+
+    if fails >= 2:
+        log_event("PD_ZONE_CHECK", "fail",
+                  ticket=ticket, signal=signal, tf=tf,
+                  passes=passes, fails=fails, checks=checks)
+        return "fail", tg_msgs
+
+    if passes >= 2:
+        _pd_zone_state.pop(ticket, None)
+        log_event("PD_ZONE_CHECK", "pass",
+                  ticket=ticket, signal=signal, tf=tf,
+                  passes=passes, fails=fails, checks=checks)
+        return "pass", tg_msgs
+
+    return "wait", tg_msgs  # ยังรอรอบถัดไป
+
+
 async def check_cancel_pending_orders(app):
     """
     Auto cancel limit orders when setup is no longer valid:
@@ -4453,12 +4712,24 @@ async def check_cancel_pending_orders(app):
     orders = mt5.orders_get(symbol=SYMBOL)
     if not orders:
         pending_order_tf.clear()
+        _pd_zone_state.clear()
+        _triple_check_state.clear()
         return
 
     now = now_bkk().strftime("%H:%M:%S")
     open_tickets = {o.ticket for o in orders}
     # tickets ที่กลายเป็น position แล้ว (filled) → ไม่ pop position_tf ออก
     _open_pos_tickets = {p.ticket for p in (mt5.positions_get(symbol=SYMBOL) or [])}
+
+    # Cleanup PD zone state for tickets that no longer exist
+    for t in list(_pd_zone_state.keys()):
+        if t not in open_tickets:
+            _pd_zone_state.pop(t, None)
+
+    # Cleanup triple check state for tickets that no longer exist
+    for t in list(_triple_check_state.keys()):
+        if t not in open_tickets:
+            _triple_check_state.pop(t, None)
 
     # Cleanup tickets that no longer exist
     for t in list(pending_order_tf.keys()):
@@ -4787,9 +5058,17 @@ async def check_cancel_pending_orders(app):
                 if _cur_price is not None and abs(_cur_price - _limit_entry) <= _recheck_dist:
                     from scanner import trend_allows_signal as _tas
                     _allowed, _why = _tas(tf, _order_signal)
-                    if not _allowed:
+                    _dist_pt = round(abs(_cur_price - _limit_entry) / _pt)
+                    if _triple_check_all_enabled():
+                        _triple_check_record(
+                            ticket, "trend", bool(_allowed),
+                            tf=tf, signal=_order_signal,
+                        )
+                        log_event("TREND_RECHECK", "triple_record",
+                                  ticket=ticket, allowed=_allowed,
+                                  why=_why, dist_pt=_dist_pt)
+                    elif not _allowed:
                         should_cancel = True
-                        _dist_pt = round(abs(_cur_price - _limit_entry) / _pt)
                         reason = (
                             f"Trend Recheck Cancel [{tf}]: {_pending_order_type_name(order)} entry:{_limit_entry:.2f} "
                             f"near {_dist_pt}pt but trend={_why}"
@@ -4983,6 +5262,52 @@ async def check_cancel_pending_orders(app):
                                       f" O:{o_:.2f} H:{float(nb['high']):.2f}"
                                       f" L:{float(nb['low']):.2f} C:{c_:.2f}"
                                       f" setup ล้มเหลว")
+
+        # Premium/Discount zone recheck
+        if not should_cancel and isinstance(info, dict):
+            pd_status, pd_msgs = _pd_zone_process(ticket, order, info)
+            for _msg in pd_msgs:
+                await tg(app, _msg)
+            if _triple_check_all_enabled():
+                if pd_status != "wait":
+                    _triple_check_record(
+                        ticket, "pd", pd_status == "pass",
+                        tf=tf,
+                        signal=info.get("signal", "") if isinstance(info, dict) else "",
+                    )
+            else:
+                if pd_status == "fail":
+                    should_cancel = True
+                    reason = "PD Zone Recheck: order อยู่นอก Premium/Discount zone (< 2/2 รอบผ่าน)"
+                    _pd_zone_state.pop(ticket, None)
+
+        # Combined Triple Recheck decision (เมื่อเปิดครบทั้ง 3 อัน)
+        if not should_cancel and _triple_check_all_enabled():
+            tc_dec = _triple_check_evaluate(ticket)
+            if tc_dec in ("cancel", "keep"):
+                tc_st    = _triple_check_state.pop(ticket, {})
+                _tc_sig  = _pending_order_icon(order)
+                _tc_ot   = _pending_order_type_name(order)
+                _tc_line = (
+                    f"RSI {_triple_r(tc_st.get('rsi'))} | "
+                    f"Trend {_triple_r(tc_st.get('trend'))} | "
+                    f"PD {_triple_r(tc_st.get('pd'))}"
+                )
+                log_event(
+                    "TRIPLE_RECHECK",
+                    tc_dec.upper(),
+                    ticket=ticket, tf=tf,
+                    rsi=tc_st.get("rsi"), trend=tc_st.get("trend"), pd=tc_st.get("pd"),
+                )
+                if tc_dec == "cancel":
+                    should_cancel = True
+                    reason = f"Triple Recheck < 2/3: {_tc_line}"
+                else:
+                    await tg(app, (
+                        f"✅ *Triple Recheck ผ่าน 2/3 — Keep Order*\n"
+                        f"{_tc_sig} {_tc_ot} [{tf}] `#{ticket}`\n"
+                        f"{_tc_line}"
+                    ))
 
         if should_cancel:
             r = mt5.order_send({
