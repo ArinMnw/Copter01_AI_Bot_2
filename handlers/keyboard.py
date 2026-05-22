@@ -1585,100 +1585,245 @@ def build_trend_filter_keyboard():
     rows.append([InlineKeyboardButton("━ Sideway Filter ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(sideway_hhll_label, callback_data="toggle_sideway_hhll_filter")])
 
-    # === SL Guard ===
-    _sg_enabled = getattr(config, "SL_GUARD_ENABLED", False)
-    _sg_cnt = getattr(config, "SL_GUARD_COUNT", 2)
-    _sg_pts = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
-    sg_label = (
-        f"🟢 SL Guard: ON ({_sg_cnt}x SL → block, {_sg_pts}pt)"
-        if _sg_enabled
-        else "🔴 SL Guard: OFF"
-    )
+    # === SL Guard (shortcut → sub-menu) ===
+    _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
+    _sgc_on = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgg_on = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+    _sl_modes = []
+    if _sg_on:  _sl_modes.append("แยก")
+    if _sgc_on: _sl_modes.append("รวม")
+    if _sgg_on: _sl_modes.append("Group")
+    _sl_summary = f"🟢 {'·'.join(_sl_modes)}" if _sl_modes else "🔴 OFF"
     rows.append([InlineKeyboardButton("━ SL Guard ━", callback_data="noop_trend_filter")])
-    rows.append([InlineKeyboardButton(sg_label, callback_data="toggle_sl_guard")])
-    sg_cnt_options = [1, 2, 3]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if _sg_cnt == c else '⬜'} {c}x SL",
-            callback_data=f"set_sl_guard_count_{c}"
-        )
-        for c in sg_cnt_options
-    ])
-    sg_pt_options = [100, 200, 300, 500]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if _sg_pts == p else '⬜'} {p}pt",
-            callback_data=f"set_sl_guard_pts_{p}"
-        )
-        for p in sg_pt_options
-    ])
-
-    # === SL Guard Loss ===
-    _sg_loss_on  = getattr(config, "SL_GUARD_LOSS_ENABLED", True)
-    _sg_loss_thr = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
-    sg_loss_label = (
-        f"🟢 Loss Guard: ON (>${_sg_loss_thr:.0f})"
-        if _sg_loss_on
-        else "🔴 Loss Guard: OFF"
-    )
-    rows.append([InlineKeyboardButton(sg_loss_label, callback_data="toggle_sl_guard_loss")])
-    sg_loss_thr_opts = [3, 5, 10, 20]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if int(_sg_loss_thr) == t else '⬜'} ${t}",
-            callback_data=f"set_sl_guard_loss_thr_{t}"
-        )
-        for t in sg_loss_thr_opts
-    ])
-
-    # === SL Guard Close on Activate ===
-    _sg_close_on = getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
-    sg_close_label = (
-        "🟢 Close on Activate: ON"
-        if _sg_close_on
-        else "🔴 Close on Activate: OFF"
-    )
-    rows.append([InlineKeyboardButton(sg_close_label, callback_data="toggle_sl_guard_close_activate")])
-
-    # === SL Guard Combined TF ===
-    _sgc_enabled = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
-    _sgc_cnt     = getattr(config, "SL_GUARD_COMBINED_COUNT", 1)
-    _sgc_tfs     = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
-    _sgc_tfs_str = ", ".join(_sgc_tfs) if _sgc_tfs else "ยังไม่เลือก"
-    sgc_label = (
-        f"🟢 Combined Guard: ON ({_sgc_cnt}x | {_sgc_tfs_str})"
-        if _sgc_enabled
-        else "🔴 Combined Guard: OFF"
-    )
-    rows.append([InlineKeyboardButton("━ SL Guard Combined TF ━", callback_data="noop_trend_filter")])
-    rows.append([InlineKeyboardButton(sgc_label, callback_data="toggle_sl_guard_combined")])
-    sgc_cnt_opts = [1, 2, 3]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if _sgc_cnt == c else '⬜'} {c}x",
-            callback_data=f"set_slgc_count_{c}"
-        )
-        for c in sgc_cnt_opts
-    ])
-    _tf_opts_row1 = ["M1", "M5", "M15", "M30"]
-    _tf_opts_row2 = ["H1", "H4", "H12", "D1"]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if tf in _sgc_tfs else '⬜'} {tf}",
-            callback_data=f"toggle_slgc_tf_{tf}"
-        )
-        for tf in _tf_opts_row1
-    ])
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if tf in _sgc_tfs else '⬜'} {tf}",
-            callback_data=f"toggle_slgc_tf_{tf}"
-        )
-        for tf in _tf_opts_row2
-    ])
+    rows.append([InlineKeyboardButton(f"⚙️ SL Guard: {_sl_summary} →", callback_data="open_sl_guard_menu")])
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  SL Guard — Sub-menus
+# ═══════════════════════════════════════════════════════════════
+
+def build_sl_guard_keyboard():
+    """Hub หลักของ SL Guard — เลือก mode แยก/รวม/group"""
+    rows = []
+    # แบบแยก (Per-TF)
+    _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
+    _sg_c   = getattr(config, "SL_GUARD_COUNT", 2)
+    _sg_p   = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+    sg_st   = f"🟢ON ({_sg_c}x/{_sg_p}pt)" if _sg_on else "🔴OFF"
+    rows.append([InlineKeyboardButton(f"🛡️ แบบแยก (Per-TF): {sg_st} →", callback_data="open_sl_guard_per_tf")])
+
+    # แบบรวม (Combined)
+    _sgc_on  = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgc_c   = getattr(config, "SL_GUARD_COMBINED_COUNT", 2)
+    _sgc_t   = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    sgc_st   = f"🟢ON ({_sgc_c}x)" if _sgc_on else "🔴OFF"
+    rows.append([InlineKeyboardButton(f"🛡️ แบบรวม (Combined): {sgc_st} →", callback_data="open_sl_guard_combined")])
+
+    # แบบ Group
+    _sgg_on = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+    _sgg_c  = getattr(config, "SL_GUARD_GROUP_COUNT", 2)
+    sgg_st  = f"🟢ON ({_sgg_c}x)" if _sgg_on else "🔴OFF"
+    rows.append([InlineKeyboardButton(f"🛡️ แบบ Group: {sgg_st} →", callback_data="open_sl_guard_group")])
+
+    rows.append([InlineKeyboardButton("━━━━━━━━━━━━━━━━━", callback_data="noop_trend_filter")])
+
+    # Loss Guard (shared)
+    _sgl_on  = getattr(config, "SL_GUARD_LOSS_ENABLED", False)
+    _sgl_thr = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
+    sgl_lbl  = f"🟢 Loss Guard: ON (>${_sgl_thr:.0f})" if _sgl_on else "🔴 Loss Guard: OFF"
+    rows.append([InlineKeyboardButton(sgl_lbl, callback_data="toggle_sl_guard_loss")])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if int(_sgl_thr)==t else '⬜'} ${t}", callback_data=f"set_sl_guard_loss_thr_{t}")
+        for t in [3, 5, 10, 20]
+    ])
+
+    # Close on Activate (shared)
+    _sgca_on = getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
+    sgca_lbl = "🟢 Close on Activate: ON" if _sgca_on else "🔴 Close on Activate: OFF"
+    rows.append([InlineKeyboardButton(sgca_lbl, callback_data="toggle_sl_guard_close_activate")])
+
+    rows.append([InlineKeyboardButton("🔙 กลับ Trend Filter", callback_data="open_trend_filter_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def build_sl_guard_per_tf_keyboard():
+    """แบบแยก — Per-TF SL Guard"""
+    rows = []
+    _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
+    _sg_cnt = getattr(config, "SL_GUARD_COUNT", 2)
+    _sg_pts = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+    sg_lbl  = f"🟢 Per-TF Guard: ON ({_sg_cnt}x / {_sg_pts}pt)" if _sg_on else "🔴 Per-TF Guard: OFF"
+    rows.append([InlineKeyboardButton(sg_lbl, callback_data="toggle_sl_guard")])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if _sg_cnt==c else '⬜'} {c}x SL", callback_data=f"set_sl_guard_count_{c}")
+        for c in [1, 2, 3]
+    ])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if _sg_pts==p else '⬜'} {p}pt", callback_data=f"set_sl_guard_pts_{p}")
+        for p in [100, 200, 300, 500]
+    ])
+    rows.append([InlineKeyboardButton("🔙 กลับ SL Guard", callback_data="open_sl_guard_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def build_sl_guard_combined_keyboard():
+    """แบบรวม — Combined TF SL Guard"""
+    rows = []
+    _sgc_on  = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgc_cnt = getattr(config, "SL_GUARD_COMBINED_COUNT", 2)
+    _sgc_tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    tfs_str  = ", ".join(_sgc_tfs) if _sgc_tfs else "ยังไม่เลือก"
+    sgc_lbl  = f"🟢 Combined Guard: ON ({_sgc_cnt}x | {tfs_str})" if _sgc_on else "🔴 Combined Guard: OFF"
+    rows.append([InlineKeyboardButton(sgc_lbl, callback_data="toggle_sl_guard_combined")])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if _sgc_cnt==c else '⬜'} {c}x", callback_data=f"set_slgc_count_{c}")
+        for c in [1, 2, 3]
+    ])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if tf in _sgc_tfs else '⬜'} {tf}", callback_data=f"toggle_slgc_tf_{tf}")
+        for tf in ["M1", "M5", "M15", "M30"]
+    ])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if tf in _sgc_tfs else '⬜'} {tf}", callback_data=f"toggle_slgc_tf_{tf}")
+        for tf in ["H1", "H4", "H12", "D1"]
+    ])
+    rows.append([InlineKeyboardButton("🔙 กลับ SL Guard", callback_data="open_sl_guard_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def build_sl_guard_group_keyboard():
+    """แบบ Group — FVG Parallel Group SL Guard"""
+    rows = []
+    _sgg_on  = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+    _sgg_cnt = getattr(config, "SL_GUARD_GROUP_COUNT", 2)
+    _sgg_grps = list(getattr(config, "SL_GUARD_GROUP_GROUPS", []) or [])
+    sgg_lbl  = f"🟢 Group Guard: ON ({_sgg_cnt}x)" if _sgg_on else "🔴 Group Guard: OFF"
+    rows.append([InlineKeyboardButton(sgg_lbl, callback_data="toggle_sl_guard_group")])
+    rows.append([
+        InlineKeyboardButton(f"{'✅' if _sgg_cnt==c else '⬜'} {c}x", callback_data=f"set_slgg_count_{c}")
+        for c in [1, 2, 3]
+    ])
+    rows.append([InlineKeyboardButton("━ Groups (fixed) ━", callback_data="noop_trend_filter")])
+    for grp in _sgg_grps:
+        rows.append([InlineKeyboardButton(f"  {' · '.join(grp)}", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton("🔙 กลับ SL Guard", callback_data="open_sl_guard_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def show_sl_guard_menu(update_or_query, is_query=False):
+    _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
+    _sg_c   = getattr(config, "SL_GUARD_COUNT", 2)
+    _sg_p   = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+    _sgc_on = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgc_c  = getattr(config, "SL_GUARD_COMBINED_COUNT", 2)
+    _sgc_t  = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    _sgg_on = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+    _sgg_c  = getattr(config, "SL_GUARD_GROUP_COUNT", 2)
+    _sgl_on = getattr(config, "SL_GUARD_LOSS_ENABLED", False)
+    _sgl_t  = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
+    _sgca   = getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
+    text = (
+        "🛡️ *SL Guard*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"แบบแยก (Per-TF): *{'🟢ON' if _sg_on else '🔴OFF'}*"
+        + (f" ({_sg_c}x / {_sg_p}pt)" if _sg_on else "") + "\n"
+        f"  SL ≥ Nx ใน TF เดียว → ล็อก TF นั้น | unblock เมื่อเจอ Swing ใหม่\n\n"
+        f"แบบรวม (Combined): *{'🟢ON' if _sgc_on else '🔴OFF'}*"
+        + (f" ({_sgc_c}x | {', '.join(_sgc_t) or '-'})" if _sgc_on else "") + "\n"
+        f"  SL รวมทุก TF ใน list ครบ Nx → ล็อกทุก TF | unblock ต่าง TF อิสระ\n\n"
+        f"แบบ Group: *{'🟢ON' if _sgg_on else '🔴OFF'}*"
+        + (f" ({_sgg_c}x)" if _sgg_on else "") + "\n"
+        f"  SL รวมใน group ครบ Nx → ล็อก TF ใน group + ปิด position ทั้งหมด\n\n"
+        f"Loss Guard: *{'🟢ON' if _sgl_on else '🔴OFF'}*"
+        + (f" (>${_sgl_t:.0f})" if _sgl_on else "") + "\n"
+        f"  close ขาดทุนเกิน threshold → นับเป็น SL hit\n"
+        f"Close on Activate: *{'🟢ON' if _sgca else '🔴OFF'}*\n"
+        f"  Guard activate → ปิด position ที่เปิดอยู่"
+    )
+    keyboard = build_sl_guard_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+
+async def show_sl_guard_per_tf_menu(update_or_query, is_query=False):
+    _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
+    _sg_c   = getattr(config, "SL_GUARD_COUNT", 2)
+    _sg_p   = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+    text = (
+        "🛡️ *SL Guard — แบบแยก (Per-TF)*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{'🟢ON' if _sg_on else '🔴OFF'}*"
+        + (f" ({_sg_c}x / {_sg_p}pt)" if _sg_on else "") + "\n\n"
+        f"BUY SL ครบ {_sg_c}x ใน TF เดียวกัน → ล็อก TF นั้น\n"
+        f"ยกเลิก pending ที่อยู่ภายใน {_sg_p}pt จากราคาปัจจุบัน\n"
+        f"unblock: เมื่อเกิด Swing Low (BUY) / Swing High (SELL) ใหม่ใน TF นั้น"
+    )
+    keyboard = build_sl_guard_per_tf_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+
+async def show_sl_guard_combined_menu(update_or_query, is_query=False):
+    _sgc_on  = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgc_c   = getattr(config, "SL_GUARD_COMBINED_COUNT", 2)
+    _sgc_tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    tfs_str  = ", ".join(_sgc_tfs) if _sgc_tfs else "ยังไม่เลือก"
+    text = (
+        "🛡️ *SL Guard — แบบรวม (Combined TF)*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{'🟢ON' if _sgc_on else '🔴OFF'}*"
+        + (f" ({_sgc_c}x | {tfs_str})" if _sgc_on else "") + "\n\n"
+        f"SL จาก TF ไหนใน list ก็ได้ รวมครบ {_sgc_c}x → ล็อกทุก TF ใน list\n"
+        f"ปิด position ทุก TF ใน list เมื่อ activate\n"
+        f"unblock: แต่ละ TF อิสระ เมื่อเจอ Swing ใหม่ของตัวเอง"
+    )
+    keyboard = build_sl_guard_combined_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+
+async def show_sl_guard_group_menu(update_or_query, is_query=False):
+    _sgg_on   = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+    _sgg_c    = getattr(config, "SL_GUARD_GROUP_COUNT", 2)
+    _sgg_grps = list(getattr(config, "SL_GUARD_GROUP_GROUPS", []) or [])
+    grps_str  = "\n".join(f"  • {' · '.join(g)}" for g in _sgg_grps)
+    text = (
+        "🛡️ *SL Guard — แบบ Group*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{'🟢ON' if _sgg_on else '🔴OFF'}*"
+        + (f" ({_sgg_c}x per group)" if _sgg_on else "") + "\n\n"
+        f"SL รวมใน group ครบ {_sgg_c}x → ล็อกทุก TF ใน group นั้น\n"
+        f"ปิด position *ทั้งหมด* ของ side นั้น (ไม่สน TF)\n"
+        f"unblock: แต่ละ TF อิสระ เมื่อเจอ Swing ใหม่ของตัวเอง\n"
+        f"หลาย group activate พร้อมกันได้\n\n"
+        f"Groups:\n{grps_str}"
+    )
+    keyboard = build_sl_guard_group_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def show_trend_filter_menu(update_or_query, is_query=False):
@@ -1712,20 +1857,14 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     prr_status = "🟢ON" if config.PENDING_RSI_RECHECK_ENABLED else "🔴OFF"
     _sideway_hhll_on = getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)
     sideway_hhll_status = "🟢ON" if _sideway_hhll_on else "🔴OFF"
-    _sg_on = getattr(config, "SL_GUARD_ENABLED", False)
-    _sg_c  = getattr(config, "SL_GUARD_COUNT", 2)
-    _sg_p  = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
-    sg_status  = f"🟢ON ({_sg_c}x/{_sg_p}pt)" if _sg_on else "🔴OFF"
-    _sgc_on    = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
-    _sgc_c     = getattr(config, "SL_GUARD_COMBINED_COUNT", 1)
-    _sgc_t     = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
-    _sgc_t_str = ", ".join(_sgc_t) if _sgc_t else "ยังไม่เลือก"
-    sgc_status = f"🟢ON ({_sgc_c}x | {_sgc_t_str})" if _sgc_on else "🔴OFF"
-    _sgl_on    = getattr(config, "SL_GUARD_LOSS_ENABLED", True)
-    _sgl_thr   = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
-    sgl_status = f"🟢ON (>${_sgl_thr:.0f})" if _sgl_on else "🔴OFF"
-    _sgca_on   = getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
-    sgca_status = "🟢ON" if _sgca_on else "🔴OFF"
+    _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
+    _sgc_on = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgg_on = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+    _sl_parts = []
+    if _sg_on:  _sl_parts.append(f"แยก({getattr(config,'SL_GUARD_COUNT',2)}x)")
+    if _sgc_on: _sl_parts.append(f"รวม({getattr(config,'SL_GUARD_COMBINED_COUNT',2)}x)")
+    if _sgg_on: _sl_parts.append(f"Group({getattr(config,'SL_GUARD_GROUP_COUNT',2)}x)")
+    sg_summary = f"🟢 {'·'.join(_sl_parts)}" if _sl_parts else "🔴OFF"
     text = (
         "🧭 *Trend Filter (Scan Trend)*\n"
         "━━━━━━━━━━━━━━━━━\n"
@@ -1748,14 +1887,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย\n\n"
         f"Sideway HHLL: *{sideway_hhll_status}*\n"
         f"  HH/HL last swing → block SELL | LH/LL last swing → block BUY\n\n"
-        f"SL Guard: *{sg_status}*\n"
-        f"  BUY/SELL SL ≥ Nx → ยกเลิก pending ที่ใกล้ ({_sg_p}pt) + บล็อกจนกว่าจะเกิด Swing ใหม่\n"
-        f"Loss Guard: *{sgl_status}*\n"
-        f"  close ที่ขาดทุน >${_sgl_thr:.0f} → นับเป็น SL hit ด้วย\n"
-        f"Close on Activate: *{sgca_status}*\n"
-        f"  Guard activate → ปิด position ที่เปิดอยู่ (Per-TF: ปิด TF นั้น | Combined: ปิดทุก TF ใน group)\n"
-        f"Combined Guard: *{sgc_status}*\n"
-        f"  SL จาก TF ไหนก็ได้ ครบ Nx → block ทุก TF ใน group จนเจอ Swing ของแต่ละ TF"
+        f"SL Guard: *{sg_summary}*\n"
+        f"  กด ⚙️ SL Guard เพื่อตั้งค่าแบบแยก / รวม / group"
     )
     keyboard = build_trend_filter_keyboard()
     if is_query:

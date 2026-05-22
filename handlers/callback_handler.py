@@ -11,7 +11,9 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     show_limit_break_menu, show_engulf_menu,
     show_limit_guard_menu, show_opposite_menu,
     show_trail_focus_menu, show_entry_focus_menu,
-    show_trend_filter_menu)
+    show_trend_filter_menu,
+    show_sl_guard_menu, show_sl_guard_per_tf_menu,
+    show_sl_guard_combined_menu, show_sl_guard_group_menu)
 
 
 async def _qanswer(query, text=""):
@@ -644,6 +646,22 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query)
 
+    elif data == "open_sl_guard_menu":
+        await show_sl_guard_menu(query, is_query=True)
+        await _qanswer(query)
+
+    elif data == "open_sl_guard_per_tf":
+        await show_sl_guard_per_tf_menu(query, is_query=True)
+        await _qanswer(query)
+
+    elif data == "open_sl_guard_combined":
+        await show_sl_guard_combined_menu(query, is_query=True)
+        await _qanswer(query)
+
+    elif data == "open_sl_guard_group":
+        await show_sl_guard_group_menu(query, is_query=True)
+        await _qanswer(query)
+
     elif data.startswith("toggle_trend_filter_per_tf_"):
         tf = data.replace("toggle_trend_filter_per_tf_", "")
         if tf == "ALL":
@@ -911,46 +929,46 @@ async def handle_callback(update, ctx):
     elif data == "toggle_sl_guard":
         config.SL_GUARD_ENABLED = not config.SL_GUARD_ENABLED
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_per_tf_menu(query, is_query=True)
         await _qanswer(query, f"SL Guard: {'ON' if config.SL_GUARD_ENABLED else 'OFF'}")
 
     elif data.startswith("set_sl_guard_count_"):
         cnt = int(data.replace("set_sl_guard_count_", ""))
         config.SL_GUARD_COUNT = cnt
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_per_tf_menu(query, is_query=True)
         await _qanswer(query, f"SL Guard Count: {cnt}x")
 
     elif data.startswith("set_sl_guard_pts_"):
         pts = int(data.replace("set_sl_guard_pts_", ""))
         config.SL_GUARD_NEAR_POINTS = pts
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_per_tf_menu(query, is_query=True)
         await _qanswer(query, f"SL Guard Near: {pts}pt")
 
     elif data == "toggle_sl_guard_loss":
-        config.SL_GUARD_LOSS_ENABLED = not getattr(config, "SL_GUARD_LOSS_ENABLED", True)
+        config.SL_GUARD_LOSS_ENABLED = not getattr(config, "SL_GUARD_LOSS_ENABLED", False)
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_menu(query, is_query=True)
         await _qanswer(query, f"Loss Guard: {'ON' if config.SL_GUARD_LOSS_ENABLED else 'OFF'}")
 
     elif data == "toggle_sl_guard_close_activate":
         config.SL_GUARD_CLOSE_ON_ACTIVATE = not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_menu(query, is_query=True)
         await _qanswer(query, f"Close on Activate: {'ON' if config.SL_GUARD_CLOSE_ON_ACTIVATE else 'OFF'}")
 
     elif data.startswith("set_sl_guard_loss_thr_"):
         thr = float(data.replace("set_sl_guard_loss_thr_", ""))
         config.SL_GUARD_LOSS_THRESHOLD = thr
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_menu(query, is_query=True)
         await _qanswer(query, f"Loss Guard Threshold: ${thr:.0f}")
 
     elif data == "toggle_sl_guard_combined":
         config.SL_GUARD_COMBINED_ENABLED = not config.SL_GUARD_COMBINED_ENABLED
         save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
+        await show_sl_guard_combined_menu(query, is_query=True)
         await _qanswer(query, f"Combined Guard: {'ON' if config.SL_GUARD_COMBINED_ENABLED else 'OFF'}")
 
     elif data.startswith("set_slgc_count_"):
@@ -958,7 +976,7 @@ async def handle_callback(update, ctx):
             cnt = int(data.replace("set_slgc_count_", ""))
             config.SL_GUARD_COMBINED_COUNT = max(1, cnt)
             save_runtime_state()
-            await show_trend_filter_menu(query, is_query=True)
+            await show_sl_guard_combined_menu(query, is_query=True)
             await _qanswer(query, f"Combined Guard Count: {cnt}x")
         except (ValueError, TypeError):
             await _qanswer(query, "ค่าไม่ถูกต้อง")
@@ -974,9 +992,25 @@ async def handle_callback(update, ctx):
                 _tfs.append(tf_toggle)
             config.SL_GUARD_COMBINED_TFS = _tfs
             save_runtime_state()
-            await show_trend_filter_menu(query, is_query=True)
+            await show_sl_guard_combined_menu(query, is_query=True)
             _on = tf_toggle in config.SL_GUARD_COMBINED_TFS
             await _qanswer(query, f"Combined Guard TF {tf_toggle}: {'ON' if _on else 'OFF'}")
+
+    elif data == "toggle_sl_guard_group":
+        config.SL_GUARD_GROUP_ENABLED = not getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+        save_runtime_state()
+        await show_sl_guard_group_menu(query, is_query=True)
+        await _qanswer(query, f"Group Guard: {'ON' if config.SL_GUARD_GROUP_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_slgg_count_"):
+        try:
+            cnt = int(data.replace("set_slgg_count_", ""))
+            config.SL_GUARD_GROUP_COUNT = max(1, cnt)
+            save_runtime_state()
+            await show_sl_guard_group_menu(query, is_query=True)
+            await _qanswer(query, f"Group Guard Count: {cnt}x")
+        except (ValueError, TypeError):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
 
     elif data == "toggle_pending_rsi_recheck":
         config.PENDING_RSI_RECHECK_ENABLED = not config.PENDING_RSI_RECHECK_ENABLED
