@@ -17,6 +17,9 @@ _TS_LINE_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
 _MONTHLY_LOG_RE = re.compile(r"^bot-\d{4}-\d{2}\.log$")
 _ERROR_MONTHLY_LOG_RE = re.compile(r"^error-\d{4}-\d{2}\.log$")
 
+# ── Rotation state ─────────────────────────────────────────────
+_last_bot_log_month: tuple = (0, 0)   # (year, month) ที่ bot.log ถูกเขียนล่าสุด
+
 
 def _now_bkk() -> datetime:
     try:
@@ -74,6 +77,97 @@ def get_monthly_error_log_file_for_dt(dt: datetime) -> str:
     return os.path.join(LOG_DIR, f"error-{dt.year:04d}-{dt.month:02d}.log")
 
 
+def get_monthly_system_log_file(year: int, month: int) -> str:
+    return os.path.join(SYSTEM_LOG_DIR, f"system-{year:04d}-{month:02d}.log")
+
+
+# ── Bot log rotation ───────────────────────────────────────────
+
+def _rotate_bot_log(old_year: int, old_month: int) -> None:
+    """rename bot.log → bot-YYYY-MM.log"""
+    archive = get_monthly_bot_log_file(old_year, old_month)
+    if os.path.exists(BOT_LOG_FILE) and not os.path.exists(archive):
+        try:
+            os.rename(BOT_LOG_FILE, archive)
+        except OSError:
+            pass
+
+
+def _rotate_bot_log_if_needed(now_dt: datetime) -> None:
+    """เช็คทุกครั้งที่เขียน log — ถ้าเดือนเปลี่ยน → rotate"""
+    global _last_bot_log_month
+    cur = (now_dt.year, now_dt.month)
+    if _last_bot_log_month == (0, 0):
+        _last_bot_log_month = cur
+        return
+    if cur == _last_bot_log_month:
+        return
+    # เดือนเปลี่ยน
+    _rotate_bot_log(*_last_bot_log_month)
+    _last_bot_log_month = cur
+
+
+def _check_bot_log_on_startup() -> None:
+    """ตรวจ bot.log ตอน start — ถ้าเป็นเดือนก่อน → rotate ทันที"""
+    global _last_bot_log_month
+    if not os.path.exists(BOT_LOG_FILE):
+        return
+    now_dt = _now_bkk()
+    cur = (now_dt.year, now_dt.month)
+    try:
+        last_line = None
+        with open(BOT_LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.strip():
+                    last_line = line
+        if last_line:
+            ts = _parse_log_line_ts(last_line)
+            if ts and (ts.year, ts.month) != cur:
+                _rotate_bot_log(ts.year, ts.month)
+    except Exception:
+        pass
+    _last_bot_log_month = cur
+
+
+# ── System log rotation handler ────────────────────────────────
+
+class _MonthlyRotatingFileHandler(logging.FileHandler):
+    """FileHandler ที่ rotate ทุกต้นเดือน → system-YYYY-MM.log"""
+
+    def __init__(self, filename: str, **kwargs):
+        self._current_month: tuple = (0, 0)
+        super().__init__(filename, mode="a", encoding="utf-8", **kwargs)
+
+    def _archive_path(self, year: int, month: int) -> str:
+        return get_monthly_system_log_file(year, month)
+
+    def _do_rotate(self, old_year: int, old_month: int) -> None:
+        archive = self._archive_path(old_year, old_month)
+        try:
+            self.close()
+            if os.path.exists(self.baseFilename) and not os.path.exists(archive):
+                os.rename(self.baseFilename, archive)
+        except OSError:
+            pass
+        try:
+            self.stream = self._open()
+        except OSError:
+            pass
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            now = _now_bkk()
+            cur = (now.year, now.month)
+            if self._current_month == (0, 0):
+                self._current_month = cur
+            elif cur != self._current_month:
+                self._do_rotate(*self._current_month)
+                self._current_month = cur
+        except Exception:
+            pass
+        super().emit(record)
+
+
 def log_error(kind: str, message: str = "", **fields) -> None:
     """เขียน error ลง error-YYYY-MM.log แยกต่างหาก"""
     try:
@@ -105,6 +199,7 @@ class _ErrorLogHandler(logging.Handler):
 
 def setup_python_logging() -> None:
     _ensure_log_dir()
+    _check_bot_log_on_startup()   # rotate bot.log ถ้าเป็นเดือนก่อน
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     system_path = os.path.abspath(SYSTEM_LOG_FILE)
@@ -116,7 +211,7 @@ def setup_python_logging() -> None:
         if isinstance(handler, _ErrorLogHandler):
             already_has_error = True
     if not already_has_file:
-        file_handler = logging.FileHandler(SYSTEM_LOG_FILE, encoding="utf-8")
+        file_handler = _MonthlyRotatingFileHandler(SYSTEM_LOG_FILE)
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         root.addHandler(file_handler)
@@ -138,10 +233,9 @@ def log_event(kind: str, message: str = "", **fields) -> None:
             line += f" | {_sanitize(message)}"
         if flat_fields:
             line += " | " + " | ".join(flat_fields)
-        monthly_bot_log = get_monthly_bot_log_file_for_dt(now_dt)
-        for path in (BOT_LOG_FILE, monthly_bot_log):
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
+        _rotate_bot_log_if_needed(now_dt)
+        with open(BOT_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
     except Exception:
         pass
 
@@ -161,8 +255,8 @@ def _parse_log_line_ts(line: str):
 
 
 def cleanup_old_logs(retention_days: int = LOG_RETENTION_DAYS) -> dict:
-    """ลบบรรทัด log ที่เก่าเกิน retention_days ออกจากไฟล์ใน LOG_DIR
-    ถ้าเป็น monthly log (bot-YYYY-MM.log) และไม่มีบรรทัดเหลือ จะลบทั้งไฟล์
+    """ลบบรรทัด log ที่เก่าเกิน retention_days ออกจาก archived monthly logs
+    (ข้าม bot.log / system.log เพราะเป็นเดือนปัจจุบัน)
     """
     _ensure_log_dir()
     cutoff = _now_bkk().replace(tzinfo=None) - timedelta(days=retention_days)
@@ -174,6 +268,9 @@ def cleanup_old_logs(retention_days: int = LOG_RETENTION_DAYS) -> dict:
 
     for name in entries:
         if not name.endswith(".log"):
+            continue
+        # ข้าม bot.log (current) — จัดการโดย rotation เท่านั้น
+        if name == "bot.log":
             continue
         path = os.path.join(LOG_DIR, name)
         try:
