@@ -134,12 +134,14 @@ int BuildZZ(MqlRates &r[], int total, ZZPt &zz[], int max_out)
       double p = ph ? r[i].high : r[i].low;
       int    d = ph ? 1 : -1;
 
-      // Filter 1/2: consecutive same-direction → keep more extreme
+      // Filter 1/2: consecutive same-direction → skip less extreme (Pine Script behavior)
+      // ไม่ลบตัวเก่าออก — keep both เหมือน Pine Script
+      // (Pine Script: set zz=na สำหรับตัวที่ extreme น้อยกว่า แต่ไม่ลบตัวที่ extreme กว่า)
       if(cnt > 0 && zz[cnt-1].dir == d)
         {
-         if(d == 1  && p <= zz[cnt-1].price) continue; // lower high  → skip
-         if(d == -1 && p >= zz[cnt-1].price) continue; // higher low  → skip
-         cnt--;                                          // replace with more extreme
+         if(d == 1  && p <  zz[cnt-1].price) continue; // PH ใหม่ต่ำกว่าเก่า → skip ตัวใหม่
+         if(d == -1 && p >  zz[cnt-1].price) continue; // PL ใหม่สูงกว่าเก่า → skip ตัวใหม่
+         // ตัวใหม่ extreme กว่าหรือเท่ากัน → keep both เหมือน Pine Script (ไม่ cnt--)
         }
 
       // Filter 3: direction alternated but price is on wrong side

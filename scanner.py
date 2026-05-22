@@ -26,6 +26,8 @@ import amp_trend
 import hhll_swing
 _first_scan_done = False
 _scan_results: dict = {}   # {tf_name: dict}
+# Swing fallback state: {(tf, sid, signal): first_blocked_bar_time}
+_lookback_fallback_start: dict = {}
 _scan_lock = None
 _last_scan_summary_telegram = ""
 _last_scan_summary_cmd = ""
@@ -119,6 +121,27 @@ def _log_confirm_lookback_block(tf_name: str, sid: int, signal: str, lookback_ba
         signal=signal,
         pattern=pattern,
     )
+
+
+def _has_swing_in_lookback(rates, signal: str, lookback_bars: int = 8) -> bool:
+    """True ถ้ามี swing L (BUY) หรือ swing H (SELL) ใน lookback_bars แท่งล่าสุด
+    BUY  → ต้องเจอ local low (low[i] <= low[i-1] และ low[i] <= low[i+1])
+    SELL → ต้องเจอ local high (high[i] >= high[i-1] และ high[i] >= high[i+1])
+    """
+    if rates is None or len(rates) < 3:
+        return False
+    signal = str(signal or "").upper()
+    check = rates[-(lookback_bars + 2):]
+    for i in range(1, len(check) - 1):
+        if signal == "BUY":
+            if float(check[i]["low"]) <= float(check[i-1]["low"]) and \
+               float(check[i]["low"]) <= float(check[i+1]["low"]):
+                return True
+        elif signal == "SELL":
+            if float(check[i]["high"]) >= float(check[i-1]["high"]) and \
+               float(check[i]["high"]) >= float(check[i+1]["high"]):
+                return True
+    return False
 
 
 def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_bars: int) -> dict | None:
@@ -321,7 +344,7 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
                 tp_orig_dist = tp_orig_max - entry
             else:
                 tp_orig_dist = entry - tp_orig_max
-            effective_steps = config.compute_tso_effective_steps(tp_orig_dist)
+            effective_steps = config.compute_tso_effective_steps(tp_orig_dist, sid=13)
             if effective_steps:
                 if signal == "BUY":
                     new_tp_levels = [round(entry + d, 2) for d in effective_steps]
@@ -1070,6 +1093,17 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
         t = trend.get("trend", "UNKNOWN")
         if mode == "breakout":
             if t not in ("BULL", "BEAR"):
+                # SIDEWAY / UNKNOWN — ตรวจ last_label ถ้าเปิด TREND_FILTER_SIDEWAY_HHLL
+                if t == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
+                    try:
+                        from hhll_swing import get_hhll_data as _ghd
+                        _last = (_ghd(ref_tf) or {}).get("last_label", "")
+                    except Exception:
+                        _last = ""
+                    if _last == "LH" and signal == "BUY":
+                        return False, f"{ref_tf} SIDEWAY/LH"
+                    if _last == "HL" and signal == "SELL":
+                        return False, f"{ref_tf} SIDEWAY/HL"
                 return True, ""
             breakout = sw.get("breakout") or {}
             if t == "BULL":
@@ -1092,6 +1126,17 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
             return False, f"{ref_tf} BULL"
         if t == "BEAR" and signal == "BUY":
             return False, f"{ref_tf} BEAR"
+        # basic mode — SIDEWAY ตรวจ last_label ถ้าเปิด
+        if t == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
+            try:
+                from hhll_swing import get_hhll_data as _ghd
+                _last = (_ghd(ref_tf) or {}).get("last_label", "")
+            except Exception:
+                _last = ""
+            if _last == "LH" and signal == "BUY":
+                return False, f"{ref_tf} SIDEWAY/LH"
+            if _last == "HL" and signal == "SELL":
+                return False, f"{ref_tf} SIDEWAY/HL"
         return True, ""
 
     if per_tf_on:
@@ -1464,6 +1509,15 @@ async def check_s3_maru_pending(app):
         bull_next = cl > o
         lookback_bars = max(0, int(getattr(config, "S3_CONFIRM_LOOKBACK_BARS", getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8)) or 0))
         s3_confirm_ref = _find_recent_signal_confirmation(rates, direction, TF_SECONDS_MAP.get(tf, 0), lookback_bars)
+        if not s3_confirm_ref:
+            _tf_secs_maru = max(1, TF_SECONDS_MAP.get(tf, 60))
+            _key_maru = (tf, 3, direction)
+            if _key_maru not in _lookback_fallback_start:
+                _lookback_fallback_start[_key_maru] = last_time
+            _bars_waited_maru = (last_time - _lookback_fallback_start[_key_maru]) // _tf_secs_maru
+            if _bars_waited_maru >= 4 and _has_swing_in_lookback(rates, direction, 8):
+                _lookback_fallback_start.pop(_key_maru, None)
+                s3_confirm_ref = {"sid": 0, "signal": direction, "swing_fallback": True}
 
         sig_e = "🟢" if direction == "BUY" else "🔴"
         confirm_time = candle_time + int(TF_SECONDS_MAP.get(tf, 0) or 0)
@@ -1490,15 +1544,31 @@ async def check_s3_maru_pending(app):
                         config.last_traded_sid_tf.setdefault(tf, {})[3] = candle_time
                         position_tf[order["ticket"]] = tf
                         position_pattern[order["ticket"]] = "ท่าที่ 3 DM SP — Marubozu BUY"
+                        pending_order_tf[order["ticket"]] = {
+                            "tf": tf, "signal": "BUY", "sid": 3,
+                            "pattern": "ท่าที่ 3 DM SP — Marubozu BUY",
+                        }
                         tick = mt5.symbol_info_tick(SYMBOL)
                         cur_price = (tick.ask if direction == "BUY" else tick.bid) if tick else 0
                         risk = abs(entry - sl)
                         rr   = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
+                        _s3_candles = p.get("candles", [])
+                        _s3_labels  = ["[2]", "[1]", "[0]"]
+                        _s3_rows    = [f"📚 แท่ง {tf}"]
+                        for _idx, _cd in enumerate(_s3_candles):
+                            _clr = "🟢" if _cd["cl"] > _cd["o"] else "🔴"
+                            _s3_rows.append(
+                                f"{_clr} แท่ง{_s3_labels[_idx]}: O:`{_cd['o']:.2f}` H:`{_cd['h']:.2f}` "
+                                f"L:`{_cd['l']:.2f}` C:`{_cd['cl']:.2f}` {_fmt_swing_dt(_cd['time'])}"
+                            )
+                        _s3_candle_txt = "\n".join(_s3_rows) if len(_s3_rows) > 1 else ""
+                        _s3_sh = float(p.get("swing_h") or 0)
+                        _s3_sl = float(p.get("swing_l") or 0)
                         await app.bot.send_message(
                             chat_id=MY_USER_ID,
                 text=_order_msg(
                     sig_e, f"ท่าที่ 3 DM SP 🟢 BUY — Marubozu", tf, 3,
-                    "", 0.0, 0.0,
+                    _s3_candle_txt, _s3_sh, _s3_sl,
                     f"แท่ง[0] {candle0_lbl} เขียวตัน → แท่งยืนยัน {confirm_lbl} จบเขียว ✅",
                     cur_price, entry, sl, tp, rr, order["ticket"],
                     _trend_filter_setup_note(tf),
@@ -1536,15 +1606,31 @@ async def check_s3_maru_pending(app):
                         config.last_traded_sid_tf.setdefault(tf, {})[3] = candle_time
                         position_tf[order["ticket"]] = tf
                         position_pattern[order["ticket"]] = "ท่าที่ 3 DM SP — Marubozu SELL"
+                        pending_order_tf[order["ticket"]] = {
+                            "tf": tf, "signal": "SELL", "sid": 3,
+                            "pattern": "ท่าที่ 3 DM SP — Marubozu SELL",
+                        }
                         tick = mt5.symbol_info_tick(SYMBOL)
                         cur_price = (tick.ask if direction == "BUY" else tick.bid) if tick else 0
                         risk = abs(entry - sl)
                         rr   = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
+                        _s3_candles = p.get("candles", [])
+                        _s3_labels  = ["[2]", "[1]", "[0]"]
+                        _s3_rows    = [f"📚 แท่ง {tf}"]
+                        for _idx, _cd in enumerate(_s3_candles):
+                            _clr = "🟢" if _cd["cl"] > _cd["o"] else "🔴"
+                            _s3_rows.append(
+                                f"{_clr} แท่ง{_s3_labels[_idx]}: O:`{_cd['o']:.2f}` H:`{_cd['h']:.2f}` "
+                                f"L:`{_cd['l']:.2f}` C:`{_cd['cl']:.2f}` {_fmt_swing_dt(_cd['time'])}"
+                            )
+                        _s3_candle_txt = "\n".join(_s3_rows) if len(_s3_rows) > 1 else ""
+                        _s3_sh = float(p.get("swing_h") or 0)
+                        _s3_sl = float(p.get("swing_l") or 0)
                         await app.bot.send_message(
                             chat_id=MY_USER_ID,
                 text=_order_msg(
                     sig_e, f"ท่าที่ 3 DM SP 🔴 SELL — Marubozu", tf, 3,
-                    "", 0.0, 0.0,
+                    _s3_candle_txt, _s3_sh, _s3_sl,
                     f"แท่ง[0] {candle0_lbl} แดงตัน → แท่งยืนยัน {confirm_lbl} จบแดง ✅",
                     cur_price, entry, sl, tp, rr, order["ticket"],
                     _trend_filter_setup_note(tf),
@@ -1963,6 +2049,146 @@ async def scan_s12(app):
     ))
 
 
+async def _sl_guard_place_retries(app, tf_name: str, rates) -> bool:
+    """
+    เมื่อ SL Guard deactivate → นำ blocked signals ที่เก็บไว้มา re-place ทันที
+    เช็คทั้ง BUY และ SELL side ของ tf_name นี้
+    Return True ถ้า place สำเร็จอย่างน้อย 1 order
+    """
+    if not config.SL_GUARD_ENABLED:
+        return False
+    from trailing import _sl_guard_get_retry_signals, _sl_guard_check_unblock, _sl_guard_state as _sgs
+
+    placed_any = False
+    now = now_bkk().strftime("%H:%M")
+
+    for side in ("BUY", "SELL"):
+        # เช็ค unblock ก่อน (อาจยังไม่ได้ deactivate ถ้า trailing ยังไม่วิ่ง)
+        _sg_key = (tf_name, side)
+        if _sgs.get(_sg_key, {}).get("active"):
+            _sl_guard_check_unblock(tf_name, side, rates)
+
+        retries = _sl_guard_get_retry_signals(tf_name, side)
+        if not retries:
+            continue
+
+        tick = mt5.symbol_info_tick(SYMBOL)
+        sym_info = mt5.symbol_info(SYMBOL)
+        if not tick or not sym_info:
+            continue
+        pt = sym_info.point or 0.01
+
+        for retry in retries:
+            sid     = retry.get("sid")
+            signal  = retry.get("signal", side)
+            entry   = float(retry.get("entry", 0))
+            sl      = float(retry.get("sl", 0))
+            tp      = float(retry.get("tp", 0))
+            pattern = retry.get("pattern", f"S{sid}")
+            use_delay_sl = retry.get("use_delay_sl", False)
+
+            if not entry or not sl:
+                continue
+
+            # ตรวจสอบ: entry ยังไม่ถูก fill (ราคาตลาดยังไม่ผ่าน entry)
+            cur_price = tick.ask if signal == "BUY" else tick.bid
+            if signal == "BUY" and cur_price <= entry:
+                # ราคาต่ำกว่า entry → BUY limit ยังสมเหตุสมผล
+                pass
+            elif signal == "SELL" and cur_price >= entry:
+                # ราคาสูงกว่า entry → SELL limit ยังสมเหตุสมผล
+                pass
+            else:
+                print(f"🛡️ [{now}] SL Guard retry SKIP: [{tf_name}] {signal} entry:{entry:.2f} cur:{cur_price:.2f} — ราคาผ่าน entry แล้ว")
+                continue
+
+            # ตรวจสอบ: SL ยังไม่ถูก breach
+            last_close = float(rates[-1]["close"]) if rates is not None and len(rates) > 0 else 0
+            if signal == "BUY" and last_close < sl:
+                print(f"🛡️ [{now}] SL Guard retry SKIP: [{tf_name}] {signal} sl:{sl:.2f} breached by close:{last_close:.2f}")
+                continue
+            if signal == "SELL" and last_close > sl:
+                print(f"🛡️ [{now}] SL Guard retry SKIP: [{tf_name}] {signal} sl:{sl:.2f} breached by close:{last_close:.2f}")
+                continue
+
+            # ตรวจ MAX_ORDERS
+            async with _get_lock():
+                _pos_now = mt5.positions_get(symbol=SYMBOL)
+                if _pos_now and len(_pos_now) >= MAX_ORDERS:
+                    print(f"🛡️ [{now}] SL Guard retry SKIP: [{tf_name}] {signal} — Order เต็ม")
+                    break
+                order_sl = 0.0 if use_delay_sl else sl
+                order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                if order.get("success"):
+                    placed_any = True
+                    ticket = order.get("ticket", 0)
+                    rr = round(abs(tp - entry) / abs(entry - sl), 2) if abs(entry - sl) > 0 else 0
+                    log_event("SL_GUARD_RETRY", f"[{tf_name}] {signal} S{sid} re-placed after guard off",
+                              tf=tf_name, sid=sid, signal=signal, entry=entry, sl=sl, tp=tp, ticket=ticket)
+                    await tg(app, (
+                        f"🛡️ *SL Guard: Re-place Order*\n"
+                        f"━━━━━━━━━━━━━━━━━\n"
+                        f"{'🟢' if signal=='BUY' else '🔴'} {pattern} [{tf_name}]\n"
+                        f"🆕 Swing ใหม่เกิด → คืน order ที่ถูก block\n"
+                        f"📌 Entry:`{entry}` SL:`{sl}` TP:`{tp}` RR:`{rr}`\n"
+                        f"🔖 Ticket:`{ticket}`"
+                    ))
+                    print(f"🛡️ [{now}] SL Guard retry PLACED: [{tf_name}] {signal} S{sid} entry:{entry} ticket:{ticket}")
+
+    return placed_any
+
+
+async def _combined_guard_place_retries(app, tf_name: str, rates) -> bool:
+    """
+    Combined Guard: unblock check + re-place blocked signals สำหรับ TF นี้
+    """
+    from trailing import (
+        _combined_guard_check_unblock,
+        _combined_guard_get_retry_signals,
+        _combined_guard_is_blocked,
+    )
+    placed_any = False
+    now = now_bkk().strftime("%H:%M")
+
+    for side in ("BUY", "SELL"):
+        # ลอง unblock ก่อน
+        if _combined_guard_is_blocked(tf_name, side):
+            _combined_guard_check_unblock(tf_name, side, rates)
+
+        retries = _combined_guard_get_retry_signals(tf_name, side)
+        if not retries:
+            continue
+
+        for sig in retries:
+            sid     = sig.get("sid", 0)
+            signal  = sig.get("signal", side)
+            entry   = sig.get("entry", 0)
+            sl      = sig.get("sl", 0)
+            tp      = sig.get("tp", 0)
+            pattern = sig.get("pattern", "")
+            if not (entry and sl and tp):
+                continue
+            order = open_order(signal, get_volume(), sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            if order.get("success"):
+                placed_any = True
+                ticket = order.get("ticket", 0)
+                rr     = round(abs(tp - entry) / abs(entry - sl), 2) if abs(entry - sl) > 0 else 0
+                log_event("SL_GUARD_COMBINED_RETRY",
+                          f"[{tf_name}] {signal} S{sid} re-placed after combined guard off",
+                          tf=tf_name, sid=sid, signal=signal, entry=entry, sl=sl, tp=tp, ticket=ticket)
+                await tg(app, (
+                    f"🛡️ *Combined Guard: Re-place Order*\n"
+                    f"━━━━━━━━━━━━━━━━━\n"
+                    f"{'🟢' if signal=='BUY' else '🔴'} {pattern} [{tf_name}]\n"
+                    f"🆕 Swing ใหม่ใน `{tf_name}` → คืน order ที่ถูก block\n"
+                    f"📌 Entry:`{entry}` SL:`{sl}` TP:`{tp}` RR:`{rr}`\n"
+                    f"🔖 Ticket:`{ticket}`"
+                ))
+                print(f"🛡️ [{now}] Combined Guard retry PLACED: [{tf_name}] {signal} S{sid}")
+
+    return placed_any
+
+
 async def scan_one_tf(app, tf_name: str) -> bool:
     """สแกน 1 Timeframe — return True ถ้าเปิด Order สำเร็จ"""
     tf_val = TF_OPTIONS[tf_name]
@@ -1984,6 +2210,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if rates is None or len(rates) < lookback + 4:
         return False
     last_candle_time = int(rates[-1]["time"])
+
+    # ── SL Guard: re-place blocked signals ถ้า guard เพิ่ง deactivate ──
+    if config.SL_GUARD_ENABLED:
+        await _sl_guard_place_retries(app, tf_name, rates)
+
+    # ── SL Guard Combined: re-place blocked signals ถ้า TF นี้ unblock ──
+    if getattr(config, "SL_GUARD_COMBINED_ENABLED", False) and tf_name in list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or []):
+        await _combined_guard_place_retries(app, tf_name, rates)
 
     # ── Log Swing High / Low ของ TF นี้ (ทำก่อน guard เพื่อแสดงทุก TF เสมอ) ──
     _swing_finders = _get_summary_swing_finders(lookback)
@@ -2237,6 +2471,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8),
                 )
                 if not s2_confirm_ref:
+                    _key_s2 = (tf_name, 2, fvg["signal"])
+                    if _key_s2 not in _lookback_fallback_start:
+                        _lookback_fallback_start[_key_s2] = last_candle_time
+                    _bars_waited_s2 = (last_candle_time - _lookback_fallback_start[_key_s2]) // max(1, tf_secs)
+                    if _bars_waited_s2 >= 4 and _has_swing_in_lookback(rates, fvg["signal"], 8):
+                        _lookback_fallback_start.pop(_key_s2, None)
+                        s2_confirm_ref = {"sid": 0, "signal": fvg["signal"], "swing_fallback": True}
+                if not s2_confirm_ref:
                     lookback_bars = max(0, int(getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 5) or 0))
                     wait_reason = (
                         f"FVG {fvg['signal']} [{tf_name}] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน "
@@ -2260,6 +2502,19 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 final_entry = round(final_gap_top - gap_size * 0.98, 2)
             tf_label_str = "+".join(parallel_tfs) if len(parallel_tfs) > 1 else tf_name
             fvg_tp = get_existing_tp(fvg["signal"], final_entry, tf_name, requester_sid=2) or tp
+            # ── ป้องกัน duplicate S2 order (fvg_pending อาจถูก clear โดย check_fvg_pending) ──
+            _existing_orders = mt5.orders_get(symbol=SYMBOL) or []
+            _dup_s2 = any(
+                abs(o.price_open - final_entry) < 0.01
+                and isinstance(pending_order_tf.get(o.ticket), dict)
+                and pending_order_tf[o.ticket].get("sid") == 2
+                and pending_order_tf[o.ticket].get("tf") == tf_name
+                for o in _existing_orders
+            )
+            if _dup_s2:
+                log_event("ORDER_SKIPPED", f"S2 duplicate pending already exists entry={final_entry}",
+                          tf=tf_name, sid=2, signal=fvg["signal"], entry=final_entry)
+                return False
             order  = open_order(
                 fvg["signal"], get_volume(), fvg["sl"], fvg_tp,
                 entry_price=final_entry, tf=tf_name, sid=2, pattern=fvg["pattern"],
@@ -2367,10 +2622,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 ms = get_structure(rates)
                 gap_note = f"📐 Gap: `{final_gap_bot}` – `{final_gap_top}` ({round(final_gap_top-final_gap_bot,2)}pt)"
                 confirm_note = ""
-                if s2_confirm_ref:
+                if s2_confirm_ref and not s2_confirm_ref.get("swing_fallback"):
                     confirm_sid = s2_confirm_ref["sid"]
-                    confirm_scan_ts = s2_confirm_ref["detect_time"]
-                    confirm_bar_ts = s2_confirm_ref["bar_time"]
+                    confirm_scan_ts = s2_confirm_ref.get("detect_time", 0)
+                    confirm_bar_ts = s2_confirm_ref.get("bar_time", 0)
                     confirm_note = (
                         f"\n🔗 Confirm: S{confirm_sid} {fvg['signal']} | "
                         f"scan {fmt_mt5_bkk_ts(confirm_scan_ts, '%H:%M')} | "
@@ -2458,17 +2713,23 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 "tp":          mp["tp"],
                 "candle_time": mp["candle_time"],
                 "c1_type":     mp.get("c1_type", "R"),
+                "candles":     mp.get("candles", []),
+                "swing_h":     mp.get("swing_h", 0.0),
+                "swing_l":     mp.get("swing_l", 0.0),
             }
             sig_e = "🟢" if mp["direction"] == "BUY" else "🔴"
-            print(f"📋 [{now_bkk().strftime('%H:%M:%S')}] {tf_label(tf_name)}: ท่า3 Maru {mp['direction']} รอยืนยันแท่งถัดไป Entry={mp['entry']}")
+            _s3_src = mp.get("source", "marubozu")
+            _s3_src_label = "No Engulf" if _s3_src == "noengulf" else "Marubozu"
+            _s3_candle_desc = "ยังไม่กลืน" if _s3_src == "noengulf" else "แท่งตัน"
+            print(f"📋 [{now_bkk().strftime('%H:%M:%S')}] {tf_label(tf_name)}: ท่า3 {_s3_src_label} {mp['direction']} รอยืนยันแท่งถัดไป Entry={mp['entry']}")
             pending_candle0_lbl = fmt_mt5_bkk_ts(mp["candle_time"], "%H:%M") if mp.get("candle_time") else "-"
             pending_confirm_lbl = fmt_mt5_bkk_ts(
                 int(mp["candle_time"]) + int(TF_SECONDS_MAP.get(tf_name, 0) or 0),
                 "%H:%M"
             ) if mp.get("candle_time") else "-"
             await tg(app, (
-                    f"⏳ *ท่า3 DM SP {mp['direction']} Marubozu*\n"
-                    f"{sig_e} [{tf_name}] [0] `{pending_candle0_lbl}` แท่งตัน\n"
+                    f"⏳ *ท่า3 DM SP {mp['direction']} {_s3_src_label}*\n"
+                    f"{sig_e} [{tf_name}] [0] `{pending_candle0_lbl}` {_s3_candle_desc}\n"
                     f"🕯️ แท่งยืนยัน: `{pending_confirm_lbl}`\n"
                     f"📌 Entry:`{mp['entry']}` 🛑 SL:`{mp['sl']}` 🎯 TP:`{mp['tp']}`\n"
                     f"รอแท่งถัดไป..."
@@ -2651,6 +2912,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 int(getattr(config, "S3_CONFIRM_LOOKBACK_BARS", getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8)) or 0),
             )
             s3_confirm_ref = _find_recent_signal_confirmation(rates, signal, tf_secs, s3_lookback_bars)
+            if not s3_confirm_ref:
+                _key_s3 = (tf_name, 3, signal)
+                if _key_s3 not in _lookback_fallback_start:
+                    _lookback_fallback_start[_key_s3] = last_candle_time
+                _bars_waited_s3 = (last_candle_time - _lookback_fallback_start[_key_s3]) // max(1, tf_secs)
+                if _bars_waited_s3 >= 4 and _has_swing_in_lookback(rates, signal, 8):
+                    _lookback_fallback_start.pop(_key_s3, None)
+                    s3_confirm_ref = {"sid": 0, "signal": signal, "swing_fallback": True}
             if not s3_confirm_ref:
                 _log_confirm_lookback_block(tf_name, 3, signal, s3_lookback_bars, pattern)
                 _print_skip_once(
@@ -3027,6 +3296,85 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             if _pos_now and len(_pos_now) >= MAX_ORDERS:
                 print(f"⚠️ [{now}] {tf_label(tf_name)}: Order เต็ม ({len(_pos_now)}/{MAX_ORDERS})")
                 continue
+            # ── S9 double-check inside lock (race condition guard) ─────
+            # ป้องกันกรณี 2 coroutines ผ่าน dup-check นอก lock พร้อมกัน
+            # ตัวที่ 2 จะถูกจับได้ตรงนี้ก่อนส่ง order
+            if sid == 9 and setup_sig and _last_strategy9_setup_by_key.get(setup_sig):
+                dup_t = _last_strategy9_setup_by_key[setup_sig]
+                print(f"⚠️ [{now}] S9 dup-in-lock: {setup_sig} → #{dup_t} (skip)")
+                continue
+
+            # ── SL Guard: บล็อก LIMIT order ใหม่ถ้า guard active ──────
+            if config.SL_GUARD_ENABLED:
+                from trailing import _sl_guard_state as _sgs, _sl_guard_check_unblock as _sgu
+                _sg_order_mode = result.get("order_mode", "limit")
+                if _sg_order_mode == "limit":
+                    _sg_key = (tf_name, signal.upper())
+                    _sg_entry_val = _sgs.get(_sg_key, {})
+                    if _sg_entry_val.get("active"):
+                        # check unblock (new swing formed?)
+                        _sgu(tf_name, signal.upper(), rates)
+                        _sg_entry_val = _sgs.get(_sg_key, {})
+                    if _sg_entry_val.get("active"):
+                        print(f"🛡️ [{now}] SL Guard BLOCK: [{tf_name}] {signal} LIMIT sid={sid} (SL hit {_sg_entry_val.get('count',0)}x)")
+                        log_event("SL_GUARD_BLOCK", f"[{tf_name}] {signal} LIMIT blocked by SL Guard",
+                                  tf=tf_name, sid=sid, signal=signal,
+                                  sl_count=_sg_entry_val.get("count", 0))
+                        # เก็บ signal ไว้ใน blocked_signals เพื่อ retry เมื่อ guard deactivate
+                        _sg_blocked = _sgs.setdefault(_sg_key, {}).setdefault("blocked_signals", [])
+                        # ป้องกัน duplicate (candle_time + sid เดียวกัน)
+                        _sg_dup = any(
+                            b.get("candle_time") == last_candle_time and b.get("sid") == sid
+                            for b in _sg_blocked
+                        )
+                        if not _sg_dup:
+                            _sg_blocked.append({
+                                "sid": sid,
+                                "signal": signal,
+                                "entry": entry,
+                                "sl": sl,
+                                "tp": tp,
+                                "pattern": pattern,
+                                "candle_time": last_candle_time,
+                                "use_delay_sl": result.get("order_mode", "limit") == "limit" and (sid == 8 or config.DELAY_SL_MODE != "off"),
+                            })
+                        continue
+
+            # ── SL Guard Combined: บล็อก LIMIT order ใหม่ถ้า combined guard active ──
+            if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+                from trailing import _combined_guard_is_blocked, _combined_guard_check_unblock
+                from trailing import _sl_guard_combined as _cgstate
+                _cg_order_mode = result.get("order_mode", "limit")
+                if (_cg_order_mode == "limit" and
+                        tf_name in list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])):
+                    _combined_guard_check_unblock(tf_name, signal.upper(), rates)
+                    if _combined_guard_is_blocked(tf_name, signal.upper()):
+                        _cg_side = signal.upper()
+                        _cg_sg   = _cgstate.get(_cg_side, {})
+                        _cg_cnt  = _cg_sg.get("count", 0)
+                        print(f"🛡️ [{now}] Combined Guard BLOCK: [{tf_name}] {signal} LIMIT sid={sid} (SL count={_cg_cnt})")
+                        log_event("SL_GUARD_COMBINED_BLOCK",
+                                  f"[{tf_name}] {signal} LIMIT blocked by Combined Guard",
+                                  tf=tf_name, sid=sid, signal=signal, sl_count=_cg_cnt)
+                        if _cg_sg:
+                            _cg_sigs = _cg_sg.setdefault("tf_blocked_signals", {}).setdefault(tf_name, [])
+                            _cg_dup  = any(
+                                b.get("candle_time") == last_candle_time and b.get("sid") == sid
+                                for b in _cg_sigs
+                            )
+                            if not _cg_dup:
+                                _cg_sigs.append({
+                                    "sid":          sid,
+                                    "signal":       signal,
+                                    "entry":        entry,
+                                    "sl":           sl,
+                                    "tp":           tp,
+                                    "pattern":      pattern,
+                                    "candle_time":  last_candle_time,
+                                    "use_delay_sl": (_cg_order_mode == "limit" and
+                                                     (sid == 8 or config.DELAY_SL_MODE != "off")),
+                                })
+                        continue
 
             # ── Shared TP: ถ้ามี Order ทิศเดียวกันอยู่แล้ว ──────────
             # BUY → TP = Swing High ย่อย ร่วมกัน
@@ -3084,6 +3432,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
             else:
                 order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            # ── อัปเดต S9 dedup key ทันทีหลังวาง order (ยังอยู่ใน lock) ──
+            # ต้องทำในนี้เพื่อป้องกัน race condition กับ coroutine อื่น
+            if order.get("success") and sid == 9 and setup_sig:
+                _last_strategy9_setup_by_key[setup_sig] = order.get("ticket", -1)
         if order["success"]:
             last_traded_per_tf[tf_name] = last_candle_time
             config.last_traded_sid_tf.setdefault(tf_name, {})[sid] = last_candle_time
@@ -3125,7 +3477,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     _pend_info["s10_sweep_checked"] = False
                 if sid == 9 and setup_sig:
                     _pend_info["setup_sig"] = setup_sig
-                    _last_strategy9_setup_by_key[setup_sig] = order["ticket"]
+                    # (key ถูก set ใน lock แล้ว — ไม่ต้อง set ซ้ำตรงนี้)
                 if use_delay_sl:
                     _pend_info["intended_sl"] = sl
                     _pend_info["sl_armed"] = False

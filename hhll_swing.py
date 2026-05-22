@@ -95,13 +95,15 @@ def _build_zz(rates, lb: int, rb: int) -> list[dict]:
         d     = 1 if ph else -1
         t     = int(rates[i]["time"])
 
-        # Filter 1/2: consecutive same-direction → keep more extreme
+        # Filter 1/2: consecutive same-direction → skip less extreme (Pine Script behavior)
+        # ไม่ pop ตัวเก่าออก — keep both เหมือน Pine Script
+        # (Pine Script: set zz=na สำหรับตัวที่ extreme น้อยกว่า แต่ไม่ลบตัวที่ extreme กว่า)
         if zz and zz[-1]["dir"] == d:
-            if d == 1  and price <= zz[-1]["price"]:
-                continue
-            if d == -1 and price >= zz[-1]["price"]:
-                continue
-            zz.pop()
+            if d == 1  and price < zz[-1]["price"]:
+                continue  # PH ใหม่ต่ำกว่าเก่า → skip ตัวใหม่
+            if d == -1 and price > zz[-1]["price"]:
+                continue  # PL ใหม่สูงกว่าเก่า → skip ตัวใหม่
+            # ตัวใหม่ extreme กว่าหรือเท่ากัน → keep both เหมือน Pine Script (ไม่ pop เก่าออก)
 
         # Filter 3: wrong side after direction alternated
         if zz:

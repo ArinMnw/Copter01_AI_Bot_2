@@ -1560,6 +1560,12 @@ def build_trend_filter_keyboard():
         InlineKeyboardButton("2️⃣ Cross" if _rsi_mode != 2 else "✅ Cross",  callback_data="set_rsi_mode_2"),
         InlineKeyboardButton("3️⃣ Both"  if _rsi_mode != 3 else "✅ Both",   callback_data="set_rsi_mode_3"),
     ])
+    # === Recheck Mode: แยก / รวม ===
+    _combined = getattr(config, "RECHECK_COMBINED_MODE", False)
+    combined_label = "🔀 Recheck Mode: รวม 2/3" if _combined else "⚡ Recheck Mode: แยก"
+    rows.append([InlineKeyboardButton("━ Recheck Mode ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(combined_label, callback_data="toggle_recheck_combined_mode")])
+
     # === Premium/Discount Zone Recheck ===
     pd_zone_label = (
         "🟢 PD Zone Recheck: ON"
@@ -1568,6 +1574,81 @@ def build_trend_filter_keyboard():
     )
     rows.append([InlineKeyboardButton("━ Premium/Discount Zone ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(pd_zone_label, callback_data="toggle_pd_zone_check")])
+
+    # === Sideway HHLL Filter ===
+    _sideway_hhll = getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)
+    sideway_hhll_label = (
+        "🟢 Sideway HHLL Filter: ON"
+        if _sideway_hhll
+        else "🔴 Sideway HHLL Filter: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Sideway Filter ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(sideway_hhll_label, callback_data="toggle_sideway_hhll_filter")])
+
+    # === SL Guard ===
+    _sg_enabled = getattr(config, "SL_GUARD_ENABLED", False)
+    _sg_cnt = getattr(config, "SL_GUARD_COUNT", 2)
+    _sg_pts = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+    sg_label = (
+        f"🟢 SL Guard: ON ({_sg_cnt}x SL → block, {_sg_pts}pt)"
+        if _sg_enabled
+        else "🔴 SL Guard: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ SL Guard ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(sg_label, callback_data="toggle_sl_guard")])
+    sg_cnt_options = [1, 2, 3]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if _sg_cnt == c else '⬜'} {c}x SL",
+            callback_data=f"set_sl_guard_count_{c}"
+        )
+        for c in sg_cnt_options
+    ])
+    sg_pt_options = [100, 200, 300, 500]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if _sg_pts == p else '⬜'} {p}pt",
+            callback_data=f"set_sl_guard_pts_{p}"
+        )
+        for p in sg_pt_options
+    ])
+
+    # === SL Guard Combined TF ===
+    _sgc_enabled = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgc_cnt     = getattr(config, "SL_GUARD_COMBINED_COUNT", 1)
+    _sgc_tfs     = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    _sgc_tfs_str = ", ".join(_sgc_tfs) if _sgc_tfs else "ยังไม่เลือก"
+    sgc_label = (
+        f"🟢 Combined Guard: ON ({_sgc_cnt}x | {_sgc_tfs_str})"
+        if _sgc_enabled
+        else "🔴 Combined Guard: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ SL Guard Combined TF ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(sgc_label, callback_data="toggle_sl_guard_combined")])
+    sgc_cnt_opts = [1, 2, 3]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if _sgc_cnt == c else '⬜'} {c}x",
+            callback_data=f"set_slgc_count_{c}"
+        )
+        for c in sgc_cnt_opts
+    ])
+    _tf_opts_row1 = ["M1", "M5", "M15", "M30"]
+    _tf_opts_row2 = ["H1", "H4", "H12", "D1"]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if tf in _sgc_tfs else '⬜'} {tf}",
+            callback_data=f"toggle_slgc_tf_{tf}"
+        )
+        for tf in _tf_opts_row1
+    ])
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if tf in _sgc_tfs else '⬜'} {tf}",
+            callback_data=f"toggle_slgc_tf_{tf}"
+        )
+        for tf in _tf_opts_row2
+    ])
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
     return InlineKeyboardMarkup(rows)
@@ -1602,6 +1683,15 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     scan_block_status = "🟢ON" if config.TREND_FILTER_SCAN_BLOCK else "🔴OFF"
     nac_status = f"🟢ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)" if config.NEAR_APPROACH_CANCEL_ENABLED else "🔴OFF"
     prr_status = "🟢ON" if config.PENDING_RSI_RECHECK_ENABLED else "🔴OFF"
+    _sg_on = getattr(config, "SL_GUARD_ENABLED", False)
+    _sg_c  = getattr(config, "SL_GUARD_COUNT", 2)
+    _sg_p  = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+    sg_status  = f"🟢ON ({_sg_c}x/{_sg_p}pt)" if _sg_on else "🔴OFF"
+    _sgc_on    = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+    _sgc_c     = getattr(config, "SL_GUARD_COMBINED_COUNT", 1)
+    _sgc_t     = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    _sgc_t_str = ", ".join(_sgc_t) if _sgc_t else "ยังไม่เลือก"
+    sgc_status = f"🟢ON ({_sgc_c}x | {_sgc_t_str})" if _sgc_on else "🔴OFF"
     text = (
         "🧭 *Trend Filter (Scan Trend)*\n"
         "━━━━━━━━━━━━━━━━━\n"
@@ -1621,7 +1711,11 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         "SELL: BEAR/SIDEWAY → BULL | BUY: BULL/SIDEWAY → BEAR\n\n"
         "Per-TF: ติ๊ก TF ที่ต้องการ filter (ของใครของมัน)\n"
         "  เช่น ติ๊ก M1 → M1 signal filter ด้วย M1 trend เท่านั้น\n"
-        "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย"
+        "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย\n\n"
+        f"SL Guard: *{sg_status}*\n"
+        f"  BUY/SELL SL ≥ Nx → ยกเลิก pending ที่ใกล้ ({_sg_p}pt) + บล็อกจนกว่าจะเกิด Swing ใหม่\n"
+        f"Combined Guard: *{sgc_status}*\n"
+        f"  SL จาก TF ไหนก็ได้ ครบ Nx → block ทุก TF ใน group จนเจอ Swing ของแต่ละ TF"
     )
     keyboard = build_trend_filter_keyboard()
     if is_query:

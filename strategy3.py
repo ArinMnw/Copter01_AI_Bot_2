@@ -102,6 +102,13 @@ def strategy_3(rates):
                     "tp": tp,
                     "candle_time": int(rates[-1]["time"]),
                     "c1_type": c1_type,
+                    "candles": [
+                        {"o": c2["o"], "h": c2["h"], "l": c2["l"], "cl": c2["cl"], "time": int(rates[-3]["time"])},
+                        {"o": c1["o"], "h": c1["h"], "l": c1["l"], "cl": c1["cl"], "time": int(rates[-2]["time"])},
+                        {"o": c0["o"], "h": c0["h"], "l": c0["l"], "cl": c0["cl"], "time": int(rates[-1]["time"])},
+                    ],
+                    "swing_h": c0["h"],
+                    "swing_l": c1["l"],
                 },
             }
 
@@ -135,7 +142,41 @@ def strategy_3(rates):
         elif not is_bull(c0):
             buy_wait_reason = f"DM SP BUY: [0] ยังไม่ปิดเขียว (O:{c0['o']:.2f} C:{c0['cl']:.2f})"
         else:
-            buy_wait_reason = f"DM SP BUY: Close[0]={c0['cl']:.2f} <= High[1]={c1['h']:.2f}"
+            # [0] เขียวแต่ยังไม่กลืน [1] → รอแท่งถัดไปปิดเขียว
+            entry = round(c1["o"], 2)
+            sl = round(c1["l"] - SL_BUFFER(), 2)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl)
+            tp = tp_swing if tp_swing else round(entry + (entry - sl), 2)
+            if is_doji(c1):
+                c1_type = "G_DOJI" if is_bull(c1) else "R_DOJI"
+            elif is_bull(c1):
+                c1_type = "G"
+            else:
+                c1_type = "R"
+            return {
+                "signal": "WAIT",
+                "pattern": f"ท่าที่ 3 DM SP 🟢 BUY [C1:{c1_type}]",
+                "reason": (
+                    f"⏳ [0] เขียว ยังไม่กลืน High[1]:{c1['h']:.2f} "
+                    f"(Close:{c0['cl']:.2f}) รอแท่งถัดไปปิดเขียว"
+                ),
+                "marubozu_pending": {
+                    "direction": "BUY",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "candle_time": int(rates[-1]["time"]),
+                    "c1_type": c1_type,
+                    "source": "noengulf",
+                    "candles": [
+                        {"o": c2["o"], "h": c2["h"], "l": c2["l"], "cl": c2["cl"], "time": int(rates[-3]["time"])},
+                        {"o": c1["o"], "h": c1["h"], "l": c1["l"], "cl": c1["cl"], "time": int(rates[-2]["time"])},
+                        {"o": c0["o"], "h": c0["h"], "l": c0["l"], "cl": c0["cl"], "time": int(rates[-1]["time"])},
+                    ],
+                    "swing_h": c0["h"],
+                    "swing_l": c1["l"],
+                },
+            }
 
     if (
         is_bear(c2)
@@ -175,6 +216,13 @@ def strategy_3(rates):
                     "tp": tp,
                     "candle_time": int(rates[-1]["time"]),
                     "c1_type": c1_type,
+                    "candles": [
+                        {"o": c2["o"], "h": c2["h"], "l": c2["l"], "cl": c2["cl"], "time": int(rates[-3]["time"])},
+                        {"o": c1["o"], "h": c1["h"], "l": c1["l"], "cl": c1["cl"], "time": int(rates[-2]["time"])},
+                        {"o": c0["o"], "h": c0["h"], "l": c0["l"], "cl": c0["cl"], "time": int(rates[-1]["time"])},
+                    ],
+                    "swing_h": c1["h"],
+                    "swing_l": c0["l"],
                 },
             }
 
@@ -208,7 +256,41 @@ def strategy_3(rates):
         elif not is_bear(c0):
             sell_wait_reason = f"DM SP SELL: [0] ยังไม่ปิดแดง (O:{c0['o']:.2f} C:{c0['cl']:.2f})"
         else:
-            sell_wait_reason = f"DM SP SELL: Close[0]={c0['cl']:.2f} >= Low[1]={c1['l']:.2f}"
+            # [0] แดงแต่ยังไม่กลืน [1] → รอแท่งถัดไปปิดแดง
+            entry = round(c1["o"], 2)
+            sl = round(c1["h"] + SL_BUFFER(), 2)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl)
+            tp = tp_swing if tp_swing else round(entry - (sl - entry), 2)
+            if is_doji(c1):
+                c1_type = "G_DOJI" if is_bull(c1) else "R_DOJI"
+            elif is_bull(c1):
+                c1_type = "G"
+            else:
+                c1_type = "R"
+            return {
+                "signal": "WAIT",
+                "pattern": f"ท่าที่ 3 DM SP 🔴 SELL [C1:{c1_type}]",
+                "reason": (
+                    f"⏳ [0] แดง ยังไม่กลืน Low[1]:{c1['l']:.2f} "
+                    f"(Close:{c0['cl']:.2f}) รอแท่งถัดไปปิดแดง"
+                ),
+                "marubozu_pending": {
+                    "direction": "SELL",
+                    "entry": entry,
+                    "sl": sl,
+                    "tp": tp,
+                    "candle_time": int(rates[-1]["time"]),
+                    "c1_type": c1_type,
+                    "source": "noengulf",
+                    "candles": [
+                        {"o": c2["o"], "h": c2["h"], "l": c2["l"], "cl": c2["cl"], "time": int(rates[-3]["time"])},
+                        {"o": c1["o"], "h": c1["h"], "l": c1["l"], "cl": c1["cl"], "time": int(rates[-2]["time"])},
+                        {"o": c0["o"], "h": c0["h"], "l": c0["l"], "cl": c0["cl"], "time": int(rates[-1]["time"])},
+                    ],
+                    "swing_h": c1["h"],
+                    "swing_l": c0["l"],
+                },
+            }
 
     if buy_wait_reason:
         return {"signal": "WAIT", "reason": buy_wait_reason}

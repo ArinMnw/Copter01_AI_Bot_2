@@ -40,10 +40,10 @@ _trail_state: dict = {}
 _trend_filter_last_dir: dict = {}  # {"ticket|tf": "BULL"|"BEAR"|"SIDEWAY"}
 
 # Premium/Discount zone recheck state per pending order ticket
-# Format: {ticket: {"signal", "tf", "price", "h1", "l1", "checks": [int,int,int],
-#                   "cur_h", "cur_l"}}
+# Format: {ticket: {"signal", "tf", "price", "cur_h", "cur_l", "round1": int}}
 # checks[i]: 0 = not yet done, 1 = pass, -1 = fail
 _pd_zone_state: dict = {}
+_pd_zone_fill_checked: set[int] = set()  # tickets ที่เช็ค PD Zone หลัง fill แล้ว (เช็คครั้งเดียว)
 
 # ── Triple Recheck combined state ────────────────────────────────────────────
 # {ticket: {"rsi": None|True|False, "trend": None|True|False,
@@ -51,9 +51,350 @@ _pd_zone_state: dict = {}
 # None = ยังไม่ได้เช็ค, True = pass, False = fail
 _triple_check_state: dict = {}
 
+# ── SL Guard state ────────────────────────────────────────────────────────────
+# {(tf, side): {"count": int, "active": bool, "blocked_since_bar": int,
+#               "swing_ref": float}}
+# side = "BUY" | "SELL"
+_sl_guard_state: dict = {}
+
+# ── SL Guard Combined TF state ──────────────────────────────
+# {side: {"count": int, "active": bool,
+#         "tf_blocked": {tf: bool},
+#         "tf_since": {tf: int},        # timestamp เมื่อ TF นั้นถูกล็อก
+#         "tf_swing_ref": {tf: float},  # swing ref ของ TF นั้น (สำหรับ unblock check)
+#         "tf_blocked_signals": {tf: list},   # signals รอ retry เมื่อ unblock
+# }}
+_sl_guard_combined: dict = {}
+
+
+def _sl_guard_record_sl(tf: str, side: str) -> bool:
+    """
+    Called from notifications.py when an SL Hit is detected.
+    Returns True if the guard was just activated.
+    """
+    if not tf or not side:
+        return False
+    key = (tf, side.upper())
+    entry = _sl_guard_state.get(key, {"count": 0, "active": False, "blocked_since_bar": 0, "swing_ref": 0.0})
+    entry["count"] = entry.get("count", 0) + 1
+    just_activated = False
+    if config.SL_GUARD_ENABLED and entry["count"] >= config.SL_GUARD_COUNT and not entry.get("active"):
+        entry["active"] = True
+        entry["blocked_since_bar"] = int(time.time())
+        just_activated = True
+        print(f"🛡️ SL Guard ACTIVATED: [{tf}] {side.upper()} ({entry['count']}x SL)")
+    _sl_guard_state[key] = entry
+    return just_activated
+
+
+def _sl_guard_check_unblock(tf: str, side: str, rates) -> bool:
+    """
+    Check whether a new swing L (BUY guard) or swing H (SELL guard) has formed
+    AFTER the guard was activated. If yes, deactivate the guard and return True.
+    """
+    if not config.SL_GUARD_ENABLED:
+        return False
+    key = (tf, side.upper())
+    sg = _sl_guard_state.get(key)
+    if not sg or not sg.get("active"):
+        return False
+    if rates is None or len(rates) < 5:
+        return False
+
+    blocked_since = sg.get("blocked_since_bar", 0)
+    swing_ref = sg.get("swing_ref", 0.0)
+
+    # Find bars that occurred AFTER guard activation
+    bars_after = [r for r in rates if int(r["time"]) > blocked_since]
+    if not bars_after:
+        return False
+
+    unblock = False
+    if side.upper() == "BUY":
+        # New Swing Low: any bar after block has lower low than swing_ref
+        new_low = min(float(r["low"]) for r in bars_after)
+        if swing_ref <= 0 or new_low < swing_ref:
+            unblock = True
+    else:  # SELL
+        # New Swing High: any bar after block has higher high than swing_ref
+        new_high = max(float(r["high"]) for r in bars_after)
+        if swing_ref <= 0 or new_high > swing_ref:
+            unblock = True
+
+    if unblock:
+        old_count = sg.get("count", 0)
+        blocked_signals = sg.get("blocked_signals", [])
+
+        # หา swing bar ที่ trigger unblock (min low สำหรับ BUY, max high สำหรับ SELL)
+        if side.upper() == "BUY":
+            swing_bar = min(bars_after, key=lambda r: float(r["low"]))
+        else:
+            swing_bar = max(bars_after, key=lambda r: float(r["high"]))
+        swing_bar_time = int(swing_bar["time"])
+
+        # เอาเฉพาะ signal ที่ candle_time หลัง swing bar (signal ก่อน swing → ทิ้ง)
+        retry_signals = [
+            s for s in blocked_signals
+            if (s.get("candle_time") or 0) > swing_bar_time
+        ]
+
+        _sl_guard_state[key] = {
+            "count": 0, "active": False, "blocked_since_bar": 0, "swing_ref": 0.0,
+            "retry_signals": retry_signals,
+        }
+        print(
+            f"🛡️ SL Guard DEACTIVATED: [{tf}] {side.upper()} — "
+            f"swing {'L' if side.upper()=='BUY' else 'H'} @ bar {swing_bar_time} "
+            f"(was {old_count}x SL, retry {len(retry_signals)}/{len(blocked_signals)} signals)"
+        )
+        return True
+    return False
+
+
+def _sl_guard_reset_on_tp(tf: str, side: str) -> str:
+    """
+    เรียกเมื่อ position ใดใน TF นั้นโดน TP
+    ถ้า SL Guard active → reset count=0, deactivate ทันที (ไม่ต้องรอ swing ใหม่)
+    คืน Telegram message ถ้า reset จริง, คืน "" ถ้าไม่มีอะไรทำ
+    """
+    if not tf or not side:
+        return ""
+    key = (tf, side.upper())
+    sg = _sl_guard_state.get(key)
+    if not sg or not sg.get("active"):
+        return ""
+    old_count = sg.get("count", 0)
+    # TP reset: ล้าง blocked_signals ทิ้ง (ไม่มี swing reference → ไม่ retry)
+    # scanner จะ pick up signal ใหม่เองในรอบถัดไป
+    _sl_guard_state[key] = {
+        "count": 0, "active": False, "blocked_since_bar": 0, "swing_ref": 0.0,
+    }
+    print(f"🛡️ SL Guard RESET by TP: [{tf}] {side.upper()} (was {old_count}x SL, blocked signals cleared)")
+    return (
+        f"🛡️ *SL Guard รีเซทโดย TP*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"📊 TF: `{tf}` | {side.upper()}\n"
+        f"✅ TP hit → Guard ปิดทันที (เคย SL {old_count}x)\n"
+        f"🔓 กลับมารับ {side.upper()} LIMIT ได้ตามปกติ"
+    )
+
+
+def _sl_guard_get_retry_signals(tf: str, side: str) -> list:
+    """
+    ดึง retry signals ที่ถูก block ไว้ระหว่าง guard active
+    เรียกครั้งเดียวแล้ว clear — scanner.py จะ re-place เหล่านี้ทันที
+    """
+    key = (tf, side.upper())
+    sg = _sl_guard_state.get(key)
+    if not sg:
+        return []
+    retries = sg.pop("retry_signals", [])
+    if retries:
+        _sl_guard_state[key] = sg
+    return retries
+
+
+# ═══════════════════════════════════════════════════════════════
+#  SL Guard — Combined TF mode
+# ═══════════════════════════════════════════════════════════════
+
+def _combined_guard_record_sl(tf: str, side: str) -> str:
+    """
+    บันทึก SL hit จาก TF นี้เข้า combined counter
+    ถ้า count รวม ≥ SL_GUARD_COMBINED_COUNT → ล็อก TF ทั้งหมดใน group
+    คืน Telegram message ถ้า guard เพิ่ง activate, ไม่งั้นคืน ""
+    """
+    if not getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+        return ""
+    combined_tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    if tf not in combined_tfs:
+        return ""
+
+    side = side.upper()
+    sg = _sl_guard_combined.setdefault(side, {
+        "count": 0, "active": False,
+        "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+        "tf_blocked_signals": {},
+    })
+
+    # เพิ่ม count และ mark TF นี้ว่ามี SL
+    sg["count"] = sg.get("count", 0) + 1
+    threshold   = max(1, int(getattr(config, "SL_GUARD_COMBINED_COUNT", 1)))
+    just_activated = False
+
+    if sg["count"] >= threshold and not sg.get("active"):
+        sg["active"] = True
+        # ล็อกทุก TF ใน group ที่ยังไม่ได้ unblock
+        ts_now = int(time.time())
+        for _t in combined_tfs:
+            if not sg["tf_blocked"].get(_t):
+                sg["tf_blocked"][_t]        = True
+                sg["tf_since"][_t]          = ts_now
+                sg["tf_swing_ref"][_t]      = 0.0
+                sg.setdefault("tf_blocked_signals", {}).setdefault(_t, [])
+        just_activated = True
+        print(f"🛡️ Combined Guard ACTIVATED: {side} (count={sg['count']}/{threshold}) — locked {combined_tfs}")
+
+    _sl_guard_combined[side] = sg
+    if not just_activated:
+        return ""
+
+    tf_list = ", ".join(combined_tfs)
+    return (
+        f"🛡️ *SL Guard Combined เปิดใช้งาน*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"📊 Group TF: `{tf_list}` | {side}\n"
+        f"⚠️ SL รวม {sg['count']}x ครบ {threshold}x — ล็อกทุก TF ใน group\n"
+        f"⏳ รอ Swing {'Low' if side == 'BUY' else 'High'} ของแต่ละ TF\n"
+        f"🔔 Trigger: {tf}"
+    )
+
+
+def _combined_guard_is_blocked(tf: str, side: str) -> bool:
+    """คืน True ถ้า TF นี้ถูกล็อกโดย Combined Guard"""
+    if not getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+        return False
+    side = side.upper()
+    sg   = _sl_guard_combined.get(side, {})
+    return bool(sg.get("active") and sg.get("tf_blocked", {}).get(tf))
+
+
+def _combined_guard_check_unblock(tf: str, side: str, rates) -> bool:
+    """
+    ตรวจ swing low (BUY) / swing high (SELL) ที่เกิดหลัง lock
+    ถ้าเจอ → unblock TF นี้ออกจาก group
+    ถ้าทุก TF unblock แล้ว → reset active=False, count=0
+    คืน True ถ้า TF นี้เพิ่ง unblock
+    """
+    if not getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+        return False
+    side = side.upper()
+    sg   = _sl_guard_combined.get(side, {})
+    if not sg or not sg.get("active"):
+        return False
+    if not sg.get("tf_blocked", {}).get(tf):
+        return False
+    if rates is None or len(rates) < 5:
+        return False
+
+    blocked_since  = sg.get("tf_since", {}).get(tf, 0)
+    swing_ref      = sg.get("tf_swing_ref", {}).get(tf, 0.0)
+    bars_after     = [r for r in rates if int(r["time"]) > blocked_since]
+    if not bars_after:
+        return False
+
+    unblock = False
+    if side == "BUY":
+        new_low = min(float(r["low"]) for r in bars_after)
+        if swing_ref <= 0 or new_low < swing_ref:
+            unblock = True
+    else:
+        new_high = max(float(r["high"]) for r in bars_after)
+        if swing_ref <= 0 or new_high > swing_ref:
+            unblock = True
+
+    if not unblock:
+        return False
+
+    # หา swing bar ที่ trigger unblock
+    if side == "BUY":
+        swing_bar = min(bars_after, key=lambda r: float(r["low"]))
+    else:
+        swing_bar = max(bars_after, key=lambda r: float(r["high"]))
+    swing_bar_time = int(swing_bar["time"])
+
+    # unblock TF นี้ — เอาเฉพาะ signal ที่ candle_time หลัง swing bar
+    blocked_sigs = sg.get("tf_blocked_signals", {}).get(tf, [])
+    retry_sigs   = [s for s in blocked_sigs if (s.get("candle_time") or 0) > swing_bar_time]
+    sg["tf_blocked"][tf] = False
+    sg.setdefault("tf_retry_signals", {})[tf]    = retry_sigs
+    sg.setdefault("tf_blocked_signals", {})[tf]  = []
+    print(
+        f"🛡️ Combined Guard TF unblocked: [{tf}] {side} — "
+        f"swing {'L' if side=='BUY' else 'H'} @ bar {swing_bar_time} "
+        f"(retry {len(retry_sigs)}/{len(blocked_sigs)} signals)"
+    )
+
+    # ถ้าทุก TF ใน group unblock แล้ว → reset สถานะทั้งหมด
+    combined_tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    all_clear = all(not sg["tf_blocked"].get(t) for t in combined_tfs)
+    if all_clear:
+        old_count = sg.get("count", 0)
+        # เก็บ tf_retry_signals ที่เพิ่งเซตไว้ (รวมจากทุก TF) ก่อน reset
+        preserved_retries = {
+            t: sg.get("tf_retry_signals", {}).get(t, [])
+            for t in combined_tfs
+        }
+        _sl_guard_combined[side] = {
+            "count": 0, "active": False,
+            "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+            "tf_blocked_signals": {}, "tf_retry_signals": preserved_retries,
+        }
+        print(f"🛡️ Combined Guard FULLY DEACTIVATED: {side} (all TFs unblocked, was {old_count}x SL)")
+    else:
+        _sl_guard_combined[side] = sg
+
+    return True
+
+
+def _combined_guard_get_retry_signals(tf: str, side: str) -> list:
+    """ดึง retry signals ของ TF นี้หลัง unblock (เรียกครั้งเดียวแล้ว clear)"""
+    side = side.upper()
+    sg   = _sl_guard_combined.get(side, {})
+    if not sg:
+        return []
+    retries = sg.get("tf_retry_signals", {}).pop(tf, [])
+    return retries
+
+
+def _combined_guard_reset_on_tp(tf: str, side: str) -> str:
+    """
+    TP hit → unblock TF นี้ออกจาก combined group ทันที (ไม่รอ swing)
+    คืน Telegram message ถ้า unblock จริง
+    """
+    if not getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+        return ""
+    side = side.upper()
+    sg   = _sl_guard_combined.get(side, {})
+    if not sg or not sg.get("active"):
+        return ""
+    if not sg.get("tf_blocked", {}).get(tf):
+        return ""
+
+    sg["tf_blocked"][tf] = False
+    # TP reset: ล้าง blocked_signals ทิ้ง (ไม่มี swing reference → ไม่ retry)
+    sg.setdefault("tf_blocked_signals", {})[tf] = []
+    sg.setdefault("tf_retry_signals", {})[tf]   = []
+
+    # ถ้าทุก TF clear → reset ทั้งหมด
+    combined_tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+    all_clear    = all(not sg["tf_blocked"].get(t) for t in combined_tfs)
+    if all_clear:
+        old_count = sg.get("count", 0)
+        _sl_guard_combined[side] = {
+            "count": 0, "active": False,
+            "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+            "tf_blocked_signals": {}, "tf_retry_signals": {},
+        }
+        print(f"🛡️ Combined Guard RESET by TP [{tf}] {side} — all TFs clear (was {old_count}x SL)")
+    else:
+        _sl_guard_combined[side] = sg
+        print(f"🛡️ Combined Guard TF reset by TP: [{tf}] {side} — other TFs still locked")
+
+    still_locked = [t for t in combined_tfs if sg.get("tf_blocked", {}).get(t, False)] if not all_clear else []
+    locked_str   = f"\n⏳ ยังล็อก: `{'`, `'.join(still_locked)}`" if still_locked else ""
+    return (
+        f"🛡️ *Combined Guard รีเซทโดย TP*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"📊 TF: `{tf}` | {side}\n"
+        f"✅ TP hit → `{tf}` unblock ทันที{locked_str}"
+    )
+
 
 def _triple_check_all_enabled() -> bool:
-    """True เมื่อเปิดครบทั้ง 3 check — ใช้ combined 2/3 mode"""
+    """True เมื่อ mode = combined และเปิดครบทั้ง 3 check"""
+    if not getattr(config, "RECHECK_COMBINED_MODE", False):
+        return False
     return (
         getattr(config, "PD_ZONE_CHECK_ENABLED",       False) and
         getattr(config, "LIMIT_TREND_RECHECK",          False) and
@@ -1379,6 +1720,22 @@ def _modify_pending_sl(order, new_sl):
     return ok, r
 
 
+def _modify_pending_entry(order, new_price: float):
+    """Modify entry price of a pending limit order."""
+    r = mt5.order_send({
+        "action":       mt5.TRADE_ACTION_MODIFY,
+        "order":        order.ticket,
+        "symbol":       order.symbol,
+        "price":        round(new_price, 2),
+        "sl":           float(order.sl) if order.sl else 0.0,
+        "tp":           float(order.tp) if order.tp else 0.0,
+        "type_time":    order.type_time,
+        "type_filling": order.type_filling,
+    })
+    ok = r is not None and r.retcode == mt5.TRADE_RETCODE_DONE
+    return ok, r
+
+
 def _apply_entry_sl_tp(pos, new_sl, new_tp):
     """Apply entry SL/TP update based on config; default updates only SL."""
     if getattr(config, "ENTRY_CANDLE_UPDATE_TP", False):
@@ -1973,7 +2330,32 @@ async def check_limit_fill_notify(app):
         fvg_info = fvg_order_tickets.get(ticket)
         pattern_name = position_pattern.get(ticket, "") or ""
         reverse_tag = " [Reverse]" if pattern_name.startswith("Reverse ") else ""
-        _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
+
+        # ── resolve _fill_tf (3-tier fallback) ──
+        _fill_tf = position_tf.get(ticket)
+        if not _fill_tf and fvg_info:
+            _fill_tf = fvg_info.get("tf")
+        if not _fill_tf:
+            # ลอง pending_order_tf (อาจยังมีอยู่ถ้า cleanup ยังไม่ pop)
+            _pend_info_fill = pending_order_tf.get(ticket)
+            if isinstance(_pend_info_fill, dict):
+                _fill_tf = _pend_info_fill.get("tf")
+                if not pattern_name and _pend_info_fill.get("pattern"):
+                    pattern_name = _pend_info_fill["pattern"]
+        if not _fill_tf:
+            # parse comment ของ position เช่น "M30_S2" → tf="M30"
+            _c_tf, _c_sid, _ = _infer_position_meta_from_comment(pos)
+            if _c_tf:
+                _fill_tf = _c_tf
+                position_tf[ticket] = _c_tf      # cache กลับเข้า dict
+                if not sid and _c_sid is not None:
+                    sid = _c_sid
+                # สร้าง pattern name พื้นฐานจาก sid+signal ถ้ายังไม่มี
+                if not pattern_name and _c_sid is not None:
+                    _sid_label = {1: "S1", 2: "S2 FVG", 3: "S3 DM SP", 4: "S4 FVG", 6: "S6", 7: "S6i", 8: "S8", 9: "S9 RSI Div", 10: "S10 MTF", 11: "S11 Fibo"}.get(_c_sid, f"S{_c_sid}")
+                    pattern_name = f"{_sid_label} {pos_type} [{_c_tf}]"
+        if not _fill_tf:
+            _fill_tf = "M1"                      # last-resort fallback
         try:
             from scanner import get_trend_label as _gtl
             _fill_trend = _gtl(_fill_tf)
@@ -1995,6 +2377,20 @@ async def check_limit_fill_notify(app):
             _fill_rsi2_state, f"? {_fill_rsi2_state}"
         )
 
+        # PD EQ ณ เวลา fill
+        try:
+            from hhll_swing import get_swing_hl_pts as _gshl_fill
+            _fsh, _fsl = _gshl_fill(_fill_tf)
+            _fill_pd_h = float(_fsh["price"]) if _fsh else None
+            _fill_pd_l = float(_fsl["price"]) if _fsl else None
+        except Exception:
+            _fill_pd_h = _fill_pd_l = None
+        if _fill_pd_h and _fill_pd_l:
+            _fill_eq     = round((_fill_pd_h + _fill_pd_l) / 2.0, 2)
+            _fill_eq_str = (f"H:`{_fill_pd_h:.2f}` L:`{_fill_pd_l:.2f}` EQ:`{_fill_eq:.2f}`")
+        else:
+            _fill_eq_str = "—"
+
         log_event(
             "ENTRY_FILL",
             "Limit fill detected",
@@ -2010,6 +2406,9 @@ async def check_limit_fill_notify(app):
             trend=_fill_trend,
             rsi=_fill_rsi_val,
             rsi2_state=_fill_rsi2_state,
+            pd_h=_fill_pd_h,
+            pd_l=_fill_pd_l,
+            pd_eq=_fill_eq if (_fill_pd_h and _fill_pd_l) else None,
         )
         await tg(app, (
             f"🔔 *Limit Fill - {pos_type}{reverse_tag}*\n"
@@ -2019,7 +2418,8 @@ async def check_limit_fill_notify(app):
             f"🛑 SL: `{pos.sl:.2f}` | 🎯 TP: `{pos.tp:.2f}`\n"
             f"🕐 Fill Time: `{fill_time}`\n"
             f"📈 Trend: `{_fill_tf}` → `{_fill_trend}`\n"
-            f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_fill_rsi_str}` | Cross: `{_rsi2_emoji}`"
+            f"📊 RSI({config.PENDING_RSI_PERIOD}): `{_fill_rsi_str}` | Cross: `{_rsi2_emoji}`\n"
+            f"⚖️ PD [{_fill_tf}]: {_fill_eq_str}"
         ))
         print(f"[{now}] fill {pos_type} {ticket}={pos.price_open:.2f}")
 
@@ -2032,7 +2432,7 @@ async def check_fill_rsi_recheck(app):
     Rule:
       BUY  → ต้อง RSI < PENDING_RSI_BUY_MAX (default 50) ไม่งั้นปิด position
       SELL → ต้อง RSI > PENDING_RSI_SELL_MIN (default 50) ไม่งั้นปิด position
-    Skip: sid=13 (S13 มี TP คนละแบบ)
+    Skip: -
     """
     if not getattr(config, "PENDING_RSI_RECHECK_ENABLED", False):
         return
@@ -2046,12 +2446,28 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
+        if sid in (1, 9, 11):
+            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e = "🟢" if pos_type == "BUY" else "🔴"
         fvg_info = fvg_order_tickets.get(ticket)
         pattern_name = position_pattern.get(ticket, "") or ""
-        _fill_tf = position_tf.get(ticket, fvg_info.get("tf", "M1") if fvg_info else "M1")
+        # ── resolve _fill_tf (3-tier fallback, same as check_limit_fill_notify) ──
+        _fill_tf = position_tf.get(ticket)
+        if not _fill_tf and fvg_info:
+            _fill_tf = fvg_info.get("tf")
+        if not _fill_tf:
+            _pend_info_fill = pending_order_tf.get(ticket)
+            if isinstance(_pend_info_fill, dict):
+                _fill_tf = _pend_info_fill.get("tf")
+        if not _fill_tf:
+            _c_tf, _c_sid, _ = _infer_position_meta_from_comment(pos)
+            if _c_tf:
+                _fill_tf = _c_tf
+                position_tf[ticket] = _c_tf
+        if not _fill_tf:
+            _fill_tf = "M1"
 
         # Route ตาม mode — 1=mode1, 2=mode2, 3=ทั้งคู่
         _mode = int(getattr(config, "PENDING_RSI_RECHECK_MODE", 1))
@@ -2482,6 +2898,50 @@ async def check_entry_candle_quality(app):
         current_price = float(entry_bar["close"])
 
         if state is None:
+            # ── PD Zone check สำหรับ position ที่ fill เร็วจน pending check ไม่ทัน ──
+            if (getattr(config, "PD_ZONE_CHECK_ENABLED", False)
+                    and _order_sid not in (9,)
+                    and ticket not in _pd_zone_fill_checked):
+                _pd_zone_fill_checked.add(ticket)
+                _pz_tf = pos_tf or (fvg_info.get("tf", "M1") if fvg_info else "M1")
+                try:
+                    from hhll_swing import get_swing_hl_pts as _gshl
+                    _sh_pt, _sl_pt = _gshl(_pz_tf)
+                    _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
+                    _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
+                except Exception:
+                    _pz_h = _pz_l = 0.0
+                if _pz_h > _pz_l > 0:
+                    _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
+                    _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
+                    _pz_result = _pd_zone_in_zone(
+                        float(pos.price_open), pos_type, _pz_h, _pz_l,
+                        sid=_order_sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
+                    )
+                    _pz_eq = round((_pz_h + _pz_l) / 2, 2)
+                    log_event("PD_ZONE_CHECK", "fill_check",
+                              ticket=ticket, signal=pos_type, tf=_pz_tf,
+                              price=pos.price_open, h=_pz_h, l=_pz_l,
+                              eq=_pz_eq, result="PASS" if _pz_result else "FAIL")
+                    if not _pz_result:
+                        ok, cp = _close_position(pos, pos_type, "PD Zone fill check failed")
+                        if ok:
+                            _entry_state[ticket] = "done"
+                            fvg_order_tickets.pop(ticket, None)
+                            save_runtime_state()
+                            log_event("PD_ZONE_CHECK", "fill_close",
+                                      ticket=ticket, signal=pos_type, tf=_pz_tf,
+                                      price=pos.price_open, eq=_pz_eq, close_price=cp)
+                            _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
+                            await tg(app, (
+                                f"🛡️ *PD Zone: ปิด Position ที่ fill ผิด Zone*\n"
+                                f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                                f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
+                                f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
+                                f"H: `{_pz_h}` | L: `{_pz_l}`"
+                            ))
+                            continue
+
             # Evaluate the entry candle
             bull, body_pct, body_pct_int = bar_info(entry_bar)
 
@@ -3457,7 +3917,7 @@ async def check_engulf_trail_sl(app):
             main_tf  = group[0]
             key_cnt  = f"{ticket}_{main_tf}"
             bar_cnt  = _bar_count.get(key_cnt, 0)
-            if new_sl == 0 and bar_cnt >= 3:
+            if new_sl == 0 and bar_cnt >= 3 and not state.get("had_engulf"):
                 entry_price = pos.price_open
                 if pos_type == "BUY":
                     safe = round(entry_price + 0.5, 2)
@@ -3484,6 +3944,10 @@ async def check_engulf_trail_sl(app):
             old_sl = float(pos.sl)
             if _modify_sl(pos, new_sl):
                 sig_e = "🟢" if pos_type == "BUY" else "🔴"
+
+                # Mark that this ticket has had at least one engulf trail
+                if engulf_found:
+                    _trail_state[ticket]["had_engulf"] = True
 
                 # Advance phase only after price closes beyond entry
                 if engulf_found and mode == "combined":
@@ -4552,14 +5016,30 @@ async def check_s6_trail(app):
                                       _get_s6_prev_swing_high, _get_s6_prev_swing_low)
 
 
-def _pd_zone_in_zone(order_price: float, signal: str, h: float, l: float) -> bool:
+def _pd_zone_in_zone(order_price: float, signal: str, h: float, l: float,
+                     sid: int = 0, gap_bot: float = 0.0, gap_top: float = 0.0) -> bool:
     """True ถ้า order_price อยู่ใน zone ที่ถูกต้อง
     BUY  → ต่ำกว่า EQ (Discount zone)
     SELL → สูงกว่า EQ (Premium zone)
+
+    S2 พิเศษ: entry อยู่ที่ 98% ของ gap อาจเหนือ EQ แต่ถ้า gap มีบางส่วน
+    อยู่ใน zone ที่ถูกต้องให้ PASS
+      BUY:  gap_bot < eq → gap คร่อม Discount zone
+      SELL: gap_top > eq → gap คร่อม Premium zone
     """
     if h <= l:
         return True  # invalid range → pass
     eq = (h + l) / 2.0
+    if sid == 2 and gap_bot > 0 and gap_top > 0 and gap_top > gap_bot:
+        if signal == "BUY" and gap_bot < eq:
+            return True   # gap_bot (0%) อยู่ใน Discount zone → ช่วง 0%-98% คร่อม EQ
+        if signal == "SELL" and gap_top > eq:
+            return True   # gap_top (0% จากบน) อยู่ใน Premium zone → ช่วง 0%-98% คร่อม EQ
+        # gap คร่อม H หรือ L แต่ไม่คร่อม EQ → ปลาย gap หลุดนอก swing range → PASS
+        if signal == "BUY" and gap_top > h and gap_bot >= eq:
+            return True   # gap คร่อม H (premium boundary) ไม่คร่อม EQ
+        if signal == "SELL" and gap_bot < l and gap_top <= eq:
+            return True   # gap คร่อม L (discount boundary) ไม่คร่อม EQ
     if signal == "BUY":
         return order_price < eq
     elif signal == "SELL":
@@ -4567,18 +5047,19 @@ def _pd_zone_in_zone(order_price: float, signal: str, h: float, l: float) -> boo
     return True
 
 
-def _pd_zone_process(ticket: int, order, info: dict) -> tuple:
-    """Premium/Discount zone recheck per ticket — 3 รอบ, ตัดสิน 2/3
+def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> tuple:
+    """Premium/Discount zone recheck per ticket — 2 รอบ
     เรียกจาก check_cancel_pending_orders ทุก cycle
     Return (status: str, tg_msgs: list[str])
       status: "pass" | "fail" | "wait"
 
-    รอบที่ 1 : เมื่อ order เกิด — เช็ค EQ ปัจจุบัน
-    รอบที่ 2 : H หรือ L ต่อไปครั้งแรก
-    รอบที่ 3 : H หรือ L ต่อไปครั้งที่สอง (หลังรอบ 2 fire แล้ว)
+    รอบที่ 1 : เมื่อ order เกิด
+      - แบบแยก (combined=False): fail → คืน "fail" ทันที, pass → รอรอบ 2
+      - แบบรวม (combined=True) : ผลเก็บไว้ คืน "wait" เสมอ รอรอบ 2 ก่อน
+    รอบที่ 2 : H หรือ L เปลี่ยนครั้งแรก — คืน "pass" หรือ "fail" (ทั้ง 2 mode)
 
+    แบบรวม: ครบ 2 รอบ → นับเป็น 1 โหวต ส่งไปรวมกับ RSI + Trend (2/3 voting)
     กฎ: entry < EQ → BUY ผ่าน / entry > EQ → SELL ผ่าน
-    ตัดสิน: pass ≥ 2 → "pass" | fail ≥ 2 → "fail" | อื่น → "wait"
     """
     if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
         return "wait", []
@@ -4590,10 +5071,15 @@ def _pd_zone_process(ticket: int, order, info: dict) -> tuple:
     if not signal:
         return "wait", []
 
-    tf = info.get("tf", "")
+    tf          = info.get("tf", "")
+    _order_sid  = int(info.get("sid", 0) or 0)
     order_price = float(order.price_open)
     sig_e   = _pending_order_icon(order)
     ot_name = _pending_order_type_name(order)
+
+    # S2 gap boundaries สำหรับ PD zone check พิเศษ
+    _s2_gap_bot = float(info.get("final_gap_bot", info.get("gap_bot", 0)) or 0)
+    _s2_gap_top = float(info.get("final_gap_top", info.get("gap_top", 0)) or 0)
 
     from hhll_swing import get_swing_hl_pts
     sh_pt, sl_pt = get_swing_hl_pts(tf)
@@ -4609,96 +5095,173 @@ def _pd_zone_process(ticket: int, order, info: dict) -> tuple:
     tg_msgs = []
 
     def _chk_msg(rnd: int, changed: str, result: bool) -> str:
-        _p = sum(1 for c in state["checks"] if c == 1)
-        _f = sum(1 for c in state["checks"] if c == -1)
         _chg = f"{changed} เปลี่ยน | " if changed else ""
         _zone = "Premium 🔴" if order_price > eq else "Discount 🟢"
         _zone_ok = (signal == "SELL" and order_price > eq) or (signal == "BUY" and order_price < eq)
         _zone_str = f"{_zone} {'✅' if _zone_ok else '❌'}"
         return (
-            f"📊 *PD Zone Check — รอบ {rnd}/3*\n"
+            f"📊 *PD Zone Check — รอบ {rnd}/2*\n"
             f"{sig_e} {ot_name} [{tf}] `#{ticket}`\n"
             f"{_chg}EQ: `{round(eq,5)}`\n"
             f"Entry: `{order_price}` | H: `{h}` | L: `{l}`\n"
             f"Zone: {_zone_str}\n"
-            f"ผล: {'✅ PASS' if result else '❌ FAIL'} [{_p}P/{_f}F]"
+            f"ผล: {'✅ PASS' if result else '❌ FAIL'}"
         )
 
-    # ─── รอบที่ 1: เมื่อ order เกิด ─────────────────────────────────
+    # ─── S2: ตรวจ case entry นอก zone แต่ gap 50%-98% คร่อม zone ────
+    # ถ้าใช่ → ย้าย entry จาก 98% → 50% mark ก่อนเช็ค PD
+    _s2_adjusted_entry = 0.0
+    _s2_adj_reason     = ""
+    if _order_sid == 2 and _s2_gap_bot > 0 and _s2_gap_top > _s2_gap_bot:
+        if signal == "BUY":
+            # Case 1: gap คร่อม EQ → ย้าย entry มาที่ EQ
+            if order_price > eq and _s2_gap_bot < eq:
+                _s2_adjusted_entry = round(eq, 2)
+                _s2_adj_reason     = "EQ (gap คร่อม EQ)"
+            # Case 2: gap คร่อม H แต่ไม่คร่อม EQ → ย้าย entry มาที่ 50% ของ gap
+            elif _s2_gap_top > h and _s2_gap_bot >= eq:
+                _s2_adjusted_entry = round((_s2_gap_bot + _s2_gap_top) / 2.0, 2)
+                _s2_adj_reason     = "50% gap (gap คร่อม H)"
+        elif signal == "SELL":
+            # Case 1: gap คร่อม EQ → ย้าย entry มาที่ EQ
+            if order_price < eq and _s2_gap_top > eq:
+                _s2_adjusted_entry = round(eq, 2)
+                _s2_adj_reason     = "EQ (gap คร่อม EQ)"
+            # Case 2: gap คร่อม L แต่ไม่คร่อม EQ → ย้าย entry มาที่ 50% ของ gap
+            elif _s2_gap_bot < l and _s2_gap_top <= eq:
+                _s2_adjusted_entry = round((_s2_gap_bot + _s2_gap_top) / 2.0, 2)
+                _s2_adj_reason     = "50% gap (gap คร่อม L)"
+
+    # ─── รอบที่ 1: เมื่อ order เกิด — ตัดสินทันที ────────────────────
     if state is None:
-        result = _pd_zone_in_zone(order_price, signal, h, l)
+        _outside_pd = order_price < l or order_price > h
+        _fallback_used   = False   # ใช้ prev swing หรือเปล่า
+        _fallback_h      = h
+        _fallback_l      = l
+        _fallback_label  = ""
+
+        if _outside_pd:
+            # ─── fallback: หา swing ก่อนหน้า ─────────────────────────────
+            # entry < L → หา prev L (สลับ HL↔LL)
+            # entry > H → หา prev H (สลับ LH↔HH)
+            from hhll_swing import get_hhll_data as _get_hd
+            _hd      = _get_hd(tf)
+            _hh_pt   = _hd.get("hh")
+            _lh_pt   = _hd.get("lh")
+            _hl_pt   = _hd.get("hl")
+            _ll_pt   = _hd.get("ll")
+
+            if order_price < l and l > 0:
+                # current L คือ HL หรือ LL?
+                _cur_l_is_hl = (_hl_pt is not None
+                                and abs(float(_hl_pt["price"]) - l) < 0.01)
+                _prev_l_pt   = _ll_pt if _cur_l_is_hl else _hl_pt
+                if _prev_l_pt:
+                    _fallback_l     = float(_prev_l_pt["price"])
+                    _fallback_label = f"prev_L={round(_fallback_l,2)}({'LL' if _cur_l_is_hl else 'HL'})"
+                    _fallback_used  = True
+
+            elif order_price > h and h > 0:
+                # current H คือ LH หรือ HH?
+                _cur_h_is_lh = (_lh_pt is not None
+                                and abs(float(_lh_pt["price"]) - h) < 0.01)
+                _prev_h_pt   = _hh_pt if _cur_h_is_lh else _lh_pt
+                if _prev_h_pt:
+                    _fallback_h     = float(_prev_h_pt["price"])
+                    _fallback_label = f"prev_H={round(_fallback_h,2)}({'HH' if _cur_h_is_lh else 'LH'})"
+                    _fallback_used  = True
+
+            # ตรวจว่า entry อยู่ใน prev swing ไหม
+            _within_prev = (_fallback_l < _fallback_h
+                            and _fallback_l <= order_price <= _fallback_h)
+
+            if not _within_prev:
+                # อยู่นอก prev swing ด้วย → auto-PASS รอบ 1 แล้วรอรอบ 2
+                result = True
+                _fallback_label = "outside both swings → รอรอบ 2"
+            else:
+                # อยู่ใน prev swing → เช็ค zone ด้วย prev EQ
+                result = _pd_zone_in_zone(order_price, signal, _fallback_h, _fallback_l,
+                                          sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
+        else:
+            result = _pd_zone_in_zone(order_price, signal, h, l,
+                                      sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
+        # S2 entry adjustment: ย้าย entry → 50% mark เมื่อ PASS via gap rule
+        if result and _s2_adjusted_entry > 0:
+            _ok_mod, _ = _modify_pending_entry(order, _s2_adjusted_entry)
+            if _ok_mod:
+                _pend = pending_order_tf.get(ticket)
+                if isinstance(_pend, dict):
+                    _pend["entry"] = _s2_adjusted_entry
+                    pending_order_tf[ticket] = _pend
+                log_event("S2_ENTRY_ADJUSTED",
+                          f"PD zone: entry {order_price} → {_s2_adjusted_entry} ({_s2_adj_reason})",
+                          ticket=ticket, tf=tf, signal=signal,
+                          old_entry=order_price, new_entry=_s2_adjusted_entry, eq=round(eq, 2))
+                tg_msgs.append(
+                    f"📐 *S2 Entry ปรับ (PD Zone)*\n"
+                    f"{sig_e} [{tf}] `#{ticket}`\n"
+                    f"Entry: `{order_price}` → `{_s2_adjusted_entry}` ({_s2_adj_reason})\n"
+                    f"EQ: `{round(eq,2)}` | Gap: `{_s2_gap_bot}`–`{_s2_gap_top}`"
+                )
         _pd_zone_state[ticket] = {
             "signal": signal, "tf": tf, "price": order_price,
             "cur_h": h, "cur_l": l,
-            "checks": [1 if result else -1, 0, 0],
+            "round1": 1 if result else -1,
+            "outside_pd": _outside_pd,
         }
         state = _pd_zone_state[ticket]
+        _log_h   = _fallback_h if _fallback_used else h
+        _log_l   = _fallback_l if _fallback_used else l
+        _log_eq  = round((_log_h + _log_l) / 2.0, 5)
+        _note    = (f"fallback_swing {_fallback_label}" if _fallback_used
+                    else ("outside_pd_range" if _outside_pd else ""))
         log_event("PD_ZONE_CHECK", "round1",
                   ticket=ticket, signal=signal, tf=tf,
-                  price=order_price, h=h, l=l, eq=round(eq, 5),
-                  result="PASS" if result else "FAIL")
-        tg_msgs.append(_chk_msg(1, "", result))
-        # ตรวจ early decision หลัง round 1 (ยังไม่มี 2/3 แน่ — แต่ตรวจ fail ≥2 ไม่ได้)
-        return "wait", tg_msgs  # รอ H/L ถัดไปเสมอ
+                  price=order_price, h=_log_h, l=_log_l, eq=_log_eq,
+                  result="PASS" if result else "FAIL",
+                  note=_note)
+        _chk_note = (f"fallback swing ({_fallback_label})" if _fallback_used
+                     else ("outside PD range → รอรอบ 2" if _outside_pd else ""))
+        tg_msgs.append(_chk_msg(1, _chk_note, result))
+        if not result and not combined:
+            # แบบแยก: fail ทันที — ไม่ต้องรอรอบ 2
+            log_event("PD_ZONE_CHECK", "fail_round1",
+                      ticket=ticket, signal=signal, tf=tf)
+            return "fail", tg_msgs
+        # แบบรวม: เก็บผลรอบ 1 ไว้ก่อน รอ H/L เปลี่ยนสำหรับรอบ 2 เสมอ
+        return "wait", tg_msgs
 
-    # ─── รอบที่ 2 & 3: H/L เปลี่ยน ──────────────────────────────────
+    # ─── รอบที่ 2: H/L เปลี่ยนครั้งแรก — ตัดสินทันที ────────────────
     h_changed = abs(h - state["cur_h"]) > 0.01
     l_changed = abs(l - state["cur_l"]) > 0.01
-    hl_changed = h_changed or l_changed
-
-    if hl_changed:
+    if h_changed or l_changed:
         changed_parts = []
         if h_changed: changed_parts.append("H")
         if l_changed: changed_parts.append("L")
         changed_str = "/".join(changed_parts)
 
-        if state["checks"][1] == 0:
-            # รอบที่ 2: H/L เปลี่ยนครั้งแรก
-            result = _pd_zone_in_zone(order_price, signal, h, l)
-            state["checks"][1] = 1 if result else -1
-            state["cur_h"] = h
-            state["cur_l"] = l
-            log_event("PD_ZONE_CHECK", "round2",
-                      ticket=ticket, signal=signal, tf=tf,
-                      price=order_price, h=h, l=l, eq=round(eq, 5),
-                      changed=changed_str,
-                      result="PASS" if result else "FAIL")
-            tg_msgs.append(_chk_msg(2, changed_str, result))
-
-        elif state["checks"][2] == 0:
-            # รอบที่ 3: H/L เปลี่ยนครั้งที่สอง (หลัง round 2)
-            result = _pd_zone_in_zone(order_price, signal, h, l)
-            state["checks"][2] = 1 if result else -1
-            state["cur_h"] = h
-            state["cur_l"] = l
-            log_event("PD_ZONE_CHECK", "round3",
-                      ticket=ticket, signal=signal, tf=tf,
-                      price=order_price, h=h, l=l, eq=round(eq, 5),
-                      changed=changed_str,
-                      result="PASS" if result else "FAIL")
-            tg_msgs.append(_chk_msg(3, changed_str, result))
-
-    _pd_zone_state[ticket] = state
-
-    # ─── ตัดสินใจ 2/3 ────────────────────────────────────────────────
-    checks = state["checks"]
-    passes = sum(1 for c in checks if c == 1)
-    fails  = sum(1 for c in checks if c == -1)
-
-    if fails >= 2:
-        log_event("PD_ZONE_CHECK", "fail",
+        result = _pd_zone_in_zone(order_price, signal, h, l,
+                                  sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
+        state["cur_h"] = h
+        state["cur_l"] = l
+        _pd_zone_state[ticket] = state
+        log_event("PD_ZONE_CHECK", "round2",
                   ticket=ticket, signal=signal, tf=tf,
-                  passes=passes, fails=fails, checks=checks)
+                  price=order_price, h=h, l=l, eq=round(eq, 5),
+                  changed=changed_str,
+                  result="PASS" if result else "FAIL")
+        tg_msgs.append(_chk_msg(2, changed_str, result))
+        if result:
+            _pd_zone_state.pop(ticket, None)
+            log_event("PD_ZONE_CHECK", "pass",
+                      ticket=ticket, signal=signal, tf=tf)
+            return "pass", tg_msgs
+        log_event("PD_ZONE_CHECK", "fail_round2",
+                  ticket=ticket, signal=signal, tf=tf)
         return "fail", tg_msgs
 
-    if passes >= 2:
-        _pd_zone_state.pop(ticket, None)
-        log_event("PD_ZONE_CHECK", "pass",
-                  ticket=ticket, signal=signal, tf=tf,
-                  passes=passes, fails=fails, checks=checks)
-        return "pass", tg_msgs
-
-    return "wait", tg_msgs  # ยังรอรอบถัดไป
+    return "wait", tg_msgs  # รอ H/L เปลี่ยน
 
 
 async def check_cancel_pending_orders(app):
@@ -4726,6 +5289,11 @@ async def check_cancel_pending_orders(app):
         if t not in open_tickets:
             _pd_zone_state.pop(t, None)
 
+    # Cleanup fill-checked set for closed positions
+    _pd_zone_fill_checked.difference_update(
+        t for t in list(_pd_zone_fill_checked) if t not in _open_pos_tickets
+    )
+
     # Cleanup triple check state for tickets that no longer exist
     for t in list(_triple_check_state.keys()):
         if t not in open_tickets:
@@ -4740,6 +5308,14 @@ async def check_cancel_pending_orders(app):
                 position_tf.pop(t, None)
                 position_sid.pop(t, None)
                 position_pattern.pop(t, None)
+            elif isinstance(info, dict):
+                # order fill แล้ว → ถ้า position_tf/pattern ยังไม่มี ให้ restore จาก pending info
+                if t not in position_tf and info.get("tf"):
+                    position_tf[t] = info["tf"]
+                if t not in position_pattern and info.get("pattern"):
+                    position_pattern[t] = info["pattern"]
+                if t not in position_sid and info.get("sid") is not None:
+                    position_sid[t] = info["sid"]
             if isinstance(info, dict):
                 log_event(
                     "ORDER_CANCELED",
@@ -5109,6 +5685,46 @@ async def check_cancel_pending_orders(app):
                                 f"low moved within {_dist_pt}pt then pulled back"
                             )
 
+        # SL Guard: cancel near pending when guard is active for this TF/side
+        if not should_cancel and config.SL_GUARD_ENABLED:
+            _sg_side = None
+            if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
+                _sg_side = "BUY"
+            elif order.type == mt5.ORDER_TYPE_SELL_LIMIT:
+                _sg_side = "SELL"
+            if _sg_side and tf:
+                _sg_key = (tf, _sg_side)
+                _sg = _sl_guard_state.get(_sg_key, {})
+                if _sg.get("active"):
+                    # Initialize swing_ref if not yet set (first time we see this active guard)
+                    if not _sg.get("swing_ref"):
+                        if _sg_side == "BUY":
+                            _sg["swing_ref"] = float(min(float(r["low"]) for r in rates))
+                        else:
+                            _sg["swing_ref"] = float(max(float(r["high"]) for r in rates))
+                        _sl_guard_state[_sg_key] = _sg
+                    # Check unblock first — new swing formed after block?
+                    _sl_guard_check_unblock(tf, _sg_side, rates)
+                    _sg = _sl_guard_state.get(_sg_key, {})
+                if _sg.get("active"):
+                    # Cancel if price is within SL_GUARD_NEAR_POINTS of pending entry
+                    _sg_sym = mt5.symbol_info(SYMBOL)
+                    _sg_tick = mt5.symbol_info_tick(SYMBOL)
+                    if _sg_sym and _sg_tick:
+                        _sg_pt = _sg_sym.point or 0.01
+                        _sg_near = config.SL_GUARD_NEAR_POINTS * _sg_pt * config.points_scale()
+                        _sg_entry = order.price_open
+                        _sg_cur = _sg_tick.ask if _sg_side == "BUY" else _sg_tick.bid
+                        _sg_dist_pt = abs(_sg_cur - _sg_entry) / _sg_pt
+                        if abs(_sg_cur - _sg_entry) <= _sg_near:
+                            should_cancel = True
+                            reason = (
+                                f"SL Guard [{tf}]: {_sg_side} SL hit "
+                                f"{_sg.get('count', 0)}x — ยกเลิก pending "
+                                f"entry:{_sg_entry:.2f} cur:{_sg_cur:.2f} "
+                                f"dist:{_sg_dist_pt:.0f}pt (≤{config.SL_GUARD_NEAR_POINTS}pt)"
+                            )
+
         if isinstance(info, dict) and not info.get("sl_armed") and info.get("intended_sl"):
             _is_s8 = info.get("sid") == 8
             _should_check_sl = _is_s8 or config.DELAY_SL_MODE != "off"
@@ -5225,7 +5841,7 @@ async def check_cancel_pending_orders(app):
                 should_cancel = True
                 reason = f"Close:{last_close:.2f} > Swing High:{swing_high:.2f}"
             # BUY LIMIT: next candle after detect closes red with body>=35% -> setup fails
-            elif not should_cancel:
+            elif not should_cancel and config.CANCEL_NEXT_BAR_BODY_ENABLED:
                 detect_time = info.get("detect_bar_time", 0) if isinstance(info, dict) else 0
                 if detect_time:
                     next_bars = [r for r in candle_rates if int(r["time"]) > detect_time]
@@ -5247,7 +5863,7 @@ async def check_cancel_pending_orders(app):
                 should_cancel = True
                 reason = f"Close:{last_close:.2f} < Swing Low:{swing_low:.2f}"
             # SELL LIMIT: แท่งถัดจาก detect ปิดเขียว body>=35% -> setup ล้มเหลว
-            elif not should_cancel:
+            elif not should_cancel and config.CANCEL_NEXT_BAR_BODY_ENABLED:
                 detect_time = info.get("detect_bar_time", 0) if isinstance(info, dict) else 0
                 if detect_time:
                     next_bars = [r for r in candle_rates if int(r["time"]) > detect_time]
@@ -5264,11 +5880,14 @@ async def check_cancel_pending_orders(app):
                                       f" setup ล้มเหลว")
 
         # Premium/Discount zone recheck
-        if not should_cancel and isinstance(info, dict):
-            pd_status, pd_msgs = _pd_zone_process(ticket, order, info)
+        # Skip: S9 (RSI Divergence)
+        if not should_cancel and isinstance(info, dict) and _order_sid not in (9,):
+            _is_combined = _triple_check_all_enabled()
+            pd_status, pd_msgs = _pd_zone_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
                 await tg(app, _msg)
-            if _triple_check_all_enabled():
+            if _is_combined:
+                # แบบรวม: ครบ 2 รอบ (pd_status != "wait") → นับเป็น 1 โหวต
                 if pd_status != "wait":
                     _triple_check_record(
                         ticket, "pd", pd_status == "pass",
@@ -5276,9 +5895,10 @@ async def check_cancel_pending_orders(app):
                         signal=info.get("signal", "") if isinstance(info, dict) else "",
                     )
             else:
+                # แบบแยก: fail (รอบ 1 หรือ รอบ 2) → ยกเลิก order ทันที
                 if pd_status == "fail":
                     should_cancel = True
-                    reason = "PD Zone Recheck: order อยู่นอก Premium/Discount zone (< 2/2 รอบผ่าน)"
+                    reason = "PD Zone Recheck: order อยู่นอก Premium/Discount zone"
                     _pd_zone_state.pop(ticket, None)
 
         # Combined Triple Recheck decision (เมื่อเปิดครบทั้ง 3 อัน)

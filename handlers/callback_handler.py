@@ -889,11 +889,75 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query,f"Near Approach Cancel: {pts}pt")
 
+    elif data == "toggle_recheck_combined_mode":
+        config.RECHECK_COMBINED_MODE = not config.RECHECK_COMBINED_MODE
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        mode_txt = "รวม 2/3" if config.RECHECK_COMBINED_MODE else "แยก"
+        await _qanswer(query, f"Recheck Mode: {mode_txt}")
+
     elif data == "toggle_pd_zone_check":
         config.PD_ZONE_CHECK_ENABLED = not config.PD_ZONE_CHECK_ENABLED
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"PD Zone Recheck: {'ON' if config.PD_ZONE_CHECK_ENABLED else 'OFF'}")
+
+    elif data == "toggle_sideway_hhll_filter":
+        config.TREND_FILTER_SIDEWAY_HHLL = not getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Sideway HHLL Filter: {'ON' if config.TREND_FILTER_SIDEWAY_HHLL else 'OFF'}")
+
+    elif data == "toggle_sl_guard":
+        config.SL_GUARD_ENABLED = not config.SL_GUARD_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"SL Guard: {'ON' if config.SL_GUARD_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_sl_guard_count_"):
+        cnt = int(data.replace("set_sl_guard_count_", ""))
+        config.SL_GUARD_COUNT = cnt
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"SL Guard Count: {cnt}x")
+
+    elif data.startswith("set_sl_guard_pts_"):
+        pts = int(data.replace("set_sl_guard_pts_", ""))
+        config.SL_GUARD_NEAR_POINTS = pts
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"SL Guard Near: {pts}pt")
+
+    elif data == "toggle_sl_guard_combined":
+        config.SL_GUARD_COMBINED_ENABLED = not config.SL_GUARD_COMBINED_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Combined Guard: {'ON' if config.SL_GUARD_COMBINED_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_slgc_count_"):
+        try:
+            cnt = int(data.replace("set_slgc_count_", ""))
+            config.SL_GUARD_COMBINED_COUNT = max(1, cnt)
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await _qanswer(query, f"Combined Guard Count: {cnt}x")
+        except (ValueError, TypeError):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
+
+    elif data.startswith("toggle_slgc_tf_"):
+        tf_toggle = data.replace("toggle_slgc_tf_", "")
+        _tf_all = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
+        if tf_toggle in _tf_all:
+            _tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+            if tf_toggle in _tfs:
+                _tfs.remove(tf_toggle)
+            else:
+                _tfs.append(tf_toggle)
+            config.SL_GUARD_COMBINED_TFS = _tfs
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            _on = tf_toggle in config.SL_GUARD_COMBINED_TFS
+            await _qanswer(query, f"Combined Guard TF {tf_toggle}: {'ON' if _on else 'OFF'}")
 
     elif data == "toggle_pending_rsi_recheck":
         config.PENDING_RSI_RECHECK_ENABLED = not config.PENDING_RSI_RECHECK_ENABLED
