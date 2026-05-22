@@ -2373,6 +2373,18 @@ async def check_limit_fill_notify(app):
         try:
             from scanner import get_trend_label as _gtl
             _fill_trend = _gtl(_fill_tf)
+            if _fill_trend == "?":
+                # fallback: fetch HHLL ตรงโดยไม่รอ auto_scan (กรณี scan ยังไม่รันรอบแรก)
+                try:
+                    import hhll_swing as _hs
+                    _hs.fetch_hhll(_fill_tf)
+                    _tinfo = _hs.get_trend_from_structure(_fill_tf)
+                    if _tinfo and _tinfo.get("trend") not in (None, "UNKNOWN"):
+                        _t = _tinfo.get("trend", "")
+                        _s = _tinfo.get("strength", "")
+                        _fill_trend = f"{_t} ({_s})" if _s and _s != "-" else _t
+                except Exception:
+                    pass
         except Exception:
             _fill_trend = "?"
 
