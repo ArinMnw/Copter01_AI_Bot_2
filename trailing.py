@@ -117,6 +117,38 @@ def _sl_guard_close_open_positions(tf: str, side: str) -> list:
         return []
 
 
+def _sl_guard_close_combined_positions(side: str) -> list:
+    """
+    ปิด position ทั้งหมดของ side นี้ที่อยู่ใน SL_GUARD_COMBINED_TFS เมื่อ Combined Guard activate
+    คืน list ของ ticket ที่ปิดสำเร็จ
+    """
+    if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        return []
+    try:
+        positions = mt5.positions_get(symbol=SYMBOL)
+        if not positions:
+            return []
+        side_up = side.upper()
+        pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+        combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+        closed = []
+        for pos in positions:
+            if pos.type != pos_type_mt5:
+                continue
+            pos_tf = position_tf.get(pos.ticket, "")
+            # ถ้ากำหนด combined_tfs ไว้ → กรองเฉพาะ TF ใน group; ถ้าว่าง → ปิดทุก TF
+            if combined_tfs and pos_tf not in combined_tfs:
+                continue
+            ok, _ = _close_position(pos, side_up, f"SL Guard Combined activate")
+            if ok:
+                closed.append(pos.ticket)
+                log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Combined [{pos_tf}] ticket={pos.ticket}", side=side_up)
+        return closed
+    except Exception as e:
+        print(f"[SL Guard] _sl_guard_close_combined_positions error: {e}")
+        return []
+
+
 def _sl_guard_check_unblock(tf: str, side: str, rates) -> bool:
     """
     Check whether a new swing L (BUY guard) or swing H (SELL guard) has formed

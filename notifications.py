@@ -188,20 +188,28 @@ async def check_sl_tp_hits(app):
             # SL Guard Combined: track SL hits across TFs
             if close_type == "🛑 SL Hit" and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
                 try:
-                    from trailing import _combined_guard_record_sl
+                    from trailing import _combined_guard_record_sl, _sl_guard_close_combined_positions
                     _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
-                    if _cg_act_msg and not _sl_guard_extra_msg:
-                        _sl_guard_extra_msg = _cg_act_msg
+                    if _cg_act_msg:
+                        _guard_side = p_info.get("type", "")
+                        _closed = _sl_guard_close_combined_positions(_guard_side)
+                        _close_note = f"\n🚫 ปิด {_guard_side} positions: {', '.join(f'`{t}`' for t in _closed)}" if _closed else ""
+                        if not _sl_guard_extra_msg:
+                            _sl_guard_extra_msg = _cg_act_msg + _close_note
                 except Exception:
                     pass
 
             # SL Guard Combined: นับ loss close ด้วย
             if _sg_loss_ok and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False):
                 try:
-                    from trailing import _combined_guard_record_sl
+                    from trailing import _combined_guard_record_sl, _sl_guard_close_combined_positions
                     _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
-                    if _cg_act_msg and not _sl_guard_extra_msg:
-                        _sl_guard_extra_msg = _cg_act_msg
+                    if _cg_act_msg:
+                        _guard_side = p_info.get("type", "")
+                        _closed = _sl_guard_close_combined_positions(_guard_side)
+                        _close_note = f"\n🚫 ปิด {_guard_side} positions: {', '.join(f'`{t}`' for t in _closed)}" if _closed else ""
+                        if not _sl_guard_extra_msg:
+                            _sl_guard_extra_msg = _cg_act_msg + _close_note
                 except Exception:
                     pass
 
