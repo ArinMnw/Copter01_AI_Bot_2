@@ -90,7 +90,7 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 - `DELAY_SL_MODE`: `off` / `time` / `price`
 - `SCALE_OUT_ENABLED`: gate ของ Triple Scale-Out (default `True`)
 - `PD_ZONE_CHECK_ENABLED`: gate ของ PD Zone Recheck (default `True`), persist ด้วย key `pd_zone_check_enabled`
-- `SL_GUARD_LOSS_ENABLED`: gate ของ SL Guard Loss (default `True`), persist ด้วย key `sl_guard_loss_enabled`
+- `SL_GUARD_LOSS_ENABLED`: gate ของ SL Guard Loss (default `False`), persist ด้วย key `sl_guard_loss_enabled`
 - `SL_GUARD_LOSS_THRESHOLD`: threshold ขาดทุนที่นับเป็น SL hit (default `5.0`), persist ด้วย key `sl_guard_loss_threshold`
 
 State อื่น ๆ ที่ persist:

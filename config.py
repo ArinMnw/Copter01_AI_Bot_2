@@ -520,7 +520,7 @@ SL_GUARD_NEAR_POINTS = 200  # ระยะ (points) ที่ถือว่า 
 # ── SL Guard Loss ────────────────────────────────────────────
 # นับ close ที่ขาดทุนเกิน threshold ว่าเป็น "SL hit" ด้วย (ไม่ว่าจะปิดด้วยเหตุใด)
 # เช่น manual close / bot close ที่ profit < -5$ → นับ +1 เหมือน SL hit
-SL_GUARD_LOSS_ENABLED   = True
+SL_GUARD_LOSS_ENABLED   = False
 SL_GUARD_LOSS_THRESHOLD = 5.0   # USD — ขาดทุนเกินนี้ถึงนับ
 
 # ── SL Guard Combined TF ──────────────────────────────────────

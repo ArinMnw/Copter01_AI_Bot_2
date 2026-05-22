@@ -138,7 +138,7 @@ Keep the answer short and make the fix directly.
 - `SL_GUARD_ENABLED` (default `True`) — guard ป้องกัน BUY/SELL LIMIT ใหม่ หลัง SL hit ครบ N ครั้งใน TF นั้น
 - `SL_GUARD_COUNT` (default `2`) — จำนวน SL hit ที่ trigger guard
 - `SL_GUARD_NEAR_POINTS` (default `200`) — ยกเลิก pending ที่ราคาเข้าใกล้ entry ≤ N pt ขณะ guard active
-- `SL_GUARD_LOSS_ENABLED` (default `True`) — นับ close ที่ขาดทุนเกิน threshold ว่าเป็น SL hit ด้วย
+- `SL_GUARD_LOSS_ENABLED` (default `False`) — นับ close ที่ขาดทุนเกิน threshold ว่าเป็น SL hit ด้วย
 - `SL_GUARD_LOSS_THRESHOLD` (default `5.0`) — ขาดทุนเกิน $N → นับเป็น SL hit (ใช้ร่วมกับ SL_GUARD_LOSS_ENABLED)
 
 หมายเหตุ:
