@@ -1613,6 +1613,24 @@ def build_trend_filter_keyboard():
         for p in sg_pt_options
     ])
 
+    # === SL Guard Loss ===
+    _sg_loss_on  = getattr(config, "SL_GUARD_LOSS_ENABLED", True)
+    _sg_loss_thr = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
+    sg_loss_label = (
+        f"🟢 Loss Guard: ON (>${_sg_loss_thr:.0f})"
+        if _sg_loss_on
+        else "🔴 Loss Guard: OFF"
+    )
+    rows.append([InlineKeyboardButton(sg_loss_label, callback_data="toggle_sl_guard_loss")])
+    sg_loss_thr_opts = [3, 5, 10, 20]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if int(_sg_loss_thr) == t else '⬜'} ${t}",
+            callback_data=f"set_sl_guard_loss_thr_{t}"
+        )
+        for t in sg_loss_thr_opts
+    ])
+
     # === SL Guard Combined TF ===
     _sgc_enabled = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
     _sgc_cnt     = getattr(config, "SL_GUARD_COMBINED_COUNT", 1)
@@ -1692,6 +1710,9 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     _sgc_t     = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
     _sgc_t_str = ", ".join(_sgc_t) if _sgc_t else "ยังไม่เลือก"
     sgc_status = f"🟢ON ({_sgc_c}x | {_sgc_t_str})" if _sgc_on else "🔴OFF"
+    _sgl_on    = getattr(config, "SL_GUARD_LOSS_ENABLED", True)
+    _sgl_thr   = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
+    sgl_status = f"🟢ON (>${_sgl_thr:.0f})" if _sgl_on else "🔴OFF"
     text = (
         "🧭 *Trend Filter (Scan Trend)*\n"
         "━━━━━━━━━━━━━━━━━\n"
@@ -1714,6 +1735,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย\n\n"
         f"SL Guard: *{sg_status}*\n"
         f"  BUY/SELL SL ≥ Nx → ยกเลิก pending ที่ใกล้ ({_sg_p}pt) + บล็อกจนกว่าจะเกิด Swing ใหม่\n"
+        f"Loss Guard: *{sgl_status}*\n"
+        f"  close ที่ขาดทุน >${_sgl_thr:.0f} → นับเป็น SL hit ด้วย\n"
         f"Combined Guard: *{sgc_status}*\n"
         f"  SL จาก TF ไหนก็ได้ ครบ Nx → block ทุก TF ใน group จนเจอ Swing ของแต่ละ TF"
     )

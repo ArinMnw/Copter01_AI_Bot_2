@@ -329,11 +329,11 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
         await tg(app, f"❌ [{tf_name}] S13 ไม่มี TP levels")
         return False
 
-    # ── Triple Scale-Out (TSO) สำหรับ S13 — Dynamic effective steps ─────────────
+    # ── Triple Scale-Out (TSO) สำหรับ S13 — เสมอ 4 orders ──────────────────────
     # คำนวณ effective steps จาก TP เดิม (max TP ของ S13 = tp_levels[-1])
-    # สร้าง orders 1-4 ชุดตามจำนวน effective steps
-    # ตัวอย่าง: TP เดิม 1200pt → 4 orders (300, 700, 1000, 1200pt)
-    #          TP เดิม 500pt  → 2 orders (300, 500pt)
+    # สร้าง 4 orders เสมอ TPs = [min(200,TP), min(300,TP), min(600,TP), TP]
+    # ตัวอย่าง: TP 1200pt → 4 orders [200, 300, 600, 1200]pt
+    #          TP 500pt  → 4 orders [200, 300, 500, 500]pt
     tso_applied = False
     tso_distances_for_market = None
     if config.SCALE_OUT_ENABLED:

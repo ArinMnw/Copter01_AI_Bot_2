@@ -496,6 +496,12 @@ SL_GUARD_ENABLED    = True
 SL_GUARD_COUNT      = 2    # จำนวน SL hits ที่ trigger guard
 SL_GUARD_NEAR_POINTS = 200  # ระยะ (points) ที่ถือว่า "ใกล้" pending order
 
+# ── SL Guard Loss ────────────────────────────────────────────
+# นับ close ที่ขาดทุนเกิน threshold ว่าเป็น "SL hit" ด้วย (ไม่ว่าจะปิดด้วยเหตุใด)
+# เช่น manual close / bot close ที่ profit < -5$ → นับ +1 เหมือน SL hit
+SL_GUARD_LOSS_ENABLED   = True
+SL_GUARD_LOSS_THRESHOLD = 5.0   # USD — ขาดทุนเกินนี้ถึงนับ
+
 # ── SL Guard Combined TF ──────────────────────────────────────
 # นับ SL รวมข้าม TF ใน group เดียวกัน
 # เมื่อ count รวม ≥ threshold → ล็อกทุก TF ใน group
@@ -657,17 +663,19 @@ STATE_FILE = "bot_state.json"
 # ── Triple Scale-Out (TSO) — Config ───────────────────────────
 # เปิด/ปิด ผ่านปุ่ม Telegram (📈 Scale-Out 4X)
 # เมื่อ ON:
-#   - Pending/Limit order ใหม่ ใช้ volume × SCALE_OUT_MULTIPLIER (0.01 × 4 = 0.04)
-#   - effective steps = SCALE_OUT_TP_POINTS + TP_orig (ทั่วไป 4 ขั้น)
-#   - S10 ใช้ logic แยก: [300, 700, TP/2, TP_orig] (4 ขั้น)
+#   - Pending/Limit order ใหม่ ใช้ volume × SCALE_OUT_MULTIPLIER (0.01 × 4 = 0.04) เสมอ
+#   - effective steps เสมอ 4 ขั้น
+#   - ทั่วไป:  [min(200pt,TP), min(300pt,TP), min(600pt,TP), TP]
+#   - S10:    [min(200pt,TP), min(300pt,TP), TP/2, TP]
+#   - S13:    สร้าง 4 orders แยก (ไม่ partial-close) — ไม่ลบตอน toggle OFF
 #   - เมื่อราคาผ่าน entry ไปครบ step จะปิด lot ทีละ SCALE_OUT_TP_LOT
 # เมื่อ OFF:
-#   - Position ที่เปิดอยู่: ปิดทั้งหมด
-#   - Pending ที่ยังไม่ fill: ยกเลิก + สร้างใหม่ด้วย lot เดิม
+#   - Position ที่เปิดอยู่ (non-S13): ปิดทั้งหมด
+#   - Pending ที่ยังไม่ fill (non-S13): ยกเลิก + สร้างใหม่ด้วย lot เดิม
 SCALE_OUT_ENABLED       = True                    # default ON
-SCALE_OUT_MULTIPLIER    = 4                       # ×4 lot
-SCALE_OUT_TP_POINTS     = [300, 700, 1000]        # ทั่วไป: 3 base + TP_orig = 4 steps
-S10_SCALE_OUT_TP_POINTS = [300, 700]              # S10: 2 base + TP/2 + TP_orig = 4 steps
+SCALE_OUT_MULTIPLIER    = 4                       # ×4 lot เสมอ
+SCALE_OUT_TP_POINTS     = [200, 300, 600]         # ทั่วไป: base steps (pt) ก่อน cap ด้วย TP
+S10_SCALE_OUT_TP_POINTS = [200, 300]              # S10: base steps (pt) ก่อน TP/2 และ TP
 SCALE_OUT_TP_LOT        = 0.04                    # lot per step
 
 
@@ -693,13 +701,21 @@ def scale_out_tp_distances() -> list:
 
 def compute_tso_effective_steps(tp_orig_dist: float, sid="") -> list:
     """
-    คำนวณ effective TP steps (หน่วยราคา) สำหรับ TSO ตาม TP เดิมของ order
-    Logic:
-      - sid=10: candidates = S10_SCALE_OUT_TP_POINTS + [TP/2] → + TP_orig (4 ขั้น)
-      - sid อื่น: candidates = SCALE_OUT_TP_POINTS → + TP_orig (4 ขั้น)
-      - filter เฉพาะ steps < TP_orig, sort ascending, dedup
-      - ถ้า TP เดิม < ขั้นแรก → ใช้ขั้นแรก step เดียว (override TP)
-    Return: list of step distances (price units), ascending
+    คำนวณ effective TP steps (หน่วยราคา) สำหรับ TSO — เสมอ 4 steps
+
+    ทั่วไป (non-S10):  [min(200pt,TP), min(300pt,TP), min(600pt,TP), TP]
+      TP 100pt → [100, 100, 100, 100]
+      TP 500pt → [200, 300, 500, 500]
+      TP 800pt → [200, 300, 600, 800]
+      TP 1200pt → [200, 300, 600, 1200]
+
+    S10:               [min(200pt,TP), min(300pt,TP), TP/2, TP]
+      TP 100pt → [100, 100,  50, 100]
+      TP 500pt → [200, 300, 250, 500]
+      TP 800pt → [200, 300, 400, 800]
+      TP 1200pt → [200, 300, 600, 1200]
+
+    Return: list ของ 4 step distances (price units)
     """
     try:
         info = mt5.symbol_info(SYMBOL)
@@ -711,31 +727,22 @@ def compute_tso_effective_steps(tp_orig_dist: float, sid="") -> list:
     if tp_orig_dist <= 0:
         return []
 
-    # ── เลือก base candidates ตาม sid ──
+    p200 = 200.0 * point * scale
+    p300 = 300.0 * point * scale
+    p600 = 600.0 * point * scale
+
     if str(sid) == "10":
-        base_pts = list(S10_SCALE_OUT_TP_POINTS)
-        fixed_steps = [float(pts) * point * scale for pts in base_pts]
-        candidates = list(fixed_steps) + [tp_orig_dist / 2.0]   # + half of TP
+        s1 = min(p200, tp_orig_dist)
+        s2 = min(p300, tp_orig_dist)
+        s3 = tp_orig_dist / 2.0
+        s4 = tp_orig_dist
     else:
-        fixed_steps = [float(pts) * point * scale for pts in SCALE_OUT_TP_POINTS]
-        candidates = list(fixed_steps)
+        s1 = min(p200, tp_orig_dist)
+        s2 = min(p300, tp_orig_dist)
+        s3 = min(p600, tp_orig_dist)
+        s4 = tp_orig_dist
 
-    # ── ถ้า TP เดิม < step ที่เล็กที่สุดของ fixed → ใช้ step นั้น step เดียว (override TP) ──
-    tp1 = min(fixed_steps) if fixed_steps else 0.0
-    if tp_orig_dist < tp1:
-        return [tp1]
-
-    # ── filter steps ที่ < TP_orig (within tolerance), sort, dedup ──
-    tol = point * scale * 0.5   # tolerance ครึ่ง point
-    valid = sorted(s for s in candidates if s < tp_orig_dist - tol)
-    unique = []
-    for s in valid:
-        if not unique or abs(s - unique[-1]) > tol:
-            unique.append(s)
-
-    # ── append TP_orig เป็น step สุดท้าย ──
-    unique.append(tp_orig_dist)
-    return unique
+    return [s1, s2, s3, s4]
 
 
 _RUNTIME_DEFAULTS = {
@@ -985,6 +992,8 @@ def save_runtime_state():
             "sl_guard_enabled": SL_GUARD_ENABLED,
             "sl_guard_count": SL_GUARD_COUNT,
             "sl_guard_near_points": SL_GUARD_NEAR_POINTS,
+            "sl_guard_loss_enabled": SL_GUARD_LOSS_ENABLED,
+            "sl_guard_loss_threshold": SL_GUARD_LOSS_THRESHOLD,
             "sl_guard_combined_enabled": SL_GUARD_COMBINED_ENABLED,
             "sl_guard_combined_count": SL_GUARD_COMBINED_COUNT,
             "sl_guard_combined_tfs": list(SL_GUARD_COMBINED_TFS),
@@ -1244,6 +1253,7 @@ def restore_runtime_state():
         FVG_PARALLEL = bool(state.get("fvg_parallel", FVG_PARALLEL))
 
         global SL_GUARD_ENABLED, SL_GUARD_COUNT, SL_GUARD_NEAR_POINTS
+        global SL_GUARD_LOSS_ENABLED, SL_GUARD_LOSS_THRESHOLD
         global SL_GUARD_COMBINED_ENABLED, SL_GUARD_COMBINED_COUNT, SL_GUARD_COMBINED_TFS
         SL_GUARD_ENABLED = bool(state.get("sl_guard_enabled", SL_GUARD_ENABLED))
         saved_sg_cnt = state.get("sl_guard_count")
@@ -1252,6 +1262,10 @@ def restore_runtime_state():
         saved_sg_pts = state.get("sl_guard_near_points")
         if saved_sg_pts is not None:
             SL_GUARD_NEAR_POINTS = max(0, int(saved_sg_pts))
+        SL_GUARD_LOSS_ENABLED = bool(state.get("sl_guard_loss_enabled", SL_GUARD_LOSS_ENABLED))
+        saved_sg_loss_thr = state.get("sl_guard_loss_threshold")
+        if saved_sg_loss_thr is not None:
+            SL_GUARD_LOSS_THRESHOLD = max(0.0, float(saved_sg_loss_thr))
         SL_GUARD_COMBINED_ENABLED = bool(state.get("sl_guard_combined_enabled", SL_GUARD_COMBINED_ENABLED))
         saved_sgc_cnt = state.get("sl_guard_combined_count")
         if saved_sgc_cnt is not None:

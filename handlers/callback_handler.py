@@ -928,6 +928,19 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"SL Guard Near: {pts}pt")
 
+    elif data == "toggle_sl_guard_loss":
+        config.SL_GUARD_LOSS_ENABLED = not getattr(config, "SL_GUARD_LOSS_ENABLED", True)
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Loss Guard: {'ON' if config.SL_GUARD_LOSS_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_sl_guard_loss_thr_"):
+        thr = float(data.replace("set_sl_guard_loss_thr_", ""))
+        config.SL_GUARD_LOSS_THRESHOLD = thr
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Loss Guard Threshold: ${thr:.0f}")
+
     elif data == "toggle_sl_guard_combined":
         config.SL_GUARD_COMBINED_ENABLED = not config.SL_GUARD_COMBINED_ENABLED
         save_runtime_state()

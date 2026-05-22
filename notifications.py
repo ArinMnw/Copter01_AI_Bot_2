@@ -155,8 +155,42 @@ async def check_sl_tp_hits(app):
                 except Exception:
                     pass
 
+            # SL Guard Loss: นับ close ที่ขาดทุนเกิน threshold (ไม่ใช่ SL hit ปกติ)
+            _sg_loss_ok = (
+                close_type != "🛑 SL Hit"
+                and getattr(_config, "SL_GUARD_LOSS_ENABLED", False)
+                and profit < -float(getattr(_config, "SL_GUARD_LOSS_THRESHOLD", 5.0))
+                and tf_label
+            )
+            if _sg_loss_ok and _config.SL_GUARD_ENABLED:
+                try:
+                    from trailing import _sl_guard_record_sl
+                    _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
+                    if _just_activated and not _sl_guard_extra_msg:
+                        _guard_side = p_info.get("type", "")
+                        _sl_guard_extra_msg = (
+                            f"🛡️ *SL Guard เปิดใช้งาน*\n"
+                            f"━━━━━━━━━━━━━━━━━\n"
+                            f"📊 TF: {tf_label} | {_guard_side}\n"
+                            f"⚠️ ขาดทุน >{_config.SL_GUARD_LOSS_THRESHOLD:.0f}$ ครบ {_config.SL_GUARD_COUNT}x — บล็อก {_guard_side} LIMIT ใหม่\n"
+                            f"⏳ รอ Swing {'Low' if _guard_side=='BUY' else 'High'} ใหม่เกิดก่อน\n"
+                            f"🔔 Ticket: `{ticket}`"
+                        )
+                except Exception:
+                    pass
+
             # SL Guard Combined: track SL hits across TFs
             if close_type == "🛑 SL Hit" and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
+                try:
+                    from trailing import _combined_guard_record_sl
+                    _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
+                    if _cg_act_msg and not _sl_guard_extra_msg:
+                        _sl_guard_extra_msg = _cg_act_msg
+                except Exception:
+                    pass
+
+            # SL Guard Combined: นับ loss close ด้วย
+            if _sg_loss_ok and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False):
                 try:
                     from trailing import _combined_guard_record_sl
                     _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))

@@ -905,8 +905,9 @@ def _tso_close_partial(pos, pos_type: str, volume: float, reason: str) -> bool:
 
 async def check_scale_out_partial(app):
     """
-    ทยอยปิด lot ตาม TSO levels:
-    XAU: 300/700/1000 pt | BTC: ×4 อัตโนมัติ
+    ทยอยปิด lot ตาม TSO levels (เสมอ 4 steps × 0.01 = 0.04 lot):
+    ทั่วไป: [min(200,TP), min(300,TP), min(600,TP), TP] pt
+    S10:    [min(200,TP), min(300,TP), TP/2, TP] pt
     เมื่อปิดครบ step จะลบ ticket ออกจาก scale_out_state
     """
     if not config.scale_out_state:
@@ -1050,9 +1051,10 @@ async def check_scale_out_partial(app):
 
 def scale_out_cleanup_on_disable() -> dict:
     """
-    เรียกตอน toggle Scale-Out 3X จาก ON → OFF:
-    - Position ที่ลงทะเบียน TSO: ปิดทั้งหมด
-    - Pending ที่ลงทะเบียน TSO: ยกเลิก + สร้างใหม่ด้วย lot เดิม (base_volume)
+    เรียกตอน toggle Scale-Out จาก ON → OFF:
+    - Position ที่ลงทะเบียน TSO (non-S13): ปิดทั้งหมด
+    - Pending ที่ลงทะเบียน TSO (non-S13): ยกเลิก + สร้างใหม่ด้วย lot เดิม (base_volume)
+    - S13 orders: ไม่ถูกยุ่ง (ไม่อยู่ใน scale_out_state)
     Return summary dict
     """
     closed = 0

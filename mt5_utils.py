@@ -6,15 +6,15 @@ from config import *
 def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
                               entry: float = 0.0, tp: float = 0.0) -> tuple:
     """
-    คำนวณ TSO scaled volume ตาม TP เดิมของ order (dynamic steps)
+    คำนวณ TSO scaled volume — เสมอ base × 4 (เมื่อ TP valid)
     Return: (scaled_volume, effective_steps_list)
-      - effective_steps_list = list of step distances (หน่วยราคา) — empty ถ้าไม่ scale
+      - effective_steps_list = 4 step distances (หน่วยราคา) — empty ถ้าไม่ scale
 
     Logic:
-      - skip S13 (มี logic แยก)
+      - skip S13 (มี logic แยก — สร้าง 4 orders แยก)
       - skip ถ้า TSO disabled หรือ TP/entry invalid
-      - คำนวณ tp_orig_dist + effective_steps จาก config.compute_tso_effective_steps
-      - scaled_volume = len(effective_steps) × base_volume
+      - คำนวณ effective_steps (เสมอ 4 steps) จาก config.compute_tso_effective_steps
+      - scaled_volume = 4 × base_volume
     """
     try:
         if str(sid) == "13":
