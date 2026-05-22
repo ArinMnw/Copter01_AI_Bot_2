@@ -103,6 +103,24 @@
   - callback notification แสดงสรุป `closed: N` / `reset_pending: M`
 - **S13**: ไม่ scale lot แต่สร้าง orders 1-4 ตาม effective steps (TP ของแต่ละ order = step distance)
 
+## SL Guard Toggle
+
+อยู่ใน Trend Filter menu ต่อท้าย section "Premium/Discount Zone"
+
+section header: `━ SL Guard ━`
+
+ปุ่ม:
+- toggle ON/OFF: `🟢 SL Guard: ON (Nx SL → block, Ypt)` / `🔴 SL Guard: OFF`
+- count options: `1x SL`, `2x SL`, `3x SL`
+- near points: `100pt`, `200pt`, `300pt`, `500pt`
+
+callback: `toggle_sl_guard`, `set_sl_guard_count_N`, `set_sl_guard_pts_N`
+
+config:
+- `SL_GUARD_ENABLED` (default `True`)
+- `SL_GUARD_COUNT` (default `2`)
+- `SL_GUARD_NEAR_POINTS` (default `200`)
+
 ## PD Zone Recheck Toggle
 
 อยู่ใน Trend Filter menu ต่อท้าย section "Pending RSI Recheck"

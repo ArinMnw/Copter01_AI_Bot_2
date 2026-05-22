@@ -12,8 +12,8 @@
 ## Persona
 
 - ผู้ช่วยใน repo นี้คือ "อลิซ"
-- ให้พูดกับผู้ใช้แบบผู้หญิง
-- ให้เรียกผู้ใช้ว่า "พี่"
+- ให้พูดกับผู้ใช้แบบผู้หญิง ใช้คำลงท้ายว่า "ค่ะ" / "นะคะ"
+- ให้เรียกผู้ใช้ว่า "พี่" — ห้ามเรียก "พี่ชาย" เด็ดขาด
 - โทนการคุยควรสุภาพ กระชับ และร่วมมือกันทำงาน
 
 ## กติกาเรื่อง Encoding
@@ -39,6 +39,17 @@
 - ไม่มี build step
 - จุดเริ่มต้นหลักคือ `main.py`
 - dependency สำคัญคือ `MetaTrader5`, `python-telegram-bot`, `apscheduler`
+
+## ⚠️ MT5 Timezone — สำคัญมาก อย่าลืม
+
+- Broker: **IUXMarkets** ใช้ server timezone **UTC+1** (`MT5_SERVER_TZ = 1`)
+- Bot log และ display ใช้ **Bangkok UTC+7** (`TZ_OFFSET = 7`)
+- การแปลง MT5 bar timestamp → BKK: `+ timedelta(hours = TZ_OFFSET - MT5_SERVER_TZ)` = **+6 ชั่วโมง** (ไม่ใช่ +7)
+- ฟังก์ชันหลัก: `mt5_ts_to_bkk(ts)` ใน `config.py` บรรทัด 46
+- ถ้าดึง candle ด้วย `copy_rates_range` ให้ใช้ **UTC+1 raw** เป็น query time เสมอ
+  - ตัวอย่าง: ต้องการ 14:52 BKK → fetch `datetime(2026, ..., 8, 52, 0, tzinfo=timezone.utc)`
+  - แล้ว display ด้วย `+ timedelta(hours=6)`
+- ถ้าเผลอบวก +7 จะได้เวลาเร็วกว่าจริง 1 ชั่วโมง (ข้อมูลผิด!)
 
 ## วิธีรัน
 
@@ -122,6 +133,11 @@ Keep the answer short and make the fix directly.
 - `LIMIT_GUARD`
 - `LIMIT_SWEEP`
 - `PD_ZONE_CHECK_ENABLED` (default `True`) — gate สำหรับ PD Zone Recheck ใน `trailing.py`, persist ใน `bot_state.json` key `pd_zone_check_enabled`
+- `CANCEL_NEXT_BAR_BODY_ENABLED` (default `False`) — ยกเลิก limit ถ้าแท่งถัดจาก detect ปิดสวนทาง body ≥35%
+- `PENDING_RSI_RECHECK_ENABLED` (default `False`) — เช็ค RSI หลัง fill ก่อนปล่อยให้ position ทำงาน
+- `SL_GUARD_ENABLED` (default `True`) — guard ป้องกัน BUY/SELL LIMIT ใหม่ หลัง SL hit ครบ N ครั้งใน TF นั้น
+- `SL_GUARD_COUNT` (default `2`) — จำนวน SL hit ที่ trigger guard
+- `SL_GUARD_NEAR_POINTS` (default `200`) — ยกเลิก pending ที่ราคาเข้าใกล้ entry ≤ N pt ขณะ guard active
 
 หมายเหตุ:
 
@@ -166,6 +182,7 @@ state เพิ่มเติมใน `trailing.py`:
 
 - `_pd_zone_state: dict` — per-ticket state ของ PD Zone Recheck (round, results, tf, signal)
 - `_triple_check_state: dict` — per-ticket state ของ Triple Recheck เก็บ `{rsi, trend, pd, tf, signal}` แต่ละตัวเป็น `None|True|False`
+- `_sl_guard_state: dict` — keyed by `(tf, side)` เก็บ `{count, active, blocked_since_bar, swing_ref, blocked_signals, retry_signals}`
 
 ข้อควรระวัง:
 
@@ -246,6 +263,8 @@ mode ที่รองรับ:
 
 - ฟังก์ชัน: `_pd_zone_process(ticket, app)` ใน `trailing.py`
 - gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
+- **Skip:** S9 เท่านั้น (S1, S11 ไม่ skip แล้วตั้งแต่ 2026-05-21)
+- **S2 PD Zone Special:** ถ้า entry (98%) อยู่เหนือ EQ แต่ gap 50% mark อยู่ใต้ EQ → ผ่าน + ปรับ entry จาก 98% → 50% mark
 - Return `(status: str, tg_msgs: list)` — status เป็น `"pass"` / `"fail"` / `"wait"`
 - state: `_pd_zone_state: dict` (module-level ใน `trailing.py`)
 
@@ -303,6 +322,24 @@ mode ที่รองรับ:
 - `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED` เป็น top-level toggle แยกจาก submenu อื่น
 - ถ้าเปิดอยู่ ระบบจะยอมให้ trail ผ่าน `Focus Opposite` ได้เมื่อแท่งล่าสุดบน TF ของ order เป็น reversal ฝั่งตรงข้าม
 - feature นี้ไม่ใช้กับท่า standalone (`S12`, `S13`) และ `S10`
+
+### SL Guard
+
+- gate: `config.SL_GUARD_ENABLED` (default `True`)
+- เมื่อ BUY/SELL โดน SL ครบ `SL_GUARD_COUNT` (default 2) ครั้งใน TF นั้น → guard active
+- **Guard active:**
+  - บล็อก BUY/SELL LIMIT ใหม่ใน TF+side นั้น (scanner.py)
+  - ยกเลิก pending ที่ราคาเข้าใกล้ entry ≤ `SL_GUARD_NEAR_POINTS` (200pt) (check_cancel_pending_orders)
+  - เก็บ signal ที่ถูก block ไว้ใน `blocked_signals`
+- **Guard deactivate:** เมื่อ swing Low ใหม่เกิด (BUY guard) หรือ swing High ใหม่เกิด (SELL guard) หลัง block
+- **หลัง deactivate:** re-place blocked signals ทันที ผ่าน `_sl_guard_place_retries()` ใน scanner.py
+  - validate: entry ยังไม่ถูก fill (ราคาไม่ผ่าน entry), SL ไม่ถูก breach
+  - หลัง retry: count reset เป็น 0, scan กลับปกติ
+- **BUY guard ไม่กระทบ SELL** และกลับกัน (state แยกตาม key `(tf, side)`)
+- **State แยกตาม TF:** M1 BUY guard ≠ M5 BUY guard
+- Telegram แจ้ง "🛡️ SL Guard เปิดใช้งาน" เมื่อ activate, "🛡️ Re-place Order" เมื่อ retry
+- helper ใน `trailing.py`: `_sl_guard_record_sl()`, `_sl_guard_check_unblock()`, `_sl_guard_get_retry_signals()`
+- Telegram toggle: Settings → Trend Filter → SL Guard (toggle + count + pts)
 
 ### Limit Guard
 

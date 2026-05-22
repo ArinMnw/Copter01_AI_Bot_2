@@ -175,6 +175,14 @@ SELL:
 - ระบบจะส่งเป็น `WAIT` แล้วเก็บ `marubozu_pending`
 - รอแท่งถัดไป confirm ตามทิศเดิมก่อน
 
+### No-Engulf Pending
+
+- ถ้าแท่ง `[0]` ถูกทิศ (เขียว/แดง) แต่ **ยังไม่กลืนกิน** High/Low ของ `[1]`
+- ระบบจะส่งเป็น `WAIT` แล้วเก็บ `marubozu_pending` พร้อม `source="noengulf"`
+- รอแท่งถัดไปปิดถูกทิศและกลืน `[1]` → indices เลื่อน: `[3][2][1][0]` กลายเป็น setup ใหม่
+- BUY: รอแท่งถัดไปปิดเขียว | SELL: รอแท่งถัดไปปิดแดง
+- ใช้ handler เดียวกับ `check_s3_maru_pending()` ใน `scanner.py`
+
 ## ท่าที่ 4: นัยยะสำคัญ FVG
 
 ไฟล์หลัก: `strategy4.py`

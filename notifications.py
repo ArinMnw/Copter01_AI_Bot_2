@@ -95,6 +95,7 @@ async def check_sl_tp_hits(app):
         result_msg = ""
         profit     = 0.0
         close_type = "ปิด"
+        _sl_guard_extra_msg = ""
         if deals:
             # deal สุดท้าย = ปิด position
             close_deal = sorted(deals, key=lambda d: d.time)[-1]
@@ -134,6 +135,56 @@ async def check_sl_tp_hits(app):
                             close_type = "🎯 TP Hit"
 
             tf_label, sid_label, pat_label, trend_filter = _get_tracked_meta(ticket, p_info, deals)
+
+            # SL Guard: track SL hits per (tf, side)
+            _sl_guard_extra_msg = ""
+            if close_type == "🛑 SL Hit" and _config.SL_GUARD_ENABLED and tf_label:
+                try:
+                    from trailing import _sl_guard_record_sl
+                    _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
+                    if _just_activated:
+                        _guard_side = p_info.get("type", "")
+                        _sl_guard_extra_msg = (
+                            f"🛡️ *SL Guard เปิดใช้งาน*\n"
+                            f"━━━━━━━━━━━━━━━━━\n"
+                            f"📊 TF: {tf_label} | {_guard_side}\n"
+                            f"⚠️ SL hit ครบ {_config.SL_GUARD_COUNT}x — บล็อก {_guard_side} LIMIT ใหม่\n"
+                            f"⏳ รอ Swing {'Low' if _guard_side=='BUY' else 'High'} ใหม่เกิดก่อน\n"
+                            f"🔔 Ticket: `{ticket}`"
+                        )
+                except Exception:
+                    pass
+
+            # SL Guard Combined: track SL hits across TFs
+            if close_type == "🛑 SL Hit" and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
+                try:
+                    from trailing import _combined_guard_record_sl
+                    _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
+                    if _cg_act_msg and not _sl_guard_extra_msg:
+                        _sl_guard_extra_msg = _cg_act_msg
+                except Exception:
+                    pass
+
+            # SL Guard: reset ทันทีเมื่อ TP hit ใน TF/side เดียวกัน
+            if close_type == "🎯 TP Hit" and _config.SL_GUARD_ENABLED and tf_label:
+                try:
+                    from trailing import _sl_guard_reset_on_tp
+                    _reset_msg = _sl_guard_reset_on_tp(tf_label, p_info.get("type", ""))
+                    if _reset_msg:
+                        _sl_guard_extra_msg = _reset_msg
+                except Exception:
+                    pass
+
+            # SL Guard Combined: reset TF นี้ทันทีเมื่อ TP hit
+            if close_type == "🎯 TP Hit" and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
+                try:
+                    from trailing import _combined_guard_reset_on_tp
+                    _cg_reset_msg = _combined_guard_reset_on_tp(tf_label, p_info.get("type", ""))
+                    if _cg_reset_msg and not _sl_guard_extra_msg:
+                        _sl_guard_extra_msg = _cg_reset_msg
+                except Exception:
+                    pass
+
             strat_txt = STRATEGY_NAMES.get(sid_label, "") if sid_label else ""
             info_line = ""
             if tf_label or strat_txt or pat_label:
@@ -193,6 +244,17 @@ async def check_sl_tp_hits(app):
                 await app.bot.send_message(
                     chat_id=MY_USER_ID,
                     text=result_msg,
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+
+        # SL Guard extra notification (sent after close message)
+        if _sl_guard_extra_msg:
+            try:
+                await app.bot.send_message(
+                    chat_id=MY_USER_ID,
+                    text=_sl_guard_extra_msg,
                     parse_mode="Markdown"
                 )
             except Exception:

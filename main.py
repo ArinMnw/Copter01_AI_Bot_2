@@ -167,8 +167,10 @@ def main():
             )
         return bool(closed_positions or canceled_orders)
 
-    async def check_symbol_switch():
-        """ตรวจตลาด XAUUSD — ถ้าปิดสลับไป BTCUSD ถ้าเปิดสลับกลับ"""
+    async def check_symbol_switch(startup: bool = False):
+        """ตรวจตลาด XAUUSD — ถ้าปิดสลับไป BTCUSD ถ้าเปิดสลับกลับ
+        startup=True → บังคับ set_runtime_symbol ทุกครั้งเพื่ออัปเดต module และ TG startup message
+        """
         import config
         from mt5_utils import connect_mt5
         if not connect_mt5():
@@ -196,17 +198,22 @@ def main():
         except Exception as e:
             print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ check_symbol_switch error: {e}")
             return
-        if xau_open and config.SYMBOL != "XAUUSD.iux":
-            if config.SYMBOL == "BTCUSD.iux":
-                await _close_btc_exposure_before_xau_switch()
-            set_runtime_symbol("XAUUSD.iux")
-            save_runtime_state()
-            await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux")
-            print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับกลับ XAUUSD.iux")
-            if auto_active:
-                await tg(app, "⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `XAUUSD.iux`")
-                print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> XAUUSD.iux")
-                await auto_scan(app)
+        if xau_open:
+            if config.SYMBOL != "XAUUSD.iux":
+                if config.SYMBOL == "BTCUSD.iux":
+                    await _close_btc_exposure_before_xau_switch()
+                set_runtime_symbol("XAUUSD.iux")
+                save_runtime_state()
+                await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux")
+                print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับกลับ XAUUSD.iux")
+                if auto_active:
+                    await tg(app, "⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `XAUUSD.iux`")
+                    print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> XAUUSD.iux")
+                    await auto_scan(app)
+            elif startup:
+                # ตอน start: SYMBOL เป็น XAUUSD อยู่แล้ว → force setattr ให้ทุก module + ไม่ส่ง TG ซ้ำ
+                set_runtime_symbol("XAUUSD.iux")
+                print(f"[{now_bkk().strftime('%H:%M:%S')}] ✅ startup: XAUUSD.iux เปิดอยู่ (ไม่ต้องสลับ)")
         elif not xau_open and config.SYMBOL != "BTCUSD.iux":
             set_runtime_symbol("BTCUSD.iux")
             save_runtime_state()
@@ -347,7 +354,8 @@ def main():
         from mt5_utils import connect_mt5
         now = now_bkk().strftime("%H:%M:%S")
         if connect_mt5():
-            await check_symbol_switch()
+            import config as _cfg
+            await check_symbol_switch(startup=True)
             restore_info = restore_runtime_state()
             info = mt5.account_info()
             acc_txt = f"Account: {info.login} | Balance: {info.balance:.2f}" if info else ""
@@ -359,7 +367,7 @@ def main():
                 f"━━━━━━━━━━━━━━━━━\n"
                 f"🤖 Bot เริ่มทำงาน\n"
                 + (f"💰 Account: `{info.login}`\n📊 Balance: `{info.balance:.2f}`\n" if info else "")
-                + f"📈 SYMBOL: `{SYMBOL}`\n"
+                + f"📈 SYMBOL: `{_cfg.SYMBOL}`\n"
                 + f"⏰ Scan ทุก 5 วินาที\n"
                 + f"🕒 Time Mode: `MT5->BKK +{mt5_to_bkk_hours}`\n"
                 + f"🕒 MT5 Server: `UTC+{MT5_SERVER_TZ}`\n"

@@ -441,6 +441,42 @@ log events: `TRIPLE_RECHECK` + `CANCEL` หรือ `KEEP`
 - PD Zone: cancel/close ทันทีถ้า fail
 - RSI Fill Recheck: close position ทันทีถ้าไม่ผ่าน
 
+## SL Guard
+
+gate: `config.SL_GUARD_ENABLED` (default `True`)
+
+แนวคิด:
+- ป้องกันการเข้า order ฝั่งเดิมซ้ำหลังจากโดน SL หลายครั้ง
+- แยก state ตาม `(tf, side)` — BUY guard ไม่กระทบ SELL และกลับกัน
+
+### Flow การทำงาน
+
+1. `notifications.py` detect SL hit → เรียก `_sl_guard_record_sl(tf, side)`
+2. เมื่อ `count >= SL_GUARD_COUNT` → guard active
+3. **Guard active:**
+   - `scanner.py`: block BUY/SELL LIMIT ใหม่ + เก็บ signal ไว้ใน `blocked_signals`
+   - `check_cancel_pending_orders()`: ยกเลิก pending ที่ราคาเข้าใกล้ ≤ `SL_GUARD_NEAR_POINTS` pt
+4. **Unblock:** `_sl_guard_check_unblock()` เช็คทุก cycle — ถ้า swing Low ใหม่เกิด (BUY) หรือ swing High ใหม่เกิด (SELL) หลัง block → deactivate
+5. **หลัง deactivate:** `_sl_guard_place_retries()` ใน `scan_one_tf` re-place blocked signals ทันที
+   - validate entry ยังไม่ผ่านตลาด, SL ไม่ถูก breach
+   - count reset เป็น 0
+
+### State
+
+- `_sl_guard_state[(tf, side)]`:
+  - `count`: จำนวน SL hits สะสม
+  - `active`: guard เปิดอยู่หรือเปล่า
+  - `blocked_since_bar`: unix timestamp ตอน activate
+  - `swing_ref`: swing low/high ณ เวลา activate (ใช้ตรวจ unblock)
+  - `blocked_signals`: list ของ signals ที่ถูก block ระหว่าง active
+  - `retry_signals`: พร้อม re-place (หลัง deactivate)
+
+### Telegram
+
+- Activate → "🛡️ SL Guard เปิดใช้งาน"
+- Re-place → "🛡️ SL Guard: Re-place Order"
+- Toggle ผ่าน Settings → Trend Filter → SL Guard
+
 ## Limit Guard
 
 อยู่ใน flow ของ `check_cancel_pending_orders()`

@@ -106,6 +106,8 @@ def strategy_1(rates, tf=""):
     sl_z = ms["swing_low"]
     atr  = ms["atr"]
     buf  = atr * ZONE_BUFFER
+    zone_low_2  = min(l0, l1)
+    zone_high_2 = max(h0, h1)
     zone_low_3 = min(l0, l1, l2)
     zone_high_3 = max(h0, h1, h2)
     if has_c3:
@@ -163,6 +165,66 @@ def strategy_1(rates, tf=""):
                         "Bot \u0e08\u0e30\u0e15\u0e23\u0e27\u0e08\u0e43\u0e2b\u0e21\u0e48\u0e23\u0e2d\u0e1a\u0e16\u0e31\u0e14\u0e44\u0e1b\u0e2d\u0e31\u0e15\u0e42\u0e19\u0e21\u0e31\u0e15\u0e34"
                     )
                 }
+
+    # ══════════════════════════════════════════════
+    #  BUY Pattern F — 2 แท่ง กลืนกิน (อิสระ)
+    #  [1] แดง → [0] เขียว close > h[1]
+    #  Entry = open[1] | SL = min(l0,l1) - SL_BUFFER
+    # ══════════════════════════════════════════════
+    if not bull1 and bull0:
+        c0_engulf = bull_engulf(cl0, h1)
+        zone      = (not use_zone) or (zone_low_2 <= sl_z + buf)
+        if c0_engulf and zone:
+            entry    = o1
+            lowest   = min(l0, l1)
+            sl       = round(lowest - SL_BUFFER(), 2)
+            tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
+            tp       = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
+            tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
+            return _attach_s1_zone_meta({
+                "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
+                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern F 2 แท่งกลืนกิน",
+                "cancel_bars": 1,
+                "reason": (
+                    f"✅ แท่ง[1] แดง Open:{o1:.2f}\n"
+                    f"✅ แท่ง[0] เขียวกลืน Close:{cl0:.2f} > High[1]:{h1:.2f}\n"
+                    f"✅ ใกล้ Swing Low:{sl_z:.2f}\n"
+                    f"📌 Entry open[1]:{entry} | SL Low ต่ำสุด-SL_BUFFER\n"
+                    f"🎯 TP: {tp_note}"
+                ),
+                "candles": [rates[-2], rates[-1]],
+                "swing_high": sh, "swing_low": sl_z,
+            }, use_zone, "BUY", zone_low_2, sl_z, zone)
+
+    # ══════════════════════════════════════════════
+    #  SELL Pattern F — 2 แท่ง กลืนกิน (อิสระ)
+    #  [1] เขียว → [0] แดง close < l[1]
+    #  Entry = open[1] | SL = max(h0,h1) + SL_BUFFER
+    # ══════════════════════════════════════════════
+    if bull1 and not bull0:
+        c0_engulf = bear_engulf(cl0, l1)
+        zone      = (not use_zone) or (zone_high_2 >= sh - buf)
+        if c0_engulf and zone:
+            entry    = o1
+            highest  = max(h0, h1)
+            sl       = round(highest + SL_BUFFER(), 2)
+            tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
+            tp       = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
+            tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
+            return _attach_s1_zone_meta({
+                "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
+                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
+                "cancel_bars": 1,
+                "reason": (
+                    f"✅ แท่ง[1] เขียว Open:{o1:.2f}\n"
+                    f"✅ แท่ง[0] แดงกลืน Close:{cl0:.2f} < Low[1]:{l1:.2f}\n"
+                    f"✅ ใกล้ Swing High:{sh:.2f}\n"
+                    f"📌 Entry open[1]:{entry} | SL High สูงสุด+SL_BUFFER\n"
+                    f"🎯 TP: {tp_note}"
+                ),
+                "candles": [rates[-2], rates[-1]],
+                "swing_high": sh, "swing_low": sl_z,
+            }, use_zone, "SELL", zone_high_2, sh, zone)
 
     # ══════════════════════════════════════════════
     #  BUY Pattern A — กลืนกิน

@@ -30,7 +30,7 @@ def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
             tp_orig_dist = entry - tp
         if tp_orig_dist <= 0:
             return float(base_volume), []
-        effective_steps = config.compute_tso_effective_steps(tp_orig_dist)
+        effective_steps = config.compute_tso_effective_steps(tp_orig_dist, sid=sid)
         if not effective_steps:
             return float(base_volume), []
         scaled = round(float(base_volume) * len(effective_steps), 2)
@@ -101,15 +101,18 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
     sid_text = str(sid or "")
 
     if sid_text == "1":
+        # ตรวจ suffix หลัง "— Pattern ..." เพื่อไม่ให้ prefix "กลืนกิน/ตำหนิ/ย้อนโครงสร้าง" รบกวน
         if "กลืนกิน 2 แดง" in raw or "กลืนกิน 2 เขียว" in raw:
             return "P5"
-        if "PATTERN ใหม่ 4" in raw or "4 แท่ง" in raw:
+        if "Pattern ใหม่ 4" in raw or "4 แท่ง" in raw:
             return "P4"
-        if "ย้อนโครงสร้าง" in raw:
+        if "Pattern F" in raw or "2 แท่งกลืนกิน" in raw:
+            return "P6"
+        if "Pattern ย้อนโครงสร้าง" in raw:
             return "P3"
-        if "ตำหนิ" in raw:
+        if "Pattern ตำหนิ" in raw:
             return "P2"
-        if "กลืนกิน" in raw:
+        if "Pattern กลืนกิน" in raw:
             return "P1"
 
     if sid_text == "2":
