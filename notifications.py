@@ -233,6 +233,44 @@ async def check_sl_tp_hits(app):
                 except Exception:
                     pass
 
+            # SL Guard Group: SL Hit → บันทึก + ปิด position ทั้งหมดของ side ถ้า group activate
+            if close_type == "🛑 SL Hit" and getattr(_config, "SL_GUARD_GROUP_ENABLED", False) and tf_label:
+                try:
+                    from trailing import _group_guard_record_sl, _sl_guard_close_all_side_positions
+                    _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""))
+                    if _gg_msgs:
+                        _guard_side = p_info.get("type", "")
+                        _closed = _sl_guard_close_all_side_positions(_guard_side)
+                        _close_note = f"\n🚫 ปิด {_guard_side} positions: {', '.join(f'`{t}`' for t in _closed)}" if _closed else ""
+                        if not _sl_guard_extra_msg:
+                            _sl_guard_extra_msg = _gg_msgs[0] + _close_note
+                except Exception:
+                    pass
+
+            # SL Guard Group: Loss Guard → บันทึกเหมือน SL Hit
+            if _sg_loss_ok and getattr(_config, "SL_GUARD_GROUP_ENABLED", False):
+                try:
+                    from trailing import _group_guard_record_sl, _sl_guard_close_all_side_positions
+                    _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""))
+                    if _gg_msgs:
+                        _guard_side = p_info.get("type", "")
+                        _closed = _sl_guard_close_all_side_positions(_guard_side)
+                        _close_note = f"\n🚫 ปิด {_guard_side} positions: {', '.join(f'`{t}`' for t in _closed)}" if _closed else ""
+                        if not _sl_guard_extra_msg:
+                            _sl_guard_extra_msg = _gg_msgs[0] + _close_note
+                except Exception:
+                    pass
+
+            # SL Guard Group: TP hit → unblock TF นี้ออกจากทุก group
+            if close_type == "🎯 TP Hit" and getattr(_config, "SL_GUARD_GROUP_ENABLED", False) and tf_label:
+                try:
+                    from trailing import _group_guard_reset_on_tp
+                    _gg_reset_msg = _group_guard_reset_on_tp(tf_label, p_info.get("type", ""))
+                    if _gg_reset_msg and not _sl_guard_extra_msg:
+                        _sl_guard_extra_msg = _gg_reset_msg
+                except Exception:
+                    pass
+
             strat_txt = STRATEGY_NAMES.get(sid_label, "") if sid_label else ""
             info_line = ""
             if tf_label or strat_txt or pat_label:

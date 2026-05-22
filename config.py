@@ -532,6 +532,23 @@ SL_GUARD_COMBINED_ENABLED = True
 SL_GUARD_COMBINED_COUNT   = 2       # จำนวน SL รวม (จากทุก TF ใน group) ที่ trigger
 SL_GUARD_COMBINED_TFS: list = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
 
+# ── SL Guard Group ────────────────────────────────────────────
+# นับ SL ต่าม FVG Parallel Group structure (หลาย group อิสระ)
+# เมื่อ count รวมใน group ≥ threshold → ล็อกทุก TF ใน group นั้น
+# เมื่อ activate → ปิด position ทั้งหมดของ side นั้น (ไม่สน TF)
+# แต่ละ TF unblock อิสระเมื่อเจอ swing low/high ของตัวเอง
+SL_GUARD_GROUP_ENABLED = False
+SL_GUARD_GROUP_COUNT   = 2
+SL_GUARD_GROUP_GROUPS: list = [
+    ["H4",  "H12", "D1"],
+    ["H1",  "H4",  "H12"],
+    ["M30", "H1",  "H4"],
+    ["M15", "M30", "H1"],
+    ["M5",  "M15", "M30"],
+    ["M1",  "M5",  "M15"],
+    ["M1",  "M5"],
+]
+
 # ── Limit Sweep ──────────────────────────────────────────────
 # เมื่อ position ถูก fill แล้วแท่งจบสวนทาง (BUY→แดง close<prevLow / SELL→เขียว close>prevHigh)
 # → ปิด position + ยกเลิก limit ทั้งหมดใน TF นั้น เหลือเฉพาะตัวใกล้ LL/HH
@@ -1020,6 +1037,8 @@ def save_runtime_state():
             "sl_guard_combined_enabled": SL_GUARD_COMBINED_ENABLED,
             "sl_guard_combined_count": SL_GUARD_COMBINED_COUNT,
             "sl_guard_combined_tfs": list(SL_GUARD_COMBINED_TFS),
+            "sl_guard_group_enabled": SL_GUARD_GROUP_ENABLED,
+            "sl_guard_group_count": SL_GUARD_GROUP_COUNT,
             "last_traded_per_tf": last_traded_per_tf,
             "last_traded_sid_tf": last_traded_sid_tf,
             "pending_order_tf": pending_order_tf,
@@ -1278,6 +1297,7 @@ def restore_runtime_state():
         global SL_GUARD_ENABLED, SL_GUARD_COUNT, SL_GUARD_NEAR_POINTS
         global SL_GUARD_LOSS_ENABLED, SL_GUARD_LOSS_THRESHOLD, SL_GUARD_CLOSE_ON_ACTIVATE
         global SL_GUARD_COMBINED_ENABLED, SL_GUARD_COMBINED_COUNT, SL_GUARD_COMBINED_TFS
+        global SL_GUARD_GROUP_ENABLED, SL_GUARD_GROUP_COUNT
         SL_GUARD_ENABLED = bool(state.get("sl_guard_enabled", SL_GUARD_ENABLED))
         saved_sg_cnt = state.get("sl_guard_count")
         if saved_sg_cnt is not None:
@@ -1297,6 +1317,10 @@ def restore_runtime_state():
         saved_sgc_tfs = state.get("sl_guard_combined_tfs")
         if isinstance(saved_sgc_tfs, list):
             SL_GUARD_COMBINED_TFS = [t for t in saved_sgc_tfs if t in TF_OPTIONS]
+        SL_GUARD_GROUP_ENABLED = bool(state.get("sl_guard_group_enabled", SL_GUARD_GROUP_ENABLED))
+        saved_sgg_cnt = state.get("sl_guard_group_count")
+        if saved_sgg_cnt is not None:
+            SL_GUARD_GROUP_COUNT = max(1, int(saved_sgg_cnt))
 
         pending_order_tf.clear()
         pending_order_tf.update({

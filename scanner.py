@@ -2189,6 +2189,56 @@ async def _combined_guard_place_retries(app, tf_name: str, rates) -> bool:
     return placed_any
 
 
+async def _group_guard_place_retries(app, tf_name: str, rates) -> bool:
+    """
+    Group Guard: unblock check + re-place blocked signals สำหรับ TF นี้
+    """
+    from trailing import (
+        _group_guard_check_unblock,
+        _group_guard_get_retry_signals,
+        _group_guard_is_blocked,
+    )
+    placed_any = False
+    now = now_bkk().strftime("%H:%M")
+
+    for side in ("BUY", "SELL"):
+        if _group_guard_is_blocked(tf_name, side):
+            _group_guard_check_unblock(tf_name, side, rates)
+
+        retries = _group_guard_get_retry_signals(tf_name, side)
+        if not retries:
+            continue
+
+        for sig in retries:
+            sid     = sig.get("sid", 0)
+            signal  = sig.get("signal", side)
+            entry   = sig.get("entry", 0)
+            sl      = sig.get("sl", 0)
+            tp      = sig.get("tp", 0)
+            pattern = sig.get("pattern", "")
+            if not (entry and sl and tp):
+                continue
+            order = open_order(signal, get_volume(), sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            if order.get("success"):
+                placed_any = True
+                ticket = order.get("ticket", 0)
+                rr     = round(abs(tp - entry) / abs(entry - sl), 2) if abs(entry - sl) > 0 else 0
+                log_event("SL_GUARD_GROUP_RETRY",
+                          f"[{tf_name}] {signal} S{sid} re-placed after group guard off",
+                          tf=tf_name, sid=sid, signal=signal, entry=entry, sl=sl, tp=tp, ticket=ticket)
+                await tg(app, (
+                    f"🛡️ *Group Guard: Re-place Order*\n"
+                    f"━━━━━━━━━━━━━━━━━\n"
+                    f"{'🟢' if signal=='BUY' else '🔴'} {pattern} [{tf_name}]\n"
+                    f"🆕 Swing ใหม่ใน `{tf_name}` → คืน order ที่ถูก block\n"
+                    f"📌 Entry:`{entry}` SL:`{sl}` TP:`{tp}` RR:`{rr}`\n"
+                    f"🔖 Ticket:`{ticket}`"
+                ))
+                print(f"🛡️ [{now}] Group Guard retry PLACED: [{tf_name}] {signal} S{sid}")
+
+    return placed_any
+
+
 async def scan_one_tf(app, tf_name: str) -> bool:
     """สแกน 1 Timeframe — return True ถ้าเปิด Order สำเร็จ"""
     tf_val = TF_OPTIONS[tf_name]
@@ -2218,6 +2268,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── SL Guard Combined: re-place blocked signals ถ้า TF นี้ unblock ──
     if getattr(config, "SL_GUARD_COMBINED_ENABLED", False) and tf_name in list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or []):
         await _combined_guard_place_retries(app, tf_name, rates)
+
+    # ── SL Guard Group: re-place blocked signals ถ้า TF นี้ unblock ──
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        await _group_guard_place_retries(app, tf_name, rates)
 
     # ── Log Swing High / Low ของ TF นี้ (ทำก่อน guard เพื่อแสดงทุก TF เสมอ) ──
     _swing_finders = _get_summary_swing_finders(lookback)
@@ -3373,6 +3427,39 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                                     "candle_time":  last_candle_time,
                                     "use_delay_sl": (_cg_order_mode == "limit" and
                                                      (sid == 8 or config.DELAY_SL_MODE != "off")),
+                                })
+                        continue
+
+            # ── SL Guard Group: บล็อก LIMIT order ใหม่ถ้า group guard active ──
+            if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+                from trailing import (_group_guard_is_blocked, _group_guard_check_unblock,
+                                      _group_guard_get_blocked_groups, _sl_guard_group)
+                _gg_order_mode = result.get("order_mode", "limit")
+                if _gg_order_mode == "limit":
+                    _group_guard_check_unblock(tf_name, signal.upper(), rates)
+                    if _group_guard_is_blocked(tf_name, signal.upper()):
+                        _gg_groups = _group_guard_get_blocked_groups(tf_name, signal.upper())
+                        _gg_grp_str = ", ".join(f"[{g}]" for g in _gg_groups)
+                        print(f"🛡️ [{now}] Group Guard BLOCK: [{tf_name}] {signal} LIMIT sid={sid} groups={_gg_grp_str}")
+                        log_event("SL_GUARD_GROUP_BLOCK",
+                                  f"[{tf_name}] {signal} LIMIT blocked by Group Guard {_gg_grp_str}",
+                                  tf=tf_name, sid=sid, signal=signal)
+                        _gg_side = signal.upper()
+                        for _gg_gkey, _gg_sg in _sl_guard_group.get(_gg_side, {}).items():
+                            if not (_gg_sg.get("active") and _gg_sg.get("tf_blocked", {}).get(tf_name)):
+                                continue
+                            _gg_sigs = _gg_sg.setdefault("tf_blocked_signals", {}).setdefault(tf_name, [])
+                            _gg_dup  = any(
+                                b.get("candle_time") == last_candle_time and b.get("sid") == sid
+                                for b in _gg_sigs
+                            )
+                            if not _gg_dup:
+                                _gg_sigs.append({
+                                    "sid": sid, "signal": signal,
+                                    "entry": entry, "sl": sl, "tp": tp,
+                                    "pattern": pattern,
+                                    "candle_time": last_candle_time,
+                                    "use_delay_sl": (sid == 8 or config.DELAY_SL_MODE != "off"),
                                 })
                         continue
 

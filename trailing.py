@@ -66,6 +66,14 @@ _sl_guard_state: dict = {}
 # }}
 _sl_guard_combined: dict = {}
 
+# ── SL Guard Group state ──────────────────────────────────────
+# {side: {group_key: {"count": int, "active": bool,
+#          "tf_blocked": {tf: bool}, "tf_since": {tf: int},
+#          "tf_swing_ref": {tf: float},
+#          "tf_blocked_signals": {tf: list},
+#          "tf_retry_signals": {tf: list}}}}
+_sl_guard_group: dict = {}
+
 
 def _sl_guard_record_sl(tf: str, side: str) -> bool:
     """
@@ -146,6 +154,34 @@ def _sl_guard_close_combined_positions(side: str) -> list:
         return closed
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_combined_positions error: {e}")
+        return []
+
+
+def _sl_guard_close_all_side_positions(side: str) -> list:
+    """
+    ปิด position ทั้งหมดของ side นี้ (ทุก TF ไม่สน group) เมื่อ Group Guard activate
+    คืน list ของ ticket ที่ปิดสำเร็จ
+    """
+    if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        return []
+    try:
+        positions = mt5.positions_get(symbol=SYMBOL)
+        if not positions:
+            return []
+        side_up = side.upper()
+        pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+        closed = []
+        for pos in positions:
+            if pos.type != pos_type_mt5:
+                continue
+            ok, _ = _close_position(pos, side_up, "SL Guard Group activate")
+            if ok:
+                closed.append(pos.ticket)
+                pos_tf = position_tf.get(pos.ticket, "?")
+                log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Group [{pos_tf}] ticket={pos.ticket}", side=side_up)
+        return closed
+    except Exception as e:
+        print(f"[SL Guard] _sl_guard_close_all_side_positions error: {e}")
         return []
 
 
@@ -451,6 +487,200 @@ def _combined_guard_reset_on_tp(tf: str, side: str) -> str:
         f"📊 TF: `{tf}` | {side}\n"
         f"✅ TP hit → `{tf}` unblock ทันที{locked_str}"
     )
+
+
+# ═══════════════════════════════════════════════════════════════
+#  SL Guard — Group mode (ตาม FVG Parallel Group structure)
+# ═══════════════════════════════════════════════════════════════
+
+def _get_group_key(group: list) -> str:
+    return "+".join(group)
+
+
+def _group_guard_record_sl(tf: str, side: str) -> list:
+    """
+    บันทึก SL hit จาก TF นี้เข้าทุก group ที่ TF นี้อยู่
+    ถ้า count ใน group ≥ SL_GUARD_GROUP_COUNT → ล็อก TF ทั้งหมดใน group นั้น
+    คืน list ของ Telegram message สำหรับทุก group ที่เพิ่ง activate
+    """
+    if not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return []
+    groups    = list(getattr(config, "SL_GUARD_GROUP_GROUPS", []) or [])
+    side      = side.upper()
+    threshold = max(1, int(getattr(config, "SL_GUARD_GROUP_COUNT", 2)))
+    ts_now    = int(time.time())
+    messages  = []
+
+    for group in groups:
+        if tf not in group:
+            continue
+        gkey   = _get_group_key(group)
+        sg_side = _sl_guard_group.setdefault(side, {})
+        sg = sg_side.setdefault(gkey, {
+            "count": 0, "active": False,
+            "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+            "tf_blocked_signals": {}, "tf_retry_signals": {},
+        })
+
+        sg["count"] = sg.get("count", 0) + 1
+
+        if sg["count"] >= threshold and not sg.get("active"):
+            sg["active"] = True
+            for _t in group:
+                if not sg["tf_blocked"].get(_t):
+                    sg["tf_blocked"][_t]   = True
+                    sg["tf_since"][_t]     = ts_now
+                    sg["tf_swing_ref"][_t] = 0.0
+                    sg.setdefault("tf_blocked_signals", {}).setdefault(_t, [])
+            print(f"🛡️ Group Guard ACTIVATED: {side} group=[{gkey}] (count={sg['count']}/{threshold})")
+            tf_list = ", ".join(group)
+            messages.append((
+                f"🛡️ *SL Guard Group เปิดใช้งาน*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"📊 Group: `{tf_list}` | {side}\n"
+                f"⚠️ SL รวม {sg['count']}x ครบ {threshold}x — ล็อก TF ใน group\n"
+                f"⏳ รอ Swing {'Low' if side == 'BUY' else 'High'} ของแต่ละ TF\n"
+                f"🔔 Trigger: {tf}"
+            ))
+
+        sg_side[gkey] = sg
+
+    return messages
+
+
+def _group_guard_is_blocked(tf: str, side: str) -> bool:
+    """คืน True ถ้า TF นี้ถูกล็อกโดย Group Guard ใด group หนึ่ง"""
+    if not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return False
+    side = side.upper()
+    for sg in _sl_guard_group.get(side, {}).values():
+        if sg.get("active") and sg.get("tf_blocked", {}).get(tf):
+            return True
+    return False
+
+
+def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
+    """
+    ตรวจ swing low (BUY) / swing high (SELL) ที่เกิดหลัง lock
+    ถ้าเจอ → unblock TF นี้ออกจากทุก group ที่ block อยู่
+    คืน True ถ้า unblock อย่างน้อย 1 group
+    """
+    if not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return False
+    side = side.upper()
+    sg_side = _sl_guard_group.get(side, {})
+    if not sg_side or rates is None or len(rates) < 5:
+        return False
+
+    did_unblock = False
+    for gkey, sg in sg_side.items():
+        if not sg.get("active") or not sg.get("tf_blocked", {}).get(tf):
+            continue
+
+        blocked_since = sg.get("tf_since", {}).get(tf, 0)
+        bars_after    = [r for r in rates if int(r["time"]) > blocked_since]
+        if not bars_after:
+            continue
+
+        swing_ref = sg.get("tf_swing_ref", {}).get(tf, 0.0)
+        unblock   = False
+        if side == "BUY":
+            new_low = min(float(r["low"]) for r in bars_after)
+            if swing_ref <= 0 or new_low < swing_ref:
+                unblock = True
+        else:
+            new_high = max(float(r["high"]) for r in bars_after)
+            if swing_ref <= 0 or new_high > swing_ref:
+                unblock = True
+
+        if not unblock:
+            continue
+
+        if side == "BUY":
+            swing_bar = min(bars_after, key=lambda r: float(r["low"]))
+        else:
+            swing_bar = max(bars_after, key=lambda r: float(r["high"]))
+        swing_bar_time = int(swing_bar["time"])
+
+        blocked_sigs = sg.get("tf_blocked_signals", {}).get(tf, [])
+        retry_sigs   = [s for s in blocked_sigs if (s.get("candle_time") or 0) > swing_bar_time]
+        sg["tf_blocked"][tf] = False
+        sg.setdefault("tf_retry_signals", {})[tf]   = retry_sigs
+        sg.setdefault("tf_blocked_signals", {})[tf] = []
+        did_unblock = True
+        print(
+            f"🛡️ Group Guard TF unblocked: [{tf}] {side} group=[{gkey}] — "
+            f"swing {'L' if side=='BUY' else 'H'} @ bar {swing_bar_time} "
+            f"(retry {len(retry_sigs)}/{len(blocked_sigs)})"
+        )
+
+        group_tfs = gkey.split("+")
+        all_clear = all(not sg["tf_blocked"].get(t) for t in group_tfs)
+        if all_clear:
+            preserved = {t: sg.get("tf_retry_signals", {}).get(t, []) for t in group_tfs}
+            sg_side[gkey] = {
+                "count": 0, "active": False,
+                "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+                "tf_blocked_signals": {}, "tf_retry_signals": preserved,
+            }
+            print(f"🛡️ Group Guard group [{gkey}] {side} fully unblocked — reset")
+
+    return did_unblock
+
+
+def _group_guard_get_retry_signals(tf: str, side: str) -> list:
+    """ดึง retry signals ของ TF นี้จากทุก group หลัง unblock (เรียกครั้งเดียวแล้ว clear)"""
+    side = side.upper()
+    result = []
+    for sg in _sl_guard_group.get(side, {}).values():
+        result.extend(sg.get("tf_retry_signals", {}).pop(tf, []))
+    return result
+
+
+def _group_guard_reset_on_tp(tf: str, side: str) -> str:
+    """
+    TP hit → unblock TF นี้ออกจากทุก group ทันที (ไม่รอ swing)
+    คืน Telegram message ถ้า unblock จริง
+    """
+    if not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return ""
+    side    = side.upper()
+    sg_side = _sl_guard_group.get(side, {})
+    unblocked = []
+
+    for gkey, sg in sg_side.items():
+        if not sg.get("active") or not sg.get("tf_blocked", {}).get(tf):
+            continue
+        sg["tf_blocked"][tf] = False
+        sg.setdefault("tf_blocked_signals", {})[tf] = []
+        sg.setdefault("tf_retry_signals", {})[tf]   = []
+        unblocked.append(gkey)
+
+        group_tfs = gkey.split("+")
+        if all(not sg["tf_blocked"].get(t) for t in group_tfs):
+            sg_side[gkey] = {
+                "count": 0, "active": False,
+                "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+                "tf_blocked_signals": {}, "tf_retry_signals": {},
+            }
+
+    if not unblocked:
+        return ""
+    grp_str = ", ".join(f"[{g}]" for g in unblocked)
+    return (
+        f"✅ *Group Guard: TP Reset*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"📊 [{tf}] {side} TP hit → unblock {grp_str}"
+    )
+
+
+def _group_guard_get_blocked_groups(tf: str, side: str) -> list:
+    """คืน list ของ group_key ที่ TF นี้ถูก block อยู่ (ใช้แสดงใน scanner log)"""
+    side = side.upper()
+    return [
+        gkey for gkey, sg in _sl_guard_group.get(side, {}).items()
+        if sg.get("active") and sg.get("tf_blocked", {}).get(tf)
+    ]
 
 
 def _triple_check_all_enabled() -> bool:
