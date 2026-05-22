@@ -1606,27 +1606,32 @@ def build_trend_filter_keyboard():
 # ═══════════════════════════════════════════════════════════════
 
 def build_sl_guard_keyboard():
-    """Hub หลักของ SL Guard — เลือก mode แยก/รวม/group"""
+    """Hub หลักของ SL Guard — radio select mode (เปิดได้ทีละ 1)"""
     rows = []
-    # แบบแยก (Per-TF)
     _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
-    _sg_c   = getattr(config, "SL_GUARD_COUNT", 2)
-    _sg_p   = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
-    sg_st   = f"🟢ON ({_sg_c}x/{_sg_p}pt)" if _sg_on else "🔴OFF"
-    rows.append([InlineKeyboardButton(f"🛡️ แบบแยก (Per-TF): {sg_st} →", callback_data="open_sl_guard_per_tf")])
-
-    # แบบรวม (Combined)
-    _sgc_on  = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
-    _sgc_c   = getattr(config, "SL_GUARD_COMBINED_COUNT", 2)
-    _sgc_t   = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
-    sgc_st   = f"🟢ON ({_sgc_c}x)" if _sgc_on else "🔴OFF"
-    rows.append([InlineKeyboardButton(f"🛡️ แบบรวม (Combined): {sgc_st} →", callback_data="open_sl_guard_combined")])
-
-    # แบบ Group
+    _sgc_on = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
     _sgg_on = getattr(config, "SL_GUARD_GROUP_ENABLED", False)
-    _sgg_c  = getattr(config, "SL_GUARD_GROUP_COUNT", 2)
-    sgg_st  = f"🟢ON ({_sgg_c}x)" if _sgg_on else "🔴OFF"
-    rows.append([InlineKeyboardButton(f"🛡️ แบบ Group: {sgg_st} →", callback_data="open_sl_guard_group")])
+    _none   = not (_sg_on or _sgc_on or _sgg_on)
+
+    # Radio row
+    rows.append([
+        InlineKeyboardButton(f"{'🔘' if _sg_on  else '⚪'} แบบแยก",  callback_data="select_sl_guard_per_tf"),
+        InlineKeyboardButton(f"{'🔘' if _sgc_on else '⚪'} แบบรวม",  callback_data="select_sl_guard_combined"),
+        InlineKeyboardButton(f"{'🔘' if _sgg_on else '⚪'} แบบGroup", callback_data="select_sl_guard_group"),
+        InlineKeyboardButton(f"{'🔘' if _none   else '⚪'} ปิด",      callback_data="select_sl_guard_off"),
+    ])
+
+    # ปุ่ม ⚙️ ตั้งค่า mode ที่เลือก
+    if _sg_on:
+        _sg_c = getattr(config, "SL_GUARD_COUNT", 2)
+        _sg_p = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
+        rows.append([InlineKeyboardButton(f"⚙️ ตั้งค่า แบบแยก ({_sg_c}x/{_sg_p}pt) →", callback_data="open_sl_guard_per_tf")])
+    elif _sgc_on:
+        _sgc_c = getattr(config, "SL_GUARD_COMBINED_COUNT", 2)
+        rows.append([InlineKeyboardButton(f"⚙️ ตั้งค่า แบบรวม ({_sgc_c}x) →", callback_data="open_sl_guard_combined")])
+    elif _sgg_on:
+        _sgg_c = getattr(config, "SL_GUARD_GROUP_COUNT", 2)
+        rows.append([InlineKeyboardButton(f"⚙️ ตั้งค่า แบบGroup ({_sgg_c}x) →", callback_data="open_sl_guard_group")])
 
     rows.append([InlineKeyboardButton("━━━━━━━━━━━━━━━━━", callback_data="noop_trend_filter")])
 

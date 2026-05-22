@@ -650,6 +650,38 @@ async def handle_callback(update, ctx):
         await show_sl_guard_menu(query, is_query=True)
         await _qanswer(query)
 
+    elif data == "select_sl_guard_per_tf":
+        config.SL_GUARD_ENABLED = True
+        config.SL_GUARD_COMBINED_ENABLED = False
+        config.SL_GUARD_GROUP_ENABLED = False
+        save_runtime_state()
+        await show_sl_guard_menu(query, is_query=True)
+        await _qanswer(query, "SL Guard: แบบแยก (Per-TF)")
+
+    elif data == "select_sl_guard_combined":
+        config.SL_GUARD_ENABLED = False
+        config.SL_GUARD_COMBINED_ENABLED = True
+        config.SL_GUARD_GROUP_ENABLED = False
+        save_runtime_state()
+        await show_sl_guard_menu(query, is_query=True)
+        await _qanswer(query, "SL Guard: แบบรวม (Combined)")
+
+    elif data == "select_sl_guard_group":
+        config.SL_GUARD_ENABLED = False
+        config.SL_GUARD_COMBINED_ENABLED = False
+        config.SL_GUARD_GROUP_ENABLED = True
+        save_runtime_state()
+        await show_sl_guard_menu(query, is_query=True)
+        await _qanswer(query, "SL Guard: แบบ Group")
+
+    elif data == "select_sl_guard_off":
+        config.SL_GUARD_ENABLED = False
+        config.SL_GUARD_COMBINED_ENABLED = False
+        config.SL_GUARD_GROUP_ENABLED = False
+        save_runtime_state()
+        await show_sl_guard_menu(query, is_query=True)
+        await _qanswer(query, "SL Guard: ปิดทั้งหมด")
+
     elif data == "open_sl_guard_per_tf":
         await show_sl_guard_per_tf_menu(query, is_query=True)
         await _qanswer(query)
@@ -927,10 +959,16 @@ async def handle_callback(update, ctx):
         await _qanswer(query, f"Sideway HHLL Filter: {'ON' if config.TREND_FILTER_SIDEWAY_HHLL else 'OFF'}")
 
     elif data == "toggle_sl_guard":
-        config.SL_GUARD_ENABLED = not config.SL_GUARD_ENABLED
+        # ถ้าเปิดอยู่ → ปิดทั้งหมด; ถ้าปิดอยู่ → เปิดแบบแยก (select mode)
+        if config.SL_GUARD_ENABLED:
+            config.SL_GUARD_ENABLED = False
+        else:
+            config.SL_GUARD_ENABLED = True
+            config.SL_GUARD_COMBINED_ENABLED = False
+            config.SL_GUARD_GROUP_ENABLED = False
         save_runtime_state()
         await show_sl_guard_per_tf_menu(query, is_query=True)
-        await _qanswer(query, f"SL Guard: {'ON' if config.SL_GUARD_ENABLED else 'OFF'}")
+        await _qanswer(query, f"SL Guard Per-TF: {'ON' if config.SL_GUARD_ENABLED else 'OFF'}")
 
     elif data.startswith("set_sl_guard_count_"):
         cnt = int(data.replace("set_sl_guard_count_", ""))
@@ -966,7 +1004,12 @@ async def handle_callback(update, ctx):
         await _qanswer(query, f"Loss Guard Threshold: ${thr:.0f}")
 
     elif data == "toggle_sl_guard_combined":
-        config.SL_GUARD_COMBINED_ENABLED = not config.SL_GUARD_COMBINED_ENABLED
+        if config.SL_GUARD_COMBINED_ENABLED:
+            config.SL_GUARD_COMBINED_ENABLED = False
+        else:
+            config.SL_GUARD_ENABLED = False
+            config.SL_GUARD_COMBINED_ENABLED = True
+            config.SL_GUARD_GROUP_ENABLED = False
         save_runtime_state()
         await show_sl_guard_combined_menu(query, is_query=True)
         await _qanswer(query, f"Combined Guard: {'ON' if config.SL_GUARD_COMBINED_ENABLED else 'OFF'}")
@@ -997,7 +1040,12 @@ async def handle_callback(update, ctx):
             await _qanswer(query, f"Combined Guard TF {tf_toggle}: {'ON' if _on else 'OFF'}")
 
     elif data == "toggle_sl_guard_group":
-        config.SL_GUARD_GROUP_ENABLED = not getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+        if config.SL_GUARD_GROUP_ENABLED:
+            config.SL_GUARD_GROUP_ENABLED = False
+        else:
+            config.SL_GUARD_ENABLED = False
+            config.SL_GUARD_COMBINED_ENABLED = False
+            config.SL_GUARD_GROUP_ENABLED = True
         save_runtime_state()
         await show_sl_guard_group_menu(query, is_query=True)
         await _qanswer(query, f"Group Guard: {'ON' if config.SL_GUARD_GROUP_ENABLED else 'OFF'}")
