@@ -138,6 +138,8 @@ Keep the answer short and make the fix directly.
 - `SL_GUARD_ENABLED` (default `True`) — guard ป้องกัน BUY/SELL LIMIT ใหม่ หลัง SL hit ครบ N ครั้งใน TF นั้น
 - `SL_GUARD_COUNT` (default `2`) — จำนวน SL hit ที่ trigger guard
 - `SL_GUARD_NEAR_POINTS` (default `200`) — ยกเลิก pending ที่ราคาเข้าใกล้ entry ≤ N pt ขณะ guard active
+- `SL_GUARD_LOSS_ENABLED` (default `True`) — นับ close ที่ขาดทุนเกิน threshold ว่าเป็น SL hit ด้วย
+- `SL_GUARD_LOSS_THRESHOLD` (default `5.0`) — ขาดทุนเกิน $N → นับเป็น SL hit (ใช้ร่วมกับ SL_GUARD_LOSS_ENABLED)
 
 หมายเหตุ:
 
@@ -234,6 +236,11 @@ mode ที่รองรับ:
 - Skip: `sid=12, 13` (มี flow notification ของตัวเอง)
 - ส่ง Telegram 2 ข้อความ: "Limit Fill" + "Trend At Fill"
 - log event: `ENTRY_FILL`
+- **fallback chain** สำหรับ pattern/tf/sid (4 tier):
+  1. `position_pattern/tf/sid` (in-memory)
+  2. `fvg_order_tickets` / `pending_order_tf` (in-memory)
+  3. parse comment ของ position (เช่น `M30_S2`)
+  4. `config.tracked_positions[ticket]` (persist ใน `bot_state.json` — แก้ `pattern=-` หลัง restart)
 
 ## RSI Fill Recheck
 
@@ -340,6 +347,15 @@ mode ที่รองรับ:
 - Telegram แจ้ง "🛡️ SL Guard เปิดใช้งาน" เมื่อ activate, "🛡️ Re-place Order" เมื่อ retry
 - helper ใน `trailing.py`: `_sl_guard_record_sl()`, `_sl_guard_check_unblock()`, `_sl_guard_get_retry_signals()`
 - Telegram toggle: Settings → Trend Filter → SL Guard (toggle + count + pts)
+
+### SL Guard Loss
+
+- gate: `config.SL_GUARD_LOSS_ENABLED` (default `True`)
+- threshold: `config.SL_GUARD_LOSS_THRESHOLD` (default `5.0` USD)
+- ถ้า position ปิดด้วยขาดทุน > threshold → นับเป็น SL hit เพิ่มใน guard count ของ TF นั้น
+- ทำงานร่วมกับ `SL_GUARD_ENABLED` — ถ้า guard ไม่ ON จะไม่นับ
+- logic อยู่ใน `notifications.py` หลัง close detection
+- Telegram toggle: Settings → Trend Filter → Loss Guard (toggle + threshold: $3/$5/$10/$20)
 
 ### Limit Guard
 
@@ -529,34 +545,42 @@ mode ที่รองรับ:
 ### Triple Scale-Out (TSO) — `📈 Scale-Out 3X`
 
 - master toggle: `SCALE_OUT_ENABLED` (default `True`) - ปุ่มอยู่บนหน้าเมนู `⚙️ ตั้งค่า` หลัก
-- คอนเซปต์: ขยาย lot ของ pending/limit order ใหม่เป็น `×SCALE_OUT_MULTIPLIER` (default `3`) แล้วทยอยปิดเป็น 3 ขั้นเมื่อราคาผ่าน entry
+- คอนเซปต์: ขยาย lot ของ pending/limit order ใหม่เป็น `base × 4` เสมอ แล้วทยอยปิด 4 ขั้นเมื่อราคาผ่าน entry
 - pulse close ครั้งละ `SCALE_OUT_TP_LOT × points_scale()` (XAU = 0.01, BTC = 0.04)
-- ระยะ TP แต่ละขั้นมาจาก `SCALE_OUT_TP_POINTS = [300, 700, 1000]` (XAU point - BTC auto ×4 ผ่าน `points_scale`)
+- **volume รวมเสมอ = base × 4** (XAU = 0.04, BTC = 0.16) ไม่ขึ้นกับ TP distance อีกต่อไป
 
 **Scope:**
 
 - ใช้กับ pending/limit ที่สร้างผ่าน `open_order()` และ `open_order_stop()` เท่านั้น
 - `open_order_market()` ไม่ scale (ตามสเปคปัจจุบัน)
-- **`sid=13` (S13 EzAlgo V5)** ถูก **ยกเว้น**: ไม่ขยาย lot และไม่ทยอยปิด - ใช้ TSO ปรับ TP ของแต่ละ S13 order แทน (TP1=300pt, TP2=700pt, TP3=1000pt)
+- **`sid=13` (S13 EzAlgo V5)** ถูก **ยกเว้น** จาก lot scale — ใช้ TSO สร้าง orders แยก 4 ชุดแทน
 
-**Dynamic Effective Steps (ปัจจุบัน — ตั้งแต่ 2026-05-18):**
+**Always-4-Steps Formula (ตั้งแต่ 2026-05-22):**
 
-- คำนวณ TSO steps แบบ **dynamic** ตาม TP เดิมของ order
-- helper: `config.compute_tso_effective_steps(tp_orig_dist)`
-- Logic:
-  - ถ้า `tp_orig < TP1` (= 300pt × scale) → ใช้ TP1 step เดียว (override TP)
-  - filter `SCALE_OUT_TP_POINTS` ที่ `<= tp_orig`
-  - append `tp_orig` เป็น step สุดท้าย (ถ้ายังไม่ match exact)
-- ตัวอย่าง:
-  - TP เดิม 100pt (< 300) → 1 step ที่ 300pt → lot 0.01
-  - TP เดิม 300pt → 1 step → lot 0.01
-  - TP เดิม 500pt → 2 steps (300, 500) → lot 0.02
-  - TP เดิม 700pt (= TP2) → 2 steps (300, 700) → lot 0.02
-  - TP เดิม 800pt → 3 steps (300, 700, 800) → lot 0.03
-  - TP เดิม 1000pt (= TP3) → 3 steps (300, 700, 1000) → lot 0.03
-  - TP เดิม 1200pt → 4 steps (300, 700, 1000, 1200) → lot 0.04
-- **ทุกท่า** (S1-S12 + S10) ใช้ logic เดียวกัน — lot รวม = `len(effective_steps) × base_volume`
-- **S13** ใช้เหมือนกันแต่ออกเป็น **orders แยก** (1-4 orders) แทน 1 order ที่ partial close
+- helper: `config.compute_tso_effective_steps(tp_orig_dist, sid="")`
+- คืน **เสมอ 4 steps** — lot รวม = `base × 4` เสมอ
+
+**General (ทุกท่า ยกเว้น S10/S13):**
+
+| steps | formula |
+|-------|---------|
+| step 1 | `min(200pt, TP)` |
+| step 2 | `min(300pt, TP)` |
+| step 3 | `min(600pt, TP)` |
+| step 4 | `TP` |
+
+ตัวอย่าง: TP=100pt→[100,100,100,100] | TP=500pt→[200,300,500,500] | TP=800pt→[200,300,600,800] | TP=1200pt→[200,300,600,1200]
+
+**S10 (special):**
+
+| steps | formula |
+|-------|---------|
+| step 1 | `min(200pt, TP)` |
+| step 2 | `min(300pt, TP)` |
+| step 3 | `TP / 2` |
+| step 4 | `TP` |
+
+**S13** ใช้ general formula แต่ออกเป็น **orders แยก 4 ชุด** (ไม่ partial close)
 
 **State และ lifecycle:**
 
@@ -602,6 +626,22 @@ mode ที่รองรับ:
   - BEAR strong: h0="LH", l0="LL", h1="LH", l1="LL"
   - BEAR weak: h0="LH", l0="LL" (แต่ไม่ครบ 2 คู่)
   - SIDEWAY: กรณีอื่น
+
+### Sideway HHLL Filter (`TREND_FILTER_SIDEWAY_HHLL`)
+
+- gate: `config.TREND_FILTER_SIDEWAY_HHLL` (default `True`)
+- ทำงานเมื่อ trend = `SIDEWAY` เท่านั้น (ดู `last_label` — swing point ล่าสุดที่เกิด)
+- logic (ตั้งแต่ 2026-05-22):
+
+| last_label | BUY | SELL |
+|-----------|-----|------|
+| HH | ✅ ผ่าน | ❌ block |
+| HL | ✅ ผ่าน | ❌ block |
+| LH | ❌ block | ✅ ผ่าน |
+| LL | ❌ block | ✅ ผ่าน |
+
+- ทำงานทั้ง `basic` mode และ `breakout` mode
+- Telegram toggle: Settings → Trend Filter → Sideway Filter → Sideway HHLL Filter
 
 ### scanner.py — Trend filter sync กับ HHLLStrategy
 

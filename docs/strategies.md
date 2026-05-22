@@ -424,14 +424,13 @@ Reason log แสดงราคา Model 1, 2, 3 ทั้งหมด + ระ
 
 ### Triple Scale-Out (TSO) interaction
 
-- S10 ใช้ TSO แบบ **dynamic effective steps** (เหมือนท่าทั่วไป — เปลี่ยน 2026-05-18)
-- TP เดิม (parent high/low) อาจห่างกี่ pt ก็ได้ ระบบจะคำนวณ steps อัตโนมัติ:
-  - TP เดิม 300pt → 1 step → lot 0.01
-  - TP เดิม 500pt → 2 steps (300, 500) → lot 0.02
-  - TP เดิม 1000pt → 3 steps (300, 700, 1000) → lot 0.03
-  - TP เดิม 1200pt → 4 steps (300, 700, 1000, 1200) → lot 0.04
-- ทำผ่าน `config.compute_tso_effective_steps(tp_orig_dist)` ที่ `mt5_utils.py`
-- กฎ S10 special เก่า (TP3 = TP เดิม) **เลิกใช้** — ตอนนี้ทุกท่าใช้ logic เดียวกัน
+- S10 ใช้ TSO **always-4-steps** ด้วย **formula พิเศษของ S10** (ตั้งแต่ 2026-05-22)
+- lot รวมเสมอ = `base × 4` (XAU 0.04, BTC 0.16)
+- formula: `[min(200pt,TP), min(300pt,TP), TP/2, TP]`
+  - TP=100pt → [100, 100, 50, 100]
+  - TP=500pt → [200, 300, 250, 500]
+  - TP=1000pt → [200, 300, 500, 1000]
+- ทำผ่าน `config.compute_tso_effective_steps(tp_orig_dist, sid="10")` ที่ `mt5_utils.py`
 
 ## Continuous re-trigger flow (S10 MTF, 2026-05-18)
 
@@ -621,18 +620,18 @@ SELL:
   - `Limit Trend Recheck` — เช็ค trend ก่อน fill (cancel pending ถ้าสวนเทรนด์)
   - `Fill RSI Recheck` — เช็ค RSI หลัง fill (ปิด position ถ้าไม่ผ่านเกณฑ์)
 
-### Triple Scale-Out (TSO) interaction — Dynamic Effective Steps (2026-05-18)
+### Triple Scale-Out (TSO) interaction — Always 4 Orders (ตั้งแต่ 2026-05-22)
 
-- S13 ใช้ TSO แบบ **dynamic** แต่สร้าง orders แยก 1-4 ชุด (ไม่ใช่ partial close)
-- คำนวณ effective steps จาก TP เดิมสุด (= `tp_levels[-1]` = RR-based TP3 ของ S13):
-  - TP เดิม 500pt → **2 orders** (TP=300pt, TP=500pt)
-  - TP เดิม 700pt → **2 orders** (TP=300pt, TP=700pt)
-  - TP เดิม 1000pt → **3 orders** (TP=300pt, TP=700pt, TP=1000pt)
-  - TP เดิม 1200pt → **4 orders** (TP=300pt, TP=700pt, TP=1000pt, TP=1200pt)
-  - TP เดิม < 300pt → **1 order** (TP=300pt — override TP)
+- S13 ใช้ TSO **always-4-steps** สร้าง orders แยก **4 ชุดเสมอ** (ไม่ใช่ partial close)
+- ใช้ general formula: `[min(200pt,TP), min(300pt,TP), min(600pt,TP), TP]`
+  - TP=100pt → 4 orders ที่ [100, 100, 100, 100]
+  - TP=500pt → 4 orders ที่ [200, 300, 500, 500]
+  - TP=800pt → 4 orders ที่ [200, 300, 600, 800]
+  - TP=1200pt → 4 orders ที่ [200, 300, 600, 1200]
 - ทำใน `_place_s13_split_orders` (scanner.py) — ใช้ `config.compute_tso_effective_steps(tp_orig_dist)`
 - **ไม่ขยาย lot** — แต่ละ order ใช้ `get_volume()` ปกติ (XAU 0.01, BTC 0.04)
 - **ไม่ทยอยปิด** — ไม่ลงทะเบียนใน `scale_out_state` (เพราะ orders แยกอยู่แล้ว)
+- **ไม่ถูกลบเมื่อ TSO toggle OFF** — S13 orders ไม่ถูก register ใน `scale_out_state`
 - log event: `S13_TSO_TP_OVERRIDE` แสดง tp_orig_dist + effective_steps + orders count
 - เมื่อ `SCALE_OUT_ENABLED = False`: ใช้ `tp_levels` จาก `strategy_13()` (RR-based ปกติ — 3 orders)
 

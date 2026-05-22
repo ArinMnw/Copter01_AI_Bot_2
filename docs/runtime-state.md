@@ -19,9 +19,11 @@
 - `_s6i_state`: state ของ S6i
 - `_armed_states` (`strategy10.py`): per-HTF armed state ของท่า 10 MTF mode — เก็บ `direction, sl_target, tp_target, armed_at, htf_tf, ltf_tf, candles, pattern_base`
 - `_s11_state` (`strategy11.py`): per-TF anchor + phase ของท่า 11 (ไม่ persist)
-- `scale_out_state` (`config.py`): per-ticket state ของ Triple Scale-Out — เก็บ `direction, entry, original_volume, base_volume, per_tp_volume, tp_distances (dynamic 1-4 steps), step, is_pending, sid, tp_original`
-  - `tp_distances` ถูกคำนวณ runtime ตาม TP เดิมของ order ผ่าน `compute_tso_effective_steps()` (1-4 effective steps)
-  - `step` ขึ้นถึง `len(tp_distances) - 1`
+- `scale_out_state` (`config.py`): per-ticket state ของ Triple Scale-Out — เก็บ `direction, entry, original_volume, base_volume, per_tp_volume, tp_distances (always 4 steps), step, is_pending, sid, tp_original`
+  - `tp_distances` คำนวณ runtime ผ่าน `compute_tso_effective_steps(tp_orig_dist, sid)` — เสมอ 4 steps
+  - General formula: `[min(200pt,TP), min(300pt,TP), min(600pt,TP), TP]`
+  - S10 formula: `[min(200pt,TP), min(300pt,TP), TP/2, TP]`
+  - `step` ขึ้นถึง `3` (4 steps ทุกกรณี)
 - `_pd_zone_state` (`trailing.py`): per-ticket state ของ PD Zone Recheck — เก็บรอบการเช็ค (round 1-3), ผลแต่ละรอบ, TF, signal; ไม่ persist ข้าม restart
 - `_triple_check_state` (`trailing.py`): per-ticket state ของ Triple Recheck — เก็บ `{rsi: None|True|False, trend: None|True|False, pd: None|True|False, tf, signal}`; ไม่ persist ข้าม restart
 
@@ -88,6 +90,8 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 - `DELAY_SL_MODE`: `off` / `time` / `price`
 - `SCALE_OUT_ENABLED`: gate ของ Triple Scale-Out (default `True`)
 - `PD_ZONE_CHECK_ENABLED`: gate ของ PD Zone Recheck (default `True`), persist ด้วย key `pd_zone_check_enabled`
+- `SL_GUARD_LOSS_ENABLED`: gate ของ SL Guard Loss (default `True`), persist ด้วย key `sl_guard_loss_enabled`
+- `SL_GUARD_LOSS_THRESHOLD`: threshold ขาดทุนที่นับเป็น SL hit (default `5.0`), persist ด้วย key `sl_guard_loss_threshold`
 
 State อื่น ๆ ที่ persist:
 

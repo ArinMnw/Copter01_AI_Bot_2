@@ -72,6 +72,20 @@
 - default: `basic`
 - มี per-TF toggle และ Trail SL Override toggle แยก
 
+### Sideway HHLL Filter
+
+อยู่ใน Trend Filter menu section `━ Sideway Filter ━`
+
+ปุ่ม: `🟢 Sideway HHLL Filter: ON` / `🔴 Sideway HHLL Filter: OFF`
+
+callback: `toggle_sideway_hhll_filter`
+
+config: `TREND_FILTER_SIDEWAY_HHLL` (default `True`)
+
+logic (ตั้งแต่ 2026-05-22) — เมื่อ trend = SIDEWAY ดู `last_label`:
+- `HH` หรือ `HL` → block SELL (bullish momentum ล่าสุด)
+- `LH` หรือ `LL` → block BUY (bearish momentum ล่าสุด)
+
 ## Profit summary (หน้าหลัก)
 
 - แสดง BUY / SELL breakdown ต่อ strategy
@@ -87,21 +101,20 @@
 
 ## Toggle Scale-Out 3X (Triple Scale-Out)
 
-- ปุ่ม: `📈 Scale-Out 3X: 🟢ON | ×N` / `🔴OFF`
-  - `N` = จำนวน effective steps (dynamic ตาม TP เดิม) — 1 ถึง 4
+- ปุ่ม: `📈 Scale-Out 3X: 🟢ON` / `🔴OFF`
 - อยู่หน้า settings ชั้นนอกสุด ใต้ปุ่ม `📦 Lot Size Auto`
 - callback: `toggle_scale_out`
 - ใช้ config `SCALE_OUT_ENABLED` (default `True`)
-- Dynamic effective steps (ตั้งแต่ 2026-05-18):
-  - คำนวณ steps จาก TP เดิมของ order ผ่าน `config.compute_tso_effective_steps(tp_orig_dist)`
-  - filter `SCALE_OUT_TP_POINTS = [300, 700, 1000]` ที่ ≤ TP เดิม + append TP เดิมเป็น step สุดท้าย
-  - ถ้า TP เดิม < 300pt → ใช้ TP1 step เดียว (override TP)
-  - Lot รวม = `len(effective_steps) × base_volume`
+- Always-4-steps formula (ตั้งแต่ 2026-05-22):
+  - **volume รวมเสมอ = base × 4** (XAU 0.04, BTC 0.16)
+  - General: `[min(200,TP), min(300,TP), min(600,TP), TP]`
+  - S10: `[min(200,TP), min(300,TP), TP/2, TP]`
+  - S13: สร้าง 4 orders แยก ใช้ general formula
 - เมื่อกดปิด (ON→OFF) จะเรียก `scale_out_cleanup_on_disable()` ใน `trailing.py` ทันที:
   - position TSO ที่ fill แล้ว → ปิดทั้งหมด
   - pending TSO → cancel + สร้างใหม่ด้วย lot เดิม
   - callback notification แสดงสรุป `closed: N` / `reset_pending: M`
-- **S13**: ไม่ scale lot แต่สร้าง orders 1-4 ตาม effective steps (TP ของแต่ละ order = step distance)
+  - **S13 orders ไม่ถูกแตะ** (ไม่ได้ register ใน `scale_out_state`)
 
 ## SL Guard Toggle
 
@@ -120,6 +133,22 @@ config:
 - `SL_GUARD_ENABLED` (default `True`)
 - `SL_GUARD_COUNT` (default `2`)
 - `SL_GUARD_NEAR_POINTS` (default `200`)
+
+## Loss Guard Toggle (SL Guard Loss)
+
+อยู่ใน Trend Filter menu ต่อท้าย SL Guard (ไม่มี section header แยก)
+
+ปุ่ม:
+- toggle ON/OFF: `🟢 Loss Guard: ON (>$N)` / `🔴 Loss Guard: OFF`
+- threshold options: `$3`, `$5`, `$10`, `$20`
+
+callback: `toggle_sl_guard_loss`, `set_sl_guard_loss_thr_N`
+
+config:
+- `SL_GUARD_LOSS_ENABLED` (default `True`)
+- `SL_GUARD_LOSS_THRESHOLD` (default `5.0`)
+
+พฤติกรรม: ถ้า position ปิดด้วยขาดทุน > threshold → นับเป็น SL hit ใน guard count ของ TF นั้น (ทำงานร่วมกับ `SL_GUARD_ENABLED`)
 
 ## PD Zone Recheck Toggle
 
