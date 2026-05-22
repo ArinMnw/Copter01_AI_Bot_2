@@ -1016,6 +1016,7 @@ def save_runtime_state():
             "sl_guard_near_points": SL_GUARD_NEAR_POINTS,
             "sl_guard_loss_enabled": SL_GUARD_LOSS_ENABLED,
             "sl_guard_loss_threshold": SL_GUARD_LOSS_THRESHOLD,
+            "sl_guard_close_on_activate": SL_GUARD_CLOSE_ON_ACTIVATE,
             "sl_guard_combined_enabled": SL_GUARD_COMBINED_ENABLED,
             "sl_guard_combined_count": SL_GUARD_COMBINED_COUNT,
             "sl_guard_combined_tfs": list(SL_GUARD_COMBINED_TFS),
@@ -1275,7 +1276,7 @@ def restore_runtime_state():
         FVG_PARALLEL = bool(state.get("fvg_parallel", FVG_PARALLEL))
 
         global SL_GUARD_ENABLED, SL_GUARD_COUNT, SL_GUARD_NEAR_POINTS
-        global SL_GUARD_LOSS_ENABLED, SL_GUARD_LOSS_THRESHOLD
+        global SL_GUARD_LOSS_ENABLED, SL_GUARD_LOSS_THRESHOLD, SL_GUARD_CLOSE_ON_ACTIVATE
         global SL_GUARD_COMBINED_ENABLED, SL_GUARD_COMBINED_COUNT, SL_GUARD_COMBINED_TFS
         SL_GUARD_ENABLED = bool(state.get("sl_guard_enabled", SL_GUARD_ENABLED))
         saved_sg_cnt = state.get("sl_guard_count")
@@ -1288,6 +1289,7 @@ def restore_runtime_state():
         saved_sg_loss_thr = state.get("sl_guard_loss_threshold")
         if saved_sg_loss_thr is not None:
             SL_GUARD_LOSS_THRESHOLD = max(0.0, float(saved_sg_loss_thr))
+        SL_GUARD_CLOSE_ON_ACTIVATE = bool(state.get("sl_guard_close_on_activate", SL_GUARD_CLOSE_ON_ACTIVATE))
         SL_GUARD_COMBINED_ENABLED = bool(state.get("sl_guard_combined_enabled", SL_GUARD_COMBINED_ENABLED))
         saved_sgc_cnt = state.get("sl_guard_combined_count")
         if saved_sgc_cnt is not None:

@@ -1631,6 +1631,15 @@ def build_trend_filter_keyboard():
         for t in sg_loss_thr_opts
     ])
 
+    # === SL Guard Close on Activate ===
+    _sg_close_on = getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
+    sg_close_label = (
+        "🟢 Close on Activate: ON"
+        if _sg_close_on
+        else "🔴 Close on Activate: OFF"
+    )
+    rows.append([InlineKeyboardButton(sg_close_label, callback_data="toggle_sl_guard_close_activate")])
+
     # === SL Guard Combined TF ===
     _sgc_enabled = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
     _sgc_cnt     = getattr(config, "SL_GUARD_COMBINED_COUNT", 1)
@@ -1715,6 +1724,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     _sgl_on    = getattr(config, "SL_GUARD_LOSS_ENABLED", True)
     _sgl_thr   = getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0)
     sgl_status = f"🟢ON (>${_sgl_thr:.0f})" if _sgl_on else "🔴OFF"
+    _sgca_on   = getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
+    sgca_status = "🟢ON" if _sgca_on else "🔴OFF"
     text = (
         "🧭 *Trend Filter (Scan Trend)*\n"
         "━━━━━━━━━━━━━━━━━\n"
@@ -1741,6 +1752,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         f"  BUY/SELL SL ≥ Nx → ยกเลิก pending ที่ใกล้ ({_sg_p}pt) + บล็อกจนกว่าจะเกิด Swing ใหม่\n"
         f"Loss Guard: *{sgl_status}*\n"
         f"  close ที่ขาดทุน >${_sgl_thr:.0f} → นับเป็น SL hit ด้วย\n"
+        f"Close on Activate: *{sgca_status}*\n"
+        f"  Guard activate → ปิด position ที่เปิดอยู่ (Per-TF: ปิด TF นั้น | Combined: ปิดทุก TF ใน group)\n"
         f"Combined Guard: *{sgc_status}*\n"
         f"  SL จาก TF ไหนก็ได้ ครบ Nx → block ทุก TF ใน group จนเจอ Swing ของแต่ละ TF"
     )

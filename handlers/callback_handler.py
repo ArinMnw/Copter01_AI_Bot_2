@@ -934,6 +934,12 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"Loss Guard: {'ON' if config.SL_GUARD_LOSS_ENABLED else 'OFF'}")
 
+    elif data == "toggle_sl_guard_close_activate":
+        config.SL_GUARD_CLOSE_ON_ACTIVATE = not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True)
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Close on Activate: {'ON' if config.SL_GUARD_CLOSE_ON_ACTIVATE else 'OFF'}")
+
     elif data.startswith("set_sl_guard_loss_thr_"):
         thr = float(data.replace("set_sl_guard_loss_thr_", ""))
         config.SL_GUARD_LOSS_THRESHOLD = thr
