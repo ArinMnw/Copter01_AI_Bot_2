@@ -522,6 +522,7 @@ SL_GUARD_NEAR_POINTS = 200  # ระยะ (points) ที่ถือว่า 
 # เช่น manual close / bot close ที่ profit < -5$ → นับ +1 เหมือน SL hit
 SL_GUARD_LOSS_ENABLED   = False
 SL_GUARD_LOSS_THRESHOLD = 5.0   # USD — ขาดทุนเกินนี้ถึงนับ
+SL_GUARD_CLOSE_ON_ACTIVATE = True  # ปิด open position ฝั่งเดียวกัน/TF เดียวกันเมื่อ Guard activate
 
 # ── SL Guard Combined TF ──────────────────────────────────────
 # นับ SL รวมข้าม TF ใน group เดียวกัน

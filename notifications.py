@@ -140,10 +140,12 @@ async def check_sl_tp_hits(app):
             _sl_guard_extra_msg = ""
             if close_type == "🛑 SL Hit" and _config.SL_GUARD_ENABLED and tf_label:
                 try:
-                    from trailing import _sl_guard_record_sl
+                    from trailing import _sl_guard_record_sl, _sl_guard_close_open_positions
                     _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
                     if _just_activated:
                         _guard_side = p_info.get("type", "")
+                        _closed = _sl_guard_close_open_positions(tf_label, _guard_side)
+                        _close_note = f"\n🚫 ปิด {_guard_side} position: {', '.join(f'`{t}`' for t in _closed)}" if _closed else ""
                         _sl_guard_extra_msg = (
                             f"🛡️ *SL Guard เปิดใช้งาน*\n"
                             f"━━━━━━━━━━━━━━━━━\n"
@@ -151,6 +153,7 @@ async def check_sl_tp_hits(app):
                             f"⚠️ SL hit ครบ {_config.SL_GUARD_COUNT}x — บล็อก {_guard_side} LIMIT ใหม่\n"
                             f"⏳ รอ Swing {'Low' if _guard_side=='BUY' else 'High'} ใหม่เกิดก่อน\n"
                             f"🔔 Ticket: `{ticket}`"
+                            f"{_close_note}"
                         )
                 except Exception:
                     pass
@@ -164,10 +167,12 @@ async def check_sl_tp_hits(app):
             )
             if _sg_loss_ok and _config.SL_GUARD_ENABLED:
                 try:
-                    from trailing import _sl_guard_record_sl
+                    from trailing import _sl_guard_record_sl, _sl_guard_close_open_positions
                     _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
                     if _just_activated and not _sl_guard_extra_msg:
                         _guard_side = p_info.get("type", "")
+                        _closed = _sl_guard_close_open_positions(tf_label, _guard_side)
+                        _close_note = f"\n🚫 ปิด {_guard_side} position: {', '.join(f'`{t}`' for t in _closed)}" if _closed else ""
                         _sl_guard_extra_msg = (
                             f"🛡️ *SL Guard เปิดใช้งาน*\n"
                             f"━━━━━━━━━━━━━━━━━\n"
@@ -175,6 +180,7 @@ async def check_sl_tp_hits(app):
                             f"⚠️ ขาดทุน >{_config.SL_GUARD_LOSS_THRESHOLD:.0f}$ ครบ {_config.SL_GUARD_COUNT}x — บล็อก {_guard_side} LIMIT ใหม่\n"
                             f"⏳ รอ Swing {'Low' if _guard_side=='BUY' else 'High'} ใหม่เกิดก่อน\n"
                             f"🔔 Ticket: `{ticket}`"
+                            f"{_close_note}"
                         )
                 except Exception:
                     pass
