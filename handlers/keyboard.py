@@ -1701,6 +1701,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     scan_block_status = "🟢ON" if config.TREND_FILTER_SCAN_BLOCK else "🔴OFF"
     nac_status = f"🟢ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)" if config.NEAR_APPROACH_CANCEL_ENABLED else "🔴OFF"
     prr_status = "🟢ON" if config.PENDING_RSI_RECHECK_ENABLED else "🔴OFF"
+    _sideway_hhll_on = getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)
+    sideway_hhll_status = "🟢ON" if _sideway_hhll_on else "🔴OFF"
     _sg_on = getattr(config, "SL_GUARD_ENABLED", False)
     _sg_c  = getattr(config, "SL_GUARD_COUNT", 2)
     _sg_p  = getattr(config, "SL_GUARD_NEAR_POINTS", 200)
@@ -1733,6 +1735,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         "Per-TF: ติ๊ก TF ที่ต้องการ filter (ของใครของมัน)\n"
         "  เช่น ติ๊ก M1 → M1 signal filter ด้วย M1 trend เท่านั้น\n"
         "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย\n\n"
+        f"Sideway HHLL: *{sideway_hhll_status}*\n"
+        f"  HH/HL last swing → block SELL | LH/LL last swing → block BUY\n\n"
         f"SL Guard: *{sg_status}*\n"
         f"  BUY/SELL SL ≥ Nx → ยกเลิก pending ที่ใกล้ ({_sg_p}pt) + บล็อกจนกว่าจะเกิด Swing ใหม่\n"
         f"Loss Guard: *{sgl_status}*\n"

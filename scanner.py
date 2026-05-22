@@ -1100,10 +1100,10 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
                         _last = (_ghd(ref_tf) or {}).get("last_label", "")
                     except Exception:
                         _last = ""
-                    if _last == "LH" and signal == "BUY":
-                        return False, f"{ref_tf} SIDEWAY/LH"
-                    if _last == "HL" and signal == "SELL":
-                        return False, f"{ref_tf} SIDEWAY/HL"
+                    if _last in ("LH", "LL") and signal == "BUY":
+                        return False, f"{ref_tf} SIDEWAY/{_last}"
+                    if _last in ("HH", "HL") and signal == "SELL":
+                        return False, f"{ref_tf} SIDEWAY/{_last}"
                 return True, ""
             breakout = sw.get("breakout") or {}
             if t == "BULL":
@@ -1133,10 +1133,10 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
                 _last = (_ghd(ref_tf) or {}).get("last_label", "")
             except Exception:
                 _last = ""
-            if _last == "LH" and signal == "BUY":
-                return False, f"{ref_tf} SIDEWAY/LH"
-            if _last == "HL" and signal == "SELL":
-                return False, f"{ref_tf} SIDEWAY/HL"
+            if _last in ("LH", "LL") and signal == "BUY":
+                return False, f"{ref_tf} SIDEWAY/{_last}"
+            if _last in ("HH", "HL") and signal == "SELL":
+                return False, f"{ref_tf} SIDEWAY/{_last}"
         return True, ""
 
     if per_tf_on:
