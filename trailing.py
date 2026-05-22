@@ -2356,6 +2356,18 @@ async def check_limit_fill_notify(app):
                 if not pattern_name and _c_sid is not None:
                     _sid_label = {1: "S1", 2: "S2 FVG", 3: "S3 DM SP", 4: "S4 FVG", 6: "S6", 7: "S6i", 8: "S8", 9: "S9 RSI Div", 10: "S10 MTF", 11: "S11 Fibo"}.get(_c_sid, f"S{_c_sid}")
                     pattern_name = f"{_sid_label} {pos_type} [{_c_tf}]"
+        # fallback 4: tracked_positions (persisted across bot restarts → แก้ pattern=- หลัง restart)
+        if not _fill_tf or not pattern_name or sid is None:
+            _tp_info = getattr(config, "tracked_positions", {}).get(ticket) or {}
+            if _tp_info:
+                if not pattern_name and _tp_info.get("pattern"):
+                    pattern_name = _tp_info["pattern"]
+                if not _fill_tf and _tp_info.get("tf"):
+                    _fill_tf = _tp_info["tf"]
+                    position_tf[ticket] = _fill_tf          # cache กลับเข้า dict
+                if sid is None and _tp_info.get("sid") is not None:
+                    sid = _tp_info["sid"]
+                    position_sid[ticket] = sid              # cache กลับเข้า dict
         if not _fill_tf:
             _fill_tf = "M1"                      # last-resort fallback
         try:

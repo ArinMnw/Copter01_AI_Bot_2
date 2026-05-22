@@ -276,14 +276,35 @@ class _TgWrapper:
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE retry p={priority} seq={seq} after={e.retry_after}s text={self._preview(text)}")
                 await self._queue.put((priority, seq, payload))
             except TelegramError as e:
-                print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE drop p={priority} seq={seq} error={e} text={self._preview(text)}")
-                try:
-                    from bot_log import log_event as _le, log_error as _lerr
-                    _msg = f"TelegramError: {e} | text={self._preview(text, 120)}"
-                    _le("TG_DROP", _msg)
-                    _lerr("TG_DROP", _msg)
-                except Exception:
-                    pass
+                err_str = str(e)
+                _retried = False
+                # ── auto-fix: Message is too long → truncate + retry ──
+                if "Message is too long" in err_str:
+                    try:
+                        _cut = final_text.rfind('\n', 0, 4050)
+                        if _cut < 2000:
+                            _cut = 4050
+                        _short = final_text[:_cut] + "\n…_(ข้อความถูกตัด)_"
+                        await self._send(chat_id=chat_id, text=_short, parse_mode=parse_mode, **kwargs)
+                        _retried = True
+                    except Exception:
+                        pass
+                # ── auto-fix: Markdown parse error → retry ไม่มี formatting ──
+                elif "parse entities" in err_str.lower() or "can't find end" in err_str.lower():
+                    try:
+                        await self._send(chat_id=chat_id, text=final_text, parse_mode=None, **kwargs)
+                        _retried = True
+                    except Exception:
+                        pass
+                if not _retried:
+                    print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE drop p={priority} seq={seq} error={e} text={self._preview(text)}")
+                    try:
+                        from bot_log import log_event as _le, log_error as _lerr
+                        _msg = f"TelegramError: {e} | text={self._preview(text, 120)}"
+                        _le("TG_DROP", _msg)
+                        _lerr("TG_DROP", _msg)
+                    except Exception:
+                        pass
             except Exception as e:
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE unexpected p={priority} seq={seq} error={e} text={self._preview(text)}")
                 try:
