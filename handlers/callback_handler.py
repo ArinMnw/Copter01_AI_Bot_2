@@ -926,6 +926,14 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query,f"Trend Recheck: {pts}pt")
 
+    elif data.startswith("set_ltr_rounds_"):
+        rds = int(data.replace("set_ltr_rounds_", ""))
+        if rds in (1, 2, 3):
+            config.LIMIT_TREND_RECHECK_ROUNDS = rds
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await _qanswer(query, f"Trend Recheck: {rds} round(s)")
+
     elif data == "toggle_near_approach_cancel":
         config.NEAR_APPROACH_CANCEL_ENABLED = not config.NEAR_APPROACH_CANCEL_ENABLED
         save_runtime_state()
