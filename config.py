@@ -470,7 +470,7 @@ LIMIT_BREAK_CANCEL_TF = {
 # ถ้า trend เปลี่ยนสวนทาง order ภายในระยะ N จุด → ยกเลิก limit
 LIMIT_TREND_RECHECK = True
 LIMIT_TREND_RECHECK_POINTS = 300  # ระยะห่างจาก entry (points) ที่จะเริ่ม recheck
-LIMIT_TREND_RECHECK_ROUNDS = 1    # จำนวนรอบ: 1=เช็คครั้งเดียว, 2=+รอ H/L, 3=+รอ H/L อีกรอบ
+LIMIT_TREND_RECHECK_ROUNDS = 2    # จำนวนรอบ: 1=เช็คครั้งเดียว, 2=+รอ H/L, 3=+รอ H/L อีกรอบ
 TREND_FILTER_SCAN_BLOCK = False   # False = ไม่ block ตอน scan ให้ Limit Recheck จัดการแทน
 
 # ── Premium/Discount Zone Recheck ──────────────────────────────────
