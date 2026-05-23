@@ -148,6 +148,29 @@ def _check_bot_log_on_startup() -> None:
     _last_bot_log_month = cur
 
 
+def _check_system_log_on_startup() -> None:
+    """ตรวจ system.log ตอน start — ถ้าเป็นเดือนก่อน → rotate ทันที
+    ต้องเรียกก่อนสร้าง _MonthlyRotatingFileHandler เพื่อให้ไฟล์ถูก rotate ก่อน handler เปิด"""
+    if not os.path.exists(SYSTEM_LOG_FILE):
+        return
+    now_dt = _now_bkk()
+    cur = (now_dt.year, now_dt.month)
+    try:
+        last_line = None
+        with open(SYSTEM_LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.strip():
+                    last_line = line
+        if last_line:
+            ts = _parse_log_line_ts(last_line)
+            if ts and (ts.year, ts.month) != cur:
+                archive = get_monthly_system_log_file(ts.year, ts.month)
+                if os.path.exists(SYSTEM_LOG_FILE) and not os.path.exists(archive):
+                    os.rename(SYSTEM_LOG_FILE, archive)
+    except Exception:
+        pass
+
+
 def _move_old_logs_on_startup() -> None:
     """ย้าย monthly log เก่าที่หลงเหลือใน logs/ และ system/ ไป old_logs/"""
     now_dt = _now_bkk()
@@ -200,7 +223,13 @@ class _MonthlyRotatingFileHandler(logging.FileHandler):
     """FileHandler ที่ rotate ทุกต้นเดือน → system-YYYY-MM.log"""
 
     def __init__(self, filename: str, **kwargs):
-        self._current_month: tuple = (0, 0)
+        # ตั้งต้นด้วยเดือนปัจจุบันทันที เพื่อให้ emit() แรกตรวจ month-change ได้ถูกต้อง
+        # (_check_system_log_on_startup ถูกเรียกก่อนแล้ว ดังนั้น file นี้เป็นเดือนปัจจุบัน)
+        try:
+            _now = _now_bkk()
+            self._current_month: tuple = (_now.year, _now.month)
+        except Exception:
+            self._current_month = (0, 0)
         super().__init__(filename, mode="a", encoding="utf-8", **kwargs)
 
     def _archive_path(self, year: int, month: int) -> str:
@@ -224,6 +253,7 @@ class _MonthlyRotatingFileHandler(logging.FileHandler):
             now = _now_bkk()
             cur = (now.year, now.month)
             if self._current_month == (0, 0):
+                # fallback ถ้า __init__ ไม่สามารถ get เวลาได้
                 self._current_month = cur
             elif cur != self._current_month:
                 self._do_rotate(*self._current_month)
@@ -265,6 +295,7 @@ class _ErrorLogHandler(logging.Handler):
 def setup_python_logging() -> None:
     _ensure_log_dir()
     _check_bot_log_on_startup()      # rotate bot.log ถ้าเป็นเดือนก่อน
+    _check_system_log_on_startup()   # rotate system.log ถ้าเป็นเดือนก่อน (ก่อน handler เปิดไฟล์)
     _move_old_logs_on_startup()      # ย้าย monthly เก่าใน logs/ → old_logs/
     root = logging.getLogger()
     root.setLevel(logging.INFO)

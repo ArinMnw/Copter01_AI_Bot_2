@@ -95,94 +95,143 @@ def _sl_guard_record_sl(tf: str, side: str) -> bool:
     return just_activated
 
 
-def _sl_guard_close_open_positions(tf: str, side: str) -> list:
+def _sl_guard_cancel_pending_orders(side: str, scope: str = "all", tf: str = "") -> list:
     """
-    ปิด position ทั้งหมดที่ตรงกับ tf + side เมื่อ SL Guard activate
-    คืน list ของ ticket ที่ปิดสำเร็จ
+    ยกเลิก pending limit/stop orders เมื่อ SL Guard activate
+    scope:
+      "tf"       → ยกเลิกเฉพาะ tf+side ที่ระบุ  (per-TF guard)
+      "combined" → ยกเลิกทุก pending ของ side ที่อยู่ใน SL_GUARD_COMBINED_TFS
+      "all"      → ยกเลิกทุก pending ของ side นั้น ไม่สน TF (Group guard)
+    คืน list ticket ที่ยกเลิกสำเร็จ
     """
     if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
         return []
     try:
-        positions = mt5.positions_get(symbol=SYMBOL)
-        if not positions:
+        orders = mt5.orders_get(symbol=SYMBOL)
+        if not orders:
             return []
         side_up = side.upper()
-        pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
-        closed = []
-        for pos in positions:
-            if pos.type != pos_type_mt5:
+        buy_types  = (mt5.ORDER_TYPE_BUY_LIMIT,  mt5.ORDER_TYPE_BUY_STOP)
+        sell_types = (mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP)
+        target_types = buy_types if side_up == "BUY" else sell_types
+        combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or []) if scope == "combined" else None
+        cancelled = []
+        for order in orders:
+            if order.type not in target_types:
                 continue
-            pos_tf = position_tf.get(pos.ticket, "")
-            if pos_tf != tf:
+            ticket = int(order.ticket)
+            # หา TF จาก pending_order_tf ก่อน แล้ว fallback ไป position_tf
+            _info = pending_order_tf.get(ticket)
+            order_tf = str((_info.get("tf", "") if isinstance(_info, dict) else "") or position_tf.get(ticket, ""))
+            if scope == "tf" and order_tf != tf:
                 continue
-            ok, _ = _close_position(pos, side_up, f"SL Guard activate [{tf}]")
-            if ok:
-                closed.append(pos.ticket)
-                log_event("SL_GUARD_CLOSE", f"ปิด {side_up} [{tf}] ticket={pos.ticket}", tf=tf, side=side_up)
-        return closed
+            if scope == "combined" and combined_tfs and order_tf not in combined_tfs:
+                continue
+            r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                cancelled.append(ticket)
+                pending_order_tf.pop(ticket, None)
+                position_tf.pop(ticket, None)
+                position_sid.pop(ticket, None)
+                log_event(
+                    "SL_GUARD_CANCEL_PENDING",
+                    f"ยกเลิก pending {side_up} [{order_tf or tf}] ticket={ticket} scope={scope}",
+                    tf=order_tf or tf, side=side_up,
+                )
+        return cancelled
+    except Exception as e:
+        print(f"[SL Guard] _sl_guard_cancel_pending_orders error: {e}")
+        return []
+
+
+def _sl_guard_close_open_positions(tf: str, side: str) -> list:
+    """
+    ปิด position + ยกเลิก pending orders ที่ตรงกับ tf + side เมื่อ SL Guard activate
+    คืน list ของ ticket ที่ปิด/ยกเลิกสำเร็จ
+    """
+    if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        return []
+    result = []
+    try:
+        positions = mt5.positions_get(symbol=SYMBOL)
+        if positions:
+            side_up = side.upper()
+            pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            for pos in positions:
+                if pos.type != pos_type_mt5:
+                    continue
+                pos_tf = position_tf.get(pos.ticket, "")
+                if pos_tf != tf:
+                    continue
+                ok, _ = _close_position(pos, side_up, f"SL Guard activate [{tf}]")
+                if ok:
+                    result.append(pos.ticket)
+                    log_event("SL_GUARD_CLOSE", f"ปิด {side_up} [{tf}] ticket={pos.ticket}", tf=tf, side=side_up)
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_open_positions error: {e}")
-        return []
+    # ยกเลิก pending orders ของ tf+side เดียวกัน
+    result.extend(_sl_guard_cancel_pending_orders(side, scope="tf", tf=tf))
+    return result
 
 
 def _sl_guard_close_combined_positions(side: str) -> list:
     """
-    ปิด position ทั้งหมดของ side นี้ที่อยู่ใน SL_GUARD_COMBINED_TFS เมื่อ Combined Guard activate
-    คืน list ของ ticket ที่ปิดสำเร็จ
+    ปิด position + ยกเลิก pending ทั้งหมดของ side นี้ใน SL_GUARD_COMBINED_TFS เมื่อ Combined Guard activate
+    คืน list ของ ticket ที่ปิด/ยกเลิกสำเร็จ
     """
     if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
         return []
+    result = []
     try:
         positions = mt5.positions_get(symbol=SYMBOL)
-        if not positions:
-            return []
-        side_up = side.upper()
-        pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
-        combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
-        closed = []
-        for pos in positions:
-            if pos.type != pos_type_mt5:
-                continue
-            pos_tf = position_tf.get(pos.ticket, "")
-            # ถ้ากำหนด combined_tfs ไว้ → กรองเฉพาะ TF ใน group; ถ้าว่าง → ปิดทุก TF
-            if combined_tfs and pos_tf not in combined_tfs:
-                continue
-            ok, _ = _close_position(pos, side_up, f"SL Guard Combined activate")
-            if ok:
-                closed.append(pos.ticket)
-                log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Combined [{pos_tf}] ticket={pos.ticket}", side=side_up)
-        return closed
+        if positions:
+            side_up = side.upper()
+            pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+            for pos in positions:
+                if pos.type != pos_type_mt5:
+                    continue
+                pos_tf = position_tf.get(pos.ticket, "")
+                # ถ้ากำหนด combined_tfs ไว้ → กรองเฉพาะ TF ใน group; ถ้าว่าง → ปิดทุก TF
+                if combined_tfs and pos_tf not in combined_tfs:
+                    continue
+                ok, _ = _close_position(pos, side_up, "SL Guard Combined activate")
+                if ok:
+                    result.append(pos.ticket)
+                    log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Combined [{pos_tf}] ticket={pos.ticket}", side=side_up)
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_combined_positions error: {e}")
-        return []
+    # ยกเลิก pending orders ของ combined_tfs+side เดียวกัน
+    result.extend(_sl_guard_cancel_pending_orders(side, scope="combined"))
+    return result
 
 
 def _sl_guard_close_all_side_positions(side: str) -> list:
     """
-    ปิด position ทั้งหมดของ side นี้ (ทุก TF ไม่สน group) เมื่อ Group Guard activate
-    คืน list ของ ticket ที่ปิดสำเร็จ
+    ปิด position + ยกเลิก pending ทั้งหมดของ side นี้ (ทุก TF ไม่สน group) เมื่อ Group Guard activate
+    คืน list ของ ticket ที่ปิด/ยกเลิกสำเร็จ
     """
     if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
         return []
+    result = []
     try:
         positions = mt5.positions_get(symbol=SYMBOL)
-        if not positions:
-            return []
-        side_up = side.upper()
-        pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
-        closed = []
-        for pos in positions:
-            if pos.type != pos_type_mt5:
-                continue
-            ok, _ = _close_position(pos, side_up, "SL Guard Group activate")
-            if ok:
-                closed.append(pos.ticket)
-                pos_tf = position_tf.get(pos.ticket, "?")
-                log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Group [{pos_tf}] ticket={pos.ticket}", side=side_up)
-        return closed
+        if positions:
+            side_up = side.upper()
+            pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            for pos in positions:
+                if pos.type != pos_type_mt5:
+                    continue
+                ok, _ = _close_position(pos, side_up, "SL Guard Group activate")
+                if ok:
+                    result.append(pos.ticket)
+                    pos_tf = position_tf.get(pos.ticket, "?")
+                    log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Group [{pos_tf}] ticket={pos.ticket}", side=side_up)
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_all_side_positions error: {e}")
-        return []
+    # ยกเลิก pending orders ทุก TF ของ side นั้น
+    result.extend(_sl_guard_cancel_pending_orders(side, scope="all"))
+    return result
 
 
 def _sl_guard_check_unblock(tf: str, side: str, rates) -> bool:
@@ -5739,6 +5788,54 @@ async def check_cancel_pending_orders(app):
                                     parent_time=fmt_mt5_bkk_ts(int(info.get("s10_parent_time", 0) or 0), "%H:%M %d-%b-%Y"),
                                 )
 
+        # S10 ongoing HTF structure-break check (ทำงานหลัง s10_sweep_checked=True)
+        # ถ้าแท่ง HTF ที่ปิดแล้วหลัง sweep bar ปิด break parent low (BUY) / parent high (SELL)
+        # → CRT pattern invalid → ยกเลิก pending ทันที
+        if (
+            not should_cancel
+            and isinstance(info, dict)
+            and info.get("sid") == 10
+            and info.get("s10_sweep_checked")   # ← initial recheck ผ่านแล้ว
+            and info.get("s10_htf_tf")
+            and info.get("s10_sweep_time")
+        ):
+            _sb_htf    = info.get("s10_htf_tf") or tf
+            _sb_tf_val = TF_OPTIONS.get(_sb_htf, tf_val)
+            _sb_sweep_ts = int(info.get("s10_sweep_time", 0) or 0)
+            _sb_p_low    = float(info.get("s10_parent_low",  0) or 0)
+            _sb_p_high   = float(info.get("s10_parent_high", 0) or 0)
+            _sb_sig      = info.get("signal", "")
+            if _sb_sig in ("BUY", "SELL") and (_sb_p_low > 0 or _sb_p_high > 0):
+                _sb_n = max(TF_LOOKBACK.get(_sb_htf, SWING_LOOKBACK) + 6, 50)
+                _sb_rates = mt5.copy_rates_from_pos(SYMBOL, _sb_tf_val, 1, _sb_n)
+                if _sb_rates is not None and len(_sb_rates) > 0:
+                    _bars_post_sweep = [r for r in _sb_rates if int(r["time"]) > _sb_sweep_ts]
+                    if _bars_post_sweep:
+                        _sb_broken = False
+                        if _sb_sig == "BUY" and _sb_p_low > 0:
+                            # แท่ง HTF ปิดต่ำกว่า parent low → sweep structure ถูก engulf → invalid
+                            _sb_broken = any(float(r["close"]) < _sb_p_low for r in _bars_post_sweep)
+                        elif _sb_sig == "SELL" and _sb_p_high > 0:
+                            # แท่ง HTF ปิดสูงกว่า parent high → sweep structure ถูก engulf → invalid
+                            _sb_broken = any(float(r["close"]) > _sb_p_high for r in _bars_post_sweep)
+                        if _sb_broken:
+                            _sb_dir  = "low" if _sb_sig == "BUY" else "high"
+                            _sb_lvl  = _sb_p_low if _sb_sig == "BUY" else _sb_p_high
+                            should_cancel = True
+                            reason = (
+                                f"S10 HTF Structure Break [{_sb_htf}]: "
+                                f"แท่งหลัง sweep ปิด break parent {_sb_dir}={_sb_lvl:.2f} — "
+                                f"CRT pattern invalid"
+                            )
+                            log_event(
+                                "S10_STRUCTURE_BREAK",
+                                "CANCEL",
+                                ticket=ticket, tf=tf, htf_tf=_sb_htf,
+                                signal=_sb_sig,
+                                parent_low=_sb_p_low, parent_high=_sb_p_high,
+                                sweep_time=fmt_mt5_bkk_ts(_sb_sweep_ts, "%H:%M %d-%b-%Y"),
+                            )
+
         # S10 pending invalidation: if SELL has already touched parent low before fill, cancel immediately
         if (
             not should_cancel
@@ -5931,9 +6028,9 @@ async def check_cancel_pending_orders(app):
                             break
 
         # Limit Trend Recheck: verify trend before fill when price gets near entry
-        # Skip: S1 (zone-based), S9 (RSI div), S10 (CRT-managed), S11 (Fibo)
-        # S12, S13 — ใช้ Trend Recheck (ตามคำขอ 2026-05-18)
-        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (1, 9, 10, 11):
+        # Skip: S9 (RSI div), S10 (CRT-managed)
+        # S1, S11, S12, S13 — ใช้ Trend Recheck
+        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (9, 10):
             _tick = mt5.symbol_info_tick(SYMBOL)
             _sym  = mt5.symbol_info(SYMBOL)
             if _tick and _sym:
@@ -6041,6 +6138,67 @@ async def check_cancel_pending_orders(app):
                                 f"{_sg.get('count', 0)}x — ยกเลิก pending "
                                 f"entry:{_sg_entry:.2f} cur:{_sg_cur:.2f} "
                                 f"dist:{_sg_dist_pt:.0f}pt (≤{config.SL_GUARD_NEAR_POINTS}pt)"
+                            )
+
+        # SL Guard Combined: cancel near pending when combined guard blocks this TF/side
+        if not should_cancel and getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            _cg_side = None
+            if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
+                _cg_side = "BUY"
+            elif order.type == mt5.ORDER_TYPE_SELL_LIMIT:
+                _cg_side = "SELL"
+            if _cg_side and tf:
+                _cg_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+                if not _cg_tfs or tf in _cg_tfs:
+                    _cg = _sl_guard_combined.get(_cg_side, {})
+                    if _cg.get("active") and _cg.get("tf_blocked", {}).get(tf):
+                        # เช็คก่อนว่า H/L เกิดแล้วหรือยัง → ถ้าเกิดแล้ว unblock แทน cancel
+                        _combined_guard_check_unblock(tf, _cg_side, rates)
+                        _cg = _sl_guard_combined.get(_cg_side, {})
+                        if _cg.get("active") and _cg.get("tf_blocked", {}).get(tf):
+                            # H/L ยังไม่เกิด → ถ้าราคาเข้าใกล้ pending ให้ยกเลิก
+                            _cg_sym = mt5.symbol_info(SYMBOL)
+                            _cg_tick = mt5.symbol_info_tick(SYMBOL)
+                            if _cg_sym and _cg_tick:
+                                _cg_pt = _cg_sym.point or 0.01
+                                _cg_near = config.SL_GUARD_NEAR_POINTS * _cg_pt * config.points_scale()
+                                _cg_entry = order.price_open
+                                _cg_cur = _cg_tick.ask if _cg_side == "BUY" else _cg_tick.bid
+                                _cg_dist_pt = abs(_cg_cur - _cg_entry) / _cg_pt
+                                if abs(_cg_cur - _cg_entry) <= _cg_near:
+                                    should_cancel = True
+                                    reason = (
+                                        f"SL Guard Combined [{tf}]: {_cg_side} blocked, H/L ยังไม่เกิด — "
+                                        f"ยกเลิก pending entry:{_cg_entry:.2f} cur:{_cg_cur:.2f} "
+                                        f"dist:{_cg_dist_pt:.0f}pt (≤{config.SL_GUARD_NEAR_POINTS}pt)"
+                                    )
+
+        # SL Guard Group: cancel near pending when group guard blocks this TF/side
+        if not should_cancel and getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            _gg_side = None
+            if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
+                _gg_side = "BUY"
+            elif order.type == mt5.ORDER_TYPE_SELL_LIMIT:
+                _gg_side = "SELL"
+            if _gg_side and tf and _group_guard_is_blocked(tf, _gg_side):
+                # เช็คก่อนว่า H/L เกิดแล้วหรือยัง → ถ้าเกิดแล้ว unblock แทน cancel
+                _group_guard_check_unblock(tf, _gg_side, rates)
+                if _group_guard_is_blocked(tf, _gg_side):
+                    # H/L ยังไม่เกิด → ถ้าราคาเข้าใกล้ pending ให้ยกเลิก
+                    _gg_sym = mt5.symbol_info(SYMBOL)
+                    _gg_tick = mt5.symbol_info_tick(SYMBOL)
+                    if _gg_sym and _gg_tick:
+                        _gg_pt = _gg_sym.point or 0.01
+                        _gg_near = config.SL_GUARD_NEAR_POINTS * _gg_pt * config.points_scale()
+                        _gg_entry = order.price_open
+                        _gg_cur = _gg_tick.ask if _gg_side == "BUY" else _gg_tick.bid
+                        _gg_dist_pt = abs(_gg_cur - _gg_entry) / _gg_pt
+                        if abs(_gg_cur - _gg_entry) <= _gg_near:
+                            should_cancel = True
+                            reason = (
+                                f"SL Guard Group [{tf}]: {_gg_side} blocked, H/L ยังไม่เกิด — "
+                                f"ยกเลิก pending entry:{_gg_entry:.2f} cur:{_gg_cur:.2f} "
+                                f"dist:{_gg_dist_pt:.0f}pt (≤{config.SL_GUARD_NEAR_POINTS}pt)"
                             )
 
         if isinstance(info, dict) and not info.get("sl_armed") and info.get("intended_sl"):
