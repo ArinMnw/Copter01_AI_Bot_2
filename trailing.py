@@ -802,6 +802,7 @@ _sl_protect_applied: set[int] = set()
 _last_sl_protect_tg_key = ""
 _s8_fill_sl: dict = {}   # {ticket: intended_sl} for S8 that filled before SL arm
 _fill_rsi_checked: set[int] = set()
+_fill_trend_checked: set[int] = set()  # tickets ที่ผ่าน round1 trend recheck แล้ว
 
 # Strategy 6: 2 High 2 Low trail state
 # {ticket: {
@@ -2974,6 +2975,141 @@ async def check_fill_rsi_recheck(app):
                 print(f"[{now}] fill_rsi_close {pos_type} {ticket} close={close_price:.2f}")
         else:
             _fill_rsi_checked.add(ticket)
+
+
+# -------------------------------------------------------------
+async def check_fill_trend_recheck(app):
+    """Trend Recheck หลัง fill: ตรวจ trend ของ position ที่เพิ่ง fill
+    Gate: LIMIT_TREND_RECHECK
+    Skip: S9 (RSI Div), S10 (CRT)
+    รอบ 1 : ทันทีหลัง fill — ถ้า trend สวนทาง → ปิด position
+    รอบ 2+ : เช็คอีกครั้งหลัง H หรือ L เปลี่ยน (ตาม LIMIT_TREND_RECHECK_ROUNDS)
+    """
+    if not getattr(config, "LIMIT_TREND_RECHECK", False):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        _trend_recheck_state.clear()
+        _fill_trend_checked.clear()
+        return
+
+    open_pos_tickets = {p.ticket for p in positions}
+
+    # Cleanup state สำหรับ position ที่ปิดไปแล้ว
+    for _t in list(_trend_recheck_state.keys()):
+        if _t not in open_pos_tickets:
+            _trend_recheck_state.pop(_t, None)
+    _fill_trend_checked.difference_update(
+        _t for _t in list(_fill_trend_checked) if _t not in open_pos_tickets
+    )
+
+    ltr_rounds = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 2))
+    from scanner import trend_allows_signal as _tas
+    from hhll_swing import get_swing_hl_pts as _ghl
+
+    for pos in positions:
+        ticket = pos.ticket
+        sid = position_sid.get(ticket)
+        # Skip S9 (RSI Divergence), S10 (CRT)
+        if sid in (9, 10):
+            continue
+
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        sig_e    = "🟢" if pos_type == "BUY" else "🔴"
+
+        # Resolve TF (3-tier fallback)
+        _tr_tf = position_tf.get(ticket)
+        if not _tr_tf:
+            _fi = fvg_order_tickets.get(ticket)
+            if _fi:
+                _tr_tf = _fi.get("tf")
+        if not _tr_tf:
+            _tr_tf = "M1"
+
+        # ── รอบ 1: ทันทีหลัง fill ───────────────────────────────────────
+        if ticket not in _fill_trend_checked:
+            _fill_trend_checked.add(ticket)
+            _allowed, _why = _tas(_tr_tf, pos_type)
+            log_event("TREND_RECHECK", "fill_round1",
+                      ticket=ticket, tf=_tr_tf, signal=pos_type,
+                      allowed=_allowed, why=_why, rounds_config=ltr_rounds)
+            if not _allowed:
+                ok, cp = _close_position(pos, pos_type,
+                                         f"Fill Trend Recheck [round1/{ltr_rounds}]: trend={_why}")
+                if ok:
+                    log_event("TREND_RECHECK", "fill_close_round1",
+                              ticket=ticket, tf=_tr_tf, signal=pos_type,
+                              why=_why, close_price=cp)
+                    await tg(app, (
+                        f"📊 *Trend Recheck: ปิด Position [round1/{ltr_rounds}]*\n"
+                        f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
+                        f"Trend สวนทาง: `{_why}`\n"
+                        f"ปิดที่: `{cp:.2f}`"
+                    ))
+            elif ltr_rounds >= 2:
+                # รอบ 1 ผ่าน → บันทึก H/L รอ round 2
+                _sh, _sl = _ghl(_tr_tf)
+                _trend_recheck_state[ticket] = {
+                    "round": 1,
+                    "rounds_total": ltr_rounds,
+                    "cur_h": float(_sh["price"]) if _sh else 0.0,
+                    "cur_l": float(_sl["price"]) if _sl else 0.0,
+                }
+                log_event("TREND_RECHECK", "fill_round1_pass_wait_hl",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type,
+                          rounds_total=ltr_rounds)
+            # ltr_rounds == 1 and allowed → จบแล้ว ไม่ต้อง save state
+            continue  # ข้ามไปตัวถัดไป (round 2+ รอบถัดไป)
+
+        # ── รอบ 2 / 3: เช็คเมื่อ H/L เปลี่ยน ───────────────────────────
+        tr_state = _trend_recheck_state.get(ticket)
+        if tr_state is None:
+            continue  # round 1 pass + rounds=1, ไม่ต้องเช็คอีก
+
+        _sh, _sl = _ghl(_tr_tf)
+        _new_h = float(_sh["price"]) if _sh else 0.0
+        _new_l = float(_sl["price"]) if _sl else 0.0
+        _h_chg = abs(_new_h - tr_state["cur_h"]) > 0.01
+        _l_chg = abs(_new_l - tr_state["cur_l"]) > 0.01
+        if not (_h_chg or _l_chg):
+            continue  # H/L ยังไม่เปลี่ยน รอต่อ
+
+        _allowed, _why = _tas(_tr_tf, pos_type)
+        _cur_rnd = tr_state["round"] + 1
+        _total   = tr_state["rounds_total"]
+        _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
+
+        tr_state["cur_h"] = _new_h
+        tr_state["cur_l"] = _new_l
+        tr_state["round"] = _cur_rnd
+        _trend_recheck_state[ticket] = tr_state
+
+        log_event("TREND_RECHECK", f"fill_round{_cur_rnd}",
+                  ticket=ticket, tf=_tr_tf, signal=pos_type,
+                  allowed=_allowed, why=_why,
+                  hl_changed=_changed, round_num=_cur_rnd, rounds_total=_total)
+
+        if not _allowed:
+            ok, cp = _close_position(pos, pos_type,
+                                     f"Fill Trend Recheck [round{_cur_rnd}/{_total}]: "
+                                     f"H/L changed ({_changed}), trend={_why}")
+            if ok:
+                _trend_recheck_state.pop(ticket, None)
+                log_event("TREND_RECHECK", f"fill_close_round{_cur_rnd}",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type,
+                          why=_why, close_price=cp)
+                await tg(app, (
+                    f"📊 *Trend Recheck: ปิด Position [round{_cur_rnd}/{_total}]*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
+                    f"H/L เปลี่ยน ({_changed}) → Trend สวนทาง: `{_why}`\n"
+                    f"ปิดที่: `{cp:.2f}`"
+                ))
+        elif _cur_rnd >= _total:
+            # ผ่านครบทุก round แล้ว
+            _trend_recheck_state.pop(ticket, None)
+            log_event("TREND_RECHECK", "fill_all_rounds_pass",
+                      ticket=ticket, tf=_tr_tf, rounds=_total)
+        # else: ยังต้องรอ round ถัดไป (H/L เปลี่ยนอีกรอบ)
 
 
 # -------------------------------------------------------------
@@ -5670,10 +5806,13 @@ async def check_cancel_pending_orders(app):
         if t not in open_tickets:
             _triple_check_state.pop(t, None)
 
-    # Cleanup trend recheck multi-round state for tickets that no longer exist
+    # Cleanup trend recheck state for positions that no longer exist
     for t in list(_trend_recheck_state.keys()):
-        if t not in open_tickets:
+        if t not in _open_pos_tickets:
             _trend_recheck_state.pop(t, None)
+    _fill_trend_checked.difference_update(
+        t for t in list(_fill_trend_checked) if t not in _open_pos_tickets
+    )
 
     # Cleanup tickets that no longer exist
     for t in list(pending_order_tf.keys()):
@@ -6035,116 +6174,6 @@ async def check_cancel_pending_orders(app):
                                       f"SELL pos {pos_entry:.2f} "
                                       f"& ask {ask:.2f} < {pos_entry - guard_dist:.2f} (-{config.LIMIT_GUARD_POINTS}pt)")
                             break
-
-        # Limit Trend Recheck: verify trend before fill when price gets near entry
-        # Limit Trend Recheck: เช็ค trend ก่อน fill เมื่อราคาใกล้ entry
-        # Skip: S9 (RSI div), S10 (CRT-managed)
-        # S1, S11, S12, S13 — ใช้ Trend Recheck
-        # รอบ 1: เช็ค trend ล่าสุดเมื่อราคาเข้าใกล้ entry (≤ LIMIT_TREND_RECHECK_POINTS)
-        # รอบ 2: เช็ค trend อีกครั้งหลัง H หรือ L เปลี่ยน (ถ้า rounds ≥ 2)
-        # รอบ 3: เช็ค trend อีกครั้งหลัง H/L เปลี่ยนอีกรอบ (ถ้า rounds = 3)
-        if not should_cancel and config.LIMIT_TREND_RECHECK and _order_sid not in (9, 10):
-            _ltr_rounds  = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 1))
-            _tick = mt5.symbol_info_tick(SYMBOL)
-            _sym  = mt5.symbol_info(SYMBOL)
-            if _tick and _sym:
-                _pt           = _sym.point or 0.01
-                _recheck_dist = config.LIMIT_TREND_RECHECK_POINTS * _pt * config.points_scale()
-                _limit_entry  = order.price_open
-                if order.type in (mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP):
-                    _cur_price    = _tick.ask
-                    _order_signal = "BUY"
-                elif order.type in (mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP):
-                    _cur_price    = _tick.bid
-                    _order_signal = "SELL"
-                else:
-                    _cur_price = None
-                    _order_signal = ""
-                if _cur_price is not None:
-                    _dist_pt   = round(abs(_cur_price - _limit_entry) / _pt)
-                    _near_entry = abs(_cur_price - _limit_entry) <= _recheck_dist
-                    _tr_state   = _trend_recheck_state.get(ticket)
-
-                    if _tr_state is None and _near_entry:
-                        # ── รอบ 1: ราคาเพิ่งเข้า zone ──────────────────────────────
-                        from scanner import trend_allows_signal as _tas
-                        _allowed, _why = _tas(tf, _order_signal)
-                        log_event("TREND_RECHECK", "round1",
-                                  ticket=ticket, tf=tf, signal=_order_signal,
-                                  allowed=_allowed, why=_why, dist_pt=_dist_pt,
-                                  rounds_config=_ltr_rounds)
-                        if _triple_check_all_enabled():
-                            # Triple Recheck: บันทึก trend vote (รอบ 1 เท่านั้น)
-                            _triple_check_record(
-                                ticket, "trend", bool(_allowed),
-                                tf=tf, signal=_order_signal,
-                            )
-                            log_event("TREND_RECHECK", "triple_record",
-                                      ticket=ticket, allowed=_allowed,
-                                      why=_why, dist_pt=_dist_pt)
-                        elif not _allowed:
-                            should_cancel = True
-                            reason = (
-                                f"Trend Recheck Cancel [round1/{_ltr_rounds}] [{tf}]: "
-                                f"{_pending_order_type_name(order)} entry:{_limit_entry:.2f} "
-                                f"near {_dist_pt}pt but trend={_why}"
-                            )
-                        elif _ltr_rounds >= 2:
-                            # รอบ 1 ผ่าน → บันทึก state รอ H/L เปลี่ยนสำหรับรอบ 2
-                            from hhll_swing import get_swing_hl_pts as _ghl
-                            _sh_pt, _sl_pt = _ghl(tf)
-                            _trend_recheck_state[ticket] = {
-                                "round": 1,
-                                "rounds_total": _ltr_rounds,
-                                "cur_h": float(_sh_pt["price"]) if _sh_pt else 0.0,
-                                "cur_l": float(_sl_pt["price"]) if _sl_pt else 0.0,
-                                "signal": _order_signal,
-                            }
-                            log_event("TREND_RECHECK", "round1_pass_wait_hl",
-                                      ticket=ticket, tf=tf, signal=_order_signal,
-                                      rounds_total=_ltr_rounds)
-                        # _ltr_rounds == 1 and allowed → ผ่านเลย ไม่ต้อง save state
-
-                    elif _tr_state is not None:
-                        # ── รอบ 2 / รอบ 3: รอ H/L เปลี่ยน ─────────────────────────
-                        from hhll_swing import get_swing_hl_pts as _ghl
-                        _sh_pt, _sl_pt = _ghl(tf)
-                        _new_h = float(_sh_pt["price"]) if _sh_pt else 0.0
-                        _new_l = float(_sl_pt["price"]) if _sl_pt else 0.0
-                        _h_chg = abs(_new_h - _tr_state["cur_h"]) > 0.01
-                        _l_chg = abs(_new_l - _tr_state["cur_l"]) > 0.01
-                        if _h_chg or _l_chg:
-                            from scanner import trend_allows_signal as _tas
-                            _allowed, _why = _tas(tf, _order_signal)
-                            _cur_rnd = _tr_state["round"] + 1
-                            _total   = _tr_state["rounds_total"]
-                            _changed = "/".join(
-                                p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p
-                            )
-                            # อัพเดต state
-                            _tr_state["cur_h"] = _new_h
-                            _tr_state["cur_l"] = _new_l
-                            _tr_state["round"] = _cur_rnd
-                            _trend_recheck_state[ticket] = _tr_state
-                            log_event("TREND_RECHECK", f"round{_cur_rnd}",
-                                      ticket=ticket, tf=tf, signal=_order_signal,
-                                      allowed=_allowed, why=_why,
-                                      hl_changed=_changed,
-                                      round_num=_cur_rnd, rounds_total=_total)
-                            if not _allowed:
-                                should_cancel = True
-                                reason = (
-                                    f"Trend Recheck Cancel [round{_cur_rnd}/{_total}] [{tf}]: "
-                                    f"{_pending_order_type_name(order)} entry:{_limit_entry:.2f} "
-                                    f"H/L changed ({_changed}) but trend={_why}"
-                                )
-                                _trend_recheck_state.pop(ticket, None)
-                            elif _cur_rnd >= _total:
-                                # ผ่านครบทุก round แล้ว
-                                _trend_recheck_state.pop(ticket, None)
-                                log_event("TREND_RECHECK", "all_rounds_pass",
-                                          ticket=ticket, tf=tf, rounds=_total)
-                            # else: ยังต้องรอ round ถัดไป (H/L เปลี่ยนอีกรอบ)
 
         # Near Approach Cancel: cancel limit when price gets near entry then pulls away
         if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED and _order_sid != 10:
@@ -6754,6 +6783,8 @@ async def check_limit_sweep(app):
         _s6_state.pop(ticket, None)
         _s6i_state.pop(ticket, None)
         _sweep_last_bar.pop(ticket, None)
+        _trend_recheck_state.pop(ticket, None)
+        _fill_trend_checked.discard(ticket)
         config.save_runtime_state()
 
 

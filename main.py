@@ -13,7 +13,8 @@ from scanner import auto_scan
 from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_breakeven_tp, check_opposite_order_tp,
                       check_cancel_pending_orders, check_s1_zone_rules, check_s1_forward_confirm_rules, check_s6_trail,
-                      check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify)
+                      check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
+                      check_fill_trend_recheck)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
@@ -249,6 +250,8 @@ def main():
             await check_limit_fill_notify(app)
             # RSI Fill Recheck รันก่อน entry candle — ถ้า fail ปิด position ทันที
             await check_fill_rsi_recheck(app)
+            # Trend Fill Recheck — เช็ค trend หลัง fill (round1 + round2/3 หลัง H/L เปลี่ยน)
+            await check_fill_trend_recheck(app)
             await check_entry_candle_quality(app)
             await check_sl_tp_hits(app)
             await check_s1_zone_rules(app)

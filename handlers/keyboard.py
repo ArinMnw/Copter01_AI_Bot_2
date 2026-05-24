@@ -56,8 +56,8 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     reversal_trail_suffix = "🟢ON" if config.TRAIL_SL_REVERSAL_OVERRIDE_ENABLED else "🔴OFF"
     lbc_on_tfs = [tf for tf, on in config.LIMIT_BREAK_CANCEL_TF.items() if on]
     lbc_label = f"ON ({len(lbc_on_tfs)}TF)" if config.LIMIT_BREAK_CANCEL else "OFF"
-    _ltr_rounds = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 1))
-    ltr_label = f"ON ({config.LIMIT_TREND_RECHECK_POINTS}pt | {_ltr_rounds}R)" if config.LIMIT_TREND_RECHECK else "OFF"
+    _ltr_rounds = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 2))
+    ltr_label = f"ON ({_ltr_rounds}R)" if config.LIMIT_TREND_RECHECK else "OFF"
     trail_suffix = f"🟢ON | Engulf / {trail_mode_label}{' ⚡' if config.TRAIL_SL_IMMEDIATE else ''}" if config.TRAIL_SL_ENABLED else "🔴OFF"
     entry_suffix = f"🟢ON | {entry_mode_label}" if config.ENTRY_CANDLE_ENABLED else "🔴OFF"
     opp_suffix = f"🟢ON | {opp_label}" if config.OPPOSITE_ORDER_ENABLED else "🔴OFF"
@@ -1513,26 +1513,18 @@ def build_trend_filter_keyboard():
     rows.append([InlineKeyboardButton("━ Scan Block ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(scan_block_label, callback_data="toggle_trend_filter_scan_block")])
 
-    # === Limit Trend Recheck ===
-    _ltr_rounds_menu = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 1))
+    # === Trend Recheck After Fill ===
+    _ltr_rounds_menu = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 2))
     ltr_toggle_label = (
-        f"🟢 Limit Recheck: ON ({config.LIMIT_TREND_RECHECK_POINTS}pt | {_ltr_rounds_menu}R)"
+        f"🟢 Trend Recheck: ON ({_ltr_rounds_menu}R)"
         if config.LIMIT_TREND_RECHECK
-        else "🔴 Limit Recheck: OFF"
+        else "🔴 Trend Recheck: OFF"
     )
-    rows.append([InlineKeyboardButton("━ Limit Trend Recheck ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton("━ Trend Recheck (After Fill) ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(ltr_toggle_label, callback_data="toggle_limit_trend_recheck")])
-    ltr_pt_options = [100, 200, 300, 500]
-    rows.append([
-        InlineKeyboardButton(
-            f"{'✅' if config.LIMIT_TREND_RECHECK_POINTS == p else '⬜'} {p}pt",
-            callback_data=f"set_ltr_pts_{p}"
-        )
-        for p in ltr_pt_options
-    ])
     # จำนวนรอบ: 1R / 2R / 3R
     _ltr_round_labels = {
-        1: "1R (เช็คครั้งเดียว)",
+        1: "1R (fill เท่านั้น)",
         2: "2R (+รอ H/L)",
         3: "3R (+รอ H/L×2)",
     }
@@ -1871,8 +1863,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
             "🔴 BEAR strong + BREAK↑ → ผ่านทั้งคู่\n"
             "⚪ weak / SIDEWAY / UNKNOWN → ผ่านทั้งคู่"
         )
-    _ltr_r_status = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 1))
-    ltr_status = f"🟢ON ({config.LIMIT_TREND_RECHECK_POINTS}pt | {_ltr_r_status}R)" if config.LIMIT_TREND_RECHECK else "🔴OFF"
+    _ltr_r_status = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 2))
+    ltr_status = f"🟢ON ({_ltr_r_status}R)" if config.LIMIT_TREND_RECHECK else "🔴OFF"
     scan_block_status = "🟢ON" if config.TREND_FILTER_SCAN_BLOCK else "🔴OFF"
     nac_status = f"🟢ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)" if config.NEAR_APPROACH_CANCEL_ENABLED else "🔴OFF"
     prr_status = "🟢ON" if config.PENDING_RSI_RECHECK_ENABLED else "🔴OFF"

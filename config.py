@@ -469,8 +469,7 @@ LIMIT_BREAK_CANCEL_TF = {
 # ── Limit Trend Recheck: เช็ค trend ก่อน fill เมื่อราคาใกล้ entry ──
 # ถ้า trend เปลี่ยนสวนทาง order ภายในระยะ N จุด → ยกเลิก limit
 LIMIT_TREND_RECHECK = True
-LIMIT_TREND_RECHECK_POINTS = 300  # ระยะห่างจาก entry (points) ที่จะเริ่ม recheck
-LIMIT_TREND_RECHECK_ROUNDS = 2    # จำนวนรอบ: 1=เช็คครั้งเดียว, 2=+รอ H/L, 3=+รอ H/L อีกรอบ
+LIMIT_TREND_RECHECK_ROUNDS = 2    # จำนวนรอบ: 1=เช็คหลัง fill, 2=+รอ H/L, 3=+รอ H/L อีกรอบ
 TREND_FILTER_SCAN_BLOCK = False   # False = ไม่ block ตอน scan ให้ Limit Recheck จัดการแทน
 
 # ── Premium/Discount Zone Recheck ──────────────────────────────────
@@ -806,7 +805,6 @@ _RUNTIME_DEFAULTS = {
     "LIMIT_BREAK_CANCEL": LIMIT_BREAK_CANCEL,
     "LIMIT_BREAK_CANCEL_TF": copy.deepcopy(LIMIT_BREAK_CANCEL_TF),
     "LIMIT_TREND_RECHECK": LIMIT_TREND_RECHECK,
-    "LIMIT_TREND_RECHECK_POINTS": LIMIT_TREND_RECHECK_POINTS,
     "LIMIT_TREND_RECHECK_ROUNDS": LIMIT_TREND_RECHECK_ROUNDS,
     "PENDING_RSI_RECHECK_ENABLED": PENDING_RSI_RECHECK_ENABLED,
     "PENDING_RSI_PERIOD": PENDING_RSI_PERIOD,
@@ -986,7 +984,6 @@ def save_runtime_state():
             "limit_break_cancel": LIMIT_BREAK_CANCEL,
             "limit_break_cancel_tf": LIMIT_BREAK_CANCEL_TF,
             "limit_trend_recheck": LIMIT_TREND_RECHECK,
-            "limit_trend_recheck_points": LIMIT_TREND_RECHECK_POINTS,
             "limit_trend_recheck_rounds": LIMIT_TREND_RECHECK_ROUNDS,
             "pending_rsi_recheck_enabled": PENDING_RSI_RECHECK_ENABLED,
             "pending_rsi_recheck_mode": PENDING_RSI_RECHECK_MODE,
@@ -1113,7 +1110,7 @@ def restore_runtime_state():
         global TG_QUEUE_DEBUG, SLTP_AUDIT_DEBUG, TRADE_DEBUG, OPPOSITE_ORDER_MODE
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
         global LIMIT_GUARD, LIMIT_GUARD_POINTS, LIMIT_GUARD_TF_MODE, ENGULF_MIN_POINTS
-        global LIMIT_BREAK_CANCEL, LIMIT_BREAK_CANCEL_TF, LIMIT_TREND_RECHECK, LIMIT_TREND_RECHECK_POINTS, LIMIT_TREND_RECHECK_ROUNDS
+        global LIMIT_BREAK_CANCEL, LIMIT_BREAK_CANCEL_TF, LIMIT_TREND_RECHECK, LIMIT_TREND_RECHECK_ROUNDS
         global PENDING_RSI_RECHECK_ENABLED, PENDING_RSI_PERIOD
         global PENDING_RSI_APPLIED_PRICE, PENDING_RSI_BUY_MAX, PENDING_RSI_SELL_MIN
         global TREND_FILTER_SCAN_BLOCK
@@ -1159,9 +1156,6 @@ def restore_runtime_state():
                 if tf_name in saved_lbc_tf:
                     LIMIT_BREAK_CANCEL_TF[tf_name] = bool(saved_lbc_tf[tf_name])
         LIMIT_TREND_RECHECK = bool(state.get("limit_trend_recheck", LIMIT_TREND_RECHECK))
-        saved_ltr_pts = state.get("limit_trend_recheck_points")
-        if saved_ltr_pts is not None:
-            LIMIT_TREND_RECHECK_POINTS = int(saved_ltr_pts)
         saved_ltr_rounds = state.get("limit_trend_recheck_rounds")
         if saved_ltr_rounds is not None and int(saved_ltr_rounds) in (1, 2, 3):
             LIMIT_TREND_RECHECK_ROUNDS = int(saved_ltr_rounds)

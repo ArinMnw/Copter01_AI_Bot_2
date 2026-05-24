@@ -919,13 +919,6 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query,f"Trend Recheck: {'ON' if config.LIMIT_TREND_RECHECK else 'OFF'}")
 
-    elif data.startswith("set_ltr_pts_"):
-        pts = int(data.replace("set_ltr_pts_", ""))
-        config.LIMIT_TREND_RECHECK_POINTS = pts
-        save_runtime_state()
-        await show_trend_filter_menu(query, is_query=True)
-        await _qanswer(query,f"Trend Recheck: {pts}pt")
-
     elif data.startswith("set_ltr_rounds_"):
         rds = int(data.replace("set_ltr_rounds_", ""))
         if rds in (1, 2, 3):
