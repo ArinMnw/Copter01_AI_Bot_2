@@ -3441,7 +3441,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 any_success = True
             continue
         # ── S14: ปิดฝั่งตรงข้ามก่อนเปิดใหม่ (flip logic) ─────────────────
-        if sid == 14:
+        if sid == 14 and getattr(config, 'S14_FLIP_ENABLED', True):
             clear_ok = await _clear_opposite_s14_exposure(app, tf_name, signal)
             if not clear_ok:
                 await tg(app, f"⚠️ *[{tf_name}] S14*\nปิดฝั่งตรงข้ามไม่สำเร็จ เลยยังไม่เปิด `{signal}`")

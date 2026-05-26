@@ -874,6 +874,16 @@ def build_strategy_keyboard():
             ),
         ])
 
+    # sub-option ท่า 14: Flip
+    if active_strategies.get(14, False):
+        flip_on = getattr(config, "S14_FLIP_ENABLED", True)
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if flip_on else '⬜'} ท่า14: Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)",
+                callback_data="toggle_s14_flip"
+            ),
+        ])
+
     all_on = all(active_strategies.values())
     ctrl = [
         InlineKeyboardButton(
