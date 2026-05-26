@@ -586,6 +586,10 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     Market order — fill ทันทีที่ราคาปัจจุบัน
     BUY  → ส่ง market BUY  (ask)
     SELL → ส่ง market SELL (bid)
+
+    TSO (Triple Scale-Out): รองรับสำหรับทุก sid ยกเว้น S13 (มี logic แยก)
+    เมื่อ SCALE_OUT_ENABLED=True → volume ×4, register TSO steps ใน scale_out_state
+    trailing.py จะ partial-close ตาม steps และอัปเดต entry เป็น fill จริงอัตโนมัติ
     """
     tick = mt5.symbol_info_tick(SYMBOL)
     if not tick:
@@ -594,10 +598,17 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     price = tick.ask if signal == "BUY" else tick.bid
     ot    = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
 
+    # ── Triple Scale-Out: ขยาย volume (skip S13 — มี logic แยก) ──
+    base_volume = float(volume)
+    send_volume, effective_steps = _scale_out_resolve_volume(
+        base_volume, sid=sid, direction=signal, entry=price, tp=tp
+    )
+    is_scaled = bool(effective_steps)
+
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_DEAL,
         "symbol":       SYMBOL,
-        "volume":       volume,
+        "volume":       send_volume,
         "type":         ot,
         "price":        price,
         "sl":           sl,
@@ -613,7 +624,17 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
         return {"success": False, "error": f"order_send returned None — {err}"}
     if r.retcode == mt5.TRADE_RETCODE_DONE:
         name = "BUY" if signal == "BUY" else "SELL"
-        return {"success": True, "ticket": r.order, "price": price, "order_type": name}
+        ticket = r.order
+        if is_scaled and ticket:
+            # ลงทะเบียน TSO — trailing.py จะอัปเดต entry เป็น fill จริงเมื่อเห็น position
+            # (is_pending=True → trailing.py แก้ไขให้อัตโนมัติใน check_scale_out)
+            _scale_out_register_ticket(
+                ticket, signal, price, base_volume, send_volume,
+                sid=sid, tp_original=tp,
+                effective_steps=effective_steps,
+            )
+        return {"success": True, "ticket": ticket, "price": price, "order_type": name,
+                "scale_out": is_scaled, "scaled_volume": send_volume if is_scaled else None}
     err_code = r.retcode if r else "no result"
     err_msg  = r.comment if r else ""
     if str(err_code) == "10027":

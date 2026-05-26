@@ -3637,6 +3637,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     trend_filter=",".join(_trend_keys) if _trend_keys else "",
                     flow_id=base_flow_id,
                     htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}" if sid == 10 else "",
+                    scale_out=order.get("scale_out", False),
+                    scaled_volume=order.get("scaled_volume"),
                 )
             save_runtime_state()
             swing_h_text = _fmt_swing_dt(_sh_info["time"]) if _sh_info else ""
