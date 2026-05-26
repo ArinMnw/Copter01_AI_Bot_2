@@ -1062,6 +1062,17 @@ def _export_trend_state_for_mt5():
         _log_err("UNEXPECTED_ERROR", e, detail=f"type={type(e).__name__}")
 
 
+def swing_data_ready(tf_name: str) -> bool:
+    """True ถ้า _swing_data มีข้อมูล trend สำหรับ TF นั้น
+    ใช้ตรวจก่อนเรียก trend_allows_signal เพื่อหลีกเลี่ยง early-return True
+    กรณี swing data ยังไม่ถูก populate (race condition ใน fill recheck)
+    """
+    sw = _swing_data.get(tf_name)
+    if not sw:
+        return False
+    return bool((sw.get("trend") or {}).get("trend"))
+
+
 def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
     """
     ตรวจว่า trend ของ TF ที่เลือก (per-TF และ/หรือ higher TF) ให้ผ่าน signal นี้หรือไม่

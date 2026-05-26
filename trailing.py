@@ -3028,6 +3028,12 @@ async def check_fill_trend_recheck(app):
 
         # ── รอบ 1: ทันทีหลัง fill ───────────────────────────────────────
         if ticket not in _fill_trend_checked:
+            # ตรวจว่า swing data พร้อมก่อน — ถ้ายังไม่มี (race condition) → retry รอบหน้า
+            from scanner import swing_data_ready as _sdr
+            if not _sdr(_tr_tf):
+                log_event("TREND_RECHECK", "fill_round1_skip_no_data",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type)
+                continue  # ไม่ add ใน _fill_trend_checked → retry next scan cycle (~5s)
             _fill_trend_checked.add(ticket)
             _allowed, _why = _tas(_tr_tf, pos_type)
             log_event("TREND_RECHECK", "fill_round1",
