@@ -3113,6 +3113,93 @@ async def check_fill_trend_recheck(app):
 
 
 # -------------------------------------------------------------
+async def check_fill_pd_zone(app):
+    """
+    PD Zone Fill Check — เช็ค position ที่เพิ่ง fill ว่าอยู่ใน zone ที่ถูกต้องไหม
+    Gate: PD_ZONE_CHECK_ENABLED
+    Skip: S9 (RSI Divergence)
+    รันอิสระจาก ENTRY_CANDLE_ENABLED เพื่อจับ case ที่ order fill เร็วกว่า pending check cycle
+    """
+    if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+
+    for pos in positions:
+        ticket = pos.ticket
+        if ticket in _pd_zone_fill_checked:
+            continue
+        sid = position_sid.get(ticket)
+        if sid in (9,):
+            continue  # S9 (RSI Div) — skip PD Zone check
+
+        _pd_zone_fill_checked.add(ticket)
+
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        sig_e    = "🟢" if pos_type == "BUY" else "🔴"
+        fvg_info = fvg_order_tickets.get(ticket)
+
+        # Resolve TF (3-tier fallback)
+        _pz_tf = position_tf.get(ticket)
+        if not _pz_tf and fvg_info:
+            _pz_tf = fvg_info.get("tf")
+        if not _pz_tf:
+            _pend_info = pending_order_tf.get(ticket)
+            if isinstance(_pend_info, dict):
+                _pz_tf = _pend_info.get("tf")
+        if not _pz_tf:
+            _c_tf, _, _ = _infer_position_meta_from_comment(pos)
+            if _c_tf:
+                _pz_tf = _c_tf
+                position_tf[ticket] = _c_tf
+        if not _pz_tf:
+            _pz_tf = "M1"
+
+        # ดึง swing H/L
+        try:
+            from hhll_swing import get_swing_hl_pts as _gshl
+            _sh_pt, _sl_pt = _gshl(_pz_tf)
+            _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
+            _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
+        except Exception:
+            _pz_h = _pz_l = 0.0
+
+        if not (_pz_h > _pz_l > 0):
+            continue
+
+        _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
+        _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
+        _pz_result  = _pd_zone_in_zone(
+            float(pos.price_open), pos_type, _pz_h, _pz_l,
+            sid=sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
+        )
+        _pz_eq = round((_pz_h + _pz_l) / 2, 2)
+        log_event("PD_ZONE_CHECK", "fill_check",
+                  ticket=ticket, signal=pos_type, tf=_pz_tf,
+                  price=pos.price_open, h=_pz_h, l=_pz_l,
+                  eq=_pz_eq, result="PASS" if _pz_result else "FAIL",
+                  sid=sid)
+        if not _pz_result:
+            ok, cp = _close_position(pos, pos_type, "PD Zone fill check failed")
+            if ok:
+                _entry_state[ticket] = "done"
+                fvg_order_tickets.pop(ticket, None)
+                save_runtime_state()
+                log_event("PD_ZONE_CHECK", "fill_close",
+                          ticket=ticket, signal=pos_type, tf=_pz_tf,
+                          price=pos.price_open, eq=_pz_eq, close_price=cp)
+                _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
+                await tg(app, (
+                    f"🛡️ *PD Zone: ปิด Position ที่ fill ผิด Zone*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                    f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
+                    f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
+                    f"H: `{_pz_h}` | L: `{_pz_l}`"
+                ))
+
+
+# -------------------------------------------------------------
 async def check_entry_candle_quality(app):
     """
     Check the entry candle for all strategies.
@@ -3405,49 +3492,7 @@ async def check_entry_candle_quality(app):
         current_price = float(entry_bar["close"])
 
         if state is None:
-            # ── PD Zone check สำหรับ position ที่ fill เร็วจน pending check ไม่ทัน ──
-            if (getattr(config, "PD_ZONE_CHECK_ENABLED", False)
-                    and _order_sid not in (9,)
-                    and ticket not in _pd_zone_fill_checked):
-                _pd_zone_fill_checked.add(ticket)
-                _pz_tf = pos_tf or (fvg_info.get("tf", "M1") if fvg_info else "M1")
-                try:
-                    from hhll_swing import get_swing_hl_pts as _gshl
-                    _sh_pt, _sl_pt = _gshl(_pz_tf)
-                    _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
-                    _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
-                except Exception:
-                    _pz_h = _pz_l = 0.0
-                if _pz_h > _pz_l > 0:
-                    _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
-                    _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
-                    _pz_result = _pd_zone_in_zone(
-                        float(pos.price_open), pos_type, _pz_h, _pz_l,
-                        sid=_order_sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
-                    )
-                    _pz_eq = round((_pz_h + _pz_l) / 2, 2)
-                    log_event("PD_ZONE_CHECK", "fill_check",
-                              ticket=ticket, signal=pos_type, tf=_pz_tf,
-                              price=pos.price_open, h=_pz_h, l=_pz_l,
-                              eq=_pz_eq, result="PASS" if _pz_result else "FAIL")
-                    if not _pz_result:
-                        ok, cp = _close_position(pos, pos_type, "PD Zone fill check failed")
-                        if ok:
-                            _entry_state[ticket] = "done"
-                            fvg_order_tickets.pop(ticket, None)
-                            save_runtime_state()
-                            log_event("PD_ZONE_CHECK", "fill_close",
-                                      ticket=ticket, signal=pos_type, tf=_pz_tf,
-                                      price=pos.price_open, eq=_pz_eq, close_price=cp)
-                            _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
-                            await tg(app, (
-                                f"🛡️ *PD Zone: ปิด Position ที่ fill ผิด Zone*\n"
-                                f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
-                                f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
-                                f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
-                                f"H: `{_pz_h}` | L: `{_pz_l}`"
-                            ))
-                            continue
+            # ── PD Zone fill check ย้ายไป check_fill_pd_zone() แล้ว ──
 
             # Evaluate the entry candle
             bull, body_pct, body_pct_int = bar_info(entry_bar)
