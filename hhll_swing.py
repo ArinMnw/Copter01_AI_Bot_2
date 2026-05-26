@@ -266,6 +266,35 @@ def get_swing_hl_pts(tf_name: str) -> tuple:
     return sh_pt, sl_pt
 
 
+def get_prev_swing_hl_pts(tf_name: str) -> tuple:
+    """คืน (prev_sh_pt, prev_sl_pt) — swing H/L ก่อนหน้า (อีกตัวที่ไม่ถูกเลือก)
+    ใช้สำหรับ PD Zone fallback "1 swing back"
+
+    - prev_sh_pt = อีกตัวระหว่าง HH/LH ที่ไม่ใช่ตัวที่ใหม่ที่สุด
+    - prev_sl_pt = อีกตัวระหว่าง HL/LL ที่ไม่ใช่ตัวที่ใหม่ที่สุด
+    คืน None ถ้ามีแค่ตัวเดียว (ไม่มี prev)
+    """
+    d = _hhll_data.get(tf_name) or {}
+    hh = d.get("hh")
+    lh = d.get("lh")
+    hl = d.get("hl")
+    ll = d.get("ll")
+
+    # prev_sh = อีกตัวที่ไม่ใช่ H ล่าสุด
+    if hh and lh:
+        prev_sh_pt = lh if hh["time"] >= lh["time"] else hh
+    else:
+        prev_sh_pt = None   # มีแค่ตัวเดียว ไม่มี prev
+
+    # prev_sl = อีกตัวที่ไม่ใช่ L ล่าสุด
+    if hl and ll:
+        prev_sl_pt = ll if hl["time"] >= ll["time"] else hl
+    else:
+        prev_sl_pt = None   # มีแค่ตัวเดียว ไม่มี prev
+
+    return prev_sh_pt, prev_sl_pt
+
+
 def get_trend_from_structure(tf_name: str) -> dict | None:
     """คำนวณ trend จาก HHLL structure list — เหมือน TrendFilterLines.mq5
     อ่านจาก _hhll_data[tf]["structure"] (newest→oldest)

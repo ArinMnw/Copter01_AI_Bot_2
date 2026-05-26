@@ -161,8 +161,20 @@ TRAIL_GROUPS = {
 }
 
 ZONE_BUFFER    = 0.5
-def SL_BUFFER():
-    """ดึง SL_BUFFER ตาม SYMBOL ปัจจุบัน"""
+
+# ── SL with ATR ─────────────────────────────────────────────────────────────
+# ถ้าเปิด: SL_BUFFER() จะใช้ ATR × SL_ATR_MULT แทน fixed buffer
+# (ใช้กับท่าที่เรียก SL_BUFFER: S1, S2, S3, S4, S9)
+SL_ATR_ENABLED = True   # เปิด/ปิด feature
+SL_ATR_MULT    = 2      # ตัวคูณ: 1=×1, 2=×2, ..., 5=×5  (default ×2)
+
+def SL_BUFFER(atr=None):
+    """ดึง SL buffer ตาม SYMBOL ปัจจุบัน
+    - ถ้า SL_ATR_ENABLED=True และส่ง atr มา → คืน atr × SL_ATR_MULT
+    - ไม่อย่างนั้น → คืน fixed buffer ตาม symbol
+    """
+    if SL_ATR_ENABLED and atr is not None:
+        return float(atr) * float(SL_ATR_MULT)
     return SYMBOL_CONFIG.get(SYMBOL, SYMBOL_CONFIG["XAUUSD.iux"])["sl_buffer"]
 
 # ── ท่าที่ 1: Zone filter mode ───────────────────────────────
@@ -365,6 +377,7 @@ active_strategies = {
     11: True,  # ท่าที่ 11: Fibo S1 (Fibonacci expansion จาก S1 pattern)
     12: False, # ท่าที่ 12: Range Trading (M5 only, standalone)
     13: False, # Strategy 13: EzAlgo V5 Supertrend
+    14: True,  # ท่าที่ 14: Sweep RSI
 }
 
 STRATEGY_NAMES = {
@@ -381,6 +394,7 @@ STRATEGY_NAMES = {
     11: "ท่าที่ 11: Fibo S1",
     12: "ท่าที่ 12: Range Trading",
     13: "Strategy 13: EzAlgo V5",
+    14: "ท่าที่ 14: Sweep RSI",
 }
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
@@ -413,6 +427,28 @@ S13_STOP_ATR_MULT     = 4.0
 S13_TP1_RR            = 0.7
 S13_TP2_RR            = 1.2
 S13_TP3_RR            = 1.5
+
+# ── Strategy 14: Sweep RSI ────────────────────────────────────
+# BUY  : จุดกลับตัวฝั่ง SELL (red engulf/rejection) → LL zone
+#         → red reject (sweep LL + close red)
+#         → RSI[reject] > RSI[LL] + RSI[reject] < 50
+#         → Entry MARKET | TP = nearest HH/LH | SL = reject.L - SL_BUFFER
+# SELL : mirror (green engulf/rejection → HH → green reject)
+#
+# SL ใช้ฟังก์ชัน SL_BUFFER(atr) เหมือนท่าอื่น
+# (ถ้า SL_ATR_ENABLED=True จะใช้ ATR × SL_ATR_MULT อัตโนมัติ)
+S14_RSI_PERIOD        = 14     # RSI period
+S14_RSI_APPLIED_PRICE = "close"
+S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับตัว + LL/HH zone
+# เปิด/ปิด sub-pattern (ใช้ร่วมกันทั้ง BUY และ SELL)
+S14_ENGULF            = True   # Engulf pattern (close เกิน LL/HH)
+S14_SWEEP             = True   # Sweep pattern  (ไส้เกิน LL/HH แต่ปิดกลับมา)
+# LL/HH ref เพิ่มเติมจาก HHLL module
+# False (default) = ใช้ min low ของ reversal bars เท่านั้น
+# True            = ใช้ HHLL HL (BUY) / HH (SELL) เป็น ref เพิ่มด้วย
+#                   BUY : ll_val = max(reversal_ll, hhll.hl.price)
+#                   SELL: hh_val = min(reversal_hh, hhll.hh.price)
+S14_LL_USE_HHLL       = False
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
@@ -806,6 +842,8 @@ _RUNTIME_DEFAULTS = {
     "LIMIT_BREAK_CANCEL_TF": copy.deepcopy(LIMIT_BREAK_CANCEL_TF),
     "LIMIT_TREND_RECHECK": LIMIT_TREND_RECHECK,
     "LIMIT_TREND_RECHECK_ROUNDS": LIMIT_TREND_RECHECK_ROUNDS,
+    "SL_ATR_ENABLED": SL_ATR_ENABLED,
+    "SL_ATR_MULT": SL_ATR_MULT,
     "PENDING_RSI_RECHECK_ENABLED": PENDING_RSI_RECHECK_ENABLED,
     "PENDING_RSI_PERIOD": PENDING_RSI_PERIOD,
     "PENDING_RSI_APPLIED_PRICE": PENDING_RSI_APPLIED_PRICE,
@@ -846,6 +884,10 @@ _RUNTIME_DEFAULTS = {
     "SWING_PIVOT_LEFT": SWING_PIVOT_LEFT,
     "SWING_PIVOT_RIGHT": SWING_PIVOT_RIGHT,
     "SCALE_OUT_ENABLED": SCALE_OUT_ENABLED,
+    # S14 sub-pattern toggles (runtime-resettable)
+    "S14_ENGULF":       S14_ENGULF,
+    "S14_SWEEP":        S14_SWEEP,
+    "S14_LL_USE_HHLL":  S14_LL_USE_HHLL,
 }
 
 fvg_pending       = {}   # {key: {tf, signal, entry, sl, tp, gap_top, gap_bot, candle_key}}
@@ -985,6 +1027,8 @@ def save_runtime_state():
             "limit_break_cancel_tf": LIMIT_BREAK_CANCEL_TF,
             "limit_trend_recheck": LIMIT_TREND_RECHECK,
             "limit_trend_recheck_rounds": LIMIT_TREND_RECHECK_ROUNDS,
+            "sl_atr_enabled": SL_ATR_ENABLED,
+            "sl_atr_mult": SL_ATR_MULT,
             "pending_rsi_recheck_enabled": PENDING_RSI_RECHECK_ENABLED,
             "pending_rsi_recheck_mode": PENDING_RSI_RECHECK_MODE,
             "pending_rsi_period": PENDING_RSI_PERIOD,
@@ -1111,6 +1155,7 @@ def restore_runtime_state():
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
         global LIMIT_GUARD, LIMIT_GUARD_POINTS, LIMIT_GUARD_TF_MODE, ENGULF_MIN_POINTS
         global LIMIT_BREAK_CANCEL, LIMIT_BREAK_CANCEL_TF, LIMIT_TREND_RECHECK, LIMIT_TREND_RECHECK_ROUNDS
+        global SL_ATR_ENABLED, SL_ATR_MULT
         global PENDING_RSI_RECHECK_ENABLED, PENDING_RSI_PERIOD
         global PENDING_RSI_APPLIED_PRICE, PENDING_RSI_BUY_MAX, PENDING_RSI_SELL_MIN
         global TREND_FILTER_SCAN_BLOCK
@@ -1159,6 +1204,10 @@ def restore_runtime_state():
         saved_ltr_rounds = state.get("limit_trend_recheck_rounds")
         if saved_ltr_rounds is not None and int(saved_ltr_rounds) in (1, 2, 3):
             LIMIT_TREND_RECHECK_ROUNDS = int(saved_ltr_rounds)
+        SL_ATR_ENABLED = bool(state.get("sl_atr_enabled", SL_ATR_ENABLED))
+        saved_sl_atr_mult = state.get("sl_atr_mult")
+        if saved_sl_atr_mult is not None and int(saved_sl_atr_mult) in (1, 2, 3, 4, 5):
+            SL_ATR_MULT = int(saved_sl_atr_mult)
         PENDING_RSI_RECHECK_ENABLED = bool(state.get("pending_rsi_recheck_enabled", PENDING_RSI_RECHECK_ENABLED))
         saved_rsi_mode = state.get("pending_rsi_recheck_mode")
         if saved_rsi_mode is not None:

@@ -1592,6 +1592,18 @@ def build_trend_filter_keyboard():
     rows.append([InlineKeyboardButton("━ Sideway Filter ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(sideway_hhll_label, callback_data="toggle_sideway_hhll_filter")])
 
+    # === SL with ATR ===
+    _sl_atr_on   = getattr(config, "SL_ATR_ENABLED", True)
+    _sl_atr_mult = int(getattr(config, "SL_ATR_MULT", 2))
+    _sl_atr_lbl  = f"🟢 SL ATR: ×{_sl_atr_mult}" if _sl_atr_on else "🔴 SL ATR: OFF (Fixed buffer)"
+    rows.append([InlineKeyboardButton("━ SL with ATR ━", callback_data="noop_sl_atr")])
+    rows.append([InlineKeyboardButton(_sl_atr_lbl, callback_data="toggle_sl_atr")])
+    if _sl_atr_on:
+        rows.append([
+            InlineKeyboardButton(f"{'✅' if _sl_atr_mult == m else '⬜'} ×{m}", callback_data=f"set_sl_atr_mult_{m}")
+            for m in (1, 2, 3, 4, 5)
+        ])
+
     # === SL Guard (shortcut → sub-menu) ===
     _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
     _sgc_on = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)

@@ -342,7 +342,7 @@ void RefreshLines()
   {
    g_last_refresh = TimeCurrent();
    string file_name = ResolveTrendFileName();
-   int handle = FileOpen(file_name, FILE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
+   int handle = FileOpen(file_name, FILE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
    if(handle == INVALID_HANDLE)
      {
       Comment("TrendFilterLines: cannot open Common\\Files\\", file_name,
@@ -355,6 +355,7 @@ void RefreshLines()
    // Parse rows into array
    TFRow rows[];
    ArrayResize(rows, 0);
+   int skipped_cols = 0;
    while(!FileIsEnding(handle))
      {
       string line = FileReadString(handle);
@@ -362,7 +363,7 @@ void RefreshLines()
          continue;
       string p[];
       int n = SplitCsv(line, p);
-      if(n < 13) continue;
+      if(n < 13) { skipped_cols++; continue; }
 
       TFRow row;
       row.tf         = p[0];
@@ -387,7 +388,6 @@ void RefreshLines()
 
    // Draw trend lines (respects both filters)
    string chart_tf = ChartTfName();
-   int drawn = 0;
    for(int i = 0; i < ArraySize(rows); i++)
      {
       if(InpOnlyPerTfOn && rows[i].per_tf_on == 0) continue;
@@ -413,24 +413,30 @@ void RefreshLines()
                                     rows[i].tf, kind_name, rows[i].strength, tag_break);
 
       // resistance (high pair): prev_sh → sh
-      DrawTrend(g_prefix + rows[i].tf + "_RES",
-                rows[i].psh_time, rows[i].psh_price,
-                rows[i].sh_time,  rows[i].sh_price,
-                clr, style, width, lbl_res);
-      // support (low pair): prev_sl → sl
-      DrawTrend(g_prefix + rows[i].tf + "_SUP",
-                rows[i].psl_time, rows[i].psl_price,
-                rows[i].sl_time,  rows[i].sl_price,
-                clr, style, width, lbl_sup);
+      bool res_ok = (rows[i].psh_time > 0 && rows[i].sh_time > 0 &&
+                     rows[i].psh_price > 0 && rows[i].sh_price > 0 &&
+                     rows[i].psh_time != rows[i].sh_time);
+      bool sup_ok = (rows[i].psl_time > 0 && rows[i].sl_time > 0 &&
+                     rows[i].psl_price > 0 && rows[i].sl_price > 0 &&
+                     rows[i].psl_time != rows[i].sl_time);
 
-      drawn++;
+      if(!res_ok && !sup_ok) continue;
+
+      if(res_ok)
+         DrawTrend(g_prefix + rows[i].tf + "_RES",
+                   rows[i].psh_time, rows[i].psh_price,
+                   rows[i].sh_time,  rows[i].sh_price,
+                   clr, style, width, lbl_res);
+      if(sup_ok)
+         DrawTrend(g_prefix + rows[i].tf + "_SUP",
+                   rows[i].psl_time, rows[i].psl_price,
+                   rows[i].sl_time,  rows[i].sl_price,
+                   clr, style, width, lbl_sup);
      }
 
    // Summary panel at bottom-right
    DrawPanel(rows);
-
-   Comment("TrendFilterLines: ", drawn, " TF drawn | last refresh ",
-           TimeToString(g_last_refresh, TIME_SECONDS));
+   Comment("");
    ChartRedraw();
   }
 //+------------------------------------------------------------------+

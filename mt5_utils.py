@@ -132,6 +132,14 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
         if "EZALGO" in text:
             return "EZ"
 
+    if sid_text == "14":
+        is_buy  = "BUY"  in text
+        is_engulf = "ENGULF" in text
+        if is_buy:
+            return "BE" if is_engulf else "BS"
+        else:
+            return "SE" if is_engulf else "SS"
+
     if "PATTERN A" in text:
         return "PA"
     if "PATTERN B" in text:

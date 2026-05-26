@@ -19,6 +19,7 @@ from strategy9 import strategy_9
 from strategy10 import strategy_10
 from strategy11 import strategy_11, record_s1_pattern as s11_record_s1_pattern
 from strategy13 import strategy_13
+from strategy14 import strategy_14
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -42,7 +43,7 @@ _last_strategy9_invalid_setup_by_key: dict = {}
 _last_pattern_notify_by_key: dict = {}
 _swing_data: dict = {}   # {tf_name: {"sh": str, "sl": str, "prev_sh": str, "prev_sl": str, "hh": str, "ll": str}}
 _SCAN_TF_ICONS = {"M1": "🟨", "M5": "🟩", "M15": "🟦", "M30": "🟪", "H1": "🟧", "H4": "🟥", "H12": "🟫", "D1": "⬛"}
-_SCAN_STRATEGY_ICONS = {"[ท่า1]": "🟡", "[ท่า2]": "🔵", "[ท่า3]": "🟣", "[ท่า4]": "🟢", "[ท่า6]": "🟠", "[ท่า6i]": "🟤", "[ท่า8]": "🩵", "[ท่า9]": "🟥", "[ท่า13]": "🩷"}
+_SCAN_STRATEGY_ICONS = {"[ท่า1]": "🟡", "[ท่า2]": "🔵", "[ท่า3]": "🟣", "[ท่า4]": "🟢", "[ท่า6]": "🟠", "[ท่า6i]": "🟤", "[ท่า8]": "🩵", "[ท่า9]": "🟥", "[ท่า13]": "🩷", "[ท่า14]": "🟦"}
 
 
 def _print_skip_once(tf_name: str, message: str) -> None:
@@ -976,22 +977,12 @@ def _export_trend_state_for_mt5():
                 pt_sl = pt_psl = None
                 recent_low = None
 
-            # Trend from HHLL structure
-            #   most recent high = HH AND most recent low = HL → BULL
-            #   most recent high = LH AND most recent low = LL → BEAR
-            #   otherwise → SIDEWAY
-            if recent_high == "HH" and recent_low == "HL":
-                t        = "BULL"
-                strength = "strong"
-            elif recent_high == "LH" and recent_low == "LL":
-                t        = "BEAR"
-                strength = "strong"
-            elif recent_high is not None or recent_low is not None:
-                t        = "SIDEWAY"
-                strength = "weak"
-            else:
-                t        = "UNKNOWN"
-                strength = "-"
+            # Trend จาก get_trend_from_structure() — ตัวเดียวกับที่ bot ใช้กรอง order
+            _trend_sw = sw.get("trend") or {}
+            t        = _trend_sw.get("trend", "UNKNOWN")
+            strength = _trend_sw.get("strength", "-")
+            if not t:
+                t, strength = "UNKNOWN", "-"
 
             # Break flag จาก swing data เดิม (ยังใช้ได้)
             breakout = sw.get("breakout") or {}
@@ -1027,27 +1018,37 @@ def _export_trend_state_for_mt5():
         payload = "\n".join(lines) + "\n"
         for target in (target_default, target_symbol):
             tmp = target + ".tmp"
+            import time as _t
             try:
                 with open(tmp, "w", encoding="utf-8") as f:
                     f.write(payload)
-                # retry os.replace 3 ครั้ง — MT5 อาจ lock ไฟล์ .txt ชั่วคราว
-                import time as _t
+                # ลอง os.replace 5 ครั้ง (MT5 lock ไฟล์สั้นๆ ขณะ indicator อ่าน)
+                # เพิ่ม FILE_SHARE_WRITE ใน TrendFilterLines.mq5 แล้ว lock จะสั้นลงมาก
                 _replaced = False
-                for _attempt in range(3):
+                for _attempt in range(5):
                     try:
                         os.replace(tmp, target)
                         _replaced = True
                         break
                     except PermissionError:
-                        _t.sleep(0.05)
+                        _t.sleep(0.1)
                 if not _replaced:
-                    # fallback: เขียนตรงๆ ข้าม tmp
+                    # fallback: truncate+write ตรงๆ (ใช้ได้เมื่อ FILE_SHARE_WRITE เปิดอยู่)
                     try:
                         os.remove(tmp)
                     except OSError:
                         pass
-                    with open(target, "w", encoding="utf-8") as f:
-                        f.write(payload)
+                    _written = False
+                    for _attempt in range(3):
+                        try:
+                            with open(target, "w", encoding="utf-8") as f:
+                                f.write(payload)
+                            _written = True
+                            break
+                        except PermissionError:
+                            _t.sleep(0.1)
+                    if not _written:
+                        raise PermissionError(f"Cannot write after retries: {target}")
             except FileNotFoundError as e:
                 _log_err("FILE_NOT_FOUND", e, detail=tmp)
             except PermissionError as e:
@@ -2442,6 +2443,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     else:
         r11 = {"signal": "WAIT", "reason": "S11 ปิด"}
     r13 = strategy_13(rates) if active_strategies.get(13, False) else {"signal": "WAIT", "reason": "S13 ปิด"}
+    r14 = strategy_14(rates, tf=tf_name) if active_strategies.get(14, False) else {"signal": "WAIT", "reason": "S14 ปิด"}
+    if r14.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 14, r14["signal"], last_candle_time, r14)
+    elif r14.get("signal") == "MULTI":
+        for _s14_ord in r14.get("orders", []):
+            _log_divergence_once(tf_name, 14, _s14_ord.get("signal", "BUY"), last_candle_time, _s14_ord)
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -2826,12 +2833,20 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r8.get("signal") == "MULTI":
         for s8_order in r8["orders"]:
             signal_results.append((8, s8_order))
+    # ── S14 Sweep RSI — จัดการแยกเพื่อรองรับ MULTI โดยไม่ซ้ำ ────
+    if active_strategies.get(14, False):
+        s14_sig = r14.get("signal", "WAIT")
+        if s14_sig in ("BUY", "SELL"):
+            signal_results.append((14, r14))
+        elif s14_sig == "MULTI":
+            for s14_order in r14.get("orders", []):
+                signal_results.append((14, s14_order))
     # ── สรุปผลทุกท่าใน TF เดียวกัน เพื่อให้ Scan Summary เห็นครบทุก strategy ──
     parts = []
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -2981,8 +2996,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     f"⏳ [{now}] {tf_label(tf_name)} ท่า3: ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน {s3_lookback_bars} แท่งย้อนหลัง"
                 )
                 continue
-        # S9 RSI Divergence, S10 CRT TBS และ S13 EzAlgo bypass trend filter
-        if sid not in (9, 10, 13) and config.TREND_FILTER_SCAN_BLOCK:
+        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo และ S14 Sweep RSI bypass trend filter
+        if sid not in (9, 10, 13, 14) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(

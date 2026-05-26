@@ -380,14 +380,14 @@ def strategy_4(rates, tf=""):
       2. Close[1] > Swing High ก่อนหน้า → [1] กลืนกิน significant level
       3. Swing High ต้องอยู่ในช่วง FVG gap ระหว่าง High[2] และ Low[0]
       4. Low[0] > Swing High             → Gap ยังเปิด ([0] อยู่เหนือ Swing)
-      Entry = Swing High | SL = Low[1] − SL_BUFFER() | TP = Swing High ย่อยถัดไป
+      Entry = Swing High | SL = Low[1] − SL_BUFFER(ms["atr"]) | TP = Swing High ย่อยถัดไป
 
     SELL (สลับสี):
       1. [1] แดง + Low[1] < Low[2]      → FVG เกิด
       2. Close[1] < Swing Low ก่อนหน้า  → [1] กลืนกิน
       3. Swing Low ต้องอยู่ในช่วง FVG gap ระหว่าง High[0] และ Low[2]
       4. High[0] < Swing Low            → Gap ยังเปิด
-      Entry = Swing Low | SL = High[1] + SL_BUFFER()
+      Entry = Swing Low | SL = High[1] + SL_BUFFER(ms["atr"])
     """
     if len(rates) < 6:
         return {"signal": "WAIT", "reason": "ข้อมูลไม่เพียงพอ"}
@@ -428,7 +428,7 @@ def strategy_4(rates, tf=""):
 
         if prev_sh and cl1 > prev_sh + engulf_gap and swing_in_gap and gap_open:
             entry    = round(prev_sh, 2)
-            sl       = round(l1 - SL_BUFFER(), 2)
+            sl       = round(l1 - SL_BUFFER(ms["atr"]), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry - sl), 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (fallback)"
@@ -501,7 +501,7 @@ def strategy_4(rates, tf=""):
 
         if prev_sl and cl1 < prev_sl - engulf_gap and swing_in_gap and gap_open:
             entry    = round(prev_sl, 2)
-            sl       = round(h1 + SL_BUFFER(), 2)
+            sl       = round(h1 + SL_BUFFER(ms["atr"]), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl - entry), 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (fallback)"

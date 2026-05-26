@@ -138,7 +138,7 @@ async def check_sl_tp_hits(app):
 
             # SL Guard: track SL hits per (tf, side)
             _sl_guard_extra_msg = ""
-            if close_type == "🛑 SL Hit" and _config.SL_GUARD_ENABLED and tf_label:
+            if close_type == "🛑 SL Hit" and profit < 0 and _config.SL_GUARD_ENABLED and tf_label:
                 try:
                     from trailing import _sl_guard_record_sl, _sl_guard_close_open_positions
                     _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
@@ -186,7 +186,7 @@ async def check_sl_tp_hits(app):
                     pass
 
             # SL Guard Combined: track SL hits across TFs
-            if close_type == "🛑 SL Hit" and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
+            if close_type == "🛑 SL Hit" and profit < 0 and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
                 try:
                     from trailing import _combined_guard_record_sl, _sl_guard_close_combined_positions
                     _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
@@ -234,7 +234,7 @@ async def check_sl_tp_hits(app):
                     pass
 
             # SL Guard Group: SL Hit → บันทึก + ปิด position ทั้งหมดของ side ถ้า group activate
-            if close_type == "🛑 SL Hit" and getattr(_config, "SL_GUARD_GROUP_ENABLED", False) and tf_label:
+            if close_type == "🛑 SL Hit" and profit < 0 and getattr(_config, "SL_GUARD_GROUP_ENABLED", False) and tf_label:
                 try:
                     from trailing import _group_guard_record_sl, _sl_guard_close_all_side_positions
                     _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""))
