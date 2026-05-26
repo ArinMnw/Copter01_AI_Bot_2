@@ -17,6 +17,7 @@
 - `11`: Fibo S1
 - `12`: Range Trading
 - `13`: EzAlgo V5
+- `14`: Sweep RSI
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -647,3 +648,74 @@ M15_S13_EZ_L3
 ```
 
 หมายเหตุ: ตั้งแต่ TSO dynamic — จำนวน orders ของ S13 อาจไม่เป็น 3 เสมอ (1-4 ตาม TP เดิม)
+
+## ท่าที่ 14: Sweep RSI
+
+ไฟล์หลัก: `strategy14.py`
+
+แนวคิด:
+- ใช้ RSI หา reversal zone (LL/HH ของ RSI ในช่วง reversal bars)
+- แล้วตรวจ pattern บนแท่งล่าสุดว่ามี Engulf หรือ Sweep ทะลุ zone นั้นหรือไม่
+- เปิด market order ทันทีเมื่อเจอ pattern
+
+### Config หลัก
+
+| key | ความหมาย |
+|---|---|
+| `S14_RSI_PERIOD` | RSI period (default 14) |
+| `S14_RSI_APPLIED_PRICE` | applied price (default `close`) |
+| `S14_REVERSAL_LOOKBACK` | bars ย้อนหา reversal zone (default 50) |
+| `S14_ENGULF` | เปิด/ปิด sub-pattern Engulf (default True) |
+| `S14_SWEEP` | เปิด/ปิด sub-pattern Sweep (default True) |
+| `S14_LL_USE_HHLL` | ใช้ HHLL HL/HH เป็น ref เพิ่ม (default False) |
+| `S14_FLIP_ENABLED` | Flip: ปิดฝั่งตรงข้ามอัตโนมัติก่อนเปิดใหม่ (default True) |
+
+### Sub-pattern
+
+**Engulf** — แท่งล่าสุด close ทะลุ LL zone (BUY) หรือ HH zone (SELL)
+
+**Sweep** — ไส้แท่งล่าสุดทะลุ zone แต่แท่งปิดกลับเข้ามา (rejection wick)
+
+### Signal
+
+BUY:
+- หา `LL zone` จาก reversal bars ย้อนหลัง (`S14_REVERSAL_LOOKBACK`)
+- Engulf: `close[0] < ll_val` หรือ Sweep: `low[0] < ll_val` + close กลับเหนือ ll_val
+
+SELL:
+- หา `HH zone` จาก reversal bars ย้อนหลัง
+- Engulf: `close[0] > hh_val` หรือ Sweep: `high[0] > hh_val` + close กลับต่ำกว่า hh_val
+
+### Order flow
+
+- เปิด **market order** ทันที (ไม่มี pending)
+- ก่อนเปิดจะเรียก `_clear_opposite_s14_exposure()` ถ้า `S14_FLIP_ENABLED = True`
+  - ปิด S14 position ฝั่งตรงข้ามบน TF เดียวกัน (Flip logic)
+  - ส่ง Telegram: `↔️ [TF] S14 Flip — ปิดฝั่ง BUY/SELL → เปิด SELL/BUY แทน`
+- log: `S14_REVERSE_CLOSE` (ปิดสำเร็จ) / `S14_REVERSE_CLOSE_FAIL` (ปิดไม่สำเร็จ)
+
+### Standalone behavior
+
+- **bypass Trend Filter** (scan loop): `sid not in (9, 10, 13, 14)` ใน `scanner.py`
+- **bypass RSI Fill Recheck**: `sid in (1, 9, 11, 14)` ใน `trailing.py`
+- **bypass Fill Trend Recheck**: `sid in (9, 10, 14)` ใน `trailing.py`
+- ไม่เข้า flow: `Entry Candle`, `Trail SL`, `Opposite Order`, `Limit Guard`, `SL Guard`
+- **ใช้** PD Zone filter ใน scan loop (entry ต้องอยู่ใน Premium/Discount zone)
+
+### Triple Scale-Out (TSO) interaction
+
+- S14 ใช้ TSO ผ่าน `open_order_market()` เหมือนกัน (ตั้งแต่ 2026-05-26)
+- `_scale_out_resolve_volume()` จะ scale lot ×4 ถ้า `SCALE_OUT_ENABLED = True`
+- `_scale_out_register_ticket()` register state พร้อม `is_pending=True` (trailing.py จะ update entry จาก fill price จริง)
+
+### Comment format
+
+```text
+M1_S14_engulf
+M1_S14_sweep
+```
+
+### Telegram toggle
+
+- Sub-option ใน `📋 เลือก Strategy` → ท่า 14:
+  - `🟢 ท่า14: Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)` — callback: `toggle_s14_flip`

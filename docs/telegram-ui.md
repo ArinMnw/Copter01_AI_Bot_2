@@ -65,6 +65,16 @@
 - default: `2bar` + `mtf`
 - master toggle ของ S10 อยู่ในหน้า strategy ปกติ
 
+### ท่าที่ 14 — Sweep RSI
+
+- 1 sub-toggle:
+  - **Flip** (`S14_FLIP_ENABLED`): ปิดฝั่งตรงข้ามอัตโนมัติก่อนเปิด S14 ใหม่บน TF เดียวกัน
+- callback: `toggle_s14_flip`
+- default: `True` (Flip ON)
+- ปุ่มแสดงใต้ท่า 14 เมื่อ strategy เปิดอยู่:
+  - `🟢 ท่า14: Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)` เมื่อ ON
+  - `⬜ ท่า14: Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)` เมื่อ OFF
+
 ### Trend Filter
 
 - **Mode** (`trend_filter_mode`): `basic` / `breakout`

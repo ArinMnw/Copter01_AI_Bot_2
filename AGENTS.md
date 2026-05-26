@@ -116,7 +116,7 @@ Keep the answer short and make the fix directly.
 | config, symbol, strategy toggle | `config.py` |
 | scan signal, create order, order message | `scanner.py` |
 | trailing, state machine, post-fill lifecycle | `trailing.py` |
-| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py` |
+| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py`, `strategy14.py` |
 | swing helper | `strategy4.py` |
 | HHLL swing structure, trend from structure | `hhll_swing.py` |
 | คำนวณ entry / TP / SL | `entry_calculator.py` |
@@ -157,6 +157,7 @@ Keep the answer short and make the fix directly.
 - `SL_GUARD_NEAR_POINTS` (default `200`) — ยกเลิก pending ที่ราคาเข้าใกล้ entry ≤ N pt ขณะ guard active
 - `SL_GUARD_LOSS_ENABLED` (default `False`) — นับ close ที่ขาดทุนเกิน threshold ว่าเป็น SL hit ด้วย
 - `SL_GUARD_LOSS_THRESHOLD` (default `5.0`) — ขาดทุนเกิน $N → นับเป็น SL hit (ใช้ร่วมกับ SL_GUARD_LOSS_ENABLED)
+- `S14_FLIP_ENABLED` (default `True`) — S14 Flip: ปิดฝั่งตรงข้าม per-TF ก่อนเปิด S14 ใหม่, toggle ได้ใน `📋 เลือก Strategy`
 
 หมายเหตุ:
 
@@ -265,6 +266,7 @@ mode ที่รองรับ:
 - **อิสระจาก `ENTRY_CANDLE_ENABLED`** — gate ด้วย `PENDING_RSI_RECHECK_ENABLED` เท่านั้น
 - รันใน `main.py` `run_position_check` **ก่อน** `check_entry_candle_quality` (ถ้า fail จะปิด position ทันที)
 - ครอบคลุม **ทุก sid** (รวม S12, S13 — เปิดตั้งแต่ 2026-05-18)
+- **Skip**: `sid in (1, 9, 11, 14)` — S14 bypass เพราะเป็น market order
 - **Triple mode**: ถ้าเปิดครบทั้ง 3 (`PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED`) จะไม่ปิด position ทันที แต่ record ผลใน `_triple_check_state[ticket]["rsi"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 ## Limit Trend Recheck
@@ -274,6 +276,15 @@ mode ที่รองรับ:
 - ถ้า trend ไม่ allow → cancel pending
 - **Skip**: S1 (zone-based), S9 (RSI div), S10 (CRT-managed), S11 (Fibo)
 - **Apply**: S2, S3, S4, S5, S6, S8, **S12, S13** (เปิดตั้งแต่ 2026-05-18)
+
+## Fill Trend Recheck
+
+- ฟังก์ชัน: `check_fill_trend_recheck(app)` ใน `trailing.py`
+- gate: `LIMIT_TREND_RECHECK`
+- เช็ค trend หลัง position fill (รอบ 1 ทันที, รอบ 2+ เมื่อ H/L เปลี่ยน)
+- ถ้า trend สวนทาง → ปิด position
+- **Skip**: `sid in (9, 10, 14)` — S14 bypass เพราะ market order + bypass trend filter แล้ว
+- **Apply**: S1, S2, S3, S4, S5, S6, S8, S12, S13
 - กฎ:
   - BUY  → ต้อง `RSI < PENDING_RSI_BUY_MAX` (default `50.0`) ไม่งั้นปิด
   - SELL → ต้อง `RSI > PENDING_RSI_SELL_MIN` (default `50.0`) ไม่งั้นปิด
@@ -535,6 +546,25 @@ mode ที่รองรับ:
 - **SCAN_SUMMARY**: ระหว่าง cooldown จะ **ไม่แสดง** S12 block เลย (ป้องกัน body ค้างจากค่า 0.00 → ทำให้ force-log ทำงานได้ตามปกติ)
 - comment โดยรวมยังอิง `M5_S12_...` จาก `mt5_utils.py`
 
+### S14 Sweep RSI
+
+- strategy market order standalone
+- ใช้ RSI หา reversal zone (LL/HH) แล้วตรวจ Engulf/Sweep pattern บนแท่งล่าสุด
+- เปิด market order ทันที ไม่มี pending
+- **bypass Trend Filter** ทุกจุด:
+  - scan loop: `sid not in (9, 10, 13, 14)` ใน `scanner.py`
+  - fill trend recheck: `sid in (9, 10, 14)` ใน `trailing.py`
+- **bypass RSI Fill Recheck**: `sid in (1, 9, 11, 14)` ใน `trailing.py`
+- **PD Zone filter** ใน scan loop (entry ต้องอยู่ใน Premium/Discount zone)
+- **Flip logic** (`S14_FLIP_ENABLED`, default True): ปิดฝั่งตรงข้าม per-TF ก่อนเปิดใหม่
+  - ฟังก์ชัน: `_clear_opposite_s14_exposure(app, tf_name, signal)` ใน `scanner.py`
+  - log: `S14_REVERSE_CLOSE` / `S14_REVERSE_CLOSE_FAIL`
+  - Telegram toggle: `📋 เลือก Strategy` → sub-option ท่า 14
+- **TSO**: รองรับผ่าน `open_order_market()` (ตั้งแต่ 2026-05-26) — scale ×4 ถ้า `SCALE_OUT_ENABLED`
+- ไม่เข้า: `Entry Candle`, `Trail SL`, `Opposite Order`, `Limit Guard`, `SL Guard`
+- comment: `M1_S14_engulf` / `M1_S14_sweep`
+- config: `S14_RSI_PERIOD`, `S14_REVERSAL_LOOKBACK`, `S14_ENGULF`, `S14_SWEEP`, `S14_LL_USE_HHLL`, `S14_FLIP_ENABLED`
+
 ### S13 EzAlgo V5
 
 - strategy ใหม่แบบ standalone
@@ -569,7 +599,7 @@ mode ที่รองรับ:
 **Scope:**
 
 - ใช้กับ pending/limit ที่สร้างผ่าน `open_order()` และ `open_order_stop()` เท่านั้น
-- `open_order_market()` ไม่ scale (ตามสเปคปัจจุบัน)
+- `open_order_market()` รองรับ TSO ตั้งแต่ 2026-05-26 — ใช้กับ **S14** (Sweep RSI)
 - **`sid=13` (S13 EzAlgo V5)** ถูก **ยกเว้น** จาก lot scale — ใช้ TSO สร้าง orders แยก 4 ชุดแทน
 
 **Always-4-Steps Formula (ตั้งแต่ 2026-05-22):**

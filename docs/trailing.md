@@ -216,7 +216,7 @@ mode:
 - SELL: หา SL ที่ต่ำลงหรือป้องกันดีขึ้นตามฝั่ง
 
 หมายเหตุปัจจุบัน:
-- `S10`, `S12`, `S13` ไม่เข้า flow นี้
+- `S10`, `S12`, `S13`, `S14` ไม่เข้า flow นี้
 - ถ้าเปิด `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`
   - ระบบจะยอมให้ Trail SL ทำงานได้แม้ `TRAIL_SL_FOCUS_NEW_ENABLED` กำลัง freeze อยู่
   - ใช้เฉพาะท่าที่ไม่ standalone
@@ -235,8 +235,9 @@ mode:
 Master toggle: `OPPOSITE_ORDER_ENABLED` ถ้า `False` ฟังก์ชัน return ทันที
 
 หมายเหตุปัจจุบัน:
-- `S10`, `S12`, `S13` ไม่เข้า flow กลางนี้
+- `S10`, `S12`, `S13`, `S14` ไม่เข้า flow กลางนี้
 - `S13` ใช้ logic ปิดฝั่งตรงข้ามของตัวเองใน `scanner.py`
+- `S14` ใช้ `_clear_opposite_s14_exposure()` ใน `scanner.py` (Flip logic)
 
 ### tp_close
 
@@ -351,6 +352,7 @@ metadata ที่ใช้:
 
 หมายเหตุ:
 - ครอบคลุมทุก sid รวม S12, S13 (เปิดตั้งแต่ 2026-05-18)
+- **Skip**: `sid in (1, 9, 11, 14)` — S14 bypass เพราะเป็น market order และ bypass trend filter แล้ว
 - log events: `ENTRY_FILL_RSI_RECHECK_FAIL`, `ENTRY_FILL_RSI_RECHECK_SKIP`
 
 config ที่เกี่ยวข้อง:
