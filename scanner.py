@@ -1063,14 +1063,30 @@ def _export_trend_state_for_mt5():
 
 
 def swing_data_ready(tf_name: str) -> bool:
-    """True ถ้า _swing_data มีข้อมูล trend สำหรับ TF นั้น
+    """True ถ้า _swing_data (และ _hhll_data ถ้าจำเป็น) มีข้อมูลพร้อมสำหรับ TF นั้น
     ใช้ตรวจก่อนเรียก trend_allows_signal เพื่อหลีกเลี่ยง early-return True
     กรณี swing data ยังไม่ถูก populate (race condition ใน fill recheck)
+
+    กรณีพิเศษ: ถ้า trend เป็น SIDEWAY และ TREND_FILTER_SIDEWAY_HHLL เปิดอยู่
+    จะตรวจ _hhll_data ด้วย เพื่อให้ HHLL last_label check ทำงานได้ถูกต้อง
+    แทนที่จะ return True, "" แบบ silent เมื่อ hhll data ว่าง
     """
     sw = _swing_data.get(tf_name)
     if not sw:
         return False
-    return bool((sw.get("trend") or {}).get("trend"))
+    trend_val = (sw.get("trend") or {}).get("trend")
+    if not trend_val:
+        return False
+    # ถ้า SIDEWAY + SIDEWAY_HHLL เปิด → ต้องมี hhll last_label ด้วย
+    if trend_val == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
+        try:
+            from hhll_swing import get_hhll_data as _ghd
+            d = _ghd(tf_name)
+            if not d or not d.get("last_label"):
+                return False
+        except Exception:
+            return False
+    return True
 
 
 def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
@@ -1109,9 +1125,13 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
                 if t == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
                     try:
                         from hhll_swing import get_hhll_data as _ghd
-                        _last = (_ghd(ref_tf) or {}).get("last_label", "")
+                        _d    = _ghd(ref_tf) or {}
+                        _last = _d.get("last_label", "")
                     except Exception:
                         _last = ""
+                    if not _last:
+                        # hhll data ยังไม่พร้อม — return sentinel "?" เพื่อให้ caller retry
+                        return True, "?"
                     if _last in ("LH", "LL") and signal == "BUY":
                         return False, f"{ref_tf} SIDEWAY/{_last}"
                     if _last in ("HH", "HL") and signal == "SELL":

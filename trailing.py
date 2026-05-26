@@ -3036,6 +3036,12 @@ async def check_fill_trend_recheck(app):
                 continue  # ไม่ add ใน _fill_trend_checked → retry next scan cycle (~5s)
             _fill_trend_checked.add(ticket)
             _allowed, _why = _tas(_tr_tf, pos_type)
+            # sentinel "?" = HHLL data ยังไม่พร้อม (ใน SIDEWAY mode) → ถอยออก retry
+            if _allowed and _why == "?":
+                _fill_trend_checked.discard(ticket)
+                log_event("TREND_RECHECK", "fill_round1_skip_no_hhll",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type)
+                continue
             log_event("TREND_RECHECK", "fill_round1",
                       ticket=ticket, tf=_tr_tf, signal=pos_type,
                       allowed=_allowed, why=_why, rounds_config=ltr_rounds)
@@ -3084,6 +3090,15 @@ async def check_fill_trend_recheck(app):
         _cur_rnd = tr_state["round"] + 1
         _total   = tr_state["rounds_total"]
         _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
+
+        # sentinel "?" = HHLL data ยังไม่พร้อม → อัปเดต baseline แต่ไม่ advance round
+        if _allowed and _why == "?":
+            tr_state["cur_h"] = _new_h
+            tr_state["cur_l"] = _new_l
+            _trend_recheck_state[ticket] = tr_state
+            log_event("TREND_RECHECK", f"fill_round{_cur_rnd}_skip_no_hhll",
+                      ticket=ticket, tf=_tr_tf, signal=pos_type, hl_changed=_changed)
+            continue
 
         tr_state["cur_h"] = _new_h
         tr_state["cur_l"] = _new_l
