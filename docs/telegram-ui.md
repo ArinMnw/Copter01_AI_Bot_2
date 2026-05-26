@@ -99,9 +99,9 @@ logic (ตั้งแต่ 2026-05-22) — เมื่อ trend = SIDEWAY ด
 - callback: `toggle_trail_reversal_override`
 - ใช้ config `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`
 
-## Toggle Scale-Out 3X (Triple Scale-Out)
+## Toggle Scale-Out 4X (Triple Scale-Out)
 
-- ปุ่ม: `📈 Scale-Out 3X: 🟢ON` / `🔴OFF`
+- ปุ่ม: `📈 Scale-Out 4X: 🟢ON` / `🔴OFF`
 - อยู่หน้า settings ชั้นนอกสุด ใต้ปุ่ม `📦 Lot Size Auto`
 - callback: `toggle_scale_out`
 - ใช้ config `SCALE_OUT_ENABLED` (default `True`)

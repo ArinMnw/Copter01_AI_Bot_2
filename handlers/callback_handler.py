@@ -897,7 +897,7 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_main_settings_menu(query, is_query=True)
         status_label = "ON" if new_state else "OFF"
-        await _qanswer(query,f"Scale-Out 3X: {status_label}{cleanup_msg}")
+        await _qanswer(query,f"Scale-Out 4X: {status_label}{cleanup_msg}")
 
     elif data == "cycle_delay_sl":
         cycle = {"off": "time", "time": "price", "price": "off"}

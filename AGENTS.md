@@ -559,7 +559,7 @@ mode ที่รองรับ:
 - ใช้กับ `get_volume()` และระยะ point ทุกจุด (engulf min, CRT min/buffer, trailing offsets)
 - Telegram UI ยังเห็นค่า config base ของ XAUUSD - scaling ทำหลังบ้าน
 
-### Triple Scale-Out (TSO) — `📈 Scale-Out 3X`
+### Triple Scale-Out (TSO) — `📈 Scale-Out 4X`
 
 - master toggle: `SCALE_OUT_ENABLED` (default `True`) - ปุ่มอยู่บนหน้าเมนู `⚙️ ตั้งค่า` หลัก
 - คอนเซปต์: ขยาย lot ของ pending/limit order ใหม่เป็น `base × 4` เสมอ แล้วทยอยปิด 4 ขั้นเมื่อราคาผ่าน entry
