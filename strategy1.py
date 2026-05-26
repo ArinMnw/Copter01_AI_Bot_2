@@ -177,7 +177,7 @@ def strategy_1(rates, tf=""):
         if c0_engulf and zone:
             entry    = o1
             lowest   = min(l0, l1)
-            sl       = round(lowest - SL_BUFFER(), 2)
+            sl       = round(lowest - SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -207,7 +207,7 @@ def strategy_1(rates, tf=""):
         if c0_engulf and zone:
             entry    = o1
             highest  = max(h0, h1)
-            sl       = round(highest + SL_BUFFER(), 2)
+            sl       = round(highest + SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -245,10 +245,10 @@ def strategy_1(rates, tf=""):
         body2_pct = round(b2/r2*100) if r2 > 0 else 0
 
         if c1_engulf and c0_engulf and body1_ok:
-            # ข้อ 1: SL = min(l0,l1,l2) - SL_BUFFER() เหมือน Pattern B
+            # ข้อ 1: SL = min(l0,l1,l2) - SL_BUFFER(atr) เหมือน Pattern B
             lowest   = min(l0, l1, l2)
             entry    = round((h1 + l1) / 2, 2)
-            sl       = round(lowest - SL_BUFFER(), 2)
+            sl       = round(lowest - SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -297,7 +297,7 @@ def strategy_1(rates, tf=""):
             body1_pct = round(body1/range1*100) if range1 > 0 else 0
             entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
-            sl       = round(lowest - SL_BUFFER(), 2)
+            sl       = round(lowest - SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -335,10 +335,10 @@ def strategy_1(rates, tf=""):
         body2_pct = round(b2/r2*100) if r2 > 0 else 0
 
         if c1_engulf and c0_engulf and body1_ok:
-            # ข้อ 1: SL = max(h0,h1,h2) + SL_BUFFER() เหมือน Pattern B
+            # ข้อ 1: SL = max(h0,h1,h2) + SL_BUFFER(atr) เหมือน Pattern B
             highest  = max(h0, h1, h2)
             entry    = round((h1 + l1) / 2, 2)
-            sl       = round(highest + SL_BUFFER(), 2)
+            sl       = round(highest + SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -387,7 +387,7 @@ def strategy_1(rates, tf=""):
             body1_pct = round(body1/range1*100) if range1 > 0 else 0
             entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
-            sl       = round(highest + SL_BUFFER(), 2)
+            sl       = round(highest + SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -420,7 +420,7 @@ def strategy_1(rates, tf=""):
         if c0_engulf and body1_c_ok:
             entry    = round((h1 + l1) / 2, 2)
             lowest   = min(l0, l1, l2)
-            sl       = round(lowest - SL_BUFFER(), 2)
+            sl       = round(lowest - SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry-sl)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -453,7 +453,7 @@ def strategy_1(rates, tf=""):
         if c0_engulf and body1_c_ok:
             entry    = round((h1 + l1) / 2, 2)
             highest  = max(h0, h1, h2)
-            sl       = round(highest + SL_BUFFER(), 2)
+            sl       = round(highest + SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl-entry)*1.0, 2)  # fallback RR 1:1
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -488,7 +488,7 @@ def strategy_1(rates, tf=""):
         if c0_engulf and body0_ok:
             entry    = round((h0 + l0) / 2, 2)
             lowest   = min(l0, l1, l2)
-            sl       = round(lowest - SL_BUFFER(), 2)
+            sl       = round(lowest - SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note  = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -530,7 +530,7 @@ def strategy_1(rates, tf=""):
         if c0_engulf and body0_ok:
             entry    = round((h0 + l0) / 2, 2)
             highest  = max(h0, h1, h2)
-            sl       = round(highest + SL_BUFFER(), 2)
+            sl       = round(highest + SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp       = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note  = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing ≥1:1)"
@@ -567,7 +567,7 @@ def strategy_1(rates, tf=""):
             body2 = abs(cl2 - o2)
             entry = round((h2 + l2) / 2, 2)
             lowest = min(l0, l1, l2, l3)
-            sl = round(lowest - SL_BUFFER(), 2)
+            sl = round(lowest - SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl, tf=tf)
             tp = tp_swing if tp_swing else round(entry + (entry - sl) * 1.0, 2)
             tp_note = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
@@ -596,7 +596,7 @@ def strategy_1(rates, tf=""):
             body2 = abs(cl2 - o2)
             entry = round((h2 + l2) / 2, 2)
             highest = max(h0, h1, h2, h3)
-            sl = round(highest + SL_BUFFER(), 2)
+            sl = round(highest + SL_BUFFER(atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl, tf=tf)
             tp = tp_swing if tp_swing else round(entry - (sl - entry) * 1.0, 2)
             tp_note = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"

@@ -35,6 +35,10 @@ def strategy_3(rates):
     c2 = c(-3)
     engulf_gap = engulf_min_price()
 
+    # ATR สำหรับ SL_BUFFER(atr) — ค่าเฉลี่ย H-L 14 แท่ง
+    _n_atr = min(14, len(rates))
+    _atr = sum(float(r["high"]) - float(r["low"]) for r in rates[-_n_atr:]) / _n_atr
+
     min_body_pct = 35.0
 
     def body_pct(x):
@@ -71,7 +75,7 @@ def strategy_3(rates):
         and bull_engulf(c0["cl"], c1["h"])
     ):
         entry = round(c1["o"], 2)
-        sl = round(c1["l"] - SL_BUFFER(), 2)
+        sl = round(c1["l"] - SL_BUFFER(_atr), 2)
         tp_swing = find_swing_tp(rates, "BUY", entry, sl)
         tp = tp_swing if tp_swing else round(entry + (entry - sl), 2)
         tp_note = f"Swing High:{tp}" if tp_swing else "RR1:1 (fallback)"
@@ -144,7 +148,7 @@ def strategy_3(rates):
         else:
             # [0] เขียวแต่ยังไม่กลืน [1] → รอแท่งถัดไปปิดเขียว
             entry = round(c1["o"], 2)
-            sl = round(c1["l"] - SL_BUFFER(), 2)
+            sl = round(c1["l"] - SL_BUFFER(_atr), 2)
             tp_swing = find_swing_tp(rates, "BUY", entry, sl)
             tp = tp_swing if tp_swing else round(entry + (entry - sl), 2)
             if is_doji(c1):
@@ -185,7 +189,7 @@ def strategy_3(rates):
         and bear_engulf(c0["cl"], c1["l"])
     ):
         entry = round(c1["o"], 2)
-        sl = round(c1["h"] + SL_BUFFER(), 2)
+        sl = round(c1["h"] + SL_BUFFER(_atr), 2)
         tp_swing = find_swing_tp(rates, "SELL", entry, sl)
         tp = tp_swing if tp_swing else round(entry - (sl - entry), 2)
         tp_note = f"Swing Low:{tp}" if tp_swing else "RR1:1 (fallback)"
@@ -258,7 +262,7 @@ def strategy_3(rates):
         else:
             # [0] แดงแต่ยังไม่กลืน [1] → รอแท่งถัดไปปิดแดง
             entry = round(c1["o"], 2)
-            sl = round(c1["h"] + SL_BUFFER(), 2)
+            sl = round(c1["h"] + SL_BUFFER(_atr), 2)
             tp_swing = find_swing_tp(rates, "SELL", entry, sl)
             tp = tp_swing if tp_swing else round(entry - (sl - entry), 2)
             if is_doji(c1):

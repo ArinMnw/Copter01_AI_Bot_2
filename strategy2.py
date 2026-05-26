@@ -58,7 +58,7 @@ def detect_fvg(rates, tf=""):
             return None, f"FVG BUY gap เล็กเกิน ({gap_size:.2f} < {engulf_gap:.2f})"
 
         entry = round(gap_bot + gap_size * 0.98, 2)
-        sl = round(l1 - SL_BUFFER(), 2)
+        sl = round(l1 - SL_BUFFER(ms["atr"]), 2)
 
         if bull0 and cl0 > h1:
             c0_type = "เขียวกลืนกิน"
@@ -102,7 +102,7 @@ def detect_fvg(rates, tf=""):
             return None, f"FVG SELL gap เล็กเกิน ({gap_size:.2f} < {engulf_gap:.2f})"
 
         entry = round(gap_top - gap_size * 0.98, 2)
-        sl = round(h1 + SL_BUFFER(), 2)
+        sl = round(h1 + SL_BUFFER(ms["atr"]), 2)
 
         if (not bull0) and cl0 < l1:
             c0_type = "แดงกลืนกิน"

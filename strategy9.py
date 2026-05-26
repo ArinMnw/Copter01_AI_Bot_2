@@ -227,8 +227,10 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
         return None
 
     # Limit entry @ low ของแท่ง cur pivot — รอ pullback กลับมาแตะ
+    _n_atr = min(14, len(rates))
+    _atr = sum(float(r["high"]) - float(r["low"]) for r in rates[-_n_atr:]) / _n_atr
     entry = round(cur_price_low, 2)
-    sl = round(cur_price_low - SL_BUFFER(), 2)
+    sl = round(cur_price_low - SL_BUFFER(_atr), 2)
     if sl >= entry:
         return None
     tp_swing = _hhll_tp(tf, "BUY", entry, sl) or find_swing_tp(rates, "BUY", entry, sl)
@@ -301,8 +303,10 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
         return None
 
     # Limit entry @ high ของแท่ง cur pivot — รอ pullback กลับมาแตะ
+    _n_atr = min(14, len(rates))
+    _atr = sum(float(r["high"]) - float(r["low"]) for r in rates[-_n_atr:]) / _n_atr
     entry = round(cur_price_high, 2)
-    sl = round(cur_price_high + SL_BUFFER(), 2)
+    sl = round(cur_price_high + SL_BUFFER(_atr), 2)
     if sl <= entry:
         return None
     tp_swing = _hhll_tp(tf, "SELL", entry, sl) or find_swing_tp(rates, "SELL", entry, sl)

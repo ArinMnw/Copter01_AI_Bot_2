@@ -42,14 +42,31 @@
 
 ## ⚠️ MT5 Timezone — สำคัญมาก อย่าลืม
 
-- Broker: **IUXMarkets** ใช้ server timezone **UTC+1** (`MT5_SERVER_TZ = 1`)
-- Bot log และ display ใช้ **Bangkok UTC+7** (`TZ_OFFSET = 7`)
-- การแปลง MT5 bar timestamp → BKK: `+ timedelta(hours = TZ_OFFSET - MT5_SERVER_TZ)` = **+6 ชั่วโมง** (ไม่ใช่ +7)
-- ฟังก์ชันหลัก: `mt5_ts_to_bkk(ts)` ใน `config.py` บรรทัด 46
-- ถ้าดึง candle ด้วย `copy_rates_range` ให้ใช้ **UTC+1 raw** เป็น query time เสมอ
-  - ตัวอย่าง: ต้องการ 14:52 BKK → fetch `datetime(2026, ..., 8, 52, 0, tzinfo=timezone.utc)`
-  - แล้ว display ด้วย `+ timedelta(hours=6)`
-- ถ้าเผลอบวก +7 จะได้เวลาเร็วกว่าจริง 1 ชั่วโมง (ข้อมูลผิด!)
+- **Chart ของ user (IUXMarkets)** แสดงเวลาเป็น **UTC+6** (server time)
+- **Bot log / display** ใช้ **Bangkok UTC+7** (`TZ_OFFSET = 7`)
+- **Python MT5 API** (`copy_rates_range`) รับ datetime แบบ timezone-aware → ใช้ BKK (UTC+7) ได้เลย
+
+### กฎการแปลงเวลา (ยืนยันจากข้อมูลจริง 2026-05-25)
+
+| เวลาบน chart (UTC+6) | เวลา BKK (UTC+7) | ใช้ fetch MT5 |
+|---|---|---|
+| 12:29 | 13:29 | `datetime(..., 13, 29, tzinfo=BKK)` |
+| 13:20 | 14:20 | `datetime(..., 14, 20, tzinfo=BKK)` |
+
+- **สูตร**: `BKK_time = chart_time + 1 hour`
+- **ถ้า user บอกเวลาบนชาร์ต ให้บวก +1h ก่อน fetch MT5 เสมอ**
+- ถ้าเผลอ fetch ด้วยเวลาชาร์ตโดยตรง (ไม่บวก +1h) จะได้ข้อมูลช้ากว่าจริง 1 ชั่วโมง
+
+### ตัวอย่าง Python
+
+```python
+BKK = timezone(timedelta(hours=7))
+# user บอก "12:29 บนชาร์ต" → fetch 13:29 BKK
+start = datetime(2026, 5, 25, 13, 29, tzinfo=BKK)
+rates = mt5.copy_rates_range(SYMBOL, mt5.TIMEFRAME_M1, start, end)
+# display กลับเป็น chart time: BKK - 1h
+t_chart = datetime.fromtimestamp(r['time'], tz=BKK) - timedelta(hours=1)
+```
 
 ## วิธีรัน
 

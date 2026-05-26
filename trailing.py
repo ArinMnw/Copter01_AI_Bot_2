@@ -2818,8 +2818,8 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11):
-            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo) — skip RSI Recheck
+        if sid in (1, 9, 11, 14):
+            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e = "🟢" if pos_type == "BUY" else "🔴"
@@ -3028,8 +3028,20 @@ async def check_fill_trend_recheck(app):
 
         # ── รอบ 1: ทันทีหลัง fill ───────────────────────────────────────
         if ticket not in _fill_trend_checked:
+            # ตรวจว่า swing data พร้อมก่อน — ถ้ายังไม่มี (race condition) → retry รอบหน้า
+            from scanner import swing_data_ready as _sdr
+            if not _sdr(_tr_tf):
+                log_event("TREND_RECHECK", "fill_round1_skip_no_data",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type)
+                continue  # ไม่ add ใน _fill_trend_checked → retry next scan cycle (~5s)
             _fill_trend_checked.add(ticket)
             _allowed, _why = _tas(_tr_tf, pos_type)
+            # sentinel "?" = HHLL data ยังไม่พร้อม (ใน SIDEWAY mode) → ถอยออก retry
+            if _allowed and _why == "?":
+                _fill_trend_checked.discard(ticket)
+                log_event("TREND_RECHECK", "fill_round1_skip_no_hhll",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type)
+                continue
             log_event("TREND_RECHECK", "fill_round1",
                       ticket=ticket, tf=_tr_tf, signal=pos_type,
                       allowed=_allowed, why=_why, rounds_config=ltr_rounds)
@@ -3079,6 +3091,15 @@ async def check_fill_trend_recheck(app):
         _total   = tr_state["rounds_total"]
         _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
 
+        # sentinel "?" = HHLL data ยังไม่พร้อม → อัปเดต baseline แต่ไม่ advance round
+        if _allowed and _why == "?":
+            tr_state["cur_h"] = _new_h
+            tr_state["cur_l"] = _new_l
+            _trend_recheck_state[ticket] = tr_state
+            log_event("TREND_RECHECK", f"fill_round{_cur_rnd}_skip_no_hhll",
+                      ticket=ticket, tf=_tr_tf, signal=pos_type, hl_changed=_changed)
+            continue
+
         tr_state["cur_h"] = _new_h
         tr_state["cur_l"] = _new_l
         tr_state["round"] = _cur_rnd
@@ -3110,6 +3131,93 @@ async def check_fill_trend_recheck(app):
             log_event("TREND_RECHECK", "fill_all_rounds_pass",
                       ticket=ticket, tf=_tr_tf, rounds=_total)
         # else: ยังต้องรอ round ถัดไป (H/L เปลี่ยนอีกรอบ)
+
+
+# -------------------------------------------------------------
+async def check_fill_pd_zone(app):
+    """
+    PD Zone Fill Check — เช็ค position ที่เพิ่ง fill ว่าอยู่ใน zone ที่ถูกต้องไหม
+    Gate: PD_ZONE_CHECK_ENABLED
+    Skip: S9 (RSI Divergence)
+    รันอิสระจาก ENTRY_CANDLE_ENABLED เพื่อจับ case ที่ order fill เร็วกว่า pending check cycle
+    """
+    if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+
+    for pos in positions:
+        ticket = pos.ticket
+        if ticket in _pd_zone_fill_checked:
+            continue
+        sid = position_sid.get(ticket)
+        if sid in (9,):
+            continue  # S9 (RSI Div) — skip PD Zone check
+
+        _pd_zone_fill_checked.add(ticket)
+
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        sig_e    = "🟢" if pos_type == "BUY" else "🔴"
+        fvg_info = fvg_order_tickets.get(ticket)
+
+        # Resolve TF (3-tier fallback)
+        _pz_tf = position_tf.get(ticket)
+        if not _pz_tf and fvg_info:
+            _pz_tf = fvg_info.get("tf")
+        if not _pz_tf:
+            _pend_info = pending_order_tf.get(ticket)
+            if isinstance(_pend_info, dict):
+                _pz_tf = _pend_info.get("tf")
+        if not _pz_tf:
+            _c_tf, _, _ = _infer_position_meta_from_comment(pos)
+            if _c_tf:
+                _pz_tf = _c_tf
+                position_tf[ticket] = _c_tf
+        if not _pz_tf:
+            _pz_tf = "M1"
+
+        # ดึง swing H/L
+        try:
+            from hhll_swing import get_swing_hl_pts as _gshl
+            _sh_pt, _sl_pt = _gshl(_pz_tf)
+            _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
+            _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
+        except Exception:
+            _pz_h = _pz_l = 0.0
+
+        if not (_pz_h > _pz_l > 0):
+            continue
+
+        _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
+        _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
+        _pz_result  = _pd_zone_in_zone(
+            float(pos.price_open), pos_type, _pz_h, _pz_l,
+            sid=sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
+        )
+        _pz_eq = round((_pz_h + _pz_l) / 2, 2)
+        log_event("PD_ZONE_CHECK", "fill_check",
+                  ticket=ticket, signal=pos_type, tf=_pz_tf,
+                  price=pos.price_open, h=_pz_h, l=_pz_l,
+                  eq=_pz_eq, result="PASS" if _pz_result else "FAIL",
+                  sid=sid)
+        if not _pz_result:
+            ok, cp = _close_position(pos, pos_type, "PD Zone fill check failed")
+            if ok:
+                _entry_state[ticket] = "done"
+                fvg_order_tickets.pop(ticket, None)
+                save_runtime_state()
+                log_event("PD_ZONE_CHECK", "fill_close",
+                          ticket=ticket, signal=pos_type, tf=_pz_tf,
+                          price=pos.price_open, eq=_pz_eq, close_price=cp)
+                _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
+                await tg(app, (
+                    f"🛡️ *PD Zone: ปิด Position ที่ fill ผิด Zone*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                    f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
+                    f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
+                    f"H: `{_pz_h}` | L: `{_pz_l}`"
+                ))
 
 
 # -------------------------------------------------------------
@@ -3405,49 +3513,7 @@ async def check_entry_candle_quality(app):
         current_price = float(entry_bar["close"])
 
         if state is None:
-            # ── PD Zone check สำหรับ position ที่ fill เร็วจน pending check ไม่ทัน ──
-            if (getattr(config, "PD_ZONE_CHECK_ENABLED", False)
-                    and _order_sid not in (9,)
-                    and ticket not in _pd_zone_fill_checked):
-                _pd_zone_fill_checked.add(ticket)
-                _pz_tf = pos_tf or (fvg_info.get("tf", "M1") if fvg_info else "M1")
-                try:
-                    from hhll_swing import get_swing_hl_pts as _gshl
-                    _sh_pt, _sl_pt = _gshl(_pz_tf)
-                    _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
-                    _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
-                except Exception:
-                    _pz_h = _pz_l = 0.0
-                if _pz_h > _pz_l > 0:
-                    _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
-                    _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
-                    _pz_result = _pd_zone_in_zone(
-                        float(pos.price_open), pos_type, _pz_h, _pz_l,
-                        sid=_order_sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
-                    )
-                    _pz_eq = round((_pz_h + _pz_l) / 2, 2)
-                    log_event("PD_ZONE_CHECK", "fill_check",
-                              ticket=ticket, signal=pos_type, tf=_pz_tf,
-                              price=pos.price_open, h=_pz_h, l=_pz_l,
-                              eq=_pz_eq, result="PASS" if _pz_result else "FAIL")
-                    if not _pz_result:
-                        ok, cp = _close_position(pos, pos_type, "PD Zone fill check failed")
-                        if ok:
-                            _entry_state[ticket] = "done"
-                            fvg_order_tickets.pop(ticket, None)
-                            save_runtime_state()
-                            log_event("PD_ZONE_CHECK", "fill_close",
-                                      ticket=ticket, signal=pos_type, tf=_pz_tf,
-                                      price=pos.price_open, eq=_pz_eq, close_price=cp)
-                            _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
-                            await tg(app, (
-                                f"🛡️ *PD Zone: ปิด Position ที่ fill ผิด Zone*\n"
-                                f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
-                                f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
-                                f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
-                                f"H: `{_pz_h}` | L: `{_pz_l}`"
-                            ))
-                            continue
+            # ── PD Zone fill check ย้ายไป check_fill_pd_zone() แล้ว ──
 
             # Evaluate the entry candle
             bull, body_pct, body_pct_int = bar_info(entry_bar)
@@ -5642,57 +5708,44 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
     # ─── รอบที่ 1: เมื่อ order เกิด — ตัดสินทันที ────────────────────
     if state is None:
         _outside_pd = order_price < l or order_price > h
-        _fallback_used   = False   # ใช้ prev swing หรือเปล่า
-        _fallback_h      = h
-        _fallback_l      = l
-        _fallback_label  = ""
 
+        # ─── 1-Swing-Back Fallback เมื่อ entry อยู่นอก [L, H] ──────────
+        # entry < L → ถอย H ไป 1 swing (ใช้ H เก่ากว่า คือ อีกตัวระหว่าง HH/LH)
+        # entry > H → ถอย L ไป 1 swing (ใช้ L เก่ากว่า คือ อีกตัวระหว่าง HL/LL)
+        # ถ้า fallback แล้วยังอยู่นอก range → รอรอบ 2 (ไม่ fail รอบ 1)
+        _fallback_used  = False
+        _wait_round2    = False
+        _fb_h, _fb_l    = h, l
         if _outside_pd:
-            # ─── fallback: หา swing ก่อนหน้า ─────────────────────────────
-            # entry < L → หา prev L (สลับ HL↔LL)
-            # entry > H → หา prev H (สลับ LH↔HH)
-            from hhll_swing import get_hhll_data as _get_hd
-            _hd      = _get_hd(tf)
-            _hh_pt   = _hd.get("hh")
-            _lh_pt   = _hd.get("lh")
-            _hl_pt   = _hd.get("hl")
-            _ll_pt   = _hd.get("ll")
+            try:
+                from hhll_swing import get_prev_swing_hl_pts
+                _prev_sh, _prev_sl = get_prev_swing_hl_pts(tf)
+                if order_price < l and _prev_sh is not None:
+                    _try_h = float(_prev_sh["price"])
+                    if _try_h > _fb_l:
+                        _fb_h = _try_h
+                        _fallback_used = True
+                elif order_price > h and _prev_sl is not None:
+                    _try_l = float(_prev_sl["price"])
+                    if _fb_h > _try_l:
+                        _fb_l = _try_l
+                        _fallback_used = True
+            except Exception:
+                pass
 
-            if order_price < l and l > 0:
-                # current L คือ HL หรือ LL?
-                _cur_l_is_hl = (_hl_pt is not None
-                                and abs(float(_hl_pt["price"]) - l) < 0.01)
-                _prev_l_pt   = _ll_pt if _cur_l_is_hl else _hl_pt
-                if _prev_l_pt:
-                    _fallback_l     = float(_prev_l_pt["price"])
-                    _fallback_label = f"prev_L={round(_fallback_l,2)}({'LL' if _cur_l_is_hl else 'HL'})"
-                    _fallback_used  = True
-
-            elif order_price > h and h > 0:
-                # current H คือ LH หรือ HH?
-                _cur_h_is_lh = (_lh_pt is not None
-                                and abs(float(_lh_pt["price"]) - h) < 0.01)
-                _prev_h_pt   = _hh_pt if _cur_h_is_lh else _lh_pt
-                if _prev_h_pt:
-                    _fallback_h     = float(_prev_h_pt["price"])
-                    _fallback_label = f"prev_H={round(_fallback_h,2)}({'HH' if _cur_h_is_lh else 'LH'})"
-                    _fallback_used  = True
-
-            # ตรวจว่า entry อยู่ใน prev swing ไหม
-            _within_prev = (_fallback_l < _fallback_h
-                            and _fallback_l <= order_price <= _fallback_h)
-
-            if not _within_prev:
-                # อยู่นอก prev swing ด้วย → auto-PASS รอบ 1 แล้วรอรอบ 2
-                result = True
-                _fallback_label = "outside both swings → รอรอบ 2"
+        if _fallback_used:
+            _fb_outside = order_price < _fb_l or order_price > _fb_h
+            if _fb_outside:
+                # fallback แล้วยังอยู่นอก range → รอรอบ 2
+                _wait_round2 = True
+                result = False   # provisional — ใช้แค่เพื่อ save state; จะ return "wait" ไม่ใช่ "fail"
             else:
-                # อยู่ใน prev swing → เช็ค zone ด้วย prev EQ
-                result = _pd_zone_in_zone(order_price, signal, _fallback_h, _fallback_l,
+                result = _pd_zone_in_zone(order_price, signal, _fb_h, _fb_l,
                                           sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
         else:
             result = _pd_zone_in_zone(order_price, signal, h, l,
                                       sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
+
         # S2 entry adjustment: ย้าย entry → 50% mark เมื่อ PASS via gap rule
         if result and _s2_adjusted_entry > 0:
             _ok_mod, _ = _modify_pending_entry(order, _s2_adjusted_entry)
@@ -5714,22 +5767,43 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
         _pd_zone_state[ticket] = {
             "signal": signal, "tf": tf, "price": order_price,
             "cur_h": h, "cur_l": l,
-            "round1": 1 if result else -1,
+            "round1": 0 if _wait_round2 else (1 if result else -1),
             "outside_pd": _outside_pd,
         }
         state = _pd_zone_state[ticket]
-        _log_h   = _fallback_h if _fallback_used else h
-        _log_l   = _fallback_l if _fallback_used else l
-        _log_eq  = round((_log_h + _log_l) / 2.0, 5)
-        _note    = (f"fallback_swing {_fallback_label}" if _fallback_used
-                    else ("outside_pd_range" if _outside_pd else ""))
+
+        # ─── กรณี: fallback แล้วยังอยู่นอก range → รอรอบ 2 ────────────
+        if _wait_round2:
+            _fb_eq = round((_fb_h + _fb_l) / 2.0, 5)
+            log_event("PD_ZONE_CHECK", "round1_fallback_wait",
+                      ticket=ticket, signal=signal, tf=tf,
+                      price=order_price, h=h, l=l,
+                      fb_h=_fb_h, fb_l=_fb_l, eq=_fb_eq)
+            tg_msgs.append(
+                f"📊 *PD Zone Check — รอบ 1/2 (Fallback)*\n"
+                f"{sig_e} {ot_name} [{tf}] `#{ticket}`\n"
+                f"Entry: `{order_price}` | นอก [L=`{l}`, H=`{h}`]\n"
+                f"Fallback H=`{_fb_h}` / L=`{_fb_l}` → ยังนอก range\n"
+                f"⏳ รอรอบ 2 (H/L เปลี่ยน)"
+            )
+            return "wait", tg_msgs
+
+        # ─── กรณี: ปกติ หรือ fallback แล้วอยู่ใน range ─────────────────
+        _eff_h   = _fb_h if _fallback_used else h
+        _eff_l   = _fb_l if _fallback_used else l
+        _log_eq  = round((_eff_h + _eff_l) / 2.0, 5)
+        _fb_note = f"1-swing-back H={_fb_h}/L={_fb_l}" if _fallback_used else ""
+        _note    = " | ".join(filter(None, ["outside_pd_range" if _outside_pd else "", _fb_note]))
         log_event("PD_ZONE_CHECK", "round1",
                   ticket=ticket, signal=signal, tf=tf,
-                  price=order_price, h=_log_h, l=_log_l, eq=_log_eq,
+                  price=order_price, h=_eff_h, l=_eff_l, eq=_log_eq,
                   result="PASS" if result else "FAIL",
                   note=_note)
-        _chk_note = (f"fallback swing ({_fallback_label})" if _fallback_used
-                     else ("outside PD range → รอรอบ 2" if _outside_pd else ""))
+        if _fallback_used:
+            _fb_eq = round((_fb_h + _fb_l) / 2.0, 5)
+            _chk_note = f"1-swing-back H=`{_fb_h}` L=`{_fb_l}` EQ=`{_fb_eq}`"
+        else:
+            _chk_note = "outside PD range" if _outside_pd else ""
         tg_msgs.append(_chk_msg(1, _chk_note, result))
         if not result and not combined:
             # แบบแยก: fail ทันที — ไม่ต้องรอรอบ 2

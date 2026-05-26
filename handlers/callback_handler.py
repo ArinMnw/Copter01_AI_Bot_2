@@ -959,6 +959,21 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"Sideway HHLL Filter: {'ON' if config.TREND_FILTER_SIDEWAY_HHLL else 'OFF'}")
 
+    elif data == "toggle_sl_atr":
+        config.SL_ATR_ENABLED = not getattr(config, "SL_ATR_ENABLED", True)
+        save_runtime_state()
+        await show_advanced_settings(query, is_query=True)
+        _mult = int(getattr(config, "SL_ATR_MULT", 2))
+        await _qanswer(query, f"SL ATR: {'ON ×' + str(_mult) if config.SL_ATR_ENABLED else 'OFF (Fixed buffer)'}")
+
+    elif data.startswith("set_sl_atr_mult_"):
+        _m = int(data.replace("set_sl_atr_mult_", ""))
+        if _m in (1, 2, 3, 4, 5):
+            config.SL_ATR_MULT = _m
+            save_runtime_state()
+        await show_advanced_settings(query, is_query=True)
+        await _qanswer(query, f"SL ATR Mult: ×{_m}")
+
     elif data == "toggle_sl_guard":
         # ถ้าเปิดอยู่ → ปิดทั้งหมด; ถ้าปิดอยู่ → เปิดแบบแยก (select mode)
         if config.SL_GUARD_ENABLED:
