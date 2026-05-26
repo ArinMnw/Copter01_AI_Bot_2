@@ -2981,7 +2981,7 @@ async def check_fill_rsi_recheck(app):
 async def check_fill_trend_recheck(app):
     """Trend Recheck หลัง fill: ตรวจ trend ของ position ที่เพิ่ง fill
     Gate: LIMIT_TREND_RECHECK
-    Skip: S9 (RSI Div), S10 (CRT)
+    Skip: S9 (RSI Div), S10 (CRT), S14 (Sweep RSI)
     รอบ 1 : ทันทีหลัง fill — ถ้า trend สวนทาง → ปิด position
     รอบ 2+ : เช็คอีกครั้งหลัง H หรือ L เปลี่ยน (ตาม LIMIT_TREND_RECHECK_ROUNDS)
     """
@@ -3010,8 +3010,8 @@ async def check_fill_trend_recheck(app):
     for pos in positions:
         ticket = pos.ticket
         sid = position_sid.get(ticket)
-        # Skip S9 (RSI Divergence), S10 (CRT)
-        if sid in (9, 10):
+        # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order, bypass trend recheck)
+        if sid in (9, 10, 14):
             continue
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"

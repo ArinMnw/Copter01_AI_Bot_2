@@ -532,6 +532,25 @@ async def handle_callback(update, ctx):
             pass
         await _qanswer(query,f"✅ ท่า 2: {label}")
 
+    elif data == "toggle_s14_flip":
+        config.S14_FLIP_ENABLED = not getattr(config, "S14_FLIP_ENABLED", True)
+        save_runtime_state()
+        status = "ON" if config.S14_FLIP_ENABLED else "OFF"
+        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        summary = " + ".join(active_list) if active_list else "ไม่มี"
+        try:
+            await query.edit_message_text(
+                f"📋 *เลือก Strategy*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
+                f"กดเพื่อเปิด/ปิด:",
+                parse_mode="Markdown",
+                reply_markup=build_strategy_keyboard()
+            )
+        except Exception:
+            pass
+        await _qanswer(query, f"✅ ท่า 14 Flip: {status}")
+
     elif data.startswith("set_trail_engulf_mode_"):
         mode = data.replace("set_trail_engulf_mode_", "")
         if mode not in ("combined", "separate"):

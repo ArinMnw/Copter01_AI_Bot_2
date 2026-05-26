@@ -289,6 +289,55 @@ async def _clear_opposite_s13_exposure(app, tf_name: str, signal: str) -> bool:
     return not failed
 
 
+async def _clear_opposite_s14_exposure(app, tf_name: str, signal: str) -> bool:
+    """
+    ปิด S14 position ฝั่งตรงข้ามบน TF เดียวกัน ก่อนเปิด S14 order ใหม่
+    S14 เป็น market order เสมอ → ไม่ต้องยกเลิก pending (ต่างจาก S13)
+    Return True ถ้าไม่มีการ fail (รวมถึงกรณีไม่มีอะไรต้องปิด)
+    """
+    opposite      = "SELL" if signal == "BUY" else "BUY"
+    opp_pos_type  = mt5.ORDER_TYPE_SELL if signal == "BUY" else mt5.ORDER_TYPE_BUY
+    closed_any    = False
+    failed        = False
+
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    for pos in positions:
+        ticket = int(getattr(pos, "ticket", 0) or 0)
+        if not ticket:
+            continue
+        if position_sid.get(ticket) != 14:
+            continue  # ไม่ใช่ S14
+        if position_tf.get(ticket) != tf_name:
+            continue  # ต่าง TF
+        if int(getattr(pos, "type", -1)) != opp_pos_type:
+            continue  # ทิศเดียวกัน → ไม่ต้องปิด
+
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        ok, cp = _close_position(pos, pos_type, f"S14 flip: new {signal} on {tf_name}")
+        if ok:
+            closed_any = True
+            log_event(
+                "S14_REVERSE_CLOSE",
+                f"ปิด {opposite} ticket={ticket} [{tf_name}] → flip เป็น {signal}",
+                tf=tf_name, sid=14, signal=signal, ticket=ticket, close_price=cp,
+            )
+        else:
+            failed = True
+            log_event(
+                "S14_REVERSE_CLOSE_FAIL",
+                f"ปิด {opposite} ticket={ticket} [{tf_name}] ไม่สำเร็จ",
+                tf=tf_name, sid=14, signal=signal, ticket=ticket,
+            )
+
+    if closed_any:
+        sig_e = "🟢" if signal == "BUY" else "🔴"
+        await tg(app, (
+            f"↔️ *[{tf_name}] S14 Flip*\n"
+            f"ปิดฝั่ง `{opposite}` → เปิด {sig_e} `{signal}` แทน"
+        ))
+    return not failed
+
+
 def _has_same_side_s13_exposure(tf_name: str, signal: str) -> bool:
     same_pending_buy = {mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_BUY_STOP}
     same_pending_sell = {mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP}
@@ -3391,6 +3440,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             if ok:
                 any_success = True
             continue
+        # ── S14: ปิดฝั่งตรงข้ามก่อนเปิดใหม่ (flip logic) ─────────────────
+        if sid == 14 and getattr(config, 'S14_FLIP_ENABLED', True):
+            clear_ok = await _clear_opposite_s14_exposure(app, tf_name, signal)
+            if not clear_ok:
+                await tg(app, f"⚠️ *[{tf_name}] S14*\nปิดฝั่งตรงข้ามไม่สำเร็จ เลยยังไม่เปิด `{signal}`")
+                continue
+            # ผ่านแล้ว → fall through ไปเปิด market order ด้านล่าง
         async with _get_lock():
             _pos_now = mt5.positions_get(symbol=SYMBOL)
             if _pos_now and len(_pos_now) >= MAX_ORDERS:

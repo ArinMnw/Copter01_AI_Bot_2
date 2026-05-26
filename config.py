@@ -443,6 +443,7 @@ S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับต
 # เปิด/ปิด sub-pattern (ใช้ร่วมกันทั้ง BUY และ SELL)
 S14_ENGULF            = True   # Engulf pattern (close เกิน LL/HH)
 S14_SWEEP             = True   # Sweep pattern  (ไส้เกิน LL/HH แต่ปิดกลับมา)
+S14_FLIP_ENABLED      = True   # Flip: ปิดฝั่งตรงข้ามทันทีเมื่อ signal ใหม่มา (per-TF)
 # LL/HH ref เพิ่มเติมจาก HHLL module
 # False (default) = ใช้ min low ของ reversal bars เท่านั้น
 # True            = ใช้ HHLL HL (BUY) / HH (SELL) เป็น ref เพิ่มด้วย
@@ -885,9 +886,10 @@ _RUNTIME_DEFAULTS = {
     "SWING_PIVOT_RIGHT": SWING_PIVOT_RIGHT,
     "SCALE_OUT_ENABLED": SCALE_OUT_ENABLED,
     # S14 sub-pattern toggles (runtime-resettable)
-    "S14_ENGULF":       S14_ENGULF,
-    "S14_SWEEP":        S14_SWEEP,
-    "S14_LL_USE_HHLL":  S14_LL_USE_HHLL,
+    "S14_ENGULF":        S14_ENGULF,
+    "S14_SWEEP":         S14_SWEEP,
+    "S14_LL_USE_HHLL":   S14_LL_USE_HHLL,
+    "S14_FLIP_ENABLED":  S14_FLIP_ENABLED,
 }
 
 fvg_pending       = {}   # {key: {tf, signal, entry, sl, tp, gap_top, gap_bot, candle_key}}
