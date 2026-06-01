@@ -1,5 +1,9 @@
 * text=auto eol=lf
 
+# Windows batch/cmd ต้องเป็น CRLF ไม่งั้น cmd.exe parse เพี้ยน
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 *.png binary
 *.jpg binary
 *.jpeg binary

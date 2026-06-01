@@ -95,6 +95,89 @@ def _scale_out_register_ticket(ticket: int, direction: str, entry: float,
             pass
 
 
+def _symbol_consistency_error(entry, sl, tp, send_volume,
+                              signal: str = "", sid="", base_volume: float = 0.0):
+    """
+    Symbol/Volume guard — กันออเดอร์ "ปนข้าม symbol" ตอนสลับ XAU<->BTC
+
+    ต้นเหตุ: config.SYMBOL เป็น global ที่ถูก mutate กลางอากาศโดย set_runtime_symbol()
+    บน symbol_switch_job (ทุก 1 นาที) ขณะที่ scan jobs (ทุก 5 วิ) กำลังอ่าน rates +
+    คำนวณ get_volume()/points_scale() พร้อมกัน + per-TF cache ไม่ถูกล้าง → order รอบนั้น
+    อาจได้ "ราคา/level ของ symbol หนึ่ง" ผสม "volume scaling ของอีก symbol"
+    (เคสจริง: XAU order entry=4571 ติด base=0.04 ของ BTC → lot 0.16, หรือ BTC entry ติด
+    tp ราคา XAU)
+
+    ตรวจ 3 ชั้น (ground truth = ราคา live ของ SYMBOL ปัจจุบัน เดียวกับที่ order_send ใช้):
+      0) switch-guard: ถ้ากำลังสลับ symbol อยู่ (config.symbol_switch_in_progress)
+                       → ห้ามสร้างออเดอร์ เลื่อนไปรอบ scan ถัดไป (ตัด race ที่ต้นทาง)
+      1) price-band : entry/sl/tp ต้องอยู่ในช่วง [0.5x, 2.0x] ของ mid price ปัจจุบัน
+                      (XAU~4500 vs BTC~77000 ต่างกัน ~17 เท่า → จับการปนข้ามได้สบาย
+                       order ปกติ SL/TP ห่าง entry ไม่กี่ % → ไม่มีทาง false-positive)
+      2) volume-cap : send_volume ห้ามเกิน base ของ symbol ปัจจุบัน × 4 (TSO สูงสุด 4 steps)
+                      XAU cap=0.04, BTC cap=0.16 — reverse-limit (base 0.01) ยังผ่านทุกกรณี
+
+    คืน: error string ถ้าผิดปกติ (caller ควร skip ออเดอร์), คืน None ถ้าผ่าน
+    fail-safe: error ใดๆ ภายใน → คืน None (ไม่ขวาง flow ปกติ)
+    """
+    try:
+        reason = None
+
+        # 0) switch-guard — ห้ามสร้างออเดอร์ระหว่าง set_runtime_symbol กำลังทำงาน
+        if getattr(config, "symbol_switch_in_progress", False):
+            reason = ("symbol switch กำลังทำงานอยู่ — เลื่อนสร้างออเดอร์ไปรอบถัดไป "
+                      "(กัน race ตอนสลับ XAU/BTC)")
+
+        if reason is None:
+            tick = mt5.symbol_info_tick(SYMBOL)
+            if not tick:
+                return None  # ดึงราคาไม่ได้ → ปล่อยให้ logic เดิมจัดการ
+            mid = (float(getattr(tick, "ask", 0.0)) + float(getattr(tick, "bid", 0.0))) / 2.0
+            if mid <= 0:
+                return None
+
+            # 1) price-band
+            for label, val in (("entry", entry), ("sl", sl), ("tp", tp)):
+                if val is None or float(val) <= 0:
+                    continue
+                ratio = float(val) / mid
+                if ratio < 0.5 or ratio > 2.0:
+                    reason = (f"price-symbol mismatch: {label}={val} อยู่ไกลจากราคา {SYMBOL} "
+                              f"(mid={mid:.2f}, ratio={ratio:.3f}) — น่าจะปนข้าม symbol ตอนสลับ")
+                    break
+
+            # 2) volume-cap (เช็คเฉพาะเมื่อ price ผ่านแล้ว เพื่อให้ reason แรกชัดเจน)
+            if reason is None:
+                try:
+                    max_vol = round(float(config.get_volume()) * 4.0, 2) + 1e-9
+                    if float(send_volume) > max_vol:
+                        reason = (f"volume-symbol mismatch: send_volume={send_volume} > cap "
+                                  f"{max_vol - 1e-9:.2f} ของ {SYMBOL} (base={config.get_volume()}) "
+                                  f"— น่าจะใช้ base ของอีก symbol")
+                except Exception:
+                    pass
+
+        if reason is not None:
+            try:
+                from bot_log import log_event
+                log_event(
+                    "SYMBOL_GUARD_BLOCK",
+                    reason,
+                    symbol=SYMBOL,
+                    side=signal,
+                    sid=sid,
+                    entry=float(entry or 0.0),
+                    sl=float(sl or 0.0),
+                    tp=float(tp or 0.0),
+                    send_volume=float(send_volume or 0.0),
+                    base_volume=float(base_volume or 0.0),
+                )
+            except Exception:
+                pass
+        return reason
+    except Exception:
+        return None
+
+
 def _pattern_comment_code(pattern: str, sid="") -> str:
     text = (pattern or "").upper()
     raw = pattern or ""
@@ -456,6 +539,11 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
     )
     is_scaled = bool(effective_steps)
 
+    _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
+                                           signal=signal, sid=sid, base_volume=base_volume)
+    if _guard_err:
+        return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
+
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_PENDING,
         "symbol":       SYMBOL,
@@ -534,6 +622,11 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     )
     is_scaled = bool(effective_steps)
 
+    _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
+                                           signal=signal, sid=sid, base_volume=base_volume)
+    if _guard_err:
+        return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
+
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_PENDING,
         "symbol":       SYMBOL,
@@ -604,6 +697,11 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
     )
     is_scaled = bool(effective_steps)
+
+    _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
+                                           signal=signal, sid=sid, base_volume=base_volume)
+    if _guard_err:
+        return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
 
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_DEAL,

@@ -6,14 +6,20 @@
 
 ```
 logs/
-├── bot.log                   ← log หลัก (rolling, ทุก event สำคัญ)
-├── bot-YYYY-MM.log           ← monthly log (สำเนาทุก event เดียวกับ bot.log)
-├── error-YYYY-MM.log         ← error log รายเดือน (ERROR level + Python exception)
+├── bot.log                   ← log หลักเดือนปัจจุบัน (rolling, ทุก event สำคัญ)
+├── error-YYYY-MM.log         ← error log เดือนปัจจุบัน (ERROR level + Python exception)
 ├── system/
-│   └── system.log            ← Python logging (INFO+) ผ่าน logging.FileHandler
-└── debug/
-    └── sltp_audit.log        ← audit trail ของการเปลี่ยน SL/TP (เขียนโดย trailing.py)
+│   └── system.log            ← Python logging (INFO+) เดือนปัจจุบัน
+├── debug/
+│   └── sltp_audit.log        ← audit trail ของการเปลี่ยน SL/TP (เขียนโดย trailing.py)
+└── old_logs/                 ← archive รายเดือนของเดือนที่ผ่านมา
+    ├── bot-YYYY-MM.log
+    ├── error-YYYY-MM.log
+    └── system-YYYY-MM.log
 ```
+
+- เมื่อเดือนเปลี่ยน `bot_log.py` จะ rotate `bot.log` / `system.log` → `old_logs/<prefix>-YYYY-MM.log` อัตโนมัติ
+- **archive ด้วยมือ:** `archive_logs.bat` (เรียก `archive_logs_by_month.py`) ย้าย log ที่ยังไม่ได้แยกเดือน (`bot.log`, `system/system.log`) → ไฟล์รายเดือนใน `old_logs/` (stream + route ตาม timestamp, รองรับไฟล์หลายร้อย MB) — ควรรันตอนปิด bot
 
 ## ไฟล์ log หลัก
 
@@ -60,6 +66,15 @@ logs/
 - `PATTERN_FOUND` จะ log หลัง shared TP ถูกคำนวณแล้ว เพื่อให้ `tp` และ `flow_id` ตรงกับ order จริงที่กำลังจะถูกสร้าง
 - มี Telegram pattern alert แยกด้วย และ dedup ตาม `flow_id` เพื่อไม่ให้เด้งซ้ำทุก 5 วินาที
 - ใช้ดูจังหวะเจอ pattern ก่อน `ORDER_CREATED` และช่วยตามรอยกรณี order ถูก skip หรือ failed ได้ง่ายขึ้น
+
+## Log events ที่ควรรู้ (guard / trend)
+
+- `SL_GUARD_ACTIVATE` — per-TF guard activate (มี `swing_ref` หลัง fix 2026-06-01)
+- `SL_GUARD_GROUP_ACTIVATE` — Group guard activate (mode default)
+- `SL_GUARD_BLOCK` / `SL_GUARD_CANCEL_PENDING` — block order ใหม่ / cancel pending ขณะ guard active
+- `STRONG_TREND_BLOCK` — block signal ที่สวน strong trend สำหรับท่า bypass (เมื่อ `STRONG_TREND_BLOCK_ENABLED=True`)
+- `TREND_RECHECK` (+ sub: `fill_round1` / `fill_close*` / `fill_round1_skip_no_data`) — Fill Trend Recheck
+- `PD_ZONE_CHECK` (+ sub: `fill_check` / `round1*` / `fill_close`) — PD Zone Recheck
 
 ## Log Retention
 

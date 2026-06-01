@@ -32,6 +32,13 @@ except ImportError:
 _hhll_data: dict[str, dict] = {}
 
 
+def clear_cache():
+    """ล้าง _hhll_data ทั้งหมด — เรียกตอนสลับ symbol (XAU<->BTC)
+    กัน HH/HL/LH/LL level ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่
+    (scan_one_tf จะ fetch_hhll ใหม่ทุกรอบ → cache repopulate เองทันที)"""
+    _hhll_data.clear()
+
+
 # ══════════════════════════════════════════════════════════════════════
 # Internal — pivot detection (forward-indexed: rates[0]=oldest)
 # Left  bars : pivot must be strictly greater (>= blocks)

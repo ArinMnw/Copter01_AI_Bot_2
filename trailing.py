@@ -43,7 +43,8 @@ _trend_filter_last_dir: dict = {}  # {"ticket|tf": "BULL"|"BEAR"|"SIDEWAY"}
 # Format: {ticket: {"signal", "tf", "price", "cur_h", "cur_l", "round1": int}}
 # checks[i]: 0 = not yet done, 1 = pass, -1 = fail
 _pd_zone_state: dict = {}
-_pd_zone_fill_checked: set[int] = set()  # tickets ที่เช็ค PD Zone หลัง fill แล้ว (เช็คครั้งเดียว)
+_pd_zone_fill_checked: set[int] = set()  # tickets ที่ผ่าน PD Zone fill check ครบทุก round แล้ว
+_pd_zone_fill_state:   dict     = {}     # {ticket: {tf, signal, fill_h, fill_l, ...}} รอ round 2
 
 # Limit Trend Recheck multi-round state
 # {ticket: {"round": int, "rounds_total": int, "cur_h": float, "cur_l": float, "signal": str}}
@@ -94,7 +95,21 @@ def _sl_guard_record_sl(tf: str, side: str) -> bool:
         entry["active"] = True
         entry["blocked_since_bar"] = int(time.time())
         just_activated = True
-        print(f"🛡️ SL Guard ACTIVATED: [{tf}] {side.upper()} ({entry['count']}x SL)")
+        # ตั้ง swing_ref ทันทีตอน activate เพื่อป้องกัน _sl_guard_check_unblock
+        # deactivate ทันที (swing_ref=0 → condition swing_ref<=0 เป็น True เสมอ)
+        try:
+            _tick = mt5.symbol_info_tick(SYMBOL)
+            if _tick:
+                if side.upper() == "SELL":
+                    entry["swing_ref"] = float(_tick.ask)   # unblock เมื่อมี high ใหม่เกินนี้
+                else:
+                    entry["swing_ref"] = float(_tick.bid)   # unblock เมื่อมี low ใหม่ต่ำกว่านี้
+        except Exception:
+            pass
+        log_event("SL_GUARD_ACTIVATE",
+                  f"[{tf}] {side.upper()} SL hit {entry['count']}x → guard active | swing_ref={entry.get('swing_ref', 0):.2f}",
+                  tf=tf, side=side.upper(), count=entry["count"], swing_ref=entry.get("swing_ref", 0))
+        print(f"🛡️ SL Guard ACTIVATED: [{tf}] {side.upper()} ({entry['count']}x SL) swing_ref={entry.get('swing_ref', 0):.2f}")
     _sl_guard_state[key] = entry
     return just_activated
 
@@ -260,16 +275,29 @@ def _sl_guard_check_unblock(tf: str, side: str, rates) -> bool:
     if not bars_after:
         return False
 
+    # ถ้า swing_ref ยังไม่ได้ตั้งค่า (0) ให้ดึงจาก rates แทนที่จะ unblock ทันที
+    # (กัน false-unblock ในรอบแรกหลัง activate)
+    if swing_ref <= 0:
+        if side.upper() == "BUY":
+            swing_ref = float(min(float(r["low"]) for r in rates)) if rates is not None and len(rates) > 0 else 0.0
+        else:
+            swing_ref = float(max(float(r["high"]) for r in rates)) if rates is not None and len(rates) > 0 else 0.0
+        sg["swing_ref"] = swing_ref
+        _sl_guard_state[key] = sg
+        # ยังไม่ unblock — รอให้มีแท่งใหม่หลัง block จริงๆ ก่อน
+        if not bars_after:
+            return False
+
     unblock = False
     if side.upper() == "BUY":
         # New Swing Low: any bar after block has lower low than swing_ref
         new_low = min(float(r["low"]) for r in bars_after)
-        if swing_ref <= 0 or new_low < swing_ref:
+        if new_low < swing_ref:
             unblock = True
     else:  # SELL
         # New Swing High: any bar after block has higher high than swing_ref
         new_high = max(float(r["high"]) for r in bars_after)
-        if swing_ref <= 0 or new_high > swing_ref:
+        if new_high > swing_ref:
             unblock = True
 
     if unblock:
@@ -430,6 +458,16 @@ def _combined_guard_check_unblock(tf: str, side: str, rates) -> bool:
 
     blocked_since  = sg.get("tf_since", {}).get(tf, 0)
     swing_ref      = sg.get("tf_swing_ref", {}).get(tf, 0.0)
+
+    # init swing_ref ถ้ายังไม่ได้ตั้ง (0) — กัน false-unblock ทันทีหลัง activate
+    if swing_ref <= 0:
+        if side == "BUY":
+            swing_ref = float(min(float(r["low"]) for r in rates))
+        else:
+            swing_ref = float(max(float(r["high"]) for r in rates))
+        sg.setdefault("tf_swing_ref", {})[tf] = swing_ref
+        _sl_guard_combined[side] = sg
+
     bars_after     = [r for r in rates if int(r["time"]) > blocked_since]
     if not bars_after:
         return False
@@ -437,11 +475,11 @@ def _combined_guard_check_unblock(tf: str, side: str, rates) -> bool:
     unblock = False
     if side == "BUY":
         new_low = min(float(r["low"]) for r in bars_after)
-        if swing_ref <= 0 or new_low < swing_ref:
+        if new_low < swing_ref:
             unblock = True
     else:
         new_high = max(float(r["high"]) for r in bars_after)
-        if swing_ref <= 0 or new_high > swing_ref:
+        if new_high > swing_ref:
             unblock = True
 
     if not unblock:
@@ -586,6 +624,9 @@ def _group_guard_record_sl(tf: str, side: str) -> list:
                     sg["tf_swing_ref"][_t] = 0.0
                     sg.setdefault("tf_blocked_signals", {}).setdefault(_t, [])
             print(f"🛡️ Group Guard ACTIVATED: {side} group=[{gkey}] (count={sg['count']}/{threshold})")
+            log_event("SL_GUARD_GROUP_ACTIVATE",
+                      f"{side} group=[{gkey}] SL รวม {sg['count']}x ครบ {threshold}x → ล็อก {len(group)} TF",
+                      side=side, group=gkey, count=sg["count"], trigger_tf=tf)
             tf_list = ", ".join(group)
             messages.append((
                 f"🛡️ *SL Guard Group เปิดใช้งาน*\n"
@@ -631,19 +672,29 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
             continue
 
         blocked_since = sg.get("tf_since", {}).get(tf, 0)
+
+        swing_ref = sg.get("tf_swing_ref", {}).get(tf, 0.0)
+        # init swing_ref ถ้ายังไม่ได้ตั้ง (0) — กัน false-unblock ทันทีหลัง activate
+        if swing_ref <= 0:
+            if side == "BUY":
+                swing_ref = float(min(float(r["low"]) for r in rates))
+            else:
+                swing_ref = float(max(float(r["high"]) for r in rates))
+            sg.setdefault("tf_swing_ref", {})[tf] = swing_ref
+            sg_side[gkey] = sg
+
         bars_after    = [r for r in rates if int(r["time"]) > blocked_since]
         if not bars_after:
             continue
 
-        swing_ref = sg.get("tf_swing_ref", {}).get(tf, 0.0)
         unblock   = False
         if side == "BUY":
             new_low = min(float(r["low"]) for r in bars_after)
-            if swing_ref <= 0 or new_low < swing_ref:
+            if new_low < swing_ref:
                 unblock = True
         else:
             new_high = max(float(r["high"]) for r in bars_after)
-            if swing_ref <= 0 or new_high > swing_ref:
+            if new_high > swing_ref:
                 unblock = True
 
         if not unblock:
@@ -2982,16 +3033,27 @@ async def check_fill_trend_recheck(app):
     """Trend Recheck หลัง fill: ตรวจ trend ของ position ที่เพิ่ง fill
     Gate: LIMIT_TREND_RECHECK
     Skip: S9 (RSI Div), S10 (CRT), S14 (Sweep RSI)
-    รอบ 1 : ทันทีหลัง fill — ถ้า trend สวนทาง → ปิด position
-    รอบ 2+ : เช็คอีกครั้งหลัง H หรือ L เปลี่ยน (ตาม LIMIT_TREND_RECHECK_ROUNDS)
+
+    รอบ 1 : เช็คทุกรอบสแกน (~5s) หลัง fill จนกว่าข้อมูลพร้อม
+             ถ้า trend สวนทาง → ปิด position (retry ทุก cycle ถ้า close ล้มเหลว)
+             ถ้าผ่าน → บันทึก round2_start_time = pivot_time + HHLL_RIGHT × tf_secs
+
+    รอบ 2 : เริ่มเช็คเมื่อถึง round2_start_time (pivot confirm time)
+             เช็คทุกรอบสแกนจนกว่า swing ใหม่จะปรากฏ (sh/sl เปลี่ยน)
+             ถ้า trend สวนทาง → ปิด position
     """
     if not getattr(config, "LIMIT_TREND_RECHECK", False):
         return
     positions = mt5.positions_get(symbol=SYMBOL)
+    if positions is None:
+        return  # MT5 error / ขาด connection — ไม่ clear state เพื่อป้องกัน fill_round1 วิ่งซ้ำ
     if not positions:
         _trend_recheck_state.clear()
         _fill_trend_checked.clear()
         return
+
+    import time as _time
+    import hhll_swing as _hs
 
     open_pos_tickets = {p.ticket for p in positions}
 
@@ -3004,14 +3066,18 @@ async def check_fill_trend_recheck(app):
     )
 
     ltr_rounds = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 2))
-    from scanner import trend_allows_signal as _tas
-    from hhll_swing import get_swing_hl_pts as _ghl
+    from scanner import trend_allows_signal as _tas, swing_data_ready as _sdr
+    from hhll_swing import get_swing_hl_pts as _ghl, get_hhll_data as _ghd
 
     for pos in positions:
         ticket = pos.ticket
         sid = position_sid.get(ticket)
-        # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order, bypass trend recheck)
+        # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order)
         if sid in (9, 10, 14):
+            continue
+
+        # ข้ามถ้าทุก round เสร็จแล้ว
+        if ticket in _fill_trend_checked:
             continue
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -3025,29 +3091,74 @@ async def check_fill_trend_recheck(app):
                 _tr_tf = _fi.get("tf")
         if not _tr_tf:
             _tr_tf = "M1"
+        # S2 parallel ใช้ composite TF เช่น "[M15_H1]" ที่ไม่มีใน _swing_data/_hhll_data
+        # → เดิม swing_data_ready คืน False เสมอ → recheck skip เงียบ (ไม่มี protection เลย)
+        # → resolve เป็น TF สูงสุดของคู่ เพื่อให้ trend recheck ทำงานได้
+        if _tr_tf and _tr_tf.startswith("["):
+            _tr_parts = re.findall(r"[MHD]\d+", _tr_tf)
+            if _tr_parts:
+                _tr_tf = max(_tr_parts, key=lambda t: int(TF_SECONDS_MAP.get(t, 0) or 0))
 
-        # ── รอบ 1: ทันทีหลัง fill ───────────────────────────────────────
-        if ticket not in _fill_trend_checked:
-            # ตรวจว่า swing data พร้อมก่อน — ถ้ายังไม่มี (race condition) → retry รอบหน้า
-            from scanner import swing_data_ready as _sdr
+        tr_state = _trend_recheck_state.get(ticket)
+
+        # ── Pending close retry (ทุก cycle จนกว่าจะปิดได้) ──────────────
+        if tr_state and tr_state.get("pending_close"):
+            _pc_rnd   = tr_state.get("pending_close_round", 1)
+            _pc_total = tr_state.get("rounds_total", ltr_rounds)
+            _pc_why   = tr_state.get("pending_close_why", "?")
+            ok, cp = _close_position(
+                pos, pos_type,
+                f"Fill Trend Recheck [round{_pc_rnd}/{_pc_total}] retry: trend={_pc_why}"
+            )
+            log_event("TREND_RECHECK", f"fill_close_round{_pc_rnd}_retry",
+                      ticket=ticket, tf=_tr_tf, signal=pos_type,
+                      why=_pc_why, ok=ok)
+            if ok:
+                log_event("TREND_RECHECK", f"fill_close_round{_pc_rnd}",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type,
+                          why=_pc_why, close_price=cp)
+                await tg(app, (
+                    f"📊 *Trend Recheck: ปิด Position [round{_pc_rnd}/{_pc_total}]*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
+                    f"Trend สวนทาง: `{_pc_why}`\n"
+                    f"ปิดที่: `{cp:.2f}`"
+                ))
+                _trend_recheck_state.pop(ticket, None)
+                _fill_trend_checked.add(ticket)
+            continue
+
+        # ── รอบ 1: เช็คทุก cycle จนกว่าข้อมูลพร้อม ──────────────────────
+        if tr_state is None:
+            # ถ้าข้อมูล swing ยังไม่พร้อม → force fetch HHLL ตรงแทนรอ scanner
             if not _sdr(_tr_tf):
-                log_event("TREND_RECHECK", "fill_round1_skip_no_data",
-                          ticket=ticket, tf=_tr_tf, signal=pos_type)
-                continue  # ไม่ add ใน _fill_trend_checked → retry next scan cycle (~5s)
-            _fill_trend_checked.add(ticket)
+                try:
+                    from hhll_swing import fetch_hhll as _fhhll
+                    _fhhll(_tr_tf)
+                except Exception:
+                    pass
+                if not _sdr(_tr_tf):
+                    continue
             _allowed, _why = _tas(_tr_tf, pos_type)
-            # sentinel "?" = HHLL data ยังไม่พร้อม (ใน SIDEWAY mode) → ถอยออก retry
+            # sentinel "?" = HHLL data ยังไม่พร้อม → force fetch แล้ว retry
             if _allowed and _why == "?":
-                _fill_trend_checked.discard(ticket)
-                log_event("TREND_RECHECK", "fill_round1_skip_no_hhll",
-                          ticket=ticket, tf=_tr_tf, signal=pos_type)
-                continue
+                try:
+                    from hhll_swing import fetch_hhll as _fhhll
+                    _fhhll(_tr_tf)
+                except Exception:
+                    pass
+                _allowed, _why = _tas(_tr_tf, pos_type)
+                if _allowed and _why == "?":
+                    continue
+
             log_event("TREND_RECHECK", "fill_round1",
                       ticket=ticket, tf=_tr_tf, signal=pos_type,
                       allowed=_allowed, why=_why, rounds_config=ltr_rounds)
+
             if not _allowed:
-                ok, cp = _close_position(pos, pos_type,
-                                         f"Fill Trend Recheck [round1/{ltr_rounds}]: trend={_why}")
+                ok, cp = _close_position(
+                    pos, pos_type,
+                    f"Fill Trend Recheck [round1/{ltr_rounds}]: trend={_why}"
+                )
                 if ok:
                     log_event("TREND_RECHECK", "fill_close_round1",
                               ticket=ticket, tf=_tr_tf, signal=pos_type,
@@ -3058,79 +3169,117 @@ async def check_fill_trend_recheck(app):
                         f"Trend สวนทาง: `{_why}`\n"
                         f"ปิดที่: `{cp:.2f}`"
                     ))
+                    _fill_trend_checked.add(ticket)
+                else:
+                    # close ล้มเหลว → retry ทุก cycle
+                    log_event("TREND_RECHECK", "fill_close_round1_failed",
+                              ticket=ticket, tf=_tr_tf, signal=pos_type, why=_why)
+                    await tg(app, (
+                        f"⚠️ *Trend Recheck: ปิด Position ล้มเหลว [round1/{ltr_rounds}]*\n"
+                        f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
+                        f"Trend สวนทาง: `{_why}` — จะ retry ทุกรอบสแกน"
+                    ))
+                    _trend_recheck_state[ticket] = {
+                        "round": 1,
+                        "rounds_total": ltr_rounds,
+                        "pending_close": True,
+                        "pending_close_why": _why,
+                        "pending_close_round": 1,
+                    }
+
             elif ltr_rounds >= 2:
-                # รอบ 1 ผ่าน → บันทึก H/L รอ round 2
-                _sh, _sl = _ghl(_tr_tf)
+                # รอบ 1 ผ่าน → คำนวณ round2_start_time จาก pivot ล่าสุด + HHLL_RIGHT × tf_secs
+                _hhll_d   = _ghd(_tr_tf) or {}
+                _last_lbl = _hhll_d.get("last_label", "")
+                _pivot_pt = _hhll_d.get(_last_lbl.lower()) if _last_lbl else None
+                _piv_t    = int(_pivot_pt["time"]) if _pivot_pt and "time" in _pivot_pt else 0
+                _tf_secs  = int(TF_SECONDS_MAP.get(_tr_tf, 300) or 300)
+                _hhll_rb  = int(getattr(_hs, "HHLL_RIGHT", 5))
+                _r2_start = (_piv_t + _hhll_rb * _tf_secs) if _piv_t else (int(_time.time()) + _hhll_rb * _tf_secs)
+                _sh, _sl  = _ghl(_tr_tf)
                 _trend_recheck_state[ticket] = {
-                    "round": 1,
+                    "round": 2,
                     "rounds_total": ltr_rounds,
-                    "cur_h": float(_sh["price"]) if _sh else 0.0,
-                    "cur_l": float(_sl["price"]) if _sl else 0.0,
+                    "round2_start_time": _r2_start,
+                    "round1_sh": float(_sh["price"]) if _sh else None,
+                    "round1_sl": float(_sl["price"]) if _sl else None,
+                    "pending_close": False,
                 }
-                log_event("TREND_RECHECK", "fill_round1_pass_wait_hl",
+                log_event("TREND_RECHECK", "fill_round1_pass_wait_pivot",
                           ticket=ticket, tf=_tr_tf, signal=pos_type,
+                          pivot_label=_last_lbl,
+                          round2_start=fmt_mt5_bkk_ts(_r2_start, "%H:%M:%S"),
                           rounds_total=ltr_rounds)
-            # ltr_rounds == 1 and allowed → จบแล้ว ไม่ต้อง save state
-            continue  # ข้ามไปตัวถัดไป (round 2+ รอบถัดไป)
-
-        # ── รอบ 2 / 3: เช็คเมื่อ H/L เปลี่ยน ───────────────────────────
-        tr_state = _trend_recheck_state.get(ticket)
-        if tr_state is None:
-            continue  # round 1 pass + rounds=1, ไม่ต้องเช็คอีก
-
-        _sh, _sl = _ghl(_tr_tf)
-        _new_h = float(_sh["price"]) if _sh else 0.0
-        _new_l = float(_sl["price"]) if _sl else 0.0
-        _h_chg = abs(_new_h - tr_state["cur_h"]) > 0.01
-        _l_chg = abs(_new_l - tr_state["cur_l"]) > 0.01
-        if not (_h_chg or _l_chg):
-            continue  # H/L ยังไม่เปลี่ยน รอต่อ
-
-        _allowed, _why = _tas(_tr_tf, pos_type)
-        _cur_rnd = tr_state["round"] + 1
-        _total   = tr_state["rounds_total"]
-        _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
-
-        # sentinel "?" = HHLL data ยังไม่พร้อม → อัปเดต baseline แต่ไม่ advance round
-        if _allowed and _why == "?":
-            tr_state["cur_h"] = _new_h
-            tr_state["cur_l"] = _new_l
-            _trend_recheck_state[ticket] = tr_state
-            log_event("TREND_RECHECK", f"fill_round{_cur_rnd}_skip_no_hhll",
-                      ticket=ticket, tf=_tr_tf, signal=pos_type, hl_changed=_changed)
+            else:
+                # ltr_rounds == 1 and allowed → จบแล้ว
+                _fill_trend_checked.add(ticket)
             continue
 
-        tr_state["cur_h"] = _new_h
-        tr_state["cur_l"] = _new_l
-        tr_state["round"] = _cur_rnd
-        _trend_recheck_state[ticket] = tr_state
+        # ── รอบ 2: time-based trigger, เช็คทุก cycle จนกว่า swing ใหม่จะเจอ ──
+        if tr_state.get("round") != 2:
+            continue
 
-        log_event("TREND_RECHECK", f"fill_round{_cur_rnd}",
+        # ยังไม่ถึงเวลา pivot confirm
+        if _time.time() < tr_state.get("round2_start_time", 0):
+            continue
+
+        # รอ swing ใหม่ (sh/sl ต้องเปลี่ยนจาก round 1)
+        _sh, _sl   = _ghl(_tr_tf)
+        _new_h     = float(_sh["price"]) if _sh else None
+        _new_l     = float(_sl["price"]) if _sl else None
+        _r1_h      = tr_state.get("round1_sh")
+        _r1_l      = tr_state.get("round1_sl")
+        _h_chg     = (_new_h is not None and _r1_h is not None and abs(_new_h - _r1_h) > 0.01)
+        _l_chg     = (_new_l is not None and _r1_l is not None and abs(_new_l - _r1_l) > 0.01)
+        if not (_h_chg or _l_chg):
+            continue  # swing ยังไม่เปลี่ยน → retry cycle ถัดไป
+
+        _allowed, _why = _tas(_tr_tf, pos_type)
+        if _allowed and _why == "?":
+            continue  # HHLL ยังไม่พร้อม → retry
+
+        _total   = tr_state.get("rounds_total", ltr_rounds)
+        _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
+        log_event("TREND_RECHECK", "fill_round2",
                   ticket=ticket, tf=_tr_tf, signal=pos_type,
                   allowed=_allowed, why=_why,
-                  hl_changed=_changed, round_num=_cur_rnd, rounds_total=_total)
+                  swing_changed=_changed, rounds_total=_total)
 
         if not _allowed:
-            ok, cp = _close_position(pos, pos_type,
-                                     f"Fill Trend Recheck [round{_cur_rnd}/{_total}]: "
-                                     f"H/L changed ({_changed}), trend={_why}")
+            ok, cp = _close_position(
+                pos, pos_type,
+                f"Fill Trend Recheck [round2/{_total}]: swing changed ({_changed}), trend={_why}"
+            )
             if ok:
-                _trend_recheck_state.pop(ticket, None)
-                log_event("TREND_RECHECK", f"fill_close_round{_cur_rnd}",
+                log_event("TREND_RECHECK", "fill_close_round2",
                           ticket=ticket, tf=_tr_tf, signal=pos_type,
                           why=_why, close_price=cp)
                 await tg(app, (
-                    f"📊 *Trend Recheck: ปิด Position [round{_cur_rnd}/{_total}]*\n"
+                    f"📊 *Trend Recheck: ปิด Position [round2/{_total}]*\n"
                     f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
-                    f"H/L เปลี่ยน ({_changed}) → Trend สวนทาง: `{_why}`\n"
+                    f"Swing เปลี่ยน ({_changed}) → Trend สวนทาง: `{_why}`\n"
                     f"ปิดที่: `{cp:.2f}`"
                 ))
-        elif _cur_rnd >= _total:
-            # ผ่านครบทุก round แล้ว
+                _trend_recheck_state.pop(ticket, None)
+                _fill_trend_checked.add(ticket)
+            else:
+                log_event("TREND_RECHECK", "fill_close_round2_failed",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type, why=_why)
+                await tg(app, (
+                    f"⚠️ *Trend Recheck: ปิด Position ล้มเหลว [round2/{_total}]*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
+                    f"Trend สวนทาง: `{_why}` — จะ retry ทุกรอบสแกน"
+                ))
+                tr_state["pending_close"]       = True
+                tr_state["pending_close_why"]   = _why
+                tr_state["pending_close_round"] = 2
+                _trend_recheck_state[ticket]    = tr_state
+        else:
+            # ผ่านครบทุก round
             _trend_recheck_state.pop(ticket, None)
+            _fill_trend_checked.add(ticket)
             log_event("TREND_RECHECK", "fill_all_rounds_pass",
                       ticket=ticket, tf=_tr_tf, rounds=_total)
-        # else: ยังต้องรอ round ถัดไป (H/L เปลี่ยนอีกรอบ)
 
 
 # -------------------------------------------------------------
@@ -3139,13 +3288,30 @@ async def check_fill_pd_zone(app):
     PD Zone Fill Check — เช็ค position ที่เพิ่ง fill ว่าอยู่ใน zone ที่ถูกต้องไหม
     Gate: PD_ZONE_CHECK_ENABLED
     Skip: S9 (RSI Divergence)
-    รันอิสระจาก ENTRY_CANDLE_ENABLED เพื่อจับ case ที่ order fill เร็วกว่า pending check cycle
+
+    รอบ 1 (fill_check) : เช็คทันทีหลัง fill — ถ้า FAIL ปิด position
+                         ถ้า PASS → บันทึก H/L รอ round 2
+    รอบ 2              : เช็คเมื่อ H/L เปลี่ยน — entry อาจเลื่อนเข้า Premium/Discount ผิดฝั่ง
     """
     if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
         return
     positions = mt5.positions_get(symbol=SYMBOL)
+    if positions is None:
+        return  # MT5 error — ไม่ clear state
     if not positions:
+        _pd_zone_fill_state.clear()
+        _pd_zone_fill_checked.clear()
         return
+
+    open_pos_tickets = {p.ticket for p in positions}
+    for _t in list(_pd_zone_fill_state.keys()):
+        if _t not in open_pos_tickets:
+            _pd_zone_fill_state.pop(_t, None)
+    _pd_zone_fill_checked.difference_update(
+        _t for _t in list(_pd_zone_fill_checked) if _t not in open_pos_tickets
+    )
+
+    from hhll_swing import get_swing_hl_pts as _gshl
 
     for pos in positions:
         ticket = pos.ticket
@@ -3153,9 +3319,7 @@ async def check_fill_pd_zone(app):
             continue
         sid = position_sid.get(ticket)
         if sid in (9,):
-            continue  # S9 (RSI Div) — skip PD Zone check
-
-        _pd_zone_fill_checked.add(ticket)
+            continue  # S9 (RSI Div) — skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
@@ -3177,9 +3341,100 @@ async def check_fill_pd_zone(app):
         if not _pz_tf:
             _pz_tf = "M1"
 
-        # ดึง swing H/L
+        _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
+        _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
+
+        fs = _pd_zone_fill_state.get(ticket)
+
+        # ── Pending close retry ─────────────────────────────────────────
+        if fs and fs.get("pending_close"):
+            ok, cp = _close_position(pos, pos_type, "PD Zone fill_round2 retry")
+            log_event("PD_ZONE_CHECK", "fill_close_round2_retry",
+                      ticket=ticket, signal=pos_type, tf=_pz_tf, ok=ok)
+            if ok:
+                _entry_state[ticket] = "done"
+                fvg_order_tickets.pop(ticket, None)
+                save_runtime_state()
+                _pz_eq = round((fs["fill_h"] + fs["fill_l"]) / 2, 2)
+                log_event("PD_ZONE_CHECK", "fill_close_round2",
+                          ticket=ticket, signal=pos_type, tf=_pz_tf, close_price=cp)
+                _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
+                await tg(app, (
+                    f"🛡️ *PD Zone: ปิด Position [round2] (retry)*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                    f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
+                    f"ปิดที่: `{cp:.2f}`"
+                ))
+                _pd_zone_fill_state.pop(ticket, None)
+                _pd_zone_fill_checked.add(ticket)
+            continue
+
+        # ── Round 2: H/L เปลี่ยน → re-check zone ──────────────────────
+        if fs is not None:
+            try:
+                _sh2, _sl2 = _gshl(_pz_tf)
+                _new_h = float(_sh2["price"]) if _sh2 else 0.0
+                _new_l = float(_sl2["price"]) if _sl2 else 0.0
+            except Exception:
+                _new_h = _new_l = 0.0
+            _h_chg = abs(_new_h - fs["fill_h"]) > 0.01
+            _l_chg = abs(_new_l - fs["fill_l"]) > 0.01
+            if not (_h_chg or _l_chg):
+                continue  # H/L ยังไม่เปลี่ยน รอ cycle ถัดไป
+            if not (_new_h > _new_l > 0):
+                continue
+            _r2_result = _pd_zone_in_zone(
+                float(pos.price_open), pos_type, _new_h, _new_l,
+                sid=sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
+            )
+            _r2_eq      = round((_new_h + _new_l) / 2, 2)
+            _r2_changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
+            log_event("PD_ZONE_CHECK", "fill_round2",
+                      ticket=ticket, signal=pos_type, tf=_pz_tf,
+                      price=pos.price_open, h=_new_h, l=_new_l,
+                      eq=_r2_eq, changed=_r2_changed,
+                      result="PASS" if _r2_result else "FAIL")
+            if not _r2_result:
+                ok, cp = _close_position(pos, pos_type, "PD Zone fill round2 failed")
+                if ok:
+                    _entry_state[ticket] = "done"
+                    fvg_order_tickets.pop(ticket, None)
+                    save_runtime_state()
+                    log_event("PD_ZONE_CHECK", "fill_close_round2",
+                              ticket=ticket, signal=pos_type, tf=_pz_tf,
+                              price=pos.price_open, eq=_r2_eq, close_price=cp)
+                    _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
+                    await tg(app, (
+                        f"🛡️ *PD Zone: ปิด Position [round2]*\n"
+                        f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                        f"H/L เปลี่ยน ({_r2_changed}) → Entry เข้า {_zone_label} (ผิดฝั่ง)\n"
+                        f"Entry: `{pos.price_open}` | EQ: `{_r2_eq}`\n"
+                        f"H: `{_new_h}` | L: `{_new_l}`\n"
+                        f"ปิดที่: `{cp:.2f}`"
+                    ))
+                    _pd_zone_fill_state.pop(ticket, None)
+                    _pd_zone_fill_checked.add(ticket)
+                else:
+                    log_event("PD_ZONE_CHECK", "fill_close_round2_failed",
+                              ticket=ticket, signal=pos_type, tf=_pz_tf)
+                    await tg(app, (
+                        f"⚠️ *PD Zone: ปิด Position ล้มเหลว [round2]*\n"
+                        f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                        f"H/L เปลี่ยน ({_r2_changed}) → Entry ผิดฝั่ง — จะ retry ทุกรอบสแกน"
+                    ))
+                    fs["pending_close"] = True
+                    _pd_zone_fill_state[ticket] = fs
+            else:
+                # round 2 ผ่าน — zone ยังถูกต้อง
+                _pd_zone_fill_state.pop(ticket, None)
+                _pd_zone_fill_checked.add(ticket)
+                log_event("PD_ZONE_CHECK", "fill_round2_pass",
+                          ticket=ticket, signal=pos_type, tf=_pz_tf,
+                          h=_new_h, l=_new_l, eq=_r2_eq, changed=_r2_changed)
+            continue
+
+        # ── Round 1: fill_check (ครั้งแรกหลัง fill) ────────────────────
         try:
-            from hhll_swing import get_swing_hl_pts as _gshl
             _sh_pt, _sl_pt = _gshl(_pz_tf)
             _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
             _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
@@ -3187,11 +3442,21 @@ async def check_fill_pd_zone(app):
             _pz_h = _pz_l = 0.0
 
         if not (_pz_h > _pz_l > 0):
-            continue
+            # ข้อมูล HHLL ยังไม่พร้อม → force fetch ตรงแทนรอ scanner
+            try:
+                from hhll_swing import fetch_hhll as _fhhll_pz
+                _fhhll_pz(_pz_tf)
+                _sh_pt, _sl_pt = _gshl(_pz_tf)
+                _pz_h = float(_sh_pt["price"]) if _sh_pt else 0.0
+                _pz_l = float(_sl_pt["price"]) if _sl_pt else 0.0
+            except Exception:
+                pass
+            if not (_pz_h > _pz_l > 0):
+                log_event("PD_ZONE_CHECK", "fill_round1_skip_no_data",
+                          ticket=ticket, signal=pos_type, tf=_pz_tf)
+                continue
 
-        _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
-        _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
-        _pz_result  = _pd_zone_in_zone(
+        _pz_result = _pd_zone_in_zone(
             float(pos.price_open), pos_type, _pz_h, _pz_l,
             sid=sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
         )
@@ -3218,6 +3483,21 @@ async def check_fill_pd_zone(app):
                     f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
                     f"H: `{_pz_h}` | L: `{_pz_l}`"
                 ))
+            _pd_zone_fill_checked.add(ticket)  # done (fail path)
+        else:
+            # Round 1 PASS → บันทึก H/L รอ round 2
+            _pd_zone_fill_state[ticket] = {
+                "tf":        _pz_tf,
+                "signal":    pos_type,
+                "fill_h":    _pz_h,
+                "fill_l":    _pz_l,
+                "gap_bot":   _pz_gap_bot,
+                "gap_top":   _pz_gap_top,
+                "pending_close": False,
+            }
+            log_event("PD_ZONE_CHECK", "fill_round1_pass_wait_hl",
+                      ticket=ticket, signal=pos_type, tf=_pz_tf,
+                      h=_pz_h, l=_pz_l, eq=_pz_eq)
 
 
 # -------------------------------------------------------------
@@ -5874,6 +6154,9 @@ async def check_cancel_pending_orders(app):
     _pd_zone_fill_checked.difference_update(
         t for t in list(_pd_zone_fill_checked) if t not in _open_pos_tickets
     )
+    for t in list(_pd_zone_fill_state.keys()):
+        if t not in _open_pos_tickets:
+            _pd_zone_fill_state.pop(t, None)
 
     # Cleanup triple check state for tickets that no longer exist
     for t in list(_triple_check_state.keys()):

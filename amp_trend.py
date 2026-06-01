@@ -37,6 +37,13 @@ PEARSON_SIDEWAY = 0.3   # r < 0.3 → Sideways (ใช้ slope เป็น dir
 _amp_data: dict[str, dict] = {}
 
 
+def clear_cache():
+    """ล้าง _amp_data ทั้งหมด — เรียกตอนสลับ symbol (XAU<->BTC)
+    กัน trend label ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่
+    (scan_one_tf จะ fetch_amp_trend ใหม่ทุกรอบ → cache repopulate เองทันที)"""
+    _amp_data.clear()
+
+
 # ══════════════════════════════════════════════════════════════════════
 # Internal — regression
 # ══════════════════════════════════════════════════════════════════════
