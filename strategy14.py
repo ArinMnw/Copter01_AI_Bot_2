@@ -3,25 +3,28 @@ strategy14.py — S14 Sweep RSI
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Pattern BUY (2 sub-patterns, multi ได้):
-  ─ Engulf : bar ปิด (close) ต่ำกว่า LL ของ reversal bars
-  ─ Sweep  : bar ทำ low ต่ำกว่า LL แต่ปิด (close) >= LL (ไส้ลงกลับมา)
+  ─ Engulf : bar ปิด (close) ต่ำกว่า ref_low
+  ─ Sweep  : bar ทำ low ต่ำกว่า ref_low แต่ปิด (close) >= ref_low (ไส้ลงกลับมา)
 
   ขั้นตอนร่วม:
-  1. หาจุดกลับตัวฝั่ง SELL (red engulf / red rejection) ใน lookback window
-  2. LL = lowest LOW ของ reversal bars ("l ต่ำสุดของจุดกลับตัว")
+  1. หา local low ล่าสุดใน lookback window (ไม่บังคับสีแท่ง)
+     → 3-bar pivot: low < prev_low AND low < next_low
+     → ref bar = local low ที่ index ล่าสุด (ใหม่ที่สุด)
+  2. ref_low = low ของ ref bar
   3. ตรวจ current bar (ไม่บังคับสี):
-       - low   < LL   (ไส้ลงกว่า LL)
-       - Engulf : close < LL  |  Sweep : close >= LL
-  4. RSI divergence: RSI[reject] > RSI[LL bar]
-  5. RSI[reject] < 50
+       - low   < ref_low  (sweep ผ่าน ref low)
+       - Engulf : close < ref_low  |  Sweep : close >= ref_low
+  4. RSI divergence: RSI_red[reject] > RSI_red[ref] (ใช้ RSI แท่งแดงใกล้สุด ≤3 แท่ง)
+  5. RSI_red[reject] < 50
   6. TP = nearest swing HIGH ย้อนหลังใน window | RR >= 1:1
   7. SL = reject.low - SL_BUFFER(atr)
   8. Entry MARKET
 
 Pattern SELL (2 sub-patterns, mirror):
-  ─ Engulf : bar close > HH ของ reversal bars
-  ─ Sweep  : bar high > HH แต่ close <= HH (ไส้ขึ้นกลับมา)
-  RSI[reject] < RSI[ref bar] | RSI > 50 (ไม่บังคับสี)
+  ─ Engulf : bar close > ref_high
+  ─ Sweep  : bar high > ref_high แต่ close <= ref_high (ไส้ขึ้นกลับมา)
+  ref bar = local high ล่าสุด (ไม่บังคับสีแท่ง, 3-bar pivot)
+  RSI_green[reject] < RSI_green[ref] (ใช้ RSI แท่งเขียวใกล้สุด ≤3 แท่ง) | RSI_green > 50
   TP = nearest swing LOW ย้อนหลังใน window | RR >= 1:1
 """
 
@@ -75,35 +78,65 @@ def _find_bull_reversals(rates):
     return idxs
 
 
+def _find_local_lows(rates):
+    """
+    หา index ของแท่งที่เป็น local low (ไม่บังคับสีแท่ง)
+    เงื่อนไข (3-bar pivot): low < prev_low AND low < next_low
+    ใช้สำหรับ S14 BUY ref bar
+    """
+    idxs = []
+    n = len(rates) - 1          # reject bar อยู่ที่ rates[n]
+    for i in range(1, n - 1):   # ต้องมี rates[i-1], rates[i], rates[i+1] ก่อน reject
+        cur_l  = float(rates[i]["low"])
+        prev_l = float(rates[i - 1]["low"])
+        next_l = float(rates[i + 1]["low"])
+        if cur_l < prev_l and cur_l < next_l:
+            idxs.append(i)
+    return idxs
+
+
+def _find_local_highs(rates):
+    """
+    หา index ของแท่งที่เป็น local high (ไม่บังคับสีแท่ง)
+    เงื่อนไข (3-bar pivot): high > prev_high AND high > next_high
+    ใช้สำหรับ S14 SELL ref bar
+    """
+    idxs = []
+    n = len(rates) - 1
+    for i in range(1, n - 1):
+        cur_h  = float(rates[i]["high"])
+        prev_h = float(rates[i - 1]["high"])
+        next_h = float(rates[i + 1]["high"])
+        if cur_h > prev_h and cur_h > next_h:
+            idxs.append(i)
+    return idxs
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Pivot RSI helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _pivot_rsi_buy(rates, rsi_vals, idx):
     """
-    BUY: ต้องการ RSI ของแท่งแดง
-    ถ้า rates[idx] ไม่ใช่แท่งแดง → ดู rates[idx-1]
-    ถ้า rates[idx-1] เป็นแดง → ใช้ rsi_vals[idx-1]
-    ถ้าไม่ใช่ → ใช้ rsi_vals[idx] เดิม
+    BUY: ต้องการ RSI ของแท่งแดงใกล้ที่สุด
+    ค้นหาย้อนหลังจาก idx สูงสุด 3 แท่ง
+    ถ้าไม่พบแท่งแดงเลย → fallback ใช้ rsi_vals[idx]
     """
-    if float(rates[idx]["close"]) < float(rates[idx]["open"]):  # แดง
-        return rsi_vals[idx]
-    if idx > 0 and float(rates[idx - 1]["close"]) < float(rates[idx - 1]["open"]):
-        return rsi_vals[idx - 1]
+    for j in range(idx, max(idx - 3, -1), -1):
+        if j >= 0 and float(rates[j]["close"]) < float(rates[j]["open"]):
+            return rsi_vals[j]
     return rsi_vals[idx]
 
 
 def _pivot_rsi_sell(rates, rsi_vals, idx):
     """
-    SELL: ต้องการ RSI ของแท่งเขียว
-    ถ้า rates[idx] ไม่ใช่แท่งเขียว → ดู rates[idx-1]
-    ถ้า rates[idx-1] เป็นเขียว → ใช้ rsi_vals[idx-1]
-    ถ้าไม่ใช่ → ใช้ rsi_vals[idx] เดิม
+    SELL: ต้องการ RSI ของแท่งเขียวใกล้ที่สุด
+    ค้นหาย้อนหลังจาก idx สูงสุด 3 แท่ง
+    ถ้าไม่พบแท่งเขียวเลย → fallback ใช้ rsi_vals[idx]
     """
-    if float(rates[idx]["close"]) > float(rates[idx]["open"]):  # เขียว
-        return rsi_vals[idx]
-    if idx > 0 and float(rates[idx - 1]["close"]) > float(rates[idx - 1]["open"]):
-        return rsi_vals[idx - 1]
+    for j in range(idx, max(idx - 3, -1), -1):
+        if j >= 0 and float(rates[j]["close"]) > float(rates[j]["open"]):
+            return rsi_vals[j]
     return rsi_vals[idx]
 
 
@@ -251,13 +284,14 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     ตรวจ S14 BUY ทั้ง Engulf และ Sweep patterns
 
     ขั้นตอน:
-    1. หา reversal bars ฝั่ง SELL (red engulf/rejection) ใน lookback window
-       LL bar = reversal bar ที่มี low ต่ำสุด (ถ้า S14_LL_USE_HHLL ให้เปรียบกับ HHLL swing low ด้วย)
-    2. ref_low = low ของ LL bar นั้น
-    3. reject bar (rates[-1]) ต้องเป็นแท่งแดง และ low < ref_low
+    1. หา local low ล่าสุดใน lookback window (ไม่บังคับสีแท่ง, 3-bar pivot)
+       ref bar = local low ที่ index ล่าสุด (ถ้า S14_LL_USE_HHLL ให้รวม HHLL swing low ด้วย)
+    2. ref_low = low ของ ref bar
+    3. reject bar (rates[-1]) ต้องมี low < ref_low (ไม่บังคับสี)
     4. Engulf : close < ref_low
        Sweep  : close >= ref_low  (ไส้ลงแต่ปิดกลับมา)
-    5. RSI divergence: RSI[reject] > RSI[LL bar] และ RSI[reject] < 50
+    5. RSI divergence: RSI_red[reject] > RSI_red[ref] (ใช้ RSI แท่งแดงใกล้สุด ≤3 แท่ง)
+       และ RSI_red[reject] < 50
     """
     want_engulf = getattr(config, "S14_ENGULF", True)
     want_sweep  = getattr(config, "S14_SWEEP",  True)
@@ -272,18 +306,18 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     candidates = []
 
     reject_idx = len(rates) - 1
-    rev_idxs = _find_bear_reversals(rates)
-    if rev_idxs:
-        # กรองเฉพาะ reversal bars ที่ห่างจาก reject >= 2 แท่งก่อน
-        valid_revs = [i for i in rev_idxs if reject_idx - i >= 2]
-        if valid_revs:
-            # LL bar = reversal bar ที่มี low ต่ำสุดในบรรดา valid reversal bars
-            ll_idx = min(valid_revs, key=lambda i: float(rates[i]["low"]))
+    local_low_idxs = _find_local_lows(rates)
+    if local_low_idxs:
+        # กรองเฉพาะ local lows ที่ห่างจาก reject >= 2 แท่ง
+        valid_lows = [i for i in local_low_idxs if reject_idx - i >= 2]
+        if valid_lows:
+            # ref bar = local low ล่าสุด (index สูงสุด)
+            ll_idx = max(valid_lows)
             candidates.append({
                 "idx":    ll_idx,
                 "time":   int(rates[ll_idx]["time"]),
                 "low":    float(rates[ll_idx]["low"]),
-                "source": "reversal",
+                "source": "local_low",
             })
 
     if getattr(config, "S14_LL_USE_HHLL", False):
@@ -308,11 +342,11 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     if not candidates:
         return []
 
-    # ── 2. เลือก candidate ที่มี low ต่ำสุด (LL) ─────────────────
-    ref     = min(candidates, key=lambda c: c["low"])
+    # ── 2. เลือก candidate ที่ล่าสุด (time สูงสุด) ──────────────
+    ref     = max(candidates, key=lambda c: c["time"])
     ref_idx = ref["idx"]
     ref_low = ref["low"]
-    ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)   # pivot RSI (แดง)
+    ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)   # pivot RSI (แดงใกล้สุด)
     if ref_rsi is None:
         return []
 
@@ -413,13 +447,14 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     ตรวจ S14 SELL ทั้ง Engulf และ Sweep patterns (mirror ของ BUY)
 
     ขั้นตอน:
-    1. หา reversal bars ฝั่ง BUY (green engulf/rejection) ใน lookback window
-       ref bar = reversal bar ที่ล่าสุด (ถ้า S14_LL_USE_HHLL ให้เปรียบกับ HHLL swing high ด้วย)
-    2. ref_high = high ของ HH bar นั้น
-    3. reject bar (rates[-1]) ต้องเป็นแท่งเขียว และ high > ref_high
+    1. หา local high ล่าสุดใน lookback window (ไม่บังคับสีแท่ง, 3-bar pivot)
+       ref bar = local high ที่ index ล่าสุด (ถ้า S14_LL_USE_HHLL ให้รวม HHLL swing high ด้วย)
+    2. ref_high = high ของ ref bar
+    3. reject bar (rates[-1]) ต้องมี high > ref_high (ไม่บังคับสี)
     4. Engulf : close > ref_high
        Sweep  : close <= ref_high  (ไส้ขึ้นแต่ปิดกลับมา)
-    5. RSI divergence: RSI[reject] < RSI[HH bar] และ RSI[reject] > 50
+    5. RSI divergence: RSI_green[reject] < RSI_green[ref] (ใช้ RSI แท่งเขียวใกล้สุด ≤3 แท่ง)
+       และ RSI_green[reject] > 50
     """
     want_engulf = getattr(config, "S14_ENGULF", True)
     want_sweep  = getattr(config, "S14_SWEEP",  True)
@@ -433,18 +468,18 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     candidates = []
 
     reject_idx = len(rates) - 1
-    rev_idxs = _find_bull_reversals(rates)
-    if rev_idxs:
-        # กรองเฉพาะ reversal bars ที่ห่างจาก reject >= 2 แท่งก่อน
-        valid_revs = [i for i in rev_idxs if reject_idx - i >= 2]
-        if valid_revs:
-            # ใช้ reversal bar ล่าสุด (index สูงสุด) ในบรรดา valid reversal bars
-            latest_rev = max(valid_revs)
+    local_high_idxs = _find_local_highs(rates)
+    if local_high_idxs:
+        # กรองเฉพาะ local highs ที่ห่างจาก reject >= 2 แท่ง
+        valid_highs = [i for i in local_high_idxs if reject_idx - i >= 2]
+        if valid_highs:
+            # ref bar = local high ล่าสุด (index สูงสุด)
+            latest_high = max(valid_highs)
             candidates.append({
-                "idx":    latest_rev,
-                "time":   int(rates[latest_rev]["time"]),
-                "high":   float(rates[latest_rev]["high"]),
-                "source": "reversal",
+                "idx":    latest_high,
+                "time":   int(rates[latest_high]["time"]),
+                "high":   float(rates[latest_high]["high"]),
+                "source": "local_high",
             })
 
     if getattr(config, "S14_LL_USE_HHLL", False):

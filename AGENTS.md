@@ -158,6 +158,7 @@ Keep the answer short and make the fix directly.
 - `SL_GUARD_LOSS_ENABLED` (default `False`) — นับ close ที่ขาดทุนเกิน threshold ว่าเป็น SL hit ด้วย
 - `SL_GUARD_LOSS_THRESHOLD` (default `5.0`) — ขาดทุนเกิน $N → นับเป็น SL hit (ใช้ร่วมกับ SL_GUARD_LOSS_ENABLED)
 - `S14_FLIP_ENABLED` (default `True`) — S14 Flip: ปิดฝั่งตรงข้าม per-TF ก่อนเปิด S14 ใหม่, toggle ได้ใน `📋 เลือก Strategy`
+- `STRONG_TREND_BLOCK_ENABLED` (default `False`) — กัน signal ที่สวน **strong trend** สำหรับท่า bypass (`STRONG_TREND_BLOCK_SIDS` = `[9,10,11,13,14]`) ใน scan loop (`scanner.py`) ก่อน flip/place order — helper `_strong_trend_blocks_signal()`, log event `STRONG_TREND_BLOCK` (ข้อมูลจริง XAU: counter-strong-trend net +314 ถ้าเปิด)
 
 หมายเหตุ:
 
@@ -281,50 +282,51 @@ mode ที่รองรับ:
 
 - ฟังก์ชัน: `check_fill_trend_recheck(app)` ใน `trailing.py`
 - gate: `LIMIT_TREND_RECHECK`
-- เช็ค trend หลัง position fill (รอบ 1 ทันที, รอบ 2+ เมื่อ H/L เปลี่ยน)
+- เช็ค trend (HHLL structure) หลัง position fill (รอบ 1 ทันที, รอบ 2+ เมื่อ H/L เปลี่ยน)
 - ถ้า trend สวนทาง → ปิด position
 - **Skip**: `sid in (9, 10, 14)` — S14 bypass เพราะ market order + bypass trend filter แล้ว
 - **Apply**: S1, S2, S3, S4, S5, S6, S8, S12, S13
-- กฎ:
-  - BUY  → ต้อง `RSI < PENDING_RSI_BUY_MAX` (default `50.0`) ไม่งั้นปิด
-  - SELL → ต้อง `RSI > PENDING_RSI_SELL_MIN` (default `50.0`) ไม่งั้นปิด
-- ใช้ `_pending_rsi_rule_result(side, tf)` คำนวณ RSI ของ TF ที่ position เปิด
-- เก็บใน set `_fill_rsi_checked` กันไม่ให้เช็คซ้ำต่อ ticket
-- skip: `sid=13` (S13 มี TP/SL คนละแบบ)
-- log events: `ENTRY_FILL_RSI_RECHECK_FAIL`, `ENTRY_FILL_RSI_RECHECK_SKIP` (กรณี RSI unavailable)
+- ใช้ `swing_data_ready(tf)` + `trend_allows_signal(tf, signal)` จาก `scanner.py`
+- SIDEWAY + `TREND_FILTER_SIDEWAY_HHLL=True`: ต้องมี `_hhll_data[tf]["last_label"]` ด้วย ถึงจะ `swing_data_ready = True`
+- **Race condition fix (2026-05-27)**: ถ้า `swing_data_ready` = False หรือ `trend_allows_signal` คืน sentinel `"?"` → **force-fetch** `fetch_hhll(tf)` ตรงแทนรอ scanner → retry ทันที
+  - ถ้ายังไม่พร้อม → log `TREND_RECHECK fill_round1_skip_no_data` → retry cycle ถัดไป
+- **Composite TF fix (2026-06-01)**: S2 parallel ใช้ TF แบบ `[M15_H1]` ที่ไม่มีใน `_swing_data` → `swing_data_ready` คืน False เสมอ → recheck skip เงียบ (ไม่มี protection) → หลัง resolve `_tr_tf` ถ้าขึ้นต้น `[` ให้ parse component แล้วใช้ **TF สูงสุด** (`[M15_H1] → H1`)
+- log event: `TREND_RECHECK` + sub-event (pass / fail / `fill_round1_skip_no_data`)
 - **Triple mode**: ถ้าเปิดครบทั้ง 3 จะไม่ cancel pending ทันที แต่ record ผลใน `_triple_check_state[ticket]["trend"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 ## PD Zone Recheck
 
-- ฟังก์ชัน: `_pd_zone_process(ticket, app)` ใน `trailing.py`
+- ฟังก์ชัน: `check_fill_pd_zone(app)` ใน `trailing.py`
 - gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
 - **Skip:** S9 เท่านั้น (S1, S11 ไม่ skip แล้วตั้งแต่ 2026-05-21)
-- **S2 PD Zone Special:** ถ้า entry (98%) อยู่เหนือ EQ แต่ gap 50% mark อยู่ใต้ EQ → ผ่าน + ปรับ entry จาก 98% → 50% mark
-- Return `(status: str, tg_msgs: list)` — status เป็น `"pass"` / `"fail"` / `"wait"`
-- state: `_pd_zone_state: dict` (module-level ใน `trailing.py`)
+- state: `_pd_zone_fill_state: dict`, `_pd_zone_fill_checked: set` (module-level ใน `trailing.py`)
 
-**Logic การเช็ค 3 รอบ 2/3 ชั้นใน:**
+**ที่มาของ H/L:**
 
 - H = swing high ล่าสุด (HH/LH) จาก `hhll_swing.get_swing_hl_pts(tf)`
 - L = swing low ล่าสุด (HL/LL) จาก `hhll_swing.get_swing_hl_pts(tf)`
 - EQ = (H + L) / 2
-- รอบ 1: เมื่อ order เกิด → เช็ค entry vs EQ ณ ขณะนั้น
-- รอบ 2: H หรือ L เปลี่ยนครั้งแรก → เช็ค EQ ใหม่
-- รอบ 3: H หรือ L เปลี่ยนครั้งที่สอง (หลังรอบ 2) → เช็ค EQ ใหม่
+
+**Logic การเช็ค 2 รอบ:**
+
+- รอบ 1 (fill_check): เช็คทันทีหลัง fill — ถ้า FAIL ปิด position, ถ้า PASS บันทึก H/L รอ round 2
+- รอบ 2: เมื่อ H หรือ L เปลี่ยน → re-check EQ ใหม่
+
+**Race condition fix (2026-05-28) — รอบ 1:**
+
+- ถ้า `get_swing_hl_pts` คืน `(None, None)` (HHLL ว่าง) → **force-fetch** `fetch_hhll(tf)` ตรงแทนรอ scanner → retry ทันที
+- ถ้ายังไม่พร้อม → log `PD_ZONE_CHECK fill_round1_skip_no_data` → retry cycle ถัดไป
 
 **กฎ pass/fail:**
 
 - `entry < EQ` → BUY ผ่าน (Discount zone) / SELL ล้มเหลว
 - `entry > EQ` → SELL ผ่าน (Premium zone) / BUY ล้มเหลว
-- pass ≥ 2 → `"pass"` / fail ≥ 2 → `"fail"` / ยังไม่ครบ → `"wait"`
-
-**Telegram:** ส่งทุกรอบบอกว่าอยู่ Premium/Discount zone + pass/fail
 
 **Zone:**
 - Premium (entry > EQ) → SELL ✅ BUY ❌
 - Discount (entry < EQ) → BUY ✅ SELL ❌
 
-**Triple mode:** เมื่อเปิดครบทั้ง 3 และได้ผล "pass"/"fail" จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+**Triple mode:** เมื่อเปิดครบทั้ง 3 และได้ผล PASS/FAIL จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 ## Triple Recheck (Combined 2/3)
 
@@ -375,6 +377,10 @@ mode ที่รองรับ:
 - Telegram แจ้ง "🛡️ SL Guard เปิดใช้งาน" เมื่อ activate, "🛡️ Re-place Order" เมื่อ retry
 - helper ใน `trailing.py`: `_sl_guard_record_sl()`, `_sl_guard_check_unblock()`, `_sl_guard_get_retry_signals()`
 - Telegram toggle: Settings → Trend Filter → SL Guard (toggle + count + pts)
+- **3 variants:** per-TF (`SL_GUARD_ENABLED`), Combined (`SL_GUARD_COMBINED_ENABLED`), **Group** (`SL_GUARD_GROUP_ENABLED` — mode default ที่ active จริง). per-TF/Combined default OFF
+- ⚠️ **Bug fix `swing_ref=0` (2026-06-01):** เดิมทั้ง 3 variant ตั้ง `swing_ref=0` ตอน activate → `*_check_unblock()` เจอ `swing_ref<=0 → unblock ทันที` → guard **ไม่เคยบล็อกได้จริง**
+  - แก้: `_sl_guard_record_sl()` ตั้ง `swing_ref` จาก tick ตอน activate + ทุก `*_check_unblock()` init จาก rates แทน unblock ถ้า `swing_ref<=0`
+  - log: เพิ่ม `SL_GUARD_ACTIVATE` / `SL_GUARD_GROUP_ACTIVATE`
 
 ### SL Guard Loss
 
@@ -653,6 +659,28 @@ mode ที่รองรับ:
 - S13 TP override ทำใน `_place_s13_split_orders` (scanner.py) ก่อนเริ่มลูปสร้าง order - validate side ก่อนใช้ ถ้า invalid จะ fallback กลับใช้ RR เดิม
 - Reset Config ไม่ trigger cleanup TSO state - order เดิมที่ลงทะเบียนไว้ยังทำงานต่อจนกว่าจะปิดเอง
 
+**Symbol/Volume Guard (กันออเดอร์ปนข้าม symbol ตอนสลับ XAU↔BTC) — ตั้งแต่ 2026-06-01:**
+
+- ปัญหาเดิม: `config.SYMBOL` เป็น global ที่ `set_runtime_symbol()` mutate กลางอากาศ (symbol_switch_job ทุก 1 นาที) ขณะ scan jobs (ทุก 5 วิ) อ่าน rates + เรียก `get_volume()`/`points_scale()` พร้อมกัน + per-TF cache ไม่ถูกล้าง → order รอบนั้นอาจได้ "ราคา/level ของ symbol หนึ่ง" ผสม "volume scaling ของอีก symbol"
+  - เคสจริง: XAU order (entry≈4571) ติด `base=0.04` ของ BTC → lot **0.16** บน XAU (ควรเป็น 0.04); BTC order ติด `tp` ราคา XAU (4518) → step ขยะ
+  - **หมายเหตุ:** lot 0.16 ของ **BTC แท้ๆ ถูกต้อง** (base 0.04 × TSO 4) — ที่เห็นถูกปิดพร้อมกันตอน ~05:02 คือ `_close_btc_exposure_before_xau_switch()` ปิด BTC ตอน XAU เปิดตลาด ไม่ใช่ double-scale
+**(A) Order-level guard — ปลายทาง (ตาข่ายนิรภัย):**
+
+- ฟังก์ชัน: `_symbol_consistency_error(entry, sl, tp, send_volume, ...)` ใน `mt5_utils.py` — เรียกใน `open_order()`, `open_order_stop()`, `open_order_market()` ก่อน `order_send` ทุกตัว ถ้าผิดปกติ return `{"success": False, "skipped": True}` + log event `SYMBOL_GUARD_BLOCK`
+- ตรวจ 3 ชั้น อิงราคา live ของ SYMBOL ปัจจุบัน (ground truth เดียวกับ order_send):
+  0. **switch-guard**: ถ้า `config.symbol_switch_in_progress == True` → block ทุกออเดอร์ (กำลังสลับ symbol อยู่ เลื่อนไปรอบ scan ถัดไป)
+  1. **price-band**: `entry`/`sl`/`tp` ต้องอยู่ในช่วง `[0.5×, 2.0×]` ของ mid price (XAU~4500 vs BTC~77000 ต่าง ~17 เท่า → จับการปนข้ามได้ชัด, order ปกติ SL/TP ห่าง entry ไม่กี่ % → ไม่ false-positive)
+  2. **volume-cap**: `send_volume` ห้ามเกิน `get_volume() × 4` ของ symbol ปัจจุบัน (XAU cap=0.04, BTC cap=0.16) — reverse-limit (base 0.01 จาก `SYMBOL_CONFIG`) ยังผ่านทุกกรณี
+- fail-safe: exception ใดๆ ภายใน guard → return `None` (ไม่ขวาง flow ปกติ)
+
+**(B) Root-cause fix — ต้นทาง (ตัด race + stale data):**
+
+- **switch flag** `config.symbol_switch_in_progress` (default `False`) — `check_symbol_switch()` ใน `main.py` set `True` ครอบช่วง close BTC + `set_runtime_symbol()` + save (try/finally กัน flag ค้าง) แล้ว reset `False` **ก่อน** เรียก `auto_scan` รอบ immediate → ระหว่างสลับ ออเดอร์ใหม่ถูก block ที่ guard layer 0 ทั้งหมด
+- **cache clear ตอนสลับ**: `set_runtime_symbol()` เช็ค `changed` ถ้า symbol เปลี่ยนจริง → ล้าง per-symbol cache ผ่าน `sys.modules` (เลี่ยง circular import):
+  - `hhll_swing.clear_cache()` (`_hhll_data`), `amp_trend.clear_cache()` (`_amp_data`), `scanner.clear_symbol_caches()` (`_swing_data` + `_scan_results`)
+  - ปลอดภัย self-healing: `scan_one_tf` เรียก `fetch_hhll()`/`fetch_amp_trend()` ทุกรอบ → cache repopulate ด้วยข้อมูล symbol ใหม่ทันที
+- **residual ที่ยังเหลือ**: reverse-**market** ใน `trailing.py` ยิง `mt5.order_send` ตรง (ไม่ผ่าน 3 ฟังก์ชัน) — ความเสี่ยงต่ำเพราะ market ใช้ราคา live แต่ volume ยังปนได้ในทางทฤษฎี
+
 ### numpy rates check
 
 - `rates` ที่ส่งให้ `strategy_*` เป็น numpy structured array
@@ -690,6 +718,16 @@ mode ที่รองรับ:
 - ทำงานทั้ง `basic` mode และ `breakout` mode
 - Telegram toggle: Settings → Trend Filter → Sideway Filter → Sideway HHLL Filter
 
+### Strong-Trend Block สำหรับท่า bypass (`STRONG_TREND_BLOCK_ENABLED`, ใหม่ 2026-06-01)
+
+- gate: `config.STRONG_TREND_BLOCK_ENABLED` (default `False`) + `STRONG_TREND_BLOCK_SIDS` (default `[9,10,11,13,14]`)
+- ปกติ S9/S10/S11/S13/S14 ข้าม trend filter (เป็นท่า reversal/mean-reversion) — flag นี้บล็อกเฉพาะ signal ที่สวน **strong trend**
+  - BULL strong + SELL → block / BEAR strong + BUY → block (weak/sideway ปล่อยผ่าน)
+- helper: `_strong_trend_blocks_signal(tf_name, signal)` ใน `scanner.py` (อ่าน `_swing_data[tf]["trend"]`)
+- จุดเช็ค: scan loop **หลัง** bypass check **ก่อน** S13/S14 flip + place order → `continue` กันทั้ง flip+order
+- log event: `STRONG_TREND_BLOCK`
+- ที่มา: ข้อมูลจริง XAU (26 พ.ค.+) counter-strong-trend บนท่า bypass = 46% win, net **+314** ถ้าเปิด
+
 ### scanner.py — Trend filter sync กับ HHLLStrategy
 
 - `fetch_hhll(tf_name)` รันก่อน `_compute_trend_info()` ทุกรอบ scan
@@ -711,6 +749,12 @@ mode ที่รองรับ:
 - `_safe_reply_md(message, text, **kwargs)` — ลอง Markdown ก่อน, fallback plain text ถ้า `BadRequest: can't parse entities`
 - ใช้ใน `_handle_ticket_lookup` เพื่อกัน silent fail เมื่อ comment/pattern มีตัวอักษรพิเศษ
 - ถ้าต้องเพิ่ม Telegram reply ใหม่ที่ใช้ dynamic content — ใช้ pattern นี้
+
+### Telegram message ยาวเกิน (fix 2026-06-01)
+
+- `_TgWrapper._worker()` ใน `config.py`: ก่อนส่ง **ตัดข้อความที่ยาว > 4096** เชิงรุก (Telegram limit) → กัน drop
+- auto-fix ตอน error ดักทั้ง `"Message is too long"` **และ** `"Text is too long"` (เดิมดักแค่ "Message") + retry plain ถ้า Markdown ยัง fail
+- เดิม Scan Summary ยาวเกินทำให้ `TG_DROP "Text is too long"` หลายพันครั้ง
 
 ## Telegram Toggle Icons
 

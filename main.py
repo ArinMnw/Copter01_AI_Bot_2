@@ -201,10 +201,15 @@ def main():
             return
         if xau_open:
             if config.SYMBOL != "XAUUSD.iux":
-                if config.SYMBOL == "BTCUSD.iux":
-                    await _close_btc_exposure_before_xau_switch()
-                set_runtime_symbol("XAUUSD.iux")
-                save_runtime_state()
+                # กัน scan สร้างออเดอร์ระหว่างปิด BTC + สลับ symbol (race guard)
+                config.symbol_switch_in_progress = True
+                try:
+                    if config.SYMBOL == "BTCUSD.iux":
+                        await _close_btc_exposure_before_xau_switch()
+                    set_runtime_symbol("XAUUSD.iux")
+                    save_runtime_state()
+                finally:
+                    config.symbol_switch_in_progress = False
                 await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux")
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับกลับ XAUUSD.iux")
                 if auto_active:
@@ -216,8 +221,13 @@ def main():
                 set_runtime_symbol("XAUUSD.iux")
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] ✅ startup: XAUUSD.iux เปิดอยู่ (ไม่ต้องสลับ)")
         elif not xau_open and config.SYMBOL != "BTCUSD.iux":
-            set_runtime_symbol("BTCUSD.iux")
-            save_runtime_state()
+            # กัน scan สร้างออเดอร์ระหว่างสลับ symbol (race guard)
+            config.symbol_switch_in_progress = True
+            try:
+                set_runtime_symbol("BTCUSD.iux")
+                save_runtime_state()
+            finally:
+                config.symbol_switch_in_progress = False
             await tg(app, f"🔵 *XAUUSD ปิด* → สลับไป BTCUSD.iux")
             print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับไป BTCUSD.iux")
             if auto_active:

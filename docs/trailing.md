@@ -362,15 +362,41 @@ config ที่เกี่ยวข้อง:
 - `PENDING_RSI_BUY_MAX`
 - `PENDING_RSI_SELL_MIN`
 
+## Fill Trend Recheck
+
+ฟังก์ชัน: `check_fill_trend_recheck(app)` ใน `trailing.py`
+
+gate: `LIMIT_TREND_RECHECK`
+
+- เช็ค trend (HHLL structure) หลัง position fill (รอบ 1 ทันที, รอบ 2+ เมื่อ H/L เปลี่ยน)
+- ถ้า trend สวนทาง → ปิด position
+- **Skip**: `sid in (9, 10, 14)` — S14 bypass เพราะ market order + bypass trend filter แล้ว
+- **Apply**: S1, S2, S3, S4, S5, S6, S8, S12, S13
+
+เครื่องมือ:
+- `swing_data_ready(tf)` — ตรวจว่า HHLL data พร้อมไหม (SIDEWAY + `TREND_FILTER_SIDEWAY_HHLL=True` ต้องมี `last_label` ด้วย)
+- `trend_allows_signal(tf, signal)` — ตรวจว่า trend อนุญาต signal ไหม คืน sentinel `(True, "?")` ถ้า HHLL ว่าง
+
+Race condition fix (2026-05-27):
+- ถ้า `swing_data_ready` = False หรือ `trend_allows_signal` คืน `"?"` → **force-fetch** `fetch_hhll(tf)` ตรงแทนรอ scanner → retry ทันที
+- ถ้ายังไม่พร้อม → log `TREND_RECHECK fill_round1_skip_no_data` → retry cycle ถัดไป
+
+⚠️ Composite TF fix (2026-06-01):
+- S2 parallel ใช้ TF แบบ composite เช่น `[M15_H1]` ซึ่งไม่มีใน `_swing_data` / `_hhll_data`
+- เดิม `swing_data_ready("[M15_H1]")` คืน False เสมอ → recheck **skip เงียบ ๆ ไม่ log** = S2 parallel ไม่มี trend recheck เลย
+- แก้: หลัง resolve `_tr_tf` ถ้าขึ้นต้นด้วย `[` → parse component ด้วย regex แล้วเลือก **TF สูงสุด** (มาก seconds สุด) เช่น `[M15_H1] → H1`
+
+log event: `TREND_RECHECK` + sub-event (pass / fail / `fill_round1_skip_no_data`)
+
+Triple mode: ถ้าเปิดครบทั้ง 3 จะ record ผลใน `_triple_check_state[ticket]["trend"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+
 ## PD Zone Recheck
 
-ฟังก์ชัน: `_pd_zone_process(ticket, app)` ใน `trailing.py`
+ฟังก์ชัน: `check_fill_pd_zone(app)` ใน `trailing.py`
 
 gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
 
-Return: `(status: str, tg_msgs: list)` — `"pass"` / `"fail"` / `"wait"`
-
-state: `_pd_zone_state: dict` (module-level)
+state: `_pd_zone_fill_state: dict`, `_pd_zone_fill_checked: set` (module-level)
 
 ### ที่มาของ H/L
 
@@ -378,29 +404,26 @@ state: `_pd_zone_state: dict` (module-level)
 - L = swing low ล่าสุด (HL/LL) จาก `hhll_swing.get_swing_hl_pts(tf)`
 - EQ = (H + L) / 2
 
-### การเช็ค 3 รอบ 2/3 ชั้นใน
+### การเช็ค 2 รอบ
 
-- รอบ 1: เมื่อ order เกิด → เช็ค entry vs EQ ณ ขณะนั้น
-- รอบ 2: H หรือ L เปลี่ยนครั้งแรก → เช็ค EQ ใหม่
-- รอบ 3: H หรือ L เปลี่ยนครั้งที่สอง (หลังรอบ 2) → เช็ค EQ ใหม่
+- รอบ 1 (fill_check): เช็คทันทีหลัง fill — ถ้า FAIL ปิด position, ถ้า PASS บันทึก H/L รอ round 2
+- รอบ 2: เมื่อ H หรือ L เปลี่ยน → re-check EQ ใหม่ → FAIL ปิด position
+
+### Race condition fix — รอบ 1 (2026-05-28)
+
+ถ้า `get_swing_hl_pts` คืน `(None, None)` (HHLL ว่าง):
+- **force-fetch** `fetch_hhll(tf)` ตรงแทนรอ scanner → retry ทันที
+- ถ้ายังไม่พร้อม → log `PD_ZONE_CHECK fill_round1_skip_no_data` → retry cycle ถัดไป
 
 ### กฎ zone
 
 - `entry < EQ` (Discount zone) → BUY ผ่าน, SELL ล้มเหลว
 - `entry > EQ` (Premium zone) → SELL ผ่าน, BUY ล้มเหลว
 
-### การตัดสิน
-
-- pass ≥ 2 → `"pass"`
-- fail ≥ 2 → `"fail"`
-- ยังไม่ครบ → `"wait"`
-
-ส่ง Telegram ทุกรอบบอกว่าอยู่ Premium/Discount zone + pass/fail
-
 ### Triple mode
 
-- ถ้าเปิดครบทั้ง 3 และได้ผล `"pass"` หรือ `"fail"` จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
-- ถ้าเปิดเฉพาะตัว: เมื่อ `"fail"` จะ cancel pending หรือ close position ทันที
+- ถ้าเปิดครบทั้ง 3 และได้ผล PASS/FAIL จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+- ถ้าเปิดเฉพาะตัว: เมื่อ FAIL จะ cancel pending หรือ close position ทันที
 
 ## Triple Recheck (Combined 2/3)
 
@@ -472,6 +495,15 @@ gate: `config.SL_GUARD_ENABLED` (default `True`)
   - `swing_ref`: swing low/high ณ เวลา activate (ใช้ตรวจ unblock)
   - `blocked_signals`: list ของ signals ที่ถูก block ระหว่าง active
   - `retry_signals`: พร้อม re-place (หลัง deactivate)
+
+### ⚠️ Bug fix: `swing_ref=0` → instant-unblock (แก้ 2026-06-01)
+
+- **อาการเดิม:** ตอน activate ตั้ง `swing_ref=0.0` → `_sl_guard_check_unblock()` เช็ค `swing_ref <= 0 → unblock ทันที` → guard ปลดล็อกในรอบ scan ถัดไปทันที = **ไม่เคยบล็อกได้จริง**
+- **กระทบครบ 3 variant:** per-TF (`_sl_guard_check_unblock`), Combined (`_combined_guard_check_unblock`), **Group** (`_group_guard_check_unblock` — เป็น mode default ที่ active จริง)
+- **แก้:**
+  - `_sl_guard_record_sl()` ตั้ง `swing_ref` จาก `symbol_info_tick` (ask สำหรับ SELL / bid สำหรับ BUY) ตอน activate
+  - ทุก `*_check_unblock()`: ถ้า `swing_ref<=0` → init จาก rates (max high / min low) **แทนที่จะ unblock** → ต้องรอ swing จริงทะลุ ref ก่อนถึงปลด
+- **log:** เพิ่ม `SL_GUARD_ACTIVATE` (per-TF) และ `SL_GUARD_GROUP_ACTIVATE` (Group) ตอน activate
 
 ### Telegram
 

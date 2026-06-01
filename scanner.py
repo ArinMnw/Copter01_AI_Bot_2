@@ -42,6 +42,15 @@ _last_strategy9_setup_by_key: dict = {}
 _last_strategy9_invalid_setup_by_key: dict = {}
 _last_pattern_notify_by_key: dict = {}
 _swing_data: dict = {}   # {tf_name: {"sh": str, "sl": str, "prev_sh": str, "prev_sl": str, "hh": str, "ll": str}}
+
+
+def clear_symbol_caches():
+    """ล้าง cache ระดับ scanner ที่ผูกกับ symbol — เรียกตอนสลับ symbol (XAU<->BTC)
+    กันข้อมูล swing/summary ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่"""
+    _swing_data.clear()
+    _scan_results.clear()
+
+
 _SCAN_TF_ICONS = {"M1": "🟨", "M5": "🟩", "M15": "🟦", "M30": "🟪", "H1": "🟧", "H4": "🟥", "H12": "🟫", "D1": "⬛"}
 _SCAN_STRATEGY_ICONS = {"[ท่า1]": "🟡", "[ท่า2]": "🔵", "[ท่า3]": "🟣", "[ท่า4]": "🟢", "[ท่า6]": "🟠", "[ท่า6i]": "🟤", "[ท่า8]": "🩵", "[ท่า9]": "🟥", "[ท่า13]": "🩷", "[ท่า14]": "🟦"}
 
@@ -1138,6 +1147,28 @@ def swing_data_ready(tf_name: str) -> bool:
     return True
 
 
+def _strong_trend_blocks_signal(tf_name: str, signal: str) -> tuple[bool, str]:
+    """True ถ้า trend ของ TF เป็น 'strong' และ signal สวนทาง
+    ใช้กับ Strong-Trend Block (STRONG_TREND_BLOCK_ENABLED) สำหรับท่า bypass
+    - BULL strong + SELL → block
+    - BEAR strong + BUY  → block
+    คืน (block?, reason)
+    """
+    sw = _swing_data.get(tf_name)
+    if not sw:
+        return False, ""
+    trend = sw.get("trend") or {}
+    t = trend.get("trend", "")
+    s = trend.get("strength", "")
+    if s != "strong":
+        return False, ""
+    if t == "BULL" and signal == "SELL":
+        return True, f"{tf_name} BULL strong"
+    if t == "BEAR" and signal == "BUY":
+        return True, f"{tf_name} BEAR strong"
+    return False, ""
+
+
 def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
     """
     ตรวจว่า trend ของ TF ที่เลือก (per-TF และ/หรือ higher TF) ให้ผ่าน signal นี้หรือไม่
@@ -1147,11 +1178,13 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
         - BEAR ทุก strength → SELL only (block BUY)
         - SIDEWAY / UNKNOWN → ผ่านทั้งคู่
       "breakout":
-        - BULL strong + ไม่ break_down → BUY only
-        - BULL strong + break_down     → ผ่านทั้งคู่
-        - BEAR strong + ไม่ break_up   → SELL only
-        - BEAR strong + break_up       → ผ่านทั้งคู่
-        - weak / SIDEWAY / UNKNOWN     → ผ่านทั้งคู่
+        - BULL strong + ไม่ break_down → BUY only  (block SELL)
+        - BULL strong + break_down     → SELL only (block BUY ← flip direction)
+        - BULL weak                    → BUY only  (block SELL เสมอ ไม่มี flip)
+        - BEAR strong + ไม่ break_up   → SELL only (block BUY)
+        - BEAR strong + break_up       → BUY only  (block SELL ← flip direction)
+        - BEAR weak                    → SELL only (block BUY เสมอ ไม่มี flip)
+        - SIDEWAY / UNKNOWN            → ผ่านทั้งคู่ (+ SIDEWAY_HHLL ถ้าเปิด)
     return: (allowed: bool, reason: str)
     """
     per_tf_map = getattr(config, "TREND_FILTER_PER_TF", {}) or {}
@@ -1186,16 +1219,21 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
                     if _last in ("HH", "HL") and signal == "SELL":
                         return False, f"{ref_tf} SIDEWAY/{_last}"
                 return True, ""
+            strength = trend.get("strength", "-")
             breakout = sw.get("breakout") or {}
             if t == "BULL":
-                if breakout.get("break_down"):
+                # weak: บล็อก SELL เสมอ (ไม่มี flip)
+                # strong: ปกติบล็อก SELL, แต่ถ้า break_down ให้ flip บล็อก BUY แทน
+                if strength == "strong" and breakout.get("break_down"):
                     if signal == "BUY":
                         return False, f"{ref_tf} BULL break_down"
                 else:
                     if signal == "SELL":
                         return False, f"{ref_tf} BULL"
             elif t == "BEAR":
-                if breakout.get("break_up"):
+                # weak: บล็อก BUY เสมอ (ไม่มี flip)
+                # strong: ปกติบล็อก BUY, แต่ถ้า break_up ให้ flip บล็อก SELL แทน
+                if strength == "strong" and breakout.get("break_up"):
                     if signal == "SELL":
                         return False, f"{ref_tf} BEAR break_up"
                 else:
@@ -1894,8 +1932,9 @@ async def auto_scan(app):
         log_tfs = [tf for tf in active_tfs if should_log_tf(tf, config.SCAN_INTERVAL)]
 
     # เคลียร์ log เดิม แล้ว scan ทุก TF พร้อมกัน
+    # หมายเหตุ: ไม่ clear _swing_data ก่อน scan — ให้ scan_one_tf overwrite ทีละ TF
+    # เพื่อป้องกัน race condition กับ fill_trend_recheck ที่อาจวิ่งระหว่าง gather
     _scan_results.clear()
-    _swing_data.clear()
     await asyncio.gather(*[scan_one_tf(app, tf) for tf in active_tfs])
 
     # export trend state สำหรับ MQL5 indicator (TrendFilterLines.mq5)
@@ -3087,6 +3126,23 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 log_event(
                     "TREND_FILTER_BLOCK",
                     f"block {signal} ({tf_reason})",
+                    tf=tf_name, sid=sid, signal=signal,
+                )
+                continue
+        # ── Strong-Trend Block (default OFF) ────────────────────────────
+        # กัน counter-strong-trend สำหรับท่า bypass (S9/S10/S11/S13/S14)
+        # อยู่ก่อน S13 flip (~3470) และ S14 flip (~3480) → continue กันทั้ง flip+order
+        if (getattr(config, "STRONG_TREND_BLOCK_ENABLED", False)
+                and sid in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14))):
+            _stb, _stb_why = _strong_trend_blocks_signal(tf_name, signal)
+            if _stb:
+                _print_skip_once(
+                    tf_name,
+                    f"🧭 [{now}] {tf_label(tf_name)} ท่า{sid}: strong-trend block {signal} ({_stb_why})"
+                )
+                log_event(
+                    "STRONG_TREND_BLOCK",
+                    f"block {signal} ({_stb_why})",
                     tf=tf_name, sid=sid, signal=signal,
                 )
                 continue
