@@ -30,6 +30,7 @@ Pattern SELL (2 sub-patterns, mirror):
 
 import config
 from config import SL_BUFFER
+from mt5_utils import calc_atr
 from strategy9 import _calc_rsi_values
 
 
@@ -369,9 +370,8 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     if cur_rsi is None or cur_rsi <= ref_rsi or cur_rsi >= 50.0:
         return []
 
-    # ATR / SL
-    atr_n = min(14, len(rates))
-    atr   = sum(float(r["high"]) - float(r["low"]) for r in rates[-atr_n:]) / atr_n
+    # ATR / SL — True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
+    atr   = calc_atr(rates, 14)
     sl    = round(cur_l - SL_BUFFER(atr), 2)
 
     src_label = f"({ref['source']})"
@@ -530,8 +530,7 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     if cur_rsi is None or cur_rsi >= ref_rsi or cur_rsi <= 50.0:
         return []
 
-    atr_n = min(14, len(rates))
-    atr   = sum(float(r["high"]) - float(r["low"]) for r in rates[-atr_n:]) / atr_n
+    atr   = calc_atr(rates, 14)   # True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
     sl    = round(cur_h + SL_BUFFER(atr), 2)
 
     src_label = f"({ref['source']})"

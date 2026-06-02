@@ -1,5 +1,5 @@
 from config import *
-from mt5_utils import find_swing_tp
+from mt5_utils import find_swing_tp, calc_atr
 
 
 def strategy_3(rates):
@@ -35,9 +35,8 @@ def strategy_3(rates):
     c2 = c(-3)
     engulf_gap = engulf_min_price()
 
-    # ATR สำหรับ SL_BUFFER(atr) — ค่าเฉลี่ย H-L 14 แท่ง
-    _n_atr = min(14, len(rates))
-    _atr = sum(float(r["high"]) - float(r["low"]) for r in rates[-_n_atr:]) / _n_atr
+    # ATR สำหรับ SL_BUFFER(atr) — True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
+    _atr = calc_atr(rates, 14)
 
     min_body_pct = 35.0
 

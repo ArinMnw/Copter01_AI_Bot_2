@@ -2835,16 +2835,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 print(f"✅ [{now}] FVG {fvg['signal']} [{tf_label_str}] Entry={final_entry}")
 
             elif order.get("skipped"):
-                log_event(
-                    "ORDER_SKIPPED",
-                    order.get("error", ""),
-                    tf=tf_name,
-                    sid=2,
-                    signal=fvg["signal"],
-                    entry=final_entry,
-                    sl=fvg["sl"],
-                    tp=tp,
-                )
+                if not order.get("silent"):   # silent = pending-limit guard → ไม่ spam log
+                    log_event(
+                        "ORDER_SKIPPED",
+                        order.get("error", ""),
+                        tf=tf_name,
+                        sid=2,
+                        signal=fvg["signal"],
+                        entry=final_entry,
+                        sl=fvg["sl"],
+                        tp=tp,
+                    )
                 fvg_pending[fvg_key] = {
                     "tf": tf_name, "signal": fvg["signal"],
                     "entry": final_entry, "sl": fvg["sl"], "tp": tp,
