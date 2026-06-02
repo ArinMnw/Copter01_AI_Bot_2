@@ -374,33 +374,33 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
         tf_parts = [str(t).strip() for t in parallel_tfs if str(t).strip()]
         if tf_parts:
             parallel_comment = f"[{'_'.join(tf_parts)}]_S{sid}"
-            if len(parallel_comment) <= 31:
+            if len(parallel_comment) <= 28:
                 return parallel_comment
 
     if pattern:
         m_model = re.search(r"MODEL\s*([12])", pattern.upper())
         if m_model:
             candidate_with_model = f"{candidate}_#{m_model.group(1)}"
-            if len(candidate_with_model) <= 31:
+            if len(candidate_with_model) <= 28:
                 candidate = candidate_with_model
         if str(sid or "") == "13":
             idx_text = str(order_index).strip() if order_index is not None else ""
             if idx_text in ("1", "2", "3"):
                 candidate_with_tp = f"{candidate}_#{idx_text}"
-                if len(candidate_with_tp) <= 31:
+                if len(candidate_with_tp) <= 28:
                     candidate = candidate_with_tp
             elif idx_text.upper() in ("L1", "L2", "L3"):
                 candidate_with_tp = f"{candidate}_{idx_text.upper()}"
-                if len(candidate_with_tp) <= 31:
+                if len(candidate_with_tp) <= 28:
                     candidate = candidate_with_tp
             else:
                 m_tp = re.search(r"TP\s*([123])", pattern.upper())
                 if m_tp:
                     candidate_with_tp = f"{candidate}_#{m_tp.group(1)}"
-                    if len(candidate_with_tp) <= 31:
+                    if len(candidate_with_tp) <= 28:
                         candidate = candidate_with_tp
-    if len(candidate) > 31:
-        return base
+    if len(candidate) > 28:
+        return base[:28]
 
     # parallel: ต่อ TF ที่ซ้อนทับหลัง code เช่น Bot_M5_S2_FVG_M15M30
     if parallel_tfs and len(parallel_tfs) > 1:
@@ -408,9 +408,9 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
         if other_tfs:
             suffix = "".join(other_tfs)
             full = f"{candidate}_{suffix}"
-            return full if len(full) <= 31 else candidate
+            return full if len(full) <= 28 else candidate[:28]
 
-    return candidate
+    return candidate[:28]
 
 def connect_mt5():
     """เชื่อมต่อ MT5 — ถ้า initialize แล้วและ login อยู่แล้วไม่ต้อง login ซ้ำ"""

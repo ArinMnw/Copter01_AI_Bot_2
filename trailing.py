@@ -1565,9 +1565,10 @@ def scale_out_cleanup_on_disable() -> dict:
 
 def _close_position(pos, pos_type, comment):
     """Close a position immediately and return (success, close_price)."""
-    # MT5 comment field จำกัด 32 chars — comment ยาวกว่านั้นทำให้ order_send คืน None
-    # พร้อม mt5.last_error() = (-2, 'Invalid "comment" argument')
-    comment = str(comment)[:31]
+    # MT5 comment limit (broker นี้): ทดสอบแล้ว 29 chars OK / 30+ FAIL
+    # comment ยาวเกินทำให้ order_send คืน None + mt5_err=(-2,'Invalid "comment" argument')
+    # ใช้ 28 เผื่อ safety margin
+    comment = str(comment)[:28]
     tick = mt5.symbol_info_tick(SYMBOL)
     if not tick:
         return False, 0.0
