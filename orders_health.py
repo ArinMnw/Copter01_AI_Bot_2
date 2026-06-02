@@ -14,10 +14,21 @@ WIN_START = "2026-05-26"
 EXPECT_LOT = 0.04   # XAU base 0.01 × TSO4
 
 def _log_files():
-    """รวม log ที่ครอบ window: monthly archive (old_logs) + bot.log ปัจจุบัน (ถ้ามี)"""
-    names = ["old_logs/bot-2026-05.log", "old_logs/bot-2026-06.log", "bot.log"]
-    return [os.path.join(ROOT, "logs", n) for n in names
-            if os.path.exists(os.path.join(ROOT, "logs", n))]
+    """รวม log ที่ครอบ window: monthly archive (old_logs) + bak files + bot.log ปัจจุบัน (ถ้ามี)"""
+    import glob as _glob
+    result = []
+    log_dir = os.path.join(ROOT, "logs")
+    # ไฟล์ fixed (May archive + June current)
+    for name in ["old_logs/bot-2026-05.log", "old_logs/bot-2026-06.log", "bot.log"]:
+        p = os.path.join(log_dir, name)
+        if os.path.exists(p):
+            result.append(p)
+    # bak files สำหรับ June (เกิดจาก restart หลายครั้ง) — sort by name = chronological
+    bak_pattern = os.path.join(log_dir, "old_logs", "bot-2026-06.log.bak-*")
+    for p in sorted(_glob.glob(bak_pattern)):
+        if p not in result:
+            result.append(p)
+    return result
 
 def iter_log_lines():
     for p in _log_files():
