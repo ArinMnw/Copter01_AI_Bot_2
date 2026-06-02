@@ -3582,8 +3582,11 @@ async def check_fill_pd_zone(app):
                             f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
                             f"Trend: `{_stored_tf}` | Entry: `{pos.price_open}` | ปิดที่: `{cp:.2f}`"
                         ))
+                        # สำเร็จ → mark checked (จบงาน)
+                        _pd_zone_fill_checked.add(ticket)
                     else:
-                        # close ล้มเหลว → fallback รอ round2 ตามปกติ
+                        # close ล้มเหลว → ตั้ง pending_close=True ให้ retry รอบถัดไป
+                        # ห้าม add เข้า _pd_zone_fill_checked ไม่งั้นจะถูก skip ก่อนถึง retry block
                         log_event("PD_ZONE_CHECK", "fill_s14_strong_counter_close_fail",
                                   ticket=ticket, signal=pos_type, tf=_pz_tf)
                         _pd_zone_fill_state[ticket] = {
@@ -3592,7 +3595,6 @@ async def check_fill_pd_zone(app):
                             "gap_bot": _pz_gap_bot, "gap_top": _pz_gap_top,
                             "pending_close": True,   # retry ทันที
                         }
-                    _pd_zone_fill_checked.add(ticket)
                     continue
 
             # Round 1 PASS → บันทึก H/L รอ round 2
