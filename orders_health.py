@@ -9,10 +9,21 @@ import os, re, io, sys, csv
 from collections import defaultdict, Counter
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 ROOT = os.path.dirname(os.path.abspath(__file__))
-BOT_LOG = os.path.join(ROOT, "logs", "bot.log")
 CSV_CMP = os.path.join(ROOT, "orders_old_vs_new.csv")
 WIN_START = "2026-05-26"
 EXPECT_LOT = 0.04   # XAU base 0.01 × TSO4
+
+def _log_files():
+    """รวม log ที่ครอบ window: monthly archive (old_logs) + bot.log ปัจจุบัน (ถ้ามี)"""
+    names = ["old_logs/bot-2026-05.log", "old_logs/bot-2026-06.log", "bot.log"]
+    return [os.path.join(ROOT, "logs", n) for n in names
+            if os.path.exists(os.path.join(ROOT, "logs", n))]
+
+def iter_log_lines():
+    for p in _log_files():
+        with open(p, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                yield line
 
 _TS = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+(\S+)")
 def fld(line, key):
@@ -32,8 +43,7 @@ T = defaultdict(lambda: {
     "closed":False,"profit":None,"reason":None,"is_sl":False,"is_tp":False,"close_ts":None,
 })
 
-with open(BOT_LOG, "r", encoding="utf-8", errors="replace") as f:
-    for line in f:
+for line in iter_log_lines():
         m = _TS.match(line)
         if not m: continue
         ts, kind = m.group(1), m.group(2)

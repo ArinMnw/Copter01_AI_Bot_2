@@ -159,6 +159,8 @@ Keep the answer short and make the fix directly.
 - `SL_GUARD_LOSS_THRESHOLD` (default `5.0`) — ขาดทุนเกิน $N → นับเป็น SL hit (ใช้ร่วมกับ SL_GUARD_LOSS_ENABLED)
 - `S14_FLIP_ENABLED` (default `True`) — S14 Flip: ปิดฝั่งตรงข้าม per-TF ก่อนเปิด S14 ใหม่, toggle ได้ใน `📋 เลือก Strategy`
 - `STRONG_TREND_BLOCK_ENABLED` (default `False`) — กัน signal ที่สวน **strong trend** สำหรับท่า bypass (`STRONG_TREND_BLOCK_SIDS` = `[9,10,11,13,14]`) ใน scan loop (`scanner.py`) ก่อน flip/place order — helper `_strong_trend_blocks_signal()`, log event `STRONG_TREND_BLOCK` (ข้อมูลจริง XAU: counter-strong-trend net +314 ถ้าเปิด)
+- `SL_ATR_ENABLED` (default `True`) / `SL_ATR_MULT` (default `2`) — `config.SL_BUFFER(atr)` ใช้ `atr × mult` แทน fixed buffer
+- `PENDING_LIMIT_GUARD_ENABLED` (default `True`) / `PENDING_LIMIT_BUFFER` (default `2`) / `ORDERS_LIMIT_COOLDOWN_SEC` (default `60`) — กันยิง pending order ซ้ำตอนเต็ม broker limit (retcode 10033) ดู §SL with ATR / Pending-Limit Guard
 
 หมายเหตุ:
 
@@ -755,6 +757,26 @@ mode ที่รองรับ:
 - `_TgWrapper._worker()` ใน `config.py`: ก่อนส่ง **ตัดข้อความที่ยาว > 4096** เชิงรุก (Telegram limit) → กัน drop
 - auto-fix ตอน error ดักทั้ง `"Message is too long"` **และ** `"Text is too long"` (เดิมดักแค่ "Message") + retry plain ถ้า Markdown ยัง fail
 - เดิม Scan Summary ยาวเกินทำให้ `TG_DROP "Text is too long"` หลายพันครั้ง
+
+### SL with ATR — True Range + RMA (fix 2026-06-02)
+
+- `config.SL_BUFFER(atr)` คืน `atr × SL_ATR_MULT` (เมื่อ `SL_ATR_ENABLED=True`) แทน fixed buffer
+- **ATR กลาง: `mt5_utils.calc_atr(rates, period=14)`** — True Range + Wilder's RMA ตรงกับ `mql5/ATR_TrueRange.mq5`
+  - `TR = max(H-L, |H-prevClose|, |L-prevClose|)` (แท่งแรก = H-L), seed=SMA period แรก, `ATR[i]=α·TR[i]+(1-α)·ATR[i-1]`, α=1/period
+- ทุกท่าที่คำนวณ SL เรียก `calc_atr` แล้ว: `get_structure()` (S1/S2/S4 ผ่าน `ms["atr"]`), S3, S9, S14 — เดิมใช้ค่าเฉลี่ย H-L 14 แท่ง (ไม่รวม gap)
+  - S13 มี `_atr_values()` (RMA) ของตัวเองอยู่แล้ว — ไม่แตะ
+- XAU เทรดต่อเนื่อง gap น้อย → ATR ใหม่ ≈ เก่า (ต่างเฉลี่ย ~2%); sim isolated backtest (5/24+) ต่าง ~-143 USD = threshold noise ไม่ใช่ regression เชิงระบบ
+- sim: `sim_atr_compare.py` (monkey-patch `mt5_utils.calc_atr` + `strategy3/9/14.calc_atr` เป็น OLD แล้วเทียบ) — `call_strategy()` เรียกตาม signature (S3 รับแค่ `rates`)
+
+### Pending-Limit Guard — retcode 10033 (fix 2026-06-02)
+
+- Broker จำกัด pending orders (`account_info().limit_orders`, เคสจริง = **50**) เต็มแล้ว bot ยังยิงซ้ำทุก scan cycle → `ORDER_FAILED 10033 "Orders limit reached"` (เคสจริง 2026-05-31 BTC: **46,339 ครั้ง/วัน**)
+- `mt5_utils._pending_limit_blocked()` pre-check ก่อน `order_send` ทั้ง 3 ฟังก์ชัน (`open_order_stop` / `open_order` / `open_order_market`):
+  - อยู่ใน cooldown หลังเพิ่งโดน 10033 → block | `orders_total ≥ cap - PENDING_LIMIT_BUFFER` → block
+  - block → คืน `{"skipped": True, "silent": True}` → caller เข้า branch `skipped` ที่ dedup (`_print_skip_once`) → **ไม่ log `ORDER_FAILED`**
+- โดน 10033 จริง → `_note_orders_limit_hit()` ตั้ง cooldown `ORDERS_LIMIT_COOLDOWN_SEC` (60s)
+- log `PENDING_LIMIT_BLOCK` (throttle 5 นาที/ครั้ง) — `silent` flag ทำให้ caller (scanner S2 FVG, pending.py FVG/PB) ไม่ log/tg ซ้ำ
+- ผล: log spam 10033 ลด ~99% (51,302 → ~288/วัน worst case) + ไม่ยิง `order_send` รัวๆ ไป broker
 
 ## Telegram Toggle Icons
 

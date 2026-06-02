@@ -178,6 +178,69 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
         return None
 
 
+# ── Pending-order limit guard (retcode 10033) ────────────────────────────────
+_pending_cap_cache  = [0]      # cache ของ account_info().limit_orders
+_orders_limit_until = [0.0]    # cooldown timestamp หลังโดน 10033
+_orders_limit_logged_at = [0.0]
+
+def _pending_orders_cap() -> int:
+    """broker cap ของจำนวน pending orders (account_info().limit_orders) — cache ไว้"""
+    if _pending_cap_cache[0] <= 0:
+        try:
+            ai = mt5.account_info()
+            _pending_cap_cache[0] = int(getattr(ai, "limit_orders", 0) or 0)
+        except Exception:
+            pass
+    return _pending_cap_cache[0]
+
+def _note_orders_limit_hit():
+    """เรียกเมื่อ order_send คืน 10033 → เข้า cooldown งดยิง order ใหม่"""
+    import time
+    _orders_limit_until[0] = time.time() + float(getattr(config, "ORDERS_LIMIT_COOLDOWN_SEC", 60) or 60)
+
+def _pending_limit_blocked() -> tuple:
+    """กันยิง pending order ตอนใกล้/เต็ม broker limit (retcode 10033)
+    คืน (blocked: bool, reason: str)
+      - อยู่ใน cooldown หลังเพิ่งโดน 10033 → block
+      - orders_total ปัจจุบัน ≥ cap - buffer → block
+    fail-safe: error ใดๆ → ไม่ block (คืน False)
+    """
+    if not getattr(config, "PENDING_LIMIT_GUARD_ENABLED", True):
+        return False, ""
+    try:
+        import time
+        now = time.time()
+        if now < _orders_limit_until[0]:
+            return True, f"orders-limit cooldown {_orders_limit_until[0]-now:.0f}s (เพิ่งเต็ม 10033)"
+        cap = _pending_orders_cap()
+        if cap > 0:
+            buf = int(getattr(config, "PENDING_LIMIT_BUFFER", 2) or 0)
+            n = mt5.orders_total()
+            if n is not None and n >= cap - buf:
+                return True, f"pending {n} ≥ cap {cap}-buf {buf}"
+    except Exception:
+        return False, ""
+    return False, ""
+
+def _pending_limit_skip_result():
+    """ผลลัพธ์ skip มาตรฐานเมื่อ guard บล็อก — throttle log เป็น SYMBOL-style 1 ครั้ง/cooldown
+    return dict (success=False, skipped=True, silent=True) ให้ caller เข้า branch skipped"""
+    blocked, reason = _pending_limit_blocked()
+    if not blocked:
+        return None
+    try:
+        import time
+        now = time.time()
+        if now - _orders_limit_logged_at[0] >= 300:   # log ซ้ำได้ทุก 5 นาที (กัน spam)
+            _orders_limit_logged_at[0] = now
+            from bot_log import log_event
+            log_event("PENDING_LIMIT_BLOCK", reason, symbol=SYMBOL)
+    except Exception:
+        pass
+    return {"success": False, "skipped": True, "silent": True,
+            "error": f"⛔ Pending limit: {reason}"}
+
+
 def _pattern_comment_code(pattern: str, sid="") -> str:
     text = (pattern or "").upper()
     raw = pattern or ""
@@ -351,13 +414,43 @@ def connect_mt5():
     return mt5.login(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER)
 
 
+def calc_atr(rates, period: int = 14) -> float:
+    """ATR (True Range + Wilder's RMA) — ตรงกับ mql5/ATR_TrueRange.mq5
+
+    TR  = max(H-L, |H-prevClose|, |L-prevClose|)   (แท่งแรกไม่มี prevClose → H-L)
+    RMA = seed ด้วย SMA ของ TR ช่วง period แท่งแรก แล้ว ATR[i]=α·TR[i]+(1-α)·ATR[i-1], α=1/period
+
+    คืน ATR ของแท่งล่าสุด (ใช้ทั้ง window เพื่อให้ RMA converge เหมือนบนชาร์ต)
+    ข้อมูลไม่พอ seed → fallback เป็นค่าเฉลี่ย TR เท่าที่มี (≈ ATR แบบเดิม)
+    """
+    n = len(rates)
+    if n == 0:
+        return 0.0
+    trs = []
+    for i in range(n):
+        h = float(rates[i]["high"]); l = float(rates[i]["low"])
+        if i == 0:
+            trs.append(h - l)
+        else:
+            pc = float(rates[i - 1]["close"])
+            trs.append(max(h - l, abs(h - pc), abs(l - pc)))
+    if n <= period:
+        return sum(trs) / len(trs)
+    atr = sum(trs[:period]) / period          # seed = SMA ของ TR period แท่งแรก
+    alpha = 1.0 / period
+    for i in range(period, n):
+        atr = alpha * trs[i] + (1.0 - alpha) * atr
+    return atr
+
+
 def get_structure(rates, lookback=None):
     n = lookback if lookback else SWING_LOOKBACK
     s = rates[-n:]
     return {
         "swing_high": max(r['high'] for r in s),
         "swing_low":  min(r['low']  for r in s),
-        "atr":        sum(r['high'] - r['low'] for r in s) / len(s)
+        # ATR (True Range + RMA) — period 14 มาตรฐานจากทั้ง window (ไม่ผูกกับ lookback ของ swing)
+        "atr":        calc_atr(rates, 14)
     }
 
 
@@ -539,6 +632,10 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
     )
     is_scaled = bool(effective_steps)
 
+    _plim = _pending_limit_skip_result()
+    if _plim:
+        return _plim
+
     _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
                                            signal=signal, sid=sid, base_volume=base_volume)
     if _guard_err:
@@ -567,6 +664,10 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
         return {"success": True, "ticket": r.order, "price": price, "order_type": name,
                 "scale_out": is_scaled, "scaled_volume": send_volume if is_scaled else None}
     err = r.retcode if r else "no result"
+    if str(err) == "10033":
+        _note_orders_limit_hit()   # pending เต็ม broker cap → cooldown + skip เงียบ
+        return {"success": False, "skipped": True, "silent": True,
+                "error": f"⛔ Orders limit reached (10033) — pending เต็ม cap {_pending_orders_cap()}, เข้า cooldown"}
     return {"success": False, "error": f"{err}"}
 
 
@@ -622,6 +723,10 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     )
     is_scaled = bool(effective_steps)
 
+    _plim = _pending_limit_skip_result()
+    if _plim:
+        return _plim
+
     _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
                                            signal=signal, sid=sid, base_volume=base_volume)
     if _guard_err:
@@ -667,6 +772,10 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
                 "scale_out": is_scaled, "scaled_volume": send_volume if is_scaled else None}
     err_code = r.retcode if r else "no result"
     err_msg  = r.comment if r else ""
+    if str(err_code) == "10033":
+        _note_orders_limit_hit()   # pending เต็ม broker cap → cooldown + skip เงียบ (ไม่ spam ORDER_FAILED)
+        return {"success": False, "skipped": True, "silent": True,
+                "error": f"⛔ Orders limit reached (10033) — pending เต็ม cap {_pending_orders_cap()}, เข้า cooldown"}
     if str(err_code) == "10027":
         return {"success": False, "error": "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว"}
     if str(err_code) == "10016":
@@ -697,6 +806,10 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
     )
     is_scaled = bool(effective_steps)
+
+    _plim = _pending_limit_skip_result()
+    if _plim:
+        return _plim
 
     _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
                                            signal=signal, sid=sid, base_volume=base_volume)
@@ -735,6 +848,10 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
                 "scale_out": is_scaled, "scaled_volume": send_volume if is_scaled else None}
     err_code = r.retcode if r else "no result"
     err_msg  = r.comment if r else ""
+    if str(err_code) == "10033":
+        _note_orders_limit_hit()   # pending เต็ม broker cap → cooldown + skip เงียบ (ไม่ spam ORDER_FAILED)
+        return {"success": False, "skipped": True, "silent": True,
+                "error": f"⛔ Orders limit reached (10033) — pending เต็ม cap {_pending_orders_cap()}, เข้า cooldown"}
     if str(err_code) == "10027":
         return {"success": False, "error": "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว"}
     if str(err_code) == "10016":

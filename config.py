@@ -185,6 +185,16 @@ ZONE_BUFFER    = 0.5
 SL_ATR_ENABLED = True   # เปิด/ปิด feature
 SL_ATR_MULT    = 2      # ตัวคูณ: 1=×1, 2=×2, ..., 5=×5  (default ×2)
 
+# ── Pending-order limit guard ────────────────────────────────────────────────
+# Broker จำกัดจำนวน pending orders (limit_orders) — ถ้าเต็มแล้ว bot ยังยิงซ้ำ
+# จะโดน retcode 10033 "Orders limit reached" รัวๆ ทุก scan cycle → log บวม
+# (เคสจริง 2026-05-31: BTC pending เต็ม → ORDER_FAILED 46,339 ครั้ง/วัน)
+# Guard: pre-check orders_total ก่อนยิง — ถ้าใกล้เต็ม → skip เงียบ (ไม่ยิง broker
+# + caller เข้า branch skipped ที่ dedup แล้ว) และเมื่อโดน 10033 → cooldown สั้นๆ
+PENDING_LIMIT_GUARD_ENABLED = True   # เปิด/ปิด guard
+PENDING_LIMIT_BUFFER        = 2      # เว้นช่อง pending ว่างกี่ตัวก่อนถึง broker cap
+ORDERS_LIMIT_COOLDOWN_SEC   = 60     # หลังโดน 10033 → งดยิง order ใหม่กี่วินาที
+
 def SL_BUFFER(atr=None):
     """ดึง SL buffer ตาม SYMBOL ปัจจุบัน
     - ถ้า SL_ATR_ENABLED=True และส่ง atr มา → คืน atr × SL_ATR_MULT

@@ -136,7 +136,7 @@ async def check_fvg_pending(app):
                         f"\U0001f4cc Entry: `{order['price']}`\n"
                         f"\U0001f516 Ticket: `{order['ticket']}`"
                     ))
-            else:
+            elif not order.get("silent"):   # silent = pending-limit guard → ไม่ spam log/tg
                 log_event(
                     "ORDER_SKIPPED" if order.get("skipped") else "ORDER_FAILED",
                     order.get("error", ""),
@@ -260,7 +260,7 @@ async def check_pb_pending(app):
                     trend_filter=",".join(_trend_keys) if _trend_keys else "",
                 )
                 await tg(app, f"✅ *{ot_name} สำเร็จ! (วิธี 2)*\n{sig_e} {ot_name} {SYMBOL} [{tf}]\n📌 Entry: `{order['price']}`\n🔖 Ticket: `{order['ticket']}`")
-            else:
+            elif not order.get("silent"):   # silent = pending-limit guard → ไม่ spam log/tg
                 log_event(
                     "ORDER_SKIPPED" if order.get("skipped") else "ORDER_FAILED",
                     order.get("error", ""),

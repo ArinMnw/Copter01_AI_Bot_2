@@ -1,6 +1,6 @@
 import config
 from config import *
-from mt5_utils import find_swing_tp
+from mt5_utils import find_swing_tp, calc_atr
 from strategy4 import _find_prev_swing_high, _find_prev_swing_low
 
 
@@ -227,8 +227,7 @@ def _build_bullish_setup(rates, rsi_values, period: int, applied_price: str,
         return None
 
     # Limit entry @ low ของแท่ง cur pivot — รอ pullback กลับมาแตะ
-    _n_atr = min(14, len(rates))
-    _atr = sum(float(r["high"]) - float(r["low"]) for r in rates[-_n_atr:]) / _n_atr
+    _atr = calc_atr(rates, 14)   # True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
     entry = round(cur_price_low, 2)
     sl = round(cur_price_low - SL_BUFFER(_atr), 2)
     if sl >= entry:
@@ -303,8 +302,7 @@ def _build_bearish_setup(rates, rsi_values, period: int, applied_price: str,
         return None
 
     # Limit entry @ high ของแท่ง cur pivot — รอ pullback กลับมาแตะ
-    _n_atr = min(14, len(rates))
-    _atr = sum(float(r["high"]) - float(r["low"]) for r in rates[-_n_atr:]) / _n_atr
+    _atr = calc_atr(rates, 14)   # True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
     entry = round(cur_price_high, 2)
     sl = round(cur_price_high + SL_BUFFER(_atr), 2)
     if sl <= entry:
