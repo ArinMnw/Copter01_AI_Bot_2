@@ -527,9 +527,9 @@ S14_LL_USE_HHLL       = False
 # BUY : absorption ที่ POC หรือ VAL → Entry LIMIT | bypass trend filter ไม่ได้
 # SELL: absorption ที่ POC หรือ VAH → Entry LIMIT
 S15_LOOKBACK            = 100   # bars ย้อนหลังสำหรับคำนวณ Volume Profile
-S15_ZONE_ATR_MULT       = 0.5   # tolerance zone = ATR × นี้ (auto-scale XAU/BTC)
+S15_ZONE_ATR_MULT       = 0.35  # tolerance zone = ATR × นี้ (auto-scale XAU/BTC) — แคบ=แม่นขึ้น
 S15_VAL_VAH_PCT         = 0.70  # % ของ volume ใน Value Area (standard 70%)
-S15_ABSORPTION_WICK_PCT = 0.30  # wick ขั้นต่ำ (% ของ range) สำหรับ Pattern A
+S15_ABSORPTION_WICK_PCT = 0.45  # wick ขั้นต่ำ (% ของ range) สำหรับ Pattern A — สูง=reject ชัดเจน
 S15_USE_VAL_VAH         = True  # เปิดใช้ VAL/VAH เพิ่มจาก POC
 S15_MIN_RR              = 1.0   # R:R ขั้นต่ำ
 

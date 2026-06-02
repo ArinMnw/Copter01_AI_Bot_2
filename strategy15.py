@@ -10,7 +10,8 @@ Win Rate อ้างอิง: 85-90% (POC Defense + Absorption)
        VAL = Value Area Low  (ขอบล่าง 70% volume zone)
   2. ตรวจ Absorption pattern ที่ POC/VAL/VAH:
        Pattern A — Long wick sweep: ไส้ยาว ≥ S15_ABSORPTION_WICK_PCT × range
-                   แต่ปิด (close) กลับเข้าโซน → สัญญาณดูดซับแรงขาย/ซื้อ
+                   + ปิด (close) ในครึ่งบน(BUY)/ครึ่งล่าง(SELL) ของแท่ง
+                   → ยืนยันว่าฝั่งที่ดูดซับชนะจริง (กรอง absorption ปลอม)
        Pattern B — 2-bar reversal: prev red → cur green (BUY)
                                     prev green → cur red (SELL)
   3. Entry: LIMIT ที่ POC หรือ VAL (BUY) / POC หรือ VAH (SELL)
@@ -139,11 +140,13 @@ def _absorption_buy(rates, ref_price, tolerance):
     if c_rng <= 0:
         return False
 
-    wick_pct    = float(getattr(config, "S15_ABSORPTION_WICK_PCT", 0.30))
+    wick_pct    = float(getattr(config, "S15_ABSORPTION_WICK_PCT", 0.45))
     lower_wick  = min(c_o, c_c) - c_l
     in_zone     = _near(c_l, ref_price, tolerance) or (c_l <= ref_price <= c_h)
+    # ปิดในครึ่งบนของแท่ง = ยืนยันแรงซื้อชนะจริง (กรอง absorption ปลอม)
+    close_ok    = c_c > (c_h + c_l) / 2.0
 
-    if in_zone and lower_wick >= wick_pct * c_rng:
+    if in_zone and close_ok and lower_wick >= wick_pct * c_rng:
         return True
 
     p_o = float(prev["open"])
@@ -176,11 +179,13 @@ def _absorption_sell(rates, ref_price, tolerance):
     if c_rng <= 0:
         return False
 
-    wick_pct    = float(getattr(config, "S15_ABSORPTION_WICK_PCT", 0.30))
+    wick_pct    = float(getattr(config, "S15_ABSORPTION_WICK_PCT", 0.45))
     upper_wick  = c_h - max(c_o, c_c)
     in_zone     = _near(c_h, ref_price, tolerance) or (c_l <= ref_price <= c_h)
+    # ปิดในครึ่งล่างของแท่ง = ยืนยันแรงขายชนะจริง (กรอง absorption ปลอม)
+    close_ok    = c_c < (c_h + c_l) / 2.0
 
-    if in_zone and upper_wick >= wick_pct * c_rng:
+    if in_zone and close_ok and upper_wick >= wick_pct * c_rng:
         return True
 
     p_o = float(prev["open"])
