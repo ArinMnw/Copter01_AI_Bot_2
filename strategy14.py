@@ -365,9 +365,12 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     if cur_l >= ref_low:
         return []
 
-    # RSI divergence (pivot RSI แดง)
+    # RSI divergence (pivot RSI แดง) + ส่วนต่าง > S14_RSI_MIN_DIFF
     cur_rsi = _pivot_rsi_buy(rates, rsi_vals, reject_idx)
-    if cur_rsi is None or cur_rsi <= ref_rsi or cur_rsi >= 50.0:
+    _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+    if cur_rsi is None or cur_rsi >= 50.0:
+        return []
+    if (cur_rsi - ref_rsi) <= _rsi_min_diff:   # เช่น 65-64.3=0.7 ≤ 1.0 → reject
         return []
 
     # ATR / SL — True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
@@ -525,11 +528,13 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
     if cur_h <= ref_high:
         return []
 
-    # RSI divergence (pivot RSI เขียว)
+    # RSI divergence (pivot RSI เขียว) + ส่วนต่าง > S14_RSI_MIN_DIFF
     cur_rsi = _pivot_rsi_sell(rates, rsi_vals, reject_idx)
-    if cur_rsi is None or cur_rsi >= ref_rsi or cur_rsi <= 50.0:
+    _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+    if cur_rsi is None or cur_rsi <= 50.0:
         return []
-
+    if (ref_rsi - cur_rsi) <= _rsi_min_diff:   # เช่น 35-34.5=0.5 ≤ 1.0 → reject
+        return []
     atr   = calc_atr(rates, 14)   # True Range + RMA (ตรงกับ ATR_TrueRange.mq5)
     sl    = round(cur_h + SL_BUFFER(atr), 2)
 

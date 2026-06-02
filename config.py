@@ -441,7 +441,7 @@ active_strategies = {
     6: True,   # ท่าที่ 6: 2 High 2 Low (ต่อเนื่องท่า 2/3)
     7: True,   # ท่าที่ 6i: 2 High 2 Low อิสระ (scan swing + ตั้ง order)
     8: False,  # ท่าที่ 8: กินไส้ Swing (limit ที่ swing high/low)
-    9: True,   # ท่าที่ 9: RSI Divergence
+    9: False,  # ท่าที่ 9: RSI Divergence
     10: True,  # ท่าที่ 10: CRT TBS (Candle Range Theory + Three Bar Sweep)
     11: True,  # ท่าที่ 11: Fibo S1 (Fibonacci expansion จาก S1 pattern)
     12: False, # ท่าที่ 12: Range Trading (M5 only, standalone)
@@ -513,6 +513,7 @@ S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับต
 S14_ENGULF            = False  # Engulf pattern (close เกิน LL/HH)
 S14_SWEEP             = True   # Sweep pattern  (ไส้เกิน LL/HH แต่ปิดกลับมา)
 S14_FLIP_ENABLED      = True   # Flip: ปิดฝั่งตรงข้ามทันทีเมื่อ signal ใหม่มา (per-TF)
+S14_RSI_MIN_DIFF      = 1.0   # RSI divergence ต้องห่างกัน > นี้ (BUY: cur-ref > 1, SELL: ref-cur > 1)
 # LL/HH ref เพิ่มเติมจาก HHLL module
 # False (default) = ใช้ min low ของ reversal bars เท่านั้น
 # True            = ใช้ HHLL HL (BUY) / HH (SELL) เป็น ref เพิ่มด้วย
