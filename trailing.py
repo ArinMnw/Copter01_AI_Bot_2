@@ -3,6 +3,7 @@ import config
 import re
 import inspect
 import os
+import time
 from bot_log import LOG_DIR, log_event
 from mt5_utils import connect_mt5, TF_SECONDS_MAP
 from strategy4 import (
@@ -623,18 +624,21 @@ def _group_guard_record_sl(tf: str, side: str) -> list:
                     sg["tf_since"][_t]     = ts_now
                     sg["tf_swing_ref"][_t] = 0.0
                     sg.setdefault("tf_blocked_signals", {}).setdefault(_t, [])
-            print(f"🛡️ Group Guard ACTIVATED: {side} group=[{gkey}] (count={sg['count']}/{threshold})")
+            # log_event ก่อน print (print อาจ UnicodeEncodeError บน Windows console)
             log_event("SL_GUARD_GROUP_ACTIVATE",
-                      f"{side} group=[{gkey}] SL รวม {sg['count']}x ครบ {threshold}x → ล็อก {len(group)} TF",
+                      f"{side} group=[{gkey}] SL {sg['count']}x/{threshold}x -> lock {len(group)} TF",
                       side=side, group=gkey, count=sg["count"], trigger_tf=tf)
+            try:
+                print(f"[SL_GUARD] Group Guard ACTIVATED: {side} group=[{gkey}] (count={sg['count']}/{threshold})")
+            except Exception:
+                pass
             tf_list = ", ".join(group)
             messages.append((
-                f"🛡️ *SL Guard Group เปิดใช้งาน*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"📊 Group: `{tf_list}` | {side}\n"
-                f"⚠️ SL รวม {sg['count']}x ครบ {threshold}x — ล็อก TF ใน group\n"
-                f"⏳ รอ Swing {'Low' if side == 'BUY' else 'High'} ของแต่ละ TF\n"
-                f"🔔 Trigger: {tf}"
+                f"*SL Guard Group ON*\n"
+                f"Group: `{tf_list}` | {side}\n"
+                f"SL {sg['count']}x/{threshold}x - lock TF in group\n"
+                f"Wait Swing {'Low' if side == 'BUY' else 'High'} each TF\n"
+                f"Trigger: {tf}"
             ))
 
         sg_side[gkey] = sg
@@ -712,11 +716,17 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
         sg.setdefault("tf_retry_signals", {})[tf]   = retry_sigs
         sg.setdefault("tf_blocked_signals", {})[tf] = []
         did_unblock = True
-        print(
-            f"🛡️ Group Guard TF unblocked: [{tf}] {side} group=[{gkey}] — "
-            f"swing {'L' if side=='BUY' else 'H'} @ bar {swing_bar_time} "
-            f"(retry {len(retry_sigs)}/{len(blocked_sigs)})"
-        )
+        log_event("SL_GUARD_GROUP_UNBLOCK",
+                  f"{side} [{tf}] group=[{gkey}] swing unblocked retry={len(retry_sigs)}/{len(blocked_sigs)}",
+                  side=side, tf=tf, group=gkey)
+        try:
+            print(
+                f"[SL_GUARD] Group Guard TF unblocked: [{tf}] {side} group=[{gkey}] "
+                f"swing {'L' if side=='BUY' else 'H'} @ bar {swing_bar_time} "
+                f"(retry {len(retry_sigs)}/{len(blocked_sigs)})"
+            )
+        except Exception:
+            pass
 
         group_tfs = gkey.split("+")
         all_clear = all(not sg["tf_blocked"].get(t) for t in group_tfs)
@@ -727,7 +737,13 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
                 "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
                 "tf_blocked_signals": {}, "tf_retry_signals": preserved,
             }
-            print(f"🛡️ Group Guard group [{gkey}] {side} fully unblocked — reset")
+            log_event("SL_GUARD_GROUP_RESET",
+                      f"{side} group=[{gkey}] fully unblocked",
+                      side=side, group=gkey)
+            try:
+                print(f"[SL_GUARD] Group Guard group [{gkey}] {side} fully unblocked - reset")
+            except Exception:
+                pass
 
     return did_unblock
 
