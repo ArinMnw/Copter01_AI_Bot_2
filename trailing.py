@@ -2935,8 +2935,8 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14):
-            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI) — skip RSI Recheck
+        if sid in (1, 9, 11, 14, 15):
+            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e = "🟢" if pos_type == "BUY" else "🔴"
@@ -3138,8 +3138,8 @@ async def check_fill_trend_recheck(app):
     for pos in positions:
         ticket = pos.ticket
         sid = position_sid.get(ticket)
-        # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order)
-        if sid in (9, 10, 14):
+        # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order), S15 (VP absorption reversal — counter-trend by design)
+        if sid in (9, 10, 14, 15):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -3388,8 +3388,8 @@ async def check_fill_pd_zone(app):
         if ticket in _pd_zone_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (9,):
-            continue  # S9 (RSI Div) — skip
+        if sid in (9, 15):
+            continue  # S9 (RSI Div), S15 (VP — ใช้ value-area เป็น zone เอง ต่าง reference กับ swing-EQ) — skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
@@ -3672,8 +3672,8 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13):
-            continue
+        if sid in (10, 12, 13, 15):
+            continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
         if _trade_debug_enabled():
@@ -4742,8 +4742,8 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13):
-            continue
+        if sid in (10, 12, 13, 15):
+            continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
         order_tf = position_tf.get(ticket, "M1")
@@ -4981,8 +4981,9 @@ async def check_opposite_order_tp(app):
             _sl_protect_applied.discard(t)
 
     now      = now_bkk().strftime("%H:%M:%S")
-    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13)]
-    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13)]
+    # S15 (VP) ถือ BUY (VAL) + SELL (VAH) พร้อมกันได้ (range play) → ห้ามให้ Opposite Order ปิดฝั่งตรงข้ามทิ้ง
+    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13, 15)]
+    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13, 15)]
 
     def _get_order_tf(ticket):
         info = pending_order_tf.get(ticket)
@@ -4999,8 +5000,8 @@ async def check_opposite_order_tp(app):
     opp_mode = config.OPPOSITE_ORDER_MODE  # "tp_close" | "sl_protect"
 
     if pending and opp_mode == "tp_close":
-        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13)]
-        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13)]
+        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15)]
+        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15)]
 
         # BUY position in profit + SELL limit on same TF -> BUY TP = SELL limit entry
         for pos in buy_pos:
@@ -6593,7 +6594,8 @@ async def check_cancel_pending_orders(app):
                     )
 
         # Limit Guard: cancel limits whose entry is too far from an existing open position
-        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13):
+        # S15 (VP) วาง limit ที่ POC/VAL/VAH ซึ่งอาจไกลจาก position โดยตั้งใจ (รอราคาย้อนมา) → skip
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"
@@ -6933,8 +6935,8 @@ async def check_cancel_pending_orders(app):
                                       f" setup ล้มเหลว")
 
         # Premium/Discount zone recheck
-        # Skip: S9 (RSI Divergence)
-        if not should_cancel and isinstance(info, dict) and _order_sid not in (9,):
+        # Skip: S9 (RSI Divergence), S15 (VP — ใช้ value-area zone เอง ต่าง reference กับ swing-EQ)
+        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 15):
             _is_combined = _triple_check_all_enabled()
             pd_status, pd_msgs = _pd_zone_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:

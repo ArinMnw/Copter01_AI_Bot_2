@@ -3131,8 +3131,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     f"⏳ [{now}] {tf_label(tf_name)} ท่า3: ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน {s3_lookback_bars} แท่งย้อนหลัง"
                 )
                 continue
-        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo และ S14 Sweep RSI bypass trend filter
-        if sid not in (9, 10, 13, 14) and config.TREND_FILTER_SCAN_BLOCK:
+        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption — reversal/standalone → bypass trend filter
+        if sid not in (9, 10, 13, 14, 15) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(
@@ -3149,7 +3149,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         # กัน counter-strong-trend สำหรับท่า bypass (S9/S10/S11/S13/S14)
         # อยู่ก่อน S13 flip (~3470) และ S14 flip (~3480) → continue กันทั้ง flip+order
         if (getattr(config, "STRONG_TREND_BLOCK_ENABLED", False)
-                and sid in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14))):
+                and sid in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14, 15))):
             _stb, _stb_why = _strong_trend_blocks_signal(tf_name, signal)
             if _stb:
                 _print_skip_once(

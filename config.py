@@ -749,7 +749,7 @@ TREND_FILTER_MODE = "breakout"
 # แพ้บ่อย (46% win, net -314) → ถ้าเปิด flag นี้จะบล็อก signal ที่สวน strong trend
 # เฉพาะท่าใน STRONG_TREND_BLOCK_SIDS (default OFF — ไม่กระทบ behavior เดิม)
 STRONG_TREND_BLOCK_ENABLED = False
-STRONG_TREND_BLOCK_SIDS = [9, 10, 11, 13, 14]
+STRONG_TREND_BLOCK_SIDS = [9, 10, 11, 13, 14, 15]
 
 # ── Strategy 10: CRT TBS — runtime mode (constants ที่ helper ใช้ภายหลังอยู่ด้านล่าง) ──
 # Bar mode: "2bar" (classic CRT — sweep+close ในแท่งเดียว) หรือ "3bar" (TBS — sweep+confirm แยก)
