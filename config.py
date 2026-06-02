@@ -347,6 +347,17 @@ class _TgWrapper:
                         _retried = True
                     except Exception:
                         pass
+                # ── auto-fix: Timed out → wait 3s แล้ว retry 1 ครั้ง (plain ถ้า Markdown ยัง fail) ──
+                elif "timed out" in err_str.lower():
+                    try:
+                        await asyncio.sleep(3)
+                        try:
+                            await self._send(chat_id=chat_id, text=final_text, parse_mode=parse_mode, **kwargs)
+                        except Exception:
+                            await self._send(chat_id=chat_id, text=final_text, parse_mode=None, **kwargs)
+                        _retried = True
+                    except Exception:
+                        pass
                 if not _retried:
                     print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE drop p={priority} seq={seq} error={e} text={self._preview(text)}")
                     try:
