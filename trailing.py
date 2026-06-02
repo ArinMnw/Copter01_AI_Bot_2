@@ -1570,6 +1570,30 @@ def _close_position(pos, pos_type, comment):
         "type_time":     mt5.ORDER_TIME_GTC,
         "type_filling":  _get_filling_mode(),
     })
+    # ── inner retry ตอน r=None: MT5 ไม่ตอบเลย (connection ชั่วคราว / position ยังไม่ settle) ──
+    # รอ 200ms แล้วลองใหม่ 1 ครั้งด้วย tick ใหม่ (เลียนแบบสิ่งที่ PD Zone ทำในรอบสแกนเดียวกัน)
+    if r is None:
+        import time as _t
+        _t.sleep(0.2)
+        _tick2 = mt5.symbol_info_tick(SYMBOL)
+        if _tick2:
+            _cp2 = float(getattr(_tick2, "bid", 0.0)) if pos_type == "BUY" else float(getattr(_tick2, "ask", 0.0))
+            r = mt5.order_send({
+                "action":       mt5.TRADE_ACTION_DEAL,
+                "symbol":       SYMBOL,
+                "volume":       pos.volume,
+                "type":         mt5.ORDER_TYPE_SELL if pos_type == "BUY" else mt5.ORDER_TYPE_BUY,
+                "position":     pos.ticket,
+                "price":        _cp2,
+                "deviation":    50,          # เพิ่ม deviation ให้กว้างขึ้นสำหรับ retry
+                "magic":        0,
+                "comment":      comment,
+                "type_time":    mt5.ORDER_TIME_GTC,
+                "type_filling": _get_filling_mode(),
+            })
+            if r is not None and r.retcode == mt5.TRADE_RETCODE_DONE:
+                close_price = _cp2  # อัพเดตราคา close จริงจาก retry
+
     success = r is not None and r.retcode == mt5.TRADE_RETCODE_DONE
     if success:
         print(f"[{now_bkk().strftime('%H:%M:%S')}] CLOSE_DEBUG ok {pos_type} ticket={pos.ticket} close={close_price:.2f} bid={bid:.2f} ask={ask:.2f} spread={spread:.2f} entry={float(pos.price_open):.2f} reason=[{comment}]")
@@ -3109,8 +3133,12 @@ async def check_fill_trend_recheck(app):
             _pc_rnd   = tr_state.get("pending_close_round", 1)
             _pc_total = tr_state.get("rounds_total", ltr_rounds)
             _pc_why   = tr_state.get("pending_close_why", "?")
+            # Fetch fresh position ก่อน close — กัน stale pos.volume หลัง TSO partial close
+            # (เดิมใช้ pos จาก positions_get ต้นฟังก์ชัน ซึ่งอาจ stale กว่า PD Zone ที่ fetch ใหม่)
+            _fresh_pts = mt5.positions_get(ticket=ticket)
+            _close_pos = _fresh_pts[0] if _fresh_pts else pos
             ok, cp = _close_position(
-                pos, pos_type,
+                _close_pos, pos_type,
                 f"Fill Trend Recheck [round{_pc_rnd}/{_pc_total}] retry: trend={_pc_why}"
             )
             log_event("TREND_RECHECK", f"fill_close_round{_pc_rnd}_retry",
