@@ -30,6 +30,22 @@ from mt5_utils import calc_atr
 # Volume Profile Calculation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _bar_volume(bar):
+    """ดึง volume ของ 1 แท่งแบบปลอดภัย
+    rates เป็น numpy structured array → ใช้ index access (bar["..."]) เท่านั้น
+    ห้ามใช้ bar.get() เพราะ numpy.void ไม่มี .get() (AGENTS.md numpy rates check)
+    fallback: tick_volume → real_volume → 1.0
+    """
+    for field in ("tick_volume", "real_volume"):
+        try:
+            v = float(bar[field])
+        except (KeyError, ValueError, IndexError, TypeError):
+            continue
+        if v > 0:
+            return v
+    return 1.0
+
+
 def _calc_vp(rates, lookback):
     """
     คำนวณ POC, VAH, VAL จาก tick_volume ของ lookback bars ล่าสุด
@@ -55,7 +71,7 @@ def _calc_vp(rates, lookback):
     for bar in window:
         mid = (float(bar["high"]) + float(bar["low"])) / 2.0
         bucket = round(round(mid / bucket_size) * bucket_size, 5)
-        vol = float(bar.get("tick_volume", 1) or 1)
+        vol = _bar_volume(bar)
         price_vol[bucket] = price_vol.get(bucket, 0.0) + vol
         total_vol += vol
 
@@ -246,19 +262,21 @@ def strategy_15(rates, tf: str = ""):
     sl_buf    = SL_BUFFER(atr)
     tolerance = atr * zone_atr_mult
 
-    cur      = rates[-1]
-    cur_low  = float(cur["low"])
-    cur_high = float(cur["high"])
-    results  = []
+    cur       = rates[-1]
+    cur_low   = float(cur["low"])
+    cur_high  = float(cur["high"])
+    cur_close = float(cur["close"])
+    results   = []
 
     vp_info = f"POC={poc:.2f} | VAL={val:.2f} | VAH={vah:.2f} | ATR={atr:.2f}"
 
     # ── BUY at POC ──────────────────────────────────────────────────
+    # BUY LIMIT: entry ต้องต่ำกว่า close (รอราคาย้อนลงมาแตะ level) มิฉะนั้น open_order จะ skip
     if _absorption_buy(rates, poc, tolerance):
         entry = round(poc, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, vah)
-        if tp and tp > entry > sl:
+        if tp and tp > entry > sl and entry < cur_close:
             results.append({
                 "signal":      "BUY",
                 "entry":       entry,
@@ -276,7 +294,7 @@ def strategy_15(rates, tf: str = ""):
         entry = round(val, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, poc)
-        if tp and tp > entry > sl:
+        if tp and tp > entry > sl and entry < cur_close:
             results.append({
                 "signal":      "BUY",
                 "entry":       entry,
@@ -290,11 +308,12 @@ def strategy_15(rates, tf: str = ""):
             })
 
     # ── SELL at POC ─────────────────────────────────────────────────
+    # SELL LIMIT: entry ต้องสูงกว่า close (รอราคาย้อนขึ้นมาแตะ level) มิฉะนั้น open_order จะ skip
     if _absorption_sell(rates, poc, tolerance):
         entry = round(poc, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, val)
-        if tp and tp < entry < sl:
+        if tp and tp < entry < sl and entry > cur_close:
             results.append({
                 "signal":      "SELL",
                 "entry":       entry,
@@ -312,7 +331,7 @@ def strategy_15(rates, tf: str = ""):
         entry = round(vah, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, poc)
-        if tp and tp < entry < sl:
+        if tp and tp < entry < sl and entry > cur_close:
             results.append({
                 "signal":      "SELL",
                 "entry":       entry,
