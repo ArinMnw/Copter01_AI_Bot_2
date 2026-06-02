@@ -551,6 +551,71 @@ async def handle_callback(update, ctx):
             pass
         await _qanswer(query, f"✅ ท่า 14 Flip: {status}")
 
+    elif data == "toggle_s15_val_vah":
+        config.S15_USE_VAL_VAH = not getattr(config, "S15_USE_VAL_VAH", True)
+        save_runtime_state()
+        status = "ON" if config.S15_USE_VAL_VAH else "OFF"
+        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        summary = " + ".join(active_list) if active_list else "ไม่มี"
+        try:
+            await query.edit_message_text(
+                f"📋 *เลือก Strategy*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
+                f"กดเพื่อเปิด/ปิด:",
+                parse_mode="Markdown",
+                reply_markup=build_strategy_keyboard()
+            )
+        except Exception:
+            pass
+        await _qanswer(query, f"✅ ท่า 15 VAL/VAH: {status}")
+
+    elif data.startswith("set_s15_lookback_"):
+        lb_map = {"50": 50, "100": 100, "200": 200}
+        lb_str = data.replace("set_s15_lookback_", "")
+        if lb_str not in lb_map:
+            await _qanswer(query, "ค่า Lookback ไม่ถูกต้อง")
+            return
+        config.S15_LOOKBACK = lb_map[lb_str]
+        save_runtime_state()
+        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        summary = " + ".join(active_list) if active_list else "ไม่มี"
+        try:
+            await query.edit_message_text(
+                f"📋 *เลือก Strategy*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
+                f"กดเพื่อเปิด/ปิด:",
+                parse_mode="Markdown",
+                reply_markup=build_strategy_keyboard()
+            )
+        except Exception:
+            pass
+        await _qanswer(query, f"✅ ท่า 15 Lookback: {config.S15_LOOKBACK} bars")
+
+    elif data.startswith("set_s15_min_rr_"):
+        rr_map = {"10": 1.0, "15": 1.5, "20": 2.0}
+        rr_str = data.replace("set_s15_min_rr_", "")
+        if rr_str not in rr_map:
+            await _qanswer(query, "ค่า R:R ไม่ถูกต้อง")
+            return
+        config.S15_MIN_RR = rr_map[rr_str]
+        save_runtime_state()
+        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        summary = " + ".join(active_list) if active_list else "ไม่มี"
+        try:
+            await query.edit_message_text(
+                f"📋 *เลือก Strategy*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
+                f"กดเพื่อเปิด/ปิด:",
+                parse_mode="Markdown",
+                reply_markup=build_strategy_keyboard()
+            )
+        except Exception:
+            pass
+        await _qanswer(query, f"✅ ท่า 15 Min R:R: {config.S15_MIN_RR}")
+
     elif data.startswith("set_trail_engulf_mode_"):
         mode = data.replace("set_trail_engulf_mode_", "")
         if mode not in ("combined", "separate"):

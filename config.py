@@ -447,6 +447,7 @@ active_strategies = {
     12: False, # ท่าที่ 12: Range Trading (M5 only, standalone)
     13: False, # Strategy 13: EzAlgo V5 Supertrend
     14: True,  # ท่าที่ 14: Sweep RSI
+    15: False, # ท่าที่ 15: Volume Profile POC + Absorption (Win Rate 85-90%)
 }
 
 STRATEGY_NAMES = {
@@ -464,6 +465,7 @@ STRATEGY_NAMES = {
     12: "ท่าที่ 12: Range Trading",
     13: "Strategy 13: EzAlgo V5",
     14: "ท่าที่ 14: Sweep RSI",
+    15: "ท่าที่ 15: VP POC",
 }
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
@@ -520,6 +522,17 @@ S14_RSI_MIN_DIFF      = 1.0   # RSI divergence ต้องห่างกัน
 #                   BUY : ll_val = max(reversal_ll, hhll.hl.price)
 #                   SELL: hh_val = min(reversal_hh, hhll.hh.price)
 S14_LL_USE_HHLL       = False
+
+# ── Strategy 15: Volume Profile POC + Absorption ──────────────────
+# Win rate อ้างอิง: 85-90% (POC defense + absorption institutional pattern)
+# BUY : absorption ที่ POC หรือ VAL → Entry LIMIT | bypass trend filter ไม่ได้
+# SELL: absorption ที่ POC หรือ VAH → Entry LIMIT
+S15_LOOKBACK            = 100   # bars ย้อนหลังสำหรับคำนวณ Volume Profile
+S15_ZONE_ATR_MULT       = 0.5   # tolerance zone = ATR × นี้ (auto-scale XAU/BTC)
+S15_VAL_VAH_PCT         = 0.70  # % ของ volume ใน Value Area (standard 70%)
+S15_ABSORPTION_WICK_PCT = 0.30  # wick ขั้นต่ำ (% ของ range) สำหรับ Pattern A
+S15_USE_VAL_VAH         = True  # เปิดใช้ VAL/VAH เพิ่มจาก POC
+S15_MIN_RR              = 1.0   # R:R ขั้นต่ำ
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
@@ -737,7 +750,7 @@ TREND_FILTER_MODE = "breakout"
 # แพ้บ่อย (46% win, net -314) → ถ้าเปิด flag นี้จะบล็อก signal ที่สวน strong trend
 # เฉพาะท่าใน STRONG_TREND_BLOCK_SIDS (default OFF — ไม่กระทบ behavior เดิม)
 STRONG_TREND_BLOCK_ENABLED = False
-STRONG_TREND_BLOCK_SIDS = [9, 10, 11, 13, 14]
+STRONG_TREND_BLOCK_SIDS = [9, 10, 11, 13, 14, 15]
 
 # ── Strategy 10: CRT TBS — runtime mode (constants ที่ helper ใช้ภายหลังอยู่ด้านล่าง) ──
 # Bar mode: "2bar" (classic CRT — sweep+close ในแท่งเดียว) หรือ "3bar" (TBS — sweep+confirm แยก)
@@ -968,6 +981,10 @@ _RUNTIME_DEFAULTS = {
     "S14_SWEEP":         S14_SWEEP,
     "S14_LL_USE_HHLL":   S14_LL_USE_HHLL,
     "S14_FLIP_ENABLED":  S14_FLIP_ENABLED,
+    # S15 config (runtime-resettable)
+    "S15_USE_VAL_VAH":   S15_USE_VAL_VAH,
+    "S15_LOOKBACK":      S15_LOOKBACK,
+    "S15_MIN_RR":        S15_MIN_RR,
 }
 
 fvg_pending       = {}   # {key: {tf, signal, entry, sl, tp, gap_top, gap_bot, candle_key}}
@@ -1180,6 +1197,10 @@ def save_runtime_state():
             "entry_candle_frozen_side": _focus_frozen_side.get("entry_candle"),
             "scale_out_enabled": SCALE_OUT_ENABLED,
             "scale_out_state": {str(k): v for k, v in scale_out_state.items()},
+            # S15 Volume Profile POC
+            "s15_use_val_vah":  S15_USE_VAL_VAH,
+            "s15_lookback":     S15_LOOKBACK,
+            "s15_min_rr":       S15_MIN_RR,
         }
 
         tmp_path = STATE_FILE + ".tmp"
@@ -1450,6 +1471,15 @@ def restore_runtime_state():
         saved_sgg_cnt = state.get("sl_guard_group_count")
         if saved_sgg_cnt is not None:
             SL_GUARD_GROUP_COUNT = max(1, int(saved_sgg_cnt))
+
+        global S15_USE_VAL_VAH, S15_LOOKBACK, S15_MIN_RR
+        S15_USE_VAL_VAH = bool(state.get("s15_use_val_vah", S15_USE_VAL_VAH))
+        saved_s15_lb = state.get("s15_lookback")
+        if saved_s15_lb is not None:
+            S15_LOOKBACK = max(30, int(saved_s15_lb))
+        saved_s15_rr = state.get("s15_min_rr")
+        if saved_s15_rr is not None:
+            S15_MIN_RR = max(0.5, float(saved_s15_rr))
 
         pending_order_tf.clear()
         pending_order_tf.update({
