@@ -755,6 +755,13 @@ SELL (LIMIT ที่ POC หรือ VAH):
   - **คงไว้**: SL Guard
 - รองรับ Strong-Trend Block (อยู่ใน `STRONG_TREND_BLOCK_SIDS`, เปิดได้ถ้าต้องการกันไม้สวน strong trend)
 - รองรับ MULTI (POC + VAL/VAH พร้อมกัน)
+- **แยกตาม TF**: VP/POC/VAL/VAH คำนวณต่อ TF, order/pending/dedup แยกตาม TF
+
+### Triple Scale-Out (TSO)
+
+- **ใช้ TSO ได้ (ไม่ skip)** — S15 ผ่าน `open_order()` → `_scale_out_resolve_volume()` ซึ่ง skip แค่ `sid=13`
+- เมื่อ `SCALE_OUT_ENABLED=True` → scale lot ×4 + ทยอยปิด 4 ขั้นผ่าน `check_scale_out_partial`
+- MULTI (POC+VAL): แต่ละไม้ได้ ×4 อิสระ (volume cap เป็น per-order = `base×4` → ผ่านทุกไม้)
 
 ### Comment format
 

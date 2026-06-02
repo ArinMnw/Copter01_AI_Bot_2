@@ -582,6 +582,8 @@ mode ที่รองรับ:
 - Absorption 2 pattern: long wick sweep (≥ `S15_ABSORPTION_WICK_PCT` × range) + 2-bar reversal
 - Entry **LIMIT** ที่ POC/VAL (BUY) หรือ POC/VAH (SELL) — guard `entry < close` (BUY) / `entry > close` (SELL) กัน `open_order` skip
 - รองรับ **MULTI** (POC + VAL/VAH พร้อมกัน) — เป็น range play ถือ BUY+SELL พร้อมกันได้
+- **แยกตาม TF เต็มตัว**: คำนวณ VP จาก rates ของ TF นั้น, order/pending/dedup แยกตาม TF (`M1_S15`/`M5_S15`/...)
+- **TSO ใช้ได้ (ไม่ skip)**: ผ่าน `open_order()` → `_scale_out_resolve_volume()` (skip แค่ `sid=13`) → scale ×4 อัตโนมัติเมื่อ `SCALE_OUT_ENABLED`, watcher `check_scale_out_partial` ทยอยปิดได้ (volume cap เป็น per-order = `base×4` → MULTI หลายไม้ผ่านหมด)
 - **Standalone — bypass/skip filter ของระบบหลักทั้งหมด** (เหมือน S10/S12/S13/S14):
   - bypass Trend Filter (scan): `sid not in (9, 10, 13, 14, 15)` ใน `scanner.py`
   - skip Fill Trend Recheck: `sid in (9, 10, 14, 15)`
