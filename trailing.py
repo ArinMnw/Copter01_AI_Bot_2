@@ -3539,6 +3539,46 @@ async def check_fill_pd_zone(app):
                 ))
             _pd_zone_fill_checked.add(ticket)  # done (fail path)
         else:
+            # Round 1 PASS → ตรวจ S14 strong counter-trend ก่อน round 2
+            # S14 Sweep RSI bypass fill_trend_recheck โดย design แต่ถ้า trend strong
+            # ขัดทิศ (bull_strong สำหรับ SELL / bear_strong สำหรับ BUY) → ปิดทันที
+            # แทนรอ round2 (ซึ่งอาจล่าช้า 1+ นาทีกว่า swing จะเปลี่ยน)
+            if sid == 14:
+                _stored_tf = position_trend_filter.get(ticket, "")
+                _s14_strong_counter = (
+                    (pos_type == "SELL" and "bull" in _stored_tf.lower() and "strong" in _stored_tf.lower()) or
+                    (pos_type == "BUY"  and "bear" in _stored_tf.lower() and "strong" in _stored_tf.lower())
+                )
+                if _s14_strong_counter:
+                    log_event("PD_ZONE_CHECK", "fill_round1_s14_strong_counter",
+                              ticket=ticket, signal=pos_type, tf=_pz_tf,
+                              trend_filter=_stored_tf, eq=_pz_eq)
+                    ok, cp = _close_position(pos, pos_type, "S14 strong-counter fill")
+                    if ok:
+                        _entry_state[ticket] = "done"
+                        fvg_order_tickets.pop(ticket, None)
+                        save_runtime_state()
+                        log_event("PD_ZONE_CHECK", "fill_close_s14_strong_counter",
+                                  ticket=ticket, signal=pos_type, tf=_pz_tf,
+                                  trend_filter=_stored_tf, close_price=cp)
+                        await tg(app, (
+                            f"⚡ *S14: ปิดทันที — trend strong ขัดทิศ*\n"
+                            f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                            f"Trend: `{_stored_tf}` | Entry: `{pos.price_open}` | ปิดที่: `{cp:.2f}`"
+                        ))
+                    else:
+                        # close ล้มเหลว → fallback รอ round2 ตามปกติ
+                        log_event("PD_ZONE_CHECK", "fill_s14_strong_counter_close_fail",
+                                  ticket=ticket, signal=pos_type, tf=_pz_tf)
+                        _pd_zone_fill_state[ticket] = {
+                            "tf": _pz_tf, "signal": pos_type,
+                            "fill_h": _pz_h, "fill_l": _pz_l,
+                            "gap_bot": _pz_gap_bot, "gap_top": _pz_gap_top,
+                            "pending_close": True,   # retry ทันที
+                        }
+                    _pd_zone_fill_checked.add(ticket)
+                    continue
+
             # Round 1 PASS → บันทึก H/L รอ round 2
             _pd_zone_fill_state[ticket] = {
                 "tf":        _pz_tf,
