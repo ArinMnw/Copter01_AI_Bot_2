@@ -20,6 +20,7 @@ from strategy10 import strategy_10
 from strategy11 import strategy_11, record_s1_pattern as s11_record_s1_pattern
 from strategy13 import strategy_13
 from strategy14 import strategy_14
+from strategy15 import strategy_15
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -2568,6 +2569,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     elif r14.get("signal") == "MULTI":
         for _s14_ord in r14.get("orders", []):
             _log_divergence_once(tf_name, 14, _s14_ord.get("signal", "BUY"), last_candle_time, _s14_ord)
+    r15 = strategy_15(rates, tf=tf_name) if active_strategies.get(15, False) else {"signal": "WAIT", "reason": "S15 ปิด"}
+    if r15.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 15, r15["signal"], last_candle_time, r15)
+    elif r15.get("signal") == "MULTI":
+        for _s15_ord in r15.get("orders", []):
+            _log_divergence_once(tf_name, 15, _s15_ord.get("signal", "BUY"), last_candle_time, _s15_ord)
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -2961,12 +2968,20 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         elif s14_sig == "MULTI":
             for s14_order in r14.get("orders", []):
                 signal_results.append((14, s14_order))
+    # ── S15 VP POC Absorption — LIMIT order รองรับ MULTI ───────────
+    if active_strategies.get(15, False):
+        s15_sig = r15.get("signal", "WAIT")
+        if s15_sig in ("BUY", "SELL"):
+            signal_results.append((15, r15))
+        elif s15_sig == "MULTI":
+            for s15_order in r15.get("orders", []):
+                signal_results.append((15, s15_order))
     # ── สรุปผลทุกท่าใน TF เดียวกัน เพื่อให้ Scan Summary เห็นครบทุก strategy ──
     parts = []
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
