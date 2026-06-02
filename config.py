@@ -510,7 +510,7 @@ S14_RSI_PERIOD        = 14     # RSI period
 S14_RSI_APPLIED_PRICE = "close"
 S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับตัว + LL/HH zone
 # เปิด/ปิด sub-pattern (ใช้ร่วมกันทั้ง BUY และ SELL)
-S14_ENGULF            = True   # Engulf pattern (close เกิน LL/HH)
+S14_ENGULF            = False  # Engulf pattern (close เกิน LL/HH)
 S14_SWEEP             = True   # Sweep pattern  (ไส้เกิน LL/HH แต่ปิดกลับมา)
 S14_FLIP_ENABLED      = True   # Flip: ปิดฝั่งตรงข้ามทันทีเมื่อ signal ใหม่มา (per-TF)
 # LL/HH ref เพิ่มเติมจาก HHLL module
