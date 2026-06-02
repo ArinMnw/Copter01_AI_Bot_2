@@ -1570,29 +1570,49 @@ def _close_position(pos, pos_type, comment):
         "type_time":     mt5.ORDER_TIME_GTC,
         "type_filling":  _get_filling_mode(),
     })
-    # ── inner retry ตอน r=None: MT5 ไม่ตอบเลย (connection ชั่วคราว / position ยังไม่ settle) ──
-    # รอ 200ms แล้วลองใหม่ 1 ครั้งด้วย tick ใหม่ (เลียนแบบสิ่งที่ PD Zone ทำในรอบสแกนเดียวกัน)
+    # ── inner retry ตอน r=None: MT5 ไม่ตอบเลย ──────────────────────────────────
+    # สาเหตุที่พบ: connection ขาดชั่วคราวช่วง volatility สูง (เช่น 08:12 BKK)
+    # mt5.symbol_info_tick() ทำงานจาก cache → OK แต่ order_send ต้องส่ง server จริง → None
+    # Strategy:
+    #   1) reinitialize MT5 connection (กัน disconnect)
+    #   2) ลอง 3 filling modes: RETURN → IOC → FOK (option C)
+    #      เพราะ broker อาจปฏิเสธ mode ใด mode หนึ่งในช่วง volatility
     if r is None:
         import time as _t
-        _t.sleep(0.2)
+        _t.sleep(0.3)
+        # ── reinit connection ──
+        try:
+            mt5.initialize()
+        except Exception:
+            pass
         _tick2 = mt5.symbol_info_tick(SYMBOL)
         if _tick2:
             _cp2 = float(getattr(_tick2, "bid", 0.0)) if pos_type == "BUY" else float(getattr(_tick2, "ask", 0.0))
-            r = mt5.order_send({
-                "action":       mt5.TRADE_ACTION_DEAL,
-                "symbol":       SYMBOL,
-                "volume":       pos.volume,
-                "type":         mt5.ORDER_TYPE_SELL if pos_type == "BUY" else mt5.ORDER_TYPE_BUY,
-                "position":     pos.ticket,
-                "price":        _cp2,
-                "deviation":    50,          # เพิ่ม deviation ให้กว้างขึ้นสำหรับ retry
-                "magic":        0,
-                "comment":      comment,
-                "type_time":    mt5.ORDER_TIME_GTC,
-                "type_filling": _get_filling_mode(),
-            })
+            _base_req = {
+                "action":    mt5.TRADE_ACTION_DEAL,
+                "symbol":    SYMBOL,
+                "volume":    pos.volume,
+                "type":      mt5.ORDER_TYPE_SELL if pos_type == "BUY" else mt5.ORDER_TYPE_BUY,
+                "position":  pos.ticket,
+                "price":     _cp2,
+                "deviation": 50,
+                "magic":     0,
+                "comment":   comment,
+                "type_time": mt5.ORDER_TIME_GTC,
+            }
+            # ลอง filling modes ตาม priority: RETURN → IOC → FOK
+            _fill_modes = [
+                mt5.ORDER_FILLING_RETURN,
+                mt5.ORDER_FILLING_IOC,
+                mt5.ORDER_FILLING_FOK,
+            ]
+            for _fm in _fill_modes:
+                r = mt5.order_send({**_base_req, "type_filling": _fm})
+                if r is not None:
+                    break   # ได้ result แล้ว (สำเร็จหรือ error code) → ออก loop
+                _t.sleep(0.1)   # brief pause ระหว่าง mode
             if r is not None and r.retcode == mt5.TRADE_RETCODE_DONE:
-                close_price = _cp2  # อัพเดตราคา close จริงจาก retry
+                close_price = _cp2
 
     success = r is not None and r.retcode == mt5.TRADE_RETCODE_DONE
     if success:
