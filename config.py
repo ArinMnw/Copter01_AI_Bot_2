@@ -447,7 +447,7 @@ active_strategies = {
     12: False, # ท่าที่ 12: Range Trading (M5 only, standalone)
     13: False, # Strategy 13: EzAlgo V5 Supertrend
     14: True,  # ท่าที่ 14: Sweep RSI
-    15: False, # ท่าที่ 15: Volume Profile POC + Absorption (Win Rate 85-90%)
+    15: True,  # ท่าที่ 15: Volume Profile POC + Absorption (Win Rate 85-90%)
 }
 
 STRATEGY_NAMES = {
