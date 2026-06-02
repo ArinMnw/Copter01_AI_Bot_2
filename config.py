@@ -324,30 +324,43 @@ class _TgWrapper:
             except TelegramError as e:
                 err_str = str(e)
                 _retried = False
+                _retry_err = None   # เก็บ error จาก retry path (ถ้า retry ก็ยัง fail)
+
+                def _log_sent_retry(retry_text):
+                    """log TG_SENT สำหรับ retry path ด้วย (เดิมไม่ log → ไม่รู้ว่าส่งสำเร็จ)"""
+                    if "Scan Summary" not in (text or ""):
+                        try:
+                            from bot_log import log_event as _le
+                            _le("TG_SENT", "[retry-plain] " + (retry_text or "").replace("\n", " | ")[:280])
+                        except Exception:
+                            pass
+
                 # ── auto-fix: ข้อความยาวเกิน → truncate + retry ──
-                # Telegram คืนได้ทั้ง "Message is too long" และ "Text is too long"
                 if "too long" in err_str.lower():
                     try:
                         _cut = final_text.rfind('\n', 0, 4050)
                         if _cut < 2000:
                             _cut = 4050
                         _short = final_text[:_cut] + "\n…_(ข้อความถูกตัด)_"
-                        # ถ้า truncate ด้วย Markdown ยัง fail (parse) → ส่ง plain
                         try:
                             await self._send(chat_id=chat_id, text=_short, parse_mode=parse_mode, **kwargs)
                         except Exception:
                             await self._send(chat_id=chat_id, text=_short, parse_mode=None, **kwargs)
                         _retried = True
-                    except Exception:
-                        pass
+                        _log_sent_retry(_short)
+                    except Exception as _re:
+                        _retry_err = _re
+
                 # ── auto-fix: Markdown parse error → retry ไม่มี formatting ──
                 elif "parse entities" in err_str.lower() or "can't find end" in err_str.lower():
                     try:
                         await self._send(chat_id=chat_id, text=final_text, parse_mode=None, **kwargs)
                         _retried = True
-                    except Exception:
-                        pass
-                # ── auto-fix: Timed out → wait 3s แล้ว retry 1 ครั้ง (plain ถ้า Markdown ยัง fail) ──
+                        _log_sent_retry(final_text)
+                    except Exception as _re:
+                        _retry_err = _re
+
+                # ── auto-fix: Timed out → wait 3s + retry (Markdown → plain) ──
                 elif "timed out" in err_str.lower():
                     try:
                         await asyncio.sleep(3)
@@ -356,13 +369,19 @@ class _TgWrapper:
                         except Exception:
                             await self._send(chat_id=chat_id, text=final_text, parse_mode=None, **kwargs)
                         _retried = True
-                    except Exception:
-                        pass
+                        _log_sent_retry(final_text)
+                    except Exception as _re:
+                        _retry_err = _re
+
                 if not _retried:
-                    print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE drop p={priority} seq={seq} error={e} text={self._preview(text)}")
+                    # ── retry ล้มเหลว → log TG_DROP พร้อม original error + retry error ──
+                    _drop_detail = str(e)
+                    if _retry_err:
+                        _drop_detail += f" | retry_err={_retry_err}"
+                    print(f"[{now_bkk().strftime('%H:%M:%S')}] TG_QUEUE drop p={priority} seq={seq} error={_drop_detail} text={self._preview(text)}")
                     try:
                         from bot_log import log_event as _le, log_error as _lerr
-                        _msg = f"TelegramError: {e} | text={self._preview(text, 120)}"
+                        _msg = f"TelegramError: {_drop_detail} | text={self._preview(text, 120)}"
                         _le("TG_DROP", _msg)
                         _lerr("TG_DROP", _msg)
                     except Exception:
