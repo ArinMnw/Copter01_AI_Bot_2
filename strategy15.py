@@ -23,7 +23,35 @@ Bypass: ไม่ bypass trend filter (ผ่านระบบ filter ปกต
 
 import config
 from config import SL_BUFFER
-from mt5_utils import calc_atr
+from mt5_utils import calc_atr, TF_SECONDS_MAP
+
+# Per-level cooldown state: {(tf, side, level_bucket): last_bar_time}
+# กันยิง LIMIT ซ้ำที่ POC/VAL/VAH เดิม ทุกแท่ง (entry นิ่งแต่ SL เปลี่ยน → dedup เดิมไม่จับ)
+_s15_last_fire: dict = {}
+
+
+def _ema(values, period):
+    """EMA แบบ manual (ไม่พึ่ง numpy/talib)"""
+    if not values or period <= 0:
+        return None
+    k = 2.0 / (period + 1.0)
+    e = values[0]
+    for v in values[1:]:
+        e = v * k + e * (1.0 - k)
+    return e
+
+
+def _level_on_cooldown(tf, side, level, bar_time, cooldown_bars, tf_secs):
+    """True ถ้า level นี้เพิ่งยิงไปภายใน cooldown_bars แท่ง"""
+    key = (tf, side, round(float(level), 1))
+    last = _s15_last_fire.get(key, 0)
+    if bar_time - last < cooldown_bars * tf_secs:
+        return True
+    return False
+
+
+def _mark_fired(tf, side, level, bar_time):
+    _s15_last_fire[(tf, side, round(float(level), 1))] = bar_time
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -266,17 +294,39 @@ def strategy_15(rates, tf: str = ""):
     cur_low   = float(cur["low"])
     cur_high  = float(cur["high"])
     cur_close = float(cur["close"])
+    bar_time  = int(cur["time"])
     results   = []
+
+    # ── Trend filter (กัน mean-reversion สวนเทรนด์) ────────────────────
+    # absorption เป็น mean-reversion → ในเทรนด์แรง ฝั่งสวนเทรนด์ขาดทุนหนัก
+    # (ข้อมูลจริง 02-03/06: BUY สวนเทรนด์ลง = -177, SELL ตามเทรนด์ = +22)
+    # กติกา: BUY เฉพาะตอน close ≥ EMA (ขาขึ้น/นิ่ง), SELL เฉพาะ close ≤ EMA
+    allow_buy = allow_sell = True
+    if bool(getattr(config, "S15_TREND_FILTER", True)):
+        ema_period = int(getattr(config, "S15_TREND_EMA", 50))
+        closes = [float(b["close"]) for b in rates[-(ema_period * 3):]]
+        ema = _ema(closes, ema_period)
+        if ema is not None:
+            band = atr * float(getattr(config, "S15_TREND_NEUTRAL_ATR", 0.1))
+            if cur_close < ema - band:
+                allow_buy = False    # ขาลง → ห้าม BUY สวน
+            elif cur_close > ema + band:
+                allow_sell = False   # ขาขึ้น → ห้าม SELL สวน
+
+    cooldown_bars = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
+    tf_secs = int(TF_SECONDS_MAP.get(tf, 60)) if tf else 60
 
     vp_info = f"POC={poc:.2f} | VAL={val:.2f} | VAH={vah:.2f} | ATR={atr:.2f}"
 
     # ── BUY at POC ──────────────────────────────────────────────────
     # BUY LIMIT: entry ต้องต่ำกว่า close (รอราคาย้อนลงมาแตะ level) มิฉะนั้น open_order จะ skip
-    if _absorption_buy(rates, poc, tolerance):
+    if allow_buy and not _level_on_cooldown(tf, "BUY", poc, bar_time, cooldown_bars, tf_secs) \
+            and _absorption_buy(rates, poc, tolerance):
         entry = round(poc, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, vah)
         if tp and tp > entry > sl and entry < cur_close:
+            _mark_fired(tf, "BUY", poc, bar_time)
             results.append({
                 "signal":      "BUY",
                 "entry":       entry,
@@ -290,11 +340,14 @@ def strategy_15(rates, tf: str = ""):
             })
 
     # ── BUY at VAL ──────────────────────────────────────────────────
-    if use_val_vah and val != poc and _absorption_buy(rates, val, tolerance):
+    if allow_buy and use_val_vah and val != poc \
+            and not _level_on_cooldown(tf, "BUY", val, bar_time, cooldown_bars, tf_secs) \
+            and _absorption_buy(rates, val, tolerance):
         entry = round(val, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, poc)
         if tp and tp > entry > sl and entry < cur_close:
+            _mark_fired(tf, "BUY", val, bar_time)
             results.append({
                 "signal":      "BUY",
                 "entry":       entry,
@@ -309,11 +362,13 @@ def strategy_15(rates, tf: str = ""):
 
     # ── SELL at POC ─────────────────────────────────────────────────
     # SELL LIMIT: entry ต้องสูงกว่า close (รอราคาย้อนขึ้นมาแตะ level) มิฉะนั้น open_order จะ skip
-    if _absorption_sell(rates, poc, tolerance):
+    if allow_sell and not _level_on_cooldown(tf, "SELL", poc, bar_time, cooldown_bars, tf_secs) \
+            and _absorption_sell(rates, poc, tolerance):
         entry = round(poc, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, val)
         if tp and tp < entry < sl and entry > cur_close:
+            _mark_fired(tf, "SELL", poc, bar_time)
             results.append({
                 "signal":      "SELL",
                 "entry":       entry,
@@ -327,11 +382,14 @@ def strategy_15(rates, tf: str = ""):
             })
 
     # ── SELL at VAH ─────────────────────────────────────────────────
-    if use_val_vah and vah != poc and _absorption_sell(rates, vah, tolerance):
+    if allow_sell and use_val_vah and vah != poc \
+            and not _level_on_cooldown(tf, "SELL", vah, bar_time, cooldown_bars, tf_secs) \
+            and _absorption_sell(rates, vah, tolerance):
         entry = round(vah, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, poc)
         if tp and tp < entry < sl and entry > cur_close:
+            _mark_fired(tf, "SELL", vah, bar_time)
             results.append({
                 "signal":      "SELL",
                 "entry":       entry,

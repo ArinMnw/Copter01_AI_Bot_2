@@ -533,6 +533,11 @@ S15_VAL_VAH_PCT         = 0.70  # % ของ volume ใน Value Area (standard
 S15_ABSORPTION_WICK_PCT = 0.30  # wick ขั้นต่ำ (% ของ range) สำหรับ Pattern A
 S15_USE_VAL_VAH         = True  # เปิดใช้ VAL/VAH เพิ่มจาก POC
 S15_MIN_RR              = 1.0   # R:R ขั้นต่ำ
+# ── S15 improvements (02/06: BUY สวนเทรนด์ขาดทุน -177, ยิงซ้ำจุดเดิม) ──
+S15_TREND_FILTER        = True  # BUY เฉพาะ close≥EMA, SELL เฉพาะ close≤EMA (กัน mean-rev สวนเทรนด์)
+S15_TREND_EMA           = 50    # period EMA สำหรับ trend filter
+S15_TREND_NEUTRAL_ATR   = 0.1   # neutral band = ATR × นี้ (ในแบนด์นี้ทั้ง BUY/SELL ได้)
+S15_LEVEL_COOLDOWN_BARS = 15    # ห้ามยิง LIMIT ซ้ำที่ POC/VAL/VAH เดิมภายใน N แท่ง
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
