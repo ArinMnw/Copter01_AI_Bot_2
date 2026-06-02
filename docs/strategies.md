@@ -18,6 +18,7 @@
 - `12`: Range Trading
 - `13`: EzAlgo V5
 - `14`: Sweep RSI
+- `15`: Volume Profile POC + Absorption
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -719,3 +720,60 @@ M1_S14_sweep
 
 - Sub-option ใน `📋 เลือก Strategy` → ท่า 14:
   - `🟢 ท่า14: Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)` — callback: `toggle_s14_flip`
+
+## ท่าที่ 15: Volume Profile POC + Absorption
+
+ไฟล์หลัก: `strategy15.py`
+
+แนวคิด:
+- คำนวณ Volume Profile จาก `tick_volume` (proxy) ย้อนหลัง `S15_LOOKBACK` bars
+- `POC` = ราคาที่มี volume สูงสุด (แม่เหล็กราคา), `VAH`/`VAL` = ขอบ Value Area 70%
+- bucket_size = `ATR/10` → auto-scale ตาม instrument (XAU/BTC)
+- ตรวจ **Absorption** ที่ POC/VAL/VAH 2 แบบ:
+  - long wick sweep: ไส้ยาว ≥ `S15_ABSORPTION_WICK_PCT` × range แต่ปิดกลับเข้าโซน
+  - 2-bar reversal: แท่งก่อนสวนสี → แท่งล่าสุดกลับทิศ
+- standalone reversal — เข้าสวนเทรนด์โดยธรรมชาติ
+
+### Entry / SL / TP
+
+BUY (LIMIT ที่ POC หรือ VAL):
+- `entry` = POC หรือ VAL (ต้อง `< close` กัน open_order skip)
+- `SL` = `low - SL_BUFFER(atr)`
+- `TP` = VAH/POC หรือ swing high | RR ≥ `S15_MIN_RR`
+
+SELL (LIMIT ที่ POC หรือ VAH):
+- `entry` = POC หรือ VAH (ต้อง `> close`)
+- `SL` = `high + SL_BUFFER(atr)`
+- `TP` = VAL/POC หรือ swing low | RR ≥ `S15_MIN_RR`
+
+### Standalone behavior
+
+- **bypass / skip filter ของระบบหลักทั้งหมด** (เหมือน S10/S12/S13/S14):
+  - bypass Trend Filter (scan), skip Fill Trend Recheck, RSI Fill Recheck
+  - skip PD Zone Recheck — VP ใช้ value-area zone เอง (ต่าง reference กับ swing-EQ)
+  - skip Entry Candle, Trail SL, Opposite Order (ถือ BUY+SELL พร้อมกันได้), Limit Guard
+  - **คงไว้**: SL Guard
+- รองรับ Strong-Trend Block (อยู่ใน `STRONG_TREND_BLOCK_SIDS`, เปิดได้ถ้าต้องการกันไม้สวน strong trend)
+- รองรับ MULTI (POC + VAL/VAH พร้อมกัน)
+- **แยกตาม TF**: VP/POC/VAL/VAH คำนวณต่อ TF, order/pending/dedup แยกตาม TF
+
+### Triple Scale-Out (TSO)
+
+- **ใช้ TSO ได้ (ไม่ skip)** — S15 ผ่าน `open_order()` → `_scale_out_resolve_volume()` ซึ่ง skip แค่ `sid=13`
+- เมื่อ `SCALE_OUT_ENABLED=True` → scale lot ×4 + ทยอยปิด 4 ขั้นผ่าน `check_scale_out_partial`
+- MULTI (POC+VAL): แต่ละไม้ได้ ×4 อิสระ (volume cap เป็น per-order = `base×4` → ผ่านทุกไม้)
+
+### Comment format
+
+```text
+M5_S15_POC
+M5_S15_VAL
+M5_S15_VAH
+```
+
+### Telegram toggle
+
+- Sub-option ใน `📋 เลือก Strategy` → ท่า 15:
+  - `🟢 ท่า15: VAL/VAH zones` — callback: `toggle_s15_val_vah`
+  - `ท่า15: Lookback 50/100/200` — callback: `set_s15_lookback_*`
+  - `ท่า15: RR 1:1 / 1.5 / 2:1` — callback: `set_s15_min_rr_*`

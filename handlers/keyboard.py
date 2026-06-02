@@ -884,6 +884,46 @@ def build_strategy_keyboard():
             ),
         ])
 
+    # sub-option ท่า 15: Volume Profile POC Absorption
+    if active_strategies.get(15, False):
+        vv_on = getattr(config, "S15_USE_VAL_VAH", True)
+        lb    = int(getattr(config, "S15_LOOKBACK", 100))
+        rr    = float(getattr(config, "S15_MIN_RR", 1.0))
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if vv_on else '⬜'} ท่า15: VAL/VAH zones",
+                callback_data="toggle_s15_val_vah"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if lb == 50  else '⬜'} ท่า15: Lookback 50",
+                callback_data="set_s15_lookback_50"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if lb == 100 else '⬜'} ท่า15: Lookback 100",
+                callback_data="set_s15_lookback_100"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if lb == 200 else '⬜'} ท่า15: Lookback 200",
+                callback_data="set_s15_lookback_200"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.0 else '⬜'} ท่า15: RR 1:1",
+                callback_data="set_s15_min_rr_10"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.5 else '⬜'} ท่า15: RR 1.5",
+                callback_data="set_s15_min_rr_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 2.0 else '⬜'} ท่า15: RR 2:1",
+                callback_data="set_s15_min_rr_20"
+            ),
+        ])
+
     all_on = all(active_strategies.values())
     ctrl = [
         InlineKeyboardButton(

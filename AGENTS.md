@@ -116,7 +116,7 @@ Keep the answer short and make the fix directly.
 | config, symbol, strategy toggle | `config.py` |
 | scan signal, create order, order message | `scanner.py` |
 | trailing, state machine, post-fill lifecycle | `trailing.py` |
-| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py`, `strategy14.py` |
+| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py`, `strategy14.py`, `strategy15.py` |
 | swing helper | `strategy4.py` |
 | HHLL swing structure, trend from structure | `hhll_swing.py` |
 | คำนวณ entry / TP / SL | `entry_calculator.py` |
@@ -269,7 +269,7 @@ mode ที่รองรับ:
 - **อิสระจาก `ENTRY_CANDLE_ENABLED`** — gate ด้วย `PENDING_RSI_RECHECK_ENABLED` เท่านั้น
 - รันใน `main.py` `run_position_check` **ก่อน** `check_entry_candle_quality` (ถ้า fail จะปิด position ทันที)
 - ครอบคลุม **ทุก sid** (รวม S12, S13 — เปิดตั้งแต่ 2026-05-18)
-- **Skip**: `sid in (1, 9, 11, 14)` — S14 bypass เพราะเป็น market order
+- **Skip**: `sid in (1, 9, 11, 14, 15)` — S14 bypass เพราะเป็น market order, S15 (VP reversal — RSI มัก extreme)
 - **Triple mode**: ถ้าเปิดครบทั้ง 3 (`PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED`) จะไม่ปิด position ทันที แต่ record ผลใน `_triple_check_state[ticket]["rsi"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 ## Limit Trend Recheck
@@ -286,7 +286,7 @@ mode ที่รองรับ:
 - gate: `LIMIT_TREND_RECHECK`
 - เช็ค trend (HHLL structure) หลัง position fill (รอบ 1 ทันที, รอบ 2+ เมื่อ H/L เปลี่ยน)
 - ถ้า trend สวนทาง → ปิด position
-- **Skip**: `sid in (9, 10, 14)` — S14 bypass เพราะ market order + bypass trend filter แล้ว
+- **Skip**: `sid in (9, 10, 14, 15)` — S14 bypass เพราะ market order, S15 (VP absorption reversal — counter-trend by design)
 - **Apply**: S1, S2, S3, S4, S5, S6, S8, S12, S13
 - ใช้ `swing_data_ready(tf)` + `trend_allows_signal(tf, signal)` จาก `scanner.py`
 - SIDEWAY + `TREND_FILTER_SIDEWAY_HHLL=True`: ต้องมี `_hhll_data[tf]["last_label"]` ด้วย ถึงจะ `swing_data_ready = True`
@@ -300,7 +300,7 @@ mode ที่รองรับ:
 
 - ฟังก์ชัน: `check_fill_pd_zone(app)` ใน `trailing.py`
 - gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
-- **Skip:** S9 เท่านั้น (S1, S11 ไม่ skip แล้วตั้งแต่ 2026-05-21)
+- **Skip:** `sid in (9, 15)` — S9 (RSI Div), S15 (VP ใช้ value-area zone เอง ต่าง reference กับ swing-EQ) (S1, S11 ไม่ skip แล้วตั้งแต่ 2026-05-21)
 - state: `_pd_zone_fill_state: dict`, `_pd_zone_fill_checked: set` (module-level ใน `trailing.py`)
 
 **ที่มาของ H/L:**
@@ -572,6 +572,30 @@ mode ที่รองรับ:
 - ไม่เข้า: `Entry Candle`, `Trail SL`, `Opposite Order`, `Limit Guard`, `SL Guard`
 - comment: `M1_S14_engulf` / `M1_S14_sweep`
 - config: `S14_RSI_PERIOD`, `S14_REVERSAL_LOOKBACK`, `S14_ENGULF`, `S14_SWEEP`, `S14_LL_USE_HHLL`, `S14_FLIP_ENABLED`
+
+### S15 Volume Profile POC + Absorption
+
+- ไฟล์: `strategy15.py` — strategy **standalone reversal** (Win Rate อ้างอิง 85-90%: POC defense + absorption)
+- คำนวณ Volume Profile จาก tick_volume (proxy) ย้อนหลัง `S15_LOOKBACK` bars → `POC` / `VAH` / `VAL`
+  - bucket_size = `ATR/10` (auto-scale XAU/BTC), Value Area = 70% volume (`S15_VAL_VAH_PCT`)
+  - **helper `_bar_volume(bar)`**: ใช้ index access (`bar["tick_volume"]`) เท่านั้น — ห้าม `.get()` เพราะ numpy.void (ดู §numpy rates check)
+- Absorption 2 pattern: long wick sweep (≥ `S15_ABSORPTION_WICK_PCT` × range) + 2-bar reversal
+- Entry **LIMIT** ที่ POC/VAL (BUY) หรือ POC/VAH (SELL) — guard `entry < close` (BUY) / `entry > close` (SELL) กัน `open_order` skip
+- รองรับ **MULTI** (POC + VAL/VAH พร้อมกัน) — เป็น range play ถือ BUY+SELL พร้อมกันได้
+- **แยกตาม TF เต็มตัว**: คำนวณ VP จาก rates ของ TF นั้น, order/pending/dedup แยกตาม TF (`M1_S15`/`M5_S15`/...)
+- **TSO ใช้ได้ (ไม่ skip)**: ผ่าน `open_order()` → `_scale_out_resolve_volume()` (skip แค่ `sid=13`) → scale ×4 อัตโนมัติเมื่อ `SCALE_OUT_ENABLED`, watcher `check_scale_out_partial` ทยอยปิดได้ (volume cap เป็น per-order = `base×4` → MULTI หลายไม้ผ่านหมด)
+- **Standalone — bypass/skip filter ของระบบหลักทั้งหมด** (เหมือน S10/S12/S13/S14):
+  - bypass Trend Filter (scan): `sid not in (9, 10, 13, 14, 15)` ใน `scanner.py`
+  - skip Fill Trend Recheck: `sid in (9, 10, 14, 15)`
+  - skip RSI Fill Recheck: `sid in (1, 9, 11, 14, 15)`
+  - skip PD Zone Recheck (fill + pending): `sid in (9, 15)` — VP ใช้ value-area zone เอง (ต่าง reference กับ swing-EQ)
+  - skip Entry Candle, Trail SL, **Opposite Order** (ถือ 2 ฝั่งได้), Limit Guard: `(10, 12, 13, 15)`
+  - **คงไว้**: SL Guard (risk protection)
+- **Strong-Trend Block**: S15 อยู่ใน `STRONG_TREND_BLOCK_SIDS` (default `[9,10,11,13,14,15]`) — เปิด `STRONG_TREND_BLOCK_ENABLED` เพื่อกันไม้สวน strong trend ได้ (default OFF)
+- comment: `M5_S15_POC` / `M5_S15_VAL` / `M5_S15_VAH` (code ใน `_pattern_comment_code`)
+- default `active_strategies[15] = False`
+- config: `S15_LOOKBACK`, `S15_ZONE_ATR_MULT`, `S15_VAL_VAH_PCT`, `S15_ABSORPTION_WICK_PCT`, `S15_USE_VAL_VAH`, `S15_MIN_RR`
+- Telegram toggle: `📋 เลือก Strategy` → ท่า 15: VAL/VAH zones, Lookback (50/100/200), Min RR (1/1.5/2)
 
 ### S13 EzAlgo V5
 

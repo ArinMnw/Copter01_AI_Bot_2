@@ -286,6 +286,15 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
         else:
             return "SE" if is_engulf else "SS"
 
+    if sid_text == "15":
+        if "VAL" in text:
+            return "VAL"
+        if "VAH" in text:
+            return "VAH"
+        if "POC" in text:
+            return "POC"
+        return "VP"
+
     if "PATTERN A" in text:
         return "PA"
     if "PATTERN B" in text:
