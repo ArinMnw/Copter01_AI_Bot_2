@@ -1577,9 +1577,12 @@ def _close_position(pos, pos_type, comment):
         log_event("POSITION_CLOSE_REQUEST", comment, ticket=pos.ticket, side=pos_type, close_price=close_price, entry=pos.price_open, bid=bid, ask=ask, spread=spread, ok=True)
     else:
         retcode = r.retcode if r is not None else "None"
-        print(f"[{now_bkk().strftime('%H:%M:%S')}] CLOSE_DEBUG fail {pos_type} ticket={pos.ticket} bid={bid:.2f} ask={ask:.2f} spread={spread:.2f} entry={float(pos.price_open):.2f} retcode={retcode} reason=[{comment}]")
+        # ถ้า order_send คืน None → ดึง mt5.last_error() เพื่อรู้สาเหตุ (เดิมไม่มี → ไม่รู้ว่า MT5 ปฏิเสธเพราะอะไร)
+        mt5_err = mt5.last_error() if r is None else None
+        mt5_err_str = f"{mt5_err}" if mt5_err and mt5_err[0] != 1 else None
+        print(f"[{now_bkk().strftime('%H:%M:%S')}] CLOSE_DEBUG fail {pos_type} ticket={pos.ticket} bid={bid:.2f} ask={ask:.2f} spread={spread:.2f} entry={float(pos.price_open):.2f} retcode={retcode}{' mt5err='+mt5_err_str if mt5_err_str else ''} reason=[{comment}]")
         print(f"[{now_bkk().strftime('%H:%M:%S')}] CLOSE FAIL {pos_type} ticket={pos.ticket} retcode={retcode} reason=[{comment}]")
-        log_event("POSITION_CLOSE_REQUEST", comment, ticket=pos.ticket, side=pos_type, entry=pos.price_open, bid=bid, ask=ask, spread=spread, ok=False, retcode=retcode)
+        log_event("POSITION_CLOSE_REQUEST", comment, ticket=pos.ticket, side=pos_type, entry=pos.price_open, bid=bid, ask=ask, spread=spread, ok=False, retcode=retcode, mt5_err=mt5_err_str)
     return success, close_price
 
 
