@@ -3747,6 +3747,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 if sid == 9 and setup_sig:
                     _pend_info["setup_sig"] = setup_sig
                     # (key ถูก set ใน lock แล้ว — ไม่ต้อง set ซ้ำตรงนี้)
+                if sid == 14:
+                    # เก็บ ref_source + sub_pattern เพื่อ log ใน ENTRY_FILL
+                    if result.get("ref_source"):
+                        _pend_info["s14_ref_source"] = str(result["ref_source"])
+                    if result.get("sub_pattern"):
+                        _pend_info["s14_sub_pattern"] = str(result["sub_pattern"])
                 if use_delay_sl:
                     _pend_info["intended_sl"] = sl
                     _pend_info["sl_armed"] = False
@@ -3775,6 +3781,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}" if sid == 10 else "",
                     scale_out=order.get("scale_out", False),
                     scaled_volume=order.get("scaled_volume"),
+                    **({"ref_source": result.get("ref_source", ""),
+                        "sub_pattern": result.get("sub_pattern", "")}
+                       if sid == 14 else {}),
                 )
             save_runtime_state()
             swing_h_text = _fmt_swing_dt(_sh_info["time"]) if _sh_info else ""

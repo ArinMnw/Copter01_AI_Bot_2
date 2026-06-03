@@ -279,12 +279,14 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
             return "EZ"
 
     if sid_text == "14":
-        is_buy  = "BUY"  in text
-        is_engulf = "ENGULF" in text
+        # Sweep Swing  (Engulf sub-pattern): ปิดทะลุ swing level → BSS / SSS
+        # Sweep กลับตัว (Sweep  sub-pattern): ไส้ยาวกลับมา         → BRS / SRS
+        is_buy   = "BUY"  in text
+        is_swing = "SWING" in text   # pattern ชื่อมี "Sweep Swing"
         if is_buy:
-            return "BE" if is_engulf else "BS"
+            return "BSS" if is_swing else "BRS"
         else:
-            return "SE" if is_engulf else "SS"
+            return "SSS" if is_swing else "SRS"
 
     if sid_text == "15":
         if "VAL" in text:

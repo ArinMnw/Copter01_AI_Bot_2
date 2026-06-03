@@ -398,10 +398,10 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
                     "entry":       entry,
                     "sl":          sl,
                     "tp":          tp,
-                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f7e2 BUY — Engulf",
+                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f7e2 BUY — Sweep Swing",
                     "reason":      reason,
                     "order_mode":  "market",
-                    "entry_label": "BUY MARKET (Engulf)",
+                    "entry_label": "BUY MARKET (Sweep Swing)",
                     "sub_pattern": "engulf",
                     "ref_low":     ref_low,
                     "ref_source":  ref["source"],
@@ -427,10 +427,10 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
                     "entry":       entry,
                     "sl":          sl,
                     "tp":          tp,
-                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f7e2 BUY — Sweep",
+                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f7e2 BUY — Sweep กลับตัว",
                     "reason":      reason,
                     "order_mode":  "market",
-                    "entry_label": "BUY MARKET (Sweep)",
+                    "entry_label": "BUY MARKET (Sweep กลับตัว)",
                     "sub_pattern": "sweep",
                     "ref_low":     ref_low,
                     "ref_source":  ref["source"],
@@ -559,10 +559,10 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
                     "entry":       entry,
                     "sl":          sl,
                     "tp":          tp,
-                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f534 SELL — Engulf",
+                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f534 SELL — Sweep Swing",
                     "reason":      reason,
                     "order_mode":  "market",
-                    "entry_label": "SELL MARKET (Engulf)",
+                    "entry_label": "SELL MARKET (Sweep Swing)",
                     "sub_pattern": "engulf",
                     "ref_high":    ref_high,
                     "ref_source":  ref["source"],
@@ -588,10 +588,10 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None) -> list:
                     "entry":       entry,
                     "sl":          sl,
                     "tp":          tp,
-                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f534 SELL — Sweep",
+                    "pattern":     "ท่าที่ 14 Sweep RSI \U0001f534 SELL — Sweep กลับตัว",
                     "reason":      reason,
                     "order_mode":  "market",
-                    "entry_label": "SELL MARKET (Sweep)",
+                    "entry_label": "SELL MARKET (Sweep กลับตัว)",
                     "sub_pattern": "sweep",
                     "ref_high":    ref_high,
                     "ref_source":  ref["source"],
@@ -625,6 +625,16 @@ def strategy_14(rates, tf: str = ""):
             "signal": "WAIT",
             "reason": f"S14: ข้อมูลไม่พอ (ต้องการ {min_bars} มี {len(rates)})",
         }
+
+    # ── Block SIDEWAY trend (ข้อมูลจริง 06-2026: 0% WR, -$58.20 จาก 4 orders) ──
+    if getattr(config, "S14_BLOCK_SIDEWAY", True) and tf:
+        try:
+            import hhll_swing as _hs
+            _s14_trend = _hs.get_trend_from_structure(tf)
+            if _s14_trend.get("trend", "") == "SIDEWAY":
+                return {"signal": "WAIT", "reason": f"S14: SIDEWAY trend → block (S14_BLOCK_SIDEWAY)"}
+        except Exception:
+            pass
 
     full_rates = list(rates)                                    # ทั้งหมดสำหรับ TP (HHLL)
     window     = list(rates[-(lookback + period + 5):])        # 69 bars สำหรับ RSI/signal

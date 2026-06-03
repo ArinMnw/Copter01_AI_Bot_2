@@ -2881,6 +2881,14 @@ async def check_limit_fill_notify(app):
         else:
             _fill_eq_str = "—"
 
+        # S14: ดึง ref_source + sub_pattern จาก pend_info
+        _s14_ref_source  = None
+        _s14_sub_pattern = None
+        if sid == 14:
+            _s14_pend = pending_order_tf.get(ticket) or {}
+            _s14_ref_source  = _s14_pend.get("s14_ref_source")
+            _s14_sub_pattern = _s14_pend.get("s14_sub_pattern")
+
         log_event(
             "ENTRY_FILL",
             "Limit fill detected",
@@ -2899,6 +2907,9 @@ async def check_limit_fill_notify(app):
             pd_h=_fill_pd_h,
             pd_l=_fill_pd_l,
             pd_eq=_fill_eq if (_fill_pd_h and _fill_pd_l) else None,
+            **({"ref_source": _s14_ref_source,
+                "sub_pattern": _s14_sub_pattern}
+               if sid == 14 and (_s14_ref_source or _s14_sub_pattern) else {}),
         )
         await tg(app, (
             f"🔔 *Limit Fill - {pos_type}{reverse_tag}*\n"

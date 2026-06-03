@@ -514,6 +514,7 @@ S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับต
 # เปิด/ปิด sub-pattern (ใช้ร่วมกันทั้ง BUY และ SELL)
 S14_ENGULF            = False  # Engulf pattern (close เกิน LL/HH)
 S14_SWEEP             = True   # Sweep pattern  (ไส้เกิน LL/HH แต่ปิดกลับมา)
+S14_BLOCK_SIDEWAY     = True   # block S14 ใน SIDEWAY trend (data 06-2026: 0% WR, -$58 จาก 4 orders)
 S14_FLIP_ENABLED      = True   # Flip: ปิดฝั่งตรงข้ามทันทีเมื่อ signal ใหม่มา (per-TF)
 S14_RSI_MIN_DIFF      = 1.0   # RSI divergence ต้องห่างกัน > นี้ (BUY: cur-ref > 1, SELL: ref-cur > 1)
 # LL/HH ref เพิ่มเติมจาก HHLL module
