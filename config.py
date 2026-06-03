@@ -1204,9 +1204,12 @@ def save_runtime_state():
             "scale_out_enabled": SCALE_OUT_ENABLED,
             "scale_out_state": {str(k): v for k, v in scale_out_state.items()},
             # S15 Volume Profile POC
-            "s15_use_val_vah":  S15_USE_VAL_VAH,
-            "s15_lookback":     S15_LOOKBACK,
-            "s15_min_rr":       S15_MIN_RR,
+            "s15_use_val_vah":          S15_USE_VAL_VAH,
+            "s15_lookback":             S15_LOOKBACK,
+            "s15_min_rr":               S15_MIN_RR,
+            "s15_trend_filter":         S15_TREND_FILTER,
+            "s15_strict_mode":          S15_STRICT_MODE,
+            "s15_level_cooldown_bars":  S15_LEVEL_COOLDOWN_BARS,
         }
 
         tmp_path = STATE_FILE + ".tmp"
@@ -1479,6 +1482,7 @@ def restore_runtime_state():
             SL_GUARD_GROUP_COUNT = max(1, int(saved_sgg_cnt))
 
         global S15_USE_VAL_VAH, S15_LOOKBACK, S15_MIN_RR
+        global S15_TREND_FILTER, S15_STRICT_MODE, S15_LEVEL_COOLDOWN_BARS
         S15_USE_VAL_VAH = bool(state.get("s15_use_val_vah", S15_USE_VAL_VAH))
         saved_s15_lb = state.get("s15_lookback")
         if saved_s15_lb is not None:
@@ -1486,6 +1490,13 @@ def restore_runtime_state():
         saved_s15_rr = state.get("s15_min_rr")
         if saved_s15_rr is not None:
             S15_MIN_RR = max(0.5, float(saved_s15_rr))
+        if "s15_trend_filter" in state:
+            S15_TREND_FILTER = bool(state["s15_trend_filter"])
+        if "s15_strict_mode" in state:
+            S15_STRICT_MODE = bool(state["s15_strict_mode"])
+        saved_s15_cd = state.get("s15_level_cooldown_bars")
+        if saved_s15_cd is not None:
+            S15_LEVEL_COOLDOWN_BARS = max(1, int(saved_s15_cd))
 
         pending_order_tf.clear()
         pending_order_tf.update({

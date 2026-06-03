@@ -886,9 +886,36 @@ def build_strategy_keyboard():
 
     # sub-option ท่า 15: Volume Profile POC Absorption
     if active_strategies.get(15, False):
-        vv_on = getattr(config, "S15_USE_VAL_VAH", True)
-        lb    = int(getattr(config, "S15_LOOKBACK", 100))
-        rr    = float(getattr(config, "S15_MIN_RR", 1.0))
+        vv_on      = getattr(config, "S15_USE_VAL_VAH", True)
+        lb         = int(getattr(config, "S15_LOOKBACK", 100))
+        rr         = float(getattr(config, "S15_MIN_RR", 1.0))
+        tf_on      = getattr(config, "S15_TREND_FILTER", True)
+        strict_on  = getattr(config, "S15_STRICT_MODE", True)
+        cd_bars    = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if tf_on else '⬜'} ท่า15: Trend Filter (EMA50)",
+                callback_data="toggle_s15_trend_filter"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if strict_on else '⬜'} ท่า15: Strict Mode",
+                callback_data="toggle_s15_strict_mode"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if cd_bars == 5  else '⬜'} ท่า15: Cooldown 5bar",
+                callback_data="set_s15_cooldown_5"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if cd_bars == 15 else '⬜'} ท่า15: Cooldown 15bar",
+                callback_data="set_s15_cooldown_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if cd_bars == 30 else '⬜'} ท่า15: Cooldown 30bar",
+                callback_data="set_s15_cooldown_30"
+            ),
+        ])
         rows.append([
             InlineKeyboardButton(
                 f"{'🟢' if vv_on else '⬜'} ท่า15: VAL/VAH zones",
