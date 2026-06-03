@@ -537,9 +537,10 @@ S15_MIN_RR              = 1.0   # R:R ขั้นต่ำ
 S15_TREND_FILTER        = True  # BUY เฉพาะ close≥EMA, SELL เฉพาะ close≤EMA (กัน mean-rev สวนเทรนด์)
 S15_TREND_EMA           = 50    # period EMA สำหรับ trend filter
 S15_TREND_NEUTRAL_ATR   = 0.1   # neutral band = ATR × นี้ (ในแบนด์นี้ทั้ง BUY/SELL ได้)
-S15_LEVEL_COOLDOWN_BARS = 15    # ห้ามยิง LIMIT ซ้ำที่ POC/VAL/VAH เดิมภายใน N แท่ง
-S15_STRICT_MODE         = True  # เข้าเฉพาะ VAL-BUY/VAH-SELL ที่มี 2-bar reversal (กรอง setup อ่อน + ข้าม POC)
-S15_RSI_FILTER          = True  # RSI momentum filter: BUY ต้อง RSI<S15_RSI_BUY_MAX, SELL ต้อง RSI>S15_RSI_SELL_MIN
+S15_LEVEL_COOLDOWN_BARS  = 15   # ห้ามยิง LIMIT ซ้ำที่ POC/VAL/VAH เดิมภายใน N แท่ง
+S15_GLOBAL_COOLDOWN_SECS = 300  # หลัง S15 fire ใด TF → block ทุก TF อีก N วินาที (กัน multi-TF cluster)
+S15_STRICT_MODE          = True # เข้าเฉพาะ VAL-BUY/VAH-SELL ที่มี 2-bar reversal (กรอง setup อ่อน + ข้าม POC)
+S15_RSI_FILTER           = True # RSI momentum filter: BUY ต้อง RSI<S15_RSI_BUY_MAX, SELL ต้อง RSI>S15_RSI_SELL_MIN
 S15_RSI_PERIOD          = 14    # RSI period
 S15_RSI_BUY_MAX         = 60    # BUY เข้าเฉพาะ RSI ≤ นี้ (momentum ยังไม่ overbought)
 S15_RSI_SELL_MIN        = 40    # SELL เข้าเฉพาะ RSI ≥ นี้ (momentum ยังไม่ oversold)

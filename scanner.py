@@ -1770,6 +1770,12 @@ async def check_s3_maru_pending(app):
             to_remove.append(key)
     for k in to_remove:
         s3_maru_pending.pop(k, None)
+def _escape_md(text: str) -> str:
+    """Escape Telegram Markdown v1 special chars ใน field values (ป้องกัน parse error)"""
+    # ใน Markdown v1: * _ ` [ ต้องไม่อยู่คู่กันโดยไม่ได้ตั้งใจ
+    return str(text).replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+
+
 def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
                reason_txt, current_price, entry, sl, tp, rr, ticket=None, extra_note="",
                swing_h_text="", swing_l_text="", entry_label="Limit ที่", flow_id=""):
@@ -1780,14 +1786,16 @@ def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
     note_line = f"\n{extra_note}" if extra_note else ""
     swing_h_suffix = f" {swing_h_text}" if swing_h_text else ""
     swing_l_suffix = f" {swing_l_text}" if swing_l_text else ""
+    safe_pattern = _escape_md(pattern)
+    safe_reason  = _escape_md(reason_txt)
     return (
-        f"{sig_e} *{pattern}*\n"
+        f"{sig_e} *{safe_pattern}*\n"
         f"━━━━━━━━━━━━━━━━━\n"
         f"🕐 {now_bkk().strftime('%d/%m/%Y %H:%M')}\n"
         f"📊 *Timeframe: {tf_name}* | ท่าที่ {sid}\n\n"
         f"{candle_rows}\n"
         f"📈 Swing High:`{swing_h:.2f}`{swing_h_suffix} | Low:`{swing_l:.2f}`{swing_l_suffix}\n\n"
-        f"💬 *เหตุผล:*\n{reason_txt}\n\n"
+        f"💬 *เหตุผล:*\n{safe_reason}\n\n"
         f"━━━━━━━━━━━━━━━━━\n"
         f"💰 ราคาปัจจุบัน: `{current_price:.2f}`\n"
         f"📌 *{entry_label}:* `{entry}` (ห่าง {price_diff})\n"

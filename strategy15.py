@@ -29,6 +29,10 @@ from mt5_utils import calc_atr, TF_SECONDS_MAP
 # กันยิง LIMIT ซ้ำที่ POC/VAL/VAH เดิม ทุกแท่ง (entry นิ่งแต่ SL เปลี่ยน → dedup เดิมไม่จับ)
 _s15_last_fire: dict = {}
 
+# Global cross-TF cooldown: {"BUY": wall_time_secs, "SELL": wall_time_secs}
+# กัน M1/M5/M15/M30/H1 fire พร้อมกันที่ level ใกล้เคียง → ลด over-exposure
+_s15_global_last: dict = {"BUY": 0.0, "SELL": 0.0}
+
 
 def _ema(values, period):
     """EMA แบบ manual (ไม่พึ่ง numpy/talib)"""
@@ -50,8 +54,19 @@ def _level_on_cooldown(tf, side, level, bar_time, cooldown_bars, tf_secs):
     return False
 
 
+def _global_on_cooldown(side: str) -> bool:
+    """True ถ้า S15 ฝั่งนี้เพิ่งยิงจาก TF ใดก็ได้ภายใน S15_GLOBAL_COOLDOWN_SECS"""
+    import time
+    secs = int(getattr(config, "S15_GLOBAL_COOLDOWN_SECS", 300))
+    if secs <= 0:
+        return False
+    return (time.time() - _s15_global_last.get(side, 0.0)) < secs
+
+
 def _mark_fired(tf, side, level, bar_time):
+    import time
     _s15_last_fire[(tf, side, round(float(level), 1))] = bar_time
+    _s15_global_last[side] = time.time()  # update global wall-time cooldown
 
 
 def _calc_rsi(rates, period=14):
@@ -370,15 +385,21 @@ def strategy_15(rates, tf: str = ""):
 
     vp_info = f"POC={poc:.2f} | VAL={val:.2f} | VAH={vah:.2f} | ATR={atr:.2f}"
 
+    # ── Global cross-TF cooldown (ป้องกัน M1/M5/M15/M30/H1 fire พร้อมกัน) ────
+    buy_global_blocked  = _global_on_cooldown("BUY")
+    sell_global_blocked = _global_on_cooldown("SELL")
+
     # ── BUY at POC ──────────────────────────────────────────────────
     # BUY LIMIT: entry ต้องต่ำกว่า close (รอราคาย้อนลงมาแตะ level) มิฉะนั้น open_order จะ skip
-    if not strict and allow_buy and not _level_on_cooldown(tf, "BUY", poc, bar_time, cooldown_bars, tf_secs) \
+    if not strict and allow_buy and not buy_global_blocked \
+            and not _level_on_cooldown(tf, "BUY", poc, bar_time, cooldown_bars, tf_secs) \
             and _absorption_buy(rates, poc, tolerance, strict=strict):
         entry = round(poc, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, vah)
         if tp and tp > entry > sl and entry < cur_close:
             _mark_fired(tf, "BUY", poc, bar_time)
+            buy_global_blocked = True  # block ใน loop เดียวกัน
             results.append({
                 "signal":      "BUY",
                 "entry":       entry,
@@ -392,7 +413,7 @@ def strategy_15(rates, tf: str = ""):
             })
 
     # ── BUY at VAL ──────────────────────────────────────────────────
-    if allow_buy and use_val_vah and val != poc \
+    if allow_buy and use_val_vah and val != poc and not buy_global_blocked \
             and not _level_on_cooldown(tf, "BUY", val, bar_time, cooldown_bars, tf_secs) \
             and _absorption_buy(rates, val, tolerance, strict=strict):
         entry = round(val, 2)
@@ -400,6 +421,7 @@ def strategy_15(rates, tf: str = ""):
         tp    = _tp_buy(rates, entry, sl, poc)
         if tp and tp > entry > sl and entry < cur_close:
             _mark_fired(tf, "BUY", val, bar_time)
+            buy_global_blocked = True
             results.append({
                 "signal":      "BUY",
                 "entry":       entry,
@@ -414,13 +436,15 @@ def strategy_15(rates, tf: str = ""):
 
     # ── SELL at POC ─────────────────────────────────────────────────
     # SELL LIMIT: entry ต้องสูงกว่า close (รอราคาย้อนขึ้นมาแตะ level) มิฉะนั้น open_order จะ skip
-    if not strict and allow_sell and not _level_on_cooldown(tf, "SELL", poc, bar_time, cooldown_bars, tf_secs) \
+    if not strict and allow_sell and not sell_global_blocked \
+            and not _level_on_cooldown(tf, "SELL", poc, bar_time, cooldown_bars, tf_secs) \
             and _absorption_sell(rates, poc, tolerance, strict=strict):
         entry = round(poc, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, val)
         if tp and tp < entry < sl and entry > cur_close:
             _mark_fired(tf, "SELL", poc, bar_time)
+            sell_global_blocked = True
             results.append({
                 "signal":      "SELL",
                 "entry":       entry,
@@ -434,7 +458,7 @@ def strategy_15(rates, tf: str = ""):
             })
 
     # ── SELL at VAH ─────────────────────────────────────────────────
-    if allow_sell and use_val_vah and vah != poc \
+    if allow_sell and use_val_vah and vah != poc and not sell_global_blocked \
             and not _level_on_cooldown(tf, "SELL", vah, bar_time, cooldown_bars, tf_secs) \
             and _absorption_sell(rates, vah, tolerance, strict=strict):
         entry = round(vah, 2)
