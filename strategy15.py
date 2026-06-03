@@ -147,13 +147,15 @@ def _near(a, b, tol):
     return abs(a - b) <= tol
 
 
-def _absorption_buy(rates, ref_price, tolerance):
+def _absorption_buy(rates, ref_price, tolerance, strict=False):
     """
     ตรวจ absorption ฝั่ง BUY ที่ ref_price (POC หรือ VAL)
     True = มีแรงซื้อดูดแรงขายที่ level นี้
 
-    Pattern A: lower wick ≥ wick_pct × range + ราคาแตะ ref zone
-    Pattern B: prev red → cur green close ≥ ref_price (2-bar demand reversal)
+    Pattern A: lower wick ≥ wick_pct × range + ราคาแตะ ref zone (อ่อน)
+    Pattern B: prev red → cur green close ≥ ref_price (2-bar demand reversal — แข็ง)
+
+    strict=True → ใช้ Pattern B อย่างเดียว (reversal confirmation) + ต้องมี wick ด้วย
     """
     if len(rates) < 2:
         return False
@@ -171,26 +173,32 @@ def _absorption_buy(rates, ref_price, tolerance):
     lower_wick  = min(c_o, c_c) - c_l
     in_zone     = _near(c_l, ref_price, tolerance) or (c_l <= ref_price <= c_h)
 
-    if in_zone and lower_wick >= wick_pct * c_rng:
-        return True
-
+    # Pattern B (2-bar reversal): prev red → cur green ปิดเหนือ ref
     p_o = float(prev["open"])
     p_c = float(prev["close"])
-    if (p_c < p_o and c_c > c_o
-            and _near(c_l, ref_price, tolerance * 2)
-            and c_c >= ref_price):
+    pattern_b = (p_c < p_o and c_c > c_o
+                 and _near(c_l, ref_price, tolerance * 2)
+                 and c_c >= ref_price)
+
+    if strict:
+        # ต้อง reversal จริง + มี rejection wick ≥ wick_pct (กรอง setup อ่อน)
+        return bool(pattern_b and lower_wick >= wick_pct * c_rng)
+
+    # Pattern A (อ่อน): wick + in zone
+    if in_zone and lower_wick >= wick_pct * c_rng:
         return True
+    return bool(pattern_b)
 
-    return False
 
-
-def _absorption_sell(rates, ref_price, tolerance):
+def _absorption_sell(rates, ref_price, tolerance, strict=False):
     """
     ตรวจ absorption ฝั่ง SELL ที่ ref_price (POC หรือ VAH)
     True = มีแรงขายดูดแรงซื้อที่ level นี้
 
-    Pattern A: upper wick ≥ wick_pct × range + ราคาแตะ ref zone
-    Pattern B: prev green → cur red close ≤ ref_price (2-bar supply reversal)
+    Pattern A: upper wick ≥ wick_pct × range + ราคาแตะ ref zone (อ่อน)
+    Pattern B: prev green → cur red close ≤ ref_price (2-bar supply reversal — แข็ง)
+
+    strict=True → ใช้ Pattern B อย่างเดียว + ต้องมี wick ด้วย
     """
     if len(rates) < 2:
         return False
@@ -208,17 +216,18 @@ def _absorption_sell(rates, ref_price, tolerance):
     upper_wick  = c_h - max(c_o, c_c)
     in_zone     = _near(c_h, ref_price, tolerance) or (c_l <= ref_price <= c_h)
 
-    if in_zone and upper_wick >= wick_pct * c_rng:
-        return True
-
     p_o = float(prev["open"])
     p_c = float(prev["close"])
-    if (p_c > p_o and c_c < c_o
-            and _near(c_h, ref_price, tolerance * 2)
-            and c_c <= ref_price):
-        return True
+    pattern_b = (p_c > p_o and c_c < c_o
+                 and _near(c_h, ref_price, tolerance * 2)
+                 and c_c <= ref_price)
 
-    return False
+    if strict:
+        return bool(pattern_b and upper_wick >= wick_pct * c_rng)
+
+    if in_zone and upper_wick >= wick_pct * c_rng:
+        return True
+    return bool(pattern_b)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -316,12 +325,16 @@ def strategy_15(rates, tf: str = ""):
     cooldown_bars = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
     tf_secs = int(TF_SECONDS_MAP.get(tf, 60)) if tf else 60
 
+    # strict mode: เข้าเฉพาะ value-area edge (VAL-BUY / VAH-SELL) ที่มี 2-bar reversal
+    # POC เป็น magnet ก้ำกึ่ง (ทั้ง BUY/SELL ยิงที่เดียวกัน) → ข้ามใน strict
+    strict = bool(getattr(config, "S15_STRICT_MODE", True))
+
     vp_info = f"POC={poc:.2f} | VAL={val:.2f} | VAH={vah:.2f} | ATR={atr:.2f}"
 
     # ── BUY at POC ──────────────────────────────────────────────────
     # BUY LIMIT: entry ต้องต่ำกว่า close (รอราคาย้อนลงมาแตะ level) มิฉะนั้น open_order จะ skip
-    if allow_buy and not _level_on_cooldown(tf, "BUY", poc, bar_time, cooldown_bars, tf_secs) \
-            and _absorption_buy(rates, poc, tolerance):
+    if not strict and allow_buy and not _level_on_cooldown(tf, "BUY", poc, bar_time, cooldown_bars, tf_secs) \
+            and _absorption_buy(rates, poc, tolerance, strict=strict):
         entry = round(poc, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, vah)
@@ -342,7 +355,7 @@ def strategy_15(rates, tf: str = ""):
     # ── BUY at VAL ──────────────────────────────────────────────────
     if allow_buy and use_val_vah and val != poc \
             and not _level_on_cooldown(tf, "BUY", val, bar_time, cooldown_bars, tf_secs) \
-            and _absorption_buy(rates, val, tolerance):
+            and _absorption_buy(rates, val, tolerance, strict=strict):
         entry = round(val, 2)
         sl    = round(cur_low - sl_buf, 2)
         tp    = _tp_buy(rates, entry, sl, poc)
@@ -362,8 +375,8 @@ def strategy_15(rates, tf: str = ""):
 
     # ── SELL at POC ─────────────────────────────────────────────────
     # SELL LIMIT: entry ต้องสูงกว่า close (รอราคาย้อนขึ้นมาแตะ level) มิฉะนั้น open_order จะ skip
-    if allow_sell and not _level_on_cooldown(tf, "SELL", poc, bar_time, cooldown_bars, tf_secs) \
-            and _absorption_sell(rates, poc, tolerance):
+    if not strict and allow_sell and not _level_on_cooldown(tf, "SELL", poc, bar_time, cooldown_bars, tf_secs) \
+            and _absorption_sell(rates, poc, tolerance, strict=strict):
         entry = round(poc, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, val)
@@ -384,7 +397,7 @@ def strategy_15(rates, tf: str = ""):
     # ── SELL at VAH ─────────────────────────────────────────────────
     if allow_sell and use_val_vah and vah != poc \
             and not _level_on_cooldown(tf, "SELL", vah, bar_time, cooldown_bars, tf_secs) \
-            and _absorption_sell(rates, vah, tolerance):
+            and _absorption_sell(rates, vah, tolerance, strict=strict):
         entry = round(vah, 2)
         sl    = round(cur_high + sl_buf, 2)
         tp    = _tp_sell(rates, entry, sl, poc)
