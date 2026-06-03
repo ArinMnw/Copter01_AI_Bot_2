@@ -3412,6 +3412,15 @@ async def check_fill_pd_zone(app):
         if not _pz_tf:
             _pz_tf = "M1"
 
+        # Multi-TF เช่น "[M15_M30]" หรือ "M15+M30" → เลือก TF เล็กสุด
+        # (PD Zone ใช้ HHLL ของ TF เดี่ยว — TF เล็กสุดให้ zone ที่ tight และ responsive ที่สุด)
+        _TF_ORDER = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1", "W1", "MN1"]
+        if any(sep in str(_pz_tf) for sep in ["_", "+", ","]):
+            import re as _re_pz
+            _parts = _re_pz.findall(r'[A-Z]\d+', str(_pz_tf))
+            if _parts:
+                _pz_tf = min(_parts, key=lambda t: _TF_ORDER.index(t) if t in _TF_ORDER else 99)
+
         _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
         _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
 
