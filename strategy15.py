@@ -54,6 +54,31 @@ def _mark_fired(tf, side, level, bar_time):
     _s15_last_fire[(tf, side, round(float(level), 1))] = bar_time
 
 
+def _calc_rsi(rates, period=14):
+    """คำนวณ RSI (ไม่พึ่ง numpy/talib) ใช้ Wilder's smoothing"""
+    if len(rates) < period + 1:
+        return None
+    closes = [float(r["close"]) for r in rates[-(period * 3):]]
+    if len(closes) < period + 1:
+        return None
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        diff = closes[i] - closes[i - 1]
+        gains.append(max(diff, 0.0))
+        losses.append(max(-diff, 0.0))
+    if len(gains) < period:
+        return None
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return round(100.0 - (100.0 / (1.0 + rs)), 2)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Volume Profile Calculation
 # ─────────────────────────────────────────────────────────────────────────────
@@ -324,6 +349,20 @@ def strategy_15(rates, tf: str = ""):
 
     cooldown_bars = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
     tf_secs = int(TF_SECONDS_MAP.get(tf, 60)) if tf else 60
+
+    # ── RSI momentum filter ───────────────────────────────────────────────────
+    # กัน entry เมื่อ momentum ยังแรงสวนทิศ (BUY ตอน RSI สูง = overbought zone)
+    # (data จริง: BUY ขาดทุน -145 ส่วนใหญ่ RSI สูง >60 ขณะ downtrend)
+    if bool(getattr(config, "S15_RSI_FILTER", True)):
+        rsi_period   = int(getattr(config, "S15_RSI_PERIOD", 14))
+        rsi_buy_max  = float(getattr(config, "S15_RSI_BUY_MAX", 60))
+        rsi_sell_min = float(getattr(config, "S15_RSI_SELL_MIN", 40))
+        cur_rsi = _calc_rsi(rates, rsi_period)
+        if cur_rsi is not None:
+            if allow_buy and cur_rsi > rsi_buy_max:
+                allow_buy = False    # RSI สูงเกิน → momentum ยังไม่กลับ ห้าม BUY
+            if allow_sell and cur_rsi < rsi_sell_min:
+                allow_sell = False   # RSI ต่ำเกิน → momentum ยังไม่กลับ ห้าม SELL
 
     # strict mode: เข้าเฉพาะ value-area edge (VAL-BUY / VAH-SELL) ที่มี 2-bar reversal
     # POC เป็น magnet ก้ำกึ่ง (ทั้ง BUY/SELL ยิงที่เดียวกัน) → ข้ามใน strict

@@ -612,6 +612,25 @@ async def handle_callback(update, ctx):
             pass
         await _qanswer(query, f"✅ ท่า 15 Cooldown: {config.S15_LEVEL_COOLDOWN_BARS} bars")
 
+    elif data == "toggle_s15_rsi_filter":
+        config.S15_RSI_FILTER = not getattr(config, "S15_RSI_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S15_RSI_FILTER else "OFF"
+        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        summary = " + ".join(active_list) if active_list else "ไม่มี"
+        try:
+            await query.edit_message_text(
+                f"📋 *เลือก Strategy*\n"
+                f"━━━━━━━━━━━━━━━━━\n"
+                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
+                f"กดเพื่อเปิด/ปิด:",
+                parse_mode="Markdown",
+                reply_markup=build_strategy_keyboard()
+            )
+        except Exception:
+            pass
+        await _qanswer(query, f"✅ ท่า 15 RSI Filter: {status}")
+
     elif data == "toggle_s15_val_vah":
         config.S15_USE_VAL_VAH = not getattr(config, "S15_USE_VAL_VAH", True)
         save_runtime_state()

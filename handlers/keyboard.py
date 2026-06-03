@@ -891,6 +891,7 @@ def build_strategy_keyboard():
         rr         = float(getattr(config, "S15_MIN_RR", 1.0))
         tf_on      = getattr(config, "S15_TREND_FILTER", True)
         strict_on  = getattr(config, "S15_STRICT_MODE", True)
+        rsi_on     = getattr(config, "S15_RSI_FILTER", True)
         cd_bars    = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
         rows.append([
             InlineKeyboardButton(
@@ -900,6 +901,12 @@ def build_strategy_keyboard():
             InlineKeyboardButton(
                 f"{'🟢' if strict_on else '⬜'} ท่า15: Strict Mode",
                 callback_data="toggle_s15_strict_mode"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if rsi_on else '⬜'} ท่า15: RSI Filter (≤60/≥40)",
+                callback_data="toggle_s15_rsi_filter"
             ),
         ])
         rows.append([

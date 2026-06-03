@@ -539,6 +539,10 @@ S15_TREND_EMA           = 50    # period EMA สำหรับ trend filter
 S15_TREND_NEUTRAL_ATR   = 0.1   # neutral band = ATR × นี้ (ในแบนด์นี้ทั้ง BUY/SELL ได้)
 S15_LEVEL_COOLDOWN_BARS = 15    # ห้ามยิง LIMIT ซ้ำที่ POC/VAL/VAH เดิมภายใน N แท่ง
 S15_STRICT_MODE         = True  # เข้าเฉพาะ VAL-BUY/VAH-SELL ที่มี 2-bar reversal (กรอง setup อ่อน + ข้าม POC)
+S15_RSI_FILTER          = True  # RSI momentum filter: BUY ต้อง RSI<S15_RSI_BUY_MAX, SELL ต้อง RSI>S15_RSI_SELL_MIN
+S15_RSI_PERIOD          = 14    # RSI period
+S15_RSI_BUY_MAX         = 60    # BUY เข้าเฉพาะ RSI ≤ นี้ (momentum ยังไม่ overbought)
+S15_RSI_SELL_MIN        = 40    # SELL เข้าเฉพาะ RSI ≥ นี้ (momentum ยังไม่ oversold)
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
@@ -1210,6 +1214,7 @@ def save_runtime_state():
             "s15_trend_filter":         S15_TREND_FILTER,
             "s15_strict_mode":          S15_STRICT_MODE,
             "s15_level_cooldown_bars":  S15_LEVEL_COOLDOWN_BARS,
+            "s15_rsi_filter":           S15_RSI_FILTER,
         }
 
         tmp_path = STATE_FILE + ".tmp"
@@ -1482,7 +1487,7 @@ def restore_runtime_state():
             SL_GUARD_GROUP_COUNT = max(1, int(saved_sgg_cnt))
 
         global S15_USE_VAL_VAH, S15_LOOKBACK, S15_MIN_RR
-        global S15_TREND_FILTER, S15_STRICT_MODE, S15_LEVEL_COOLDOWN_BARS
+        global S15_TREND_FILTER, S15_STRICT_MODE, S15_LEVEL_COOLDOWN_BARS, S15_RSI_FILTER
         S15_USE_VAL_VAH = bool(state.get("s15_use_val_vah", S15_USE_VAL_VAH))
         saved_s15_lb = state.get("s15_lookback")
         if saved_s15_lb is not None:
@@ -1497,6 +1502,8 @@ def restore_runtime_state():
         saved_s15_cd = state.get("s15_level_cooldown_bars")
         if saved_s15_cd is not None:
             S15_LEVEL_COOLDOWN_BARS = max(1, int(saved_s15_cd))
+        if "s15_rsi_filter" in state:
+            S15_RSI_FILTER = bool(state["s15_rsi_filter"])
 
         pending_order_tf.clear()
         pending_order_tf.update({
