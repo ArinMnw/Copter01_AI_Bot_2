@@ -46,9 +46,13 @@ async def _safe_reply_md(message, text: str, **kwargs):
     except Exception as e:
         emsg = str(e).lower()
         if "can't parse entities" in emsg or "parse entities" in emsg:
-            # Markdown พัง — fallback plain text
+            # Markdown พัง — strip markers แล้วส่ง plain text
+            # หมายเหตุ: ไม่ลบ '_' เพราะมันอยู่ใน field names (base_volume, rsi2_state ฯลฯ)
             try:
-                return await message.reply_text(text, **kwargs)
+                import re as _re
+                plain = _re.sub(r'`([^`\n]*)`?', r'\1', text)
+                plain = plain.replace('`', '').replace('*', '')
+                return await message.reply_text(plain, **kwargs)
             except Exception:
                 pass
         raise
@@ -239,7 +243,7 @@ async def _handle_ticket_lookup(update, ticket: int):
     import trailing
     from handlers.btn_order import (
         _load_log_lines, _read_order_meta, _read_signal_tg,
-        _read_ticket_logs, _format_ticket_logs,
+        _read_ticket_logs, _format_ticket_logs, _fetch_candle_block,
     )
 
     now = datetime.now()
@@ -336,8 +340,22 @@ async def _handle_ticket_lookup(update, ticket: int):
     )
 
     # ── Signal TG block ─────────────────────────────────────────
-    signal_msg   = _read_signal_tg(ticket, all_lines)
-    signal_block = (signal_msg + "\n━━━━━━━━━━━━━━━━━\n") if signal_msg else ""
+    signal_msg = _read_signal_tg(ticket, all_lines)
+    if signal_msg:
+        import re as _re
+        sig_clean = _re.sub(r'`([^`\n]*)`?', r'\1', signal_msg)
+        sig_clean = sig_clean.replace('`', '').replace('*', '')
+        # ถ้า TG_SENT ถูกตัดกลางคำ → เติม candle จาก MT5 ต่อท้าย
+        raw_line_len = len(signal_msg.replace('\n', ' | '))
+        if raw_line_len >= 295:
+            mt5_block = _fetch_candle_block(ticket, all_lines)
+            if mt5_block:
+                sig_clean = mt5_block
+        signal_block = sig_clean + "\n━━━━━━━━━━━━━━━━━\n"
+    else:
+        # ไม่มี TG_SENT เลย → ใช้ MT5 candle โดยตรง
+        mt5_block = _fetch_candle_block(ticket, all_lines)
+        signal_block = (mt5_block + "\n━━━━━━━━━━━━━━━━━\n") if mt5_block else ""
 
     # ── Log events ───────────────────────────────────────────────
     logs      = _read_ticket_logs(ticket, all_lines)

@@ -313,7 +313,7 @@ class _TgWrapper:
                 if "Scan Summary" not in (text or ""):
                     try:
                         from bot_log import log_event as _le
-                        _preview = (text or "").replace("\n", " | ")[:300]
+                        _preview = (text or "").replace("\n", " | ")[:1200]
                         _le("TG_SENT", _preview)
                     except Exception:
                         pass
@@ -331,7 +331,7 @@ class _TgWrapper:
                     if "Scan Summary" not in (text or ""):
                         try:
                             from bot_log import log_event as _le
-                            _le("TG_SENT", "[retry-plain] " + (retry_text or "").replace("\n", " | ")[:280])
+                            _le("TG_SENT", "[retry-plain] " + (retry_text or "").replace("\n", " | ")[:1180])
                         except Exception:
                             pass
 
@@ -756,6 +756,13 @@ TREND_FILTER_HIGHER_TF = "H4"   # M15 | M30 | H1 | H4 | H12 | D1
 TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = True
 TREND_FILTER_SIDEWAY_HHLL = True   # True = SIDEWAY+LH→block BUY / SIDEWAY+HL→block SELL
 
+# ── Sweep Filter ─────────────────────────────────────────────────────
+# เปิด/ปิดผ่าน Telegram ได้
+# SWEEP_LOW  → Block SELL / Unblock BUY  (ราคา sweep LL แล้ว bounce)
+# SWEEP_HIGH → Block BUY  / Unblock SELL (ราคา sweep HH แล้ว reject)
+# Reset เมื่อ trend เปลี่ยน
+SWEEP_FILTER_ENABLED = True    # เปิดใช้งาน (toggle via Telegram Settings → Trend Filter)
+
 # Mode ตัดสิน signal:
 #   "basic"    — ทิศ trend ล้วน ๆ (BULL→BUY only, BEAR→SELL only, SW→both) ทุก strength
 #   "breakout" — เฉพาะ strong + มี exception ตอน breakout
@@ -979,6 +986,7 @@ _RUNTIME_DEFAULTS = {
     "TREND_FILTER_HIGHER_TF": TREND_FILTER_HIGHER_TF,
     "TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
     "TREND_FILTER_SIDEWAY_HHLL": TREND_FILTER_SIDEWAY_HHLL,
+    "SWEEP_FILTER_ENABLED": SWEEP_FILTER_ENABLED,
     "TREND_FILTER_MODE": TREND_FILTER_MODE,
     "CRT_BAR_MODE": CRT_BAR_MODE,
     "CRT_SWEEP_DEPTH_PCT": CRT_SWEEP_DEPTH_PCT,
@@ -1175,6 +1183,7 @@ def save_runtime_state():
             "trend_filter_higher_tf": TREND_FILTER_HIGHER_TF,
             "trend_filter_trail_sl_override_enabled": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
             "trend_filter_sideway_hhll": TREND_FILTER_SIDEWAY_HHLL,
+            "sweep_filter_enabled": SWEEP_FILTER_ENABLED,
             "trend_filter_mode": TREND_FILTER_MODE,
             "swing_summary_mode": SWING_SUMMARY_MODE,
             "swing_pivot_left": SWING_PIVOT_LEFT,
@@ -1299,6 +1308,7 @@ def restore_runtime_state():
         global ENTRY_CANDLE_FOCUS_NEW_ENABLED, ENTRY_CANDLE_FOCUS_NEW_POINTS, ENTRY_CANDLE_FOCUS_NEW_TF_MODE
         global TREND_FILTER_HIGHER_TF_ENABLED, TREND_FILTER_HIGHER_TF, TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
         global TREND_FILTER_SIDEWAY_HHLL
+        global SWEEP_FILTER_ENABLED
         global TREND_FILTER_MODE
         global SWING_SUMMARY_MODE, SWING_PIVOT_LEFT, SWING_PIVOT_RIGHT
         global CRT_BAR_MODE, CRT_SWEEP_DEPTH_PCT, CRT_ENTRY_MODE
@@ -1398,6 +1408,9 @@ def restore_runtime_state():
         )
         TREND_FILTER_SIDEWAY_HHLL = bool(
             state.get("trend_filter_sideway_hhll", TREND_FILTER_SIDEWAY_HHLL)
+        )
+        SWEEP_FILTER_ENABLED = bool(
+            state.get("sweep_filter_enabled", SWEEP_FILTER_ENABLED)
         )
         saved_tf_mode = state.get("trend_filter_mode")
         if saved_tf_mode in ("basic", "breakout"):

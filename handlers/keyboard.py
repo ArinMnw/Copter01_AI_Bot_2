@@ -1704,6 +1704,15 @@ def build_trend_filter_keyboard():
             for m in (1, 2, 3, 4, 5)
         ])
 
+    # === Sweep Filter ===
+    _sw_on = getattr(config, "SWEEP_FILTER_ENABLED", False)
+    sw_label = "🟢 Sweep Filter: ON" if _sw_on else "🔴 Sweep Filter: OFF"
+    rows.append([InlineKeyboardButton("━ Sweep Filter ━", callback_data="noop_trend_filter")])
+    rows.append([
+        InlineKeyboardButton(sw_label, callback_data="toggle_sweep_filter"),
+        InlineKeyboardButton("📊 Status", callback_data="show_sweep_status"),
+    ])
+
     # === SL Guard (shortcut → sub-menu) ===
     _sg_on  = getattr(config, "SL_GUARD_ENABLED", False)
     _sgc_on = getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
@@ -2012,6 +2021,10 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         "Higher TF: เลือก 1 TF — ทุก signal ต้องผ่าน trend ของ TF นี้ด้วย\n\n"
         f"Sideway HHLL: *{sideway_hhll_status}*\n"
         f"  HH/HL last swing → block SELL | LH/LL last swing → block BUY\n\n"
+        f"Sweep Filter: *{'🟢ON' if getattr(config,'SWEEP_FILTER_ENABLED',False) else '🔴OFF'}*\n"
+        f"  SWEEP\\_LOW → Block SELL / Unblock BUY\n"
+        f"  SWEEP\\_HIGH → Block BUY / Unblock SELL\n"
+        f"  Reset เมื่อ trend เปลี่ยน\n\n"
         f"SL Guard: *{sg_summary}*\n"
         f"  กด ⚙️ SL Guard เพื่อตั้งค่าแบบแยก / รวม / group"
     )

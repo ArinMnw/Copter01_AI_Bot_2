@@ -1,4 +1,5 @@
 import re, os
+from datetime import datetime, timedelta, timezone
 from config import *
 from mt5_utils import connect_mt5, open_order, get_existing_tp
 from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
@@ -152,21 +153,146 @@ def _read_ticket_logs(ticket: int, all_lines: list) -> list[tuple[str, str, str,
         for k in want:
             v = _fld(line, k)
             if v and v not in ("-", "None", "none"):
-                pairs.append(f"{k}={v}")
+                pairs.append(f"{k}=`{v}`")
         results.append((time_s, event, sub, pairs))
     return results
 
 
+_SEP = "━━━━━━━━━━━━━━━━━\n━━━━━━━━━━━━━━━━━"
+
+
 def _format_ticket_logs(logs: list) -> str:
-    """3 บรรทัดต่อ 1 log: timestamp+label / fields / blank"""
-    lines = []
+    """log events คั่นด้วย ━━━ เพื่อให้อ่านง่าย"""
+    blocks = []
     for time_s, event, sub, pairs in logs:
         label = _WANT_EVENTS.get(event, event)
-        sub_s = f" `{sub}`" if sub else ""
-        lines.append(f"🕐 `{time_s}` {label}{sub_s}")
-        lines.append(f"   {' | '.join(pairs)}" if pairs else "   —")
-        lines.append("")
-    return "\n".join(lines).rstrip()
+        # emoji > U+FFFF ใน code span ทำ Telegram Markdown offset ผิด → plain text
+        if sub and any(ord(c) > 0xFFFF for c in sub):
+            sub_s = f" {sub}"
+        else:
+            sub_s = f" `{sub}`" if sub else ""
+        entry_lines = [f"🕐 `{time_s}` {label}{sub_s}"]
+        if pairs:
+            entry_lines.append(f"   {' | '.join(pairs)}")
+        blocks.append("\n".join(entry_lines))
+    return f"\n{_SEP}\n".join(blocks)
+
+
+_TF_MT5 = {
+    "M1": 1, "M5": 5, "M15": 15, "M30": 30,
+    "H1": 16385, "H4": 16388, "H12": 16396, "D1": 16408,
+}
+_BKK = timezone(timedelta(hours=7))
+
+
+def _fetch_candle_block(ticket: int, all_lines: list) -> str:
+    """ดึง candle OHLC จาก MT5 history เพื่อ reconstruct signal block
+    ใช้เมื่อ TG_SENT ถูกตัดกลางคำ (order เก่าที่ log แค่ 300 chars)"""
+    oc_time_str = tf_name = entry = sl = tp = sid = signal = trend = hhll_log = None
+    tk_str = str(ticket)
+    for line in all_lines:
+        if tk_str not in line or '] ORDER_CREATED |' not in line:
+            continue
+        m = re.match(r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]', line)
+        if m:
+            oc_time_str = m.group(1)
+        tf_name  = _fld(line, 'tf') or ""
+        entry    = _fld(line, 'entry')
+        sl       = _fld(line, 'sl')
+        tp       = _fld(line, 'tp')
+        sid      = _fld(line, 'sid')
+        signal   = _fld(line, 'signal')
+        trend    = _fld(line, 'trend_filter')
+        hhll_log = _fld(line, 'hhll_last_label')  # บันทึก ณ ตอนสร้าง order
+        break
+
+    if not oc_time_str or not tf_name:
+        return ""
+
+    # parse composite TF เช่น [M5_H1] → ใช้ TF แรก
+    raw_tf = re.sub(r'[\[\]]', '', tf_name).split('_')[0].split('-')[0]
+    mt5_tf_id = _TF_MT5.get(raw_tf)
+    if not mt5_tf_id or not connect_mt5():
+        return ""
+
+    try:
+        oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_BKK)
+        tf_mins = {"M1":1,"M5":5,"M15":15,"M30":30,"H1":60,"H4":240,"H12":720,"D1":1440}
+        step = tf_mins.get(raw_tf, 1)
+        # ดึงแท่งที่ปิดก่อน oc_time
+        # ลบ 60 วินาที เพื่อกัน bar ที่กำลัง form (open_time ≤ oc_time) ถูกรวมเข้ามา
+        start = oc_dt - timedelta(minutes=step * 6)
+        end   = oc_dt - timedelta(seconds=60)
+        rates = mt5.copy_rates_range(SYMBOL, mt5_tf_id, start, end)
+        if rates is None or len(rates) < 2:
+            return ""
+
+        def _fmt_bar(r, idx):
+            bar_dt = datetime.fromtimestamp(r['time'], tz=_BKK)
+            bar_str = bar_dt.strftime("%H:%M %d-%b-%Y")
+            color = "🟢" if r['close'] >= r['open'] else "🔴"
+            return (f"{color} แท่ง[{idx}]: "
+                    f"O:{r['open']:.2f} H:{r['high']:.2f} "
+                    f"L:{r['low']:.2f} C:{r['close']:.2f} {bar_str}")
+
+        bar0 = rates[-1]
+        bar1 = rates[-2]
+
+        # trend label — ใช้ log ที่บันทึกตอนสร้าง order เป็นหลัก (ประวัติที่แม่นยำ)
+        # ถ้าไม่มีใน log (order เก่า) → fall back ไปดึง live
+        trend_base = (trend or "").upper() or "?"
+        if trend_base == "SIDEWAY" and hhll_log:
+            # ใช้ hhll_last_label ที่บันทึกตอนสร้าง order → ถูกต้อง 100%
+            trend_lbl = f"SIDEWAY/{hhll_log}"
+        else:
+            # order เก่า (ไม่มี hhll_last_label ในLog) → ดึง live จาก scanner
+            try:
+                from scanner import get_trend_label as _gtl
+                trend_lbl = _gtl(raw_tf) or "?"
+            except Exception:
+                trend_lbl = "?"
+            if not trend_lbl or trend_lbl == "?":
+                trend_lbl = trend_base
+            # ถ้า live คืน "SIDEWAY" ธรรมดา (ไม่มี /HHLL) → ลอง fetch ตรงจาก hhll_swing
+            if trend_lbl == "SIDEWAY":
+                try:
+                    import hhll_swing as _hs_mod
+                    _hs_mod.fetch_hhll(raw_tf)          # force-fetch ถ้าข้อมูลยังไม่พร้อม
+                    _hhll_live = _hs_mod.get_hhll_data(raw_tf) or {}
+                    _lbl_live  = _hhll_live.get("last_label", "")
+                    if _lbl_live:
+                        trend_lbl = f"SIDEWAY/{_lbl_live} ⚠️"  # ⚠️ = live ไม่ใช่ตอน order
+                except Exception:
+                    pass
+
+        lines = [
+            f"🕐 {oc_time_str[:10]} {oc_time_str[11:16]}",
+            f"📊 Timeframe: {raw_tf}" + (f" | S{sid}" if sid else ""),
+            "",
+            _fmt_bar(bar1, 1),
+            _fmt_bar(bar0, 0),
+        ]
+        if entry:
+            rr_parts = []
+            try:
+                e, s, t = float(entry), float(sl or 0), float(tp or 0)
+                risk = abs(e - s)
+                reward = abs(t - e)
+                if risk > 0:
+                    rr_parts.append(f"R:R 1:{reward/risk:.2f}")
+            except Exception:
+                pass
+            lines += [
+                "",
+                f"📌 Entry: {entry}"
+                + (f" | SL: {sl}" if sl else "")
+                + (f" | TP: {tp}" if tp else ""),
+                " | ".join(rr_parts) if rr_parts else "",
+            ]
+        lines.append(f"🧭 Trend: {trend_lbl}")
+        return "\n".join(l for l in lines if l is not None)
+    except Exception:
+        return ""
 
 
 async def _safe_reply(update, text):
@@ -227,8 +353,18 @@ async def handle_btn_order(update, context):
         )
 
         # Signal TG message (ตอนสร้าง order) — ใช้ all_lines แทนอ่านไฟล์ใหม่
-        signal_msg   = _read_signal_tg(p.ticket, all_lines)
-        signal_block = (signal_msg + "\n━━━━━━━━━━━━━━━━━\n") if signal_msg else ""
+        signal_msg = _read_signal_tg(p.ticket, all_lines)
+        if signal_msg:
+            # strip markdown markers ออกก่อน — TG_SENT ถูก truncate 300 chars
+            # → backtick/asterisk อาจไม่ balanced → ทำให้ Markdown ทั้งก้อน fail
+            sig_clean = re.sub(r'`([^`\n]*)`?', r'\1', signal_msg)   # ลบ code span
+            sig_clean = sig_clean.replace('`', '').replace('*', '')
+            # แสดงหัวใจความว่าตัดมาจาก signal (300 char limit)
+            suffix = "\n…(ข้อความบางส่วนถูกตัดออกเนื่องจากจำกัดที่ 1200 ตัวอักษร)" \
+                     if len(signal_msg.replace('\n', ' | ')) >= 1195 else ""
+            signal_block = sig_clean + suffix + "\n━━━━━━━━━━━━━━━━━\n"
+        else:
+            signal_block = ""
 
         # Log events หลัง signal
         logs      = _read_ticket_logs(p.ticket, all_lines)

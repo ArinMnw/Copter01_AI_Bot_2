@@ -1188,6 +1188,23 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
         - SIDEWAY / UNKNOWN            → ผ่านทั้งคู่ (+ SIDEWAY_HHLL ถ้าเปิด)
     return: (allowed: bool, reason: str)
     """
+    # ── Sweep Filter override (ก่อน trend filter ปกติ) ──────────────
+    try:
+        import sweep_filter as _sf
+        _sw_state = _sf.get_sweep_state(tf_name)
+        if _sw_state == "SWEEP_LOW":
+            if signal == "SELL":
+                return False, f"sweep_low_block_sell [{tf_name}]"
+            if signal == "BUY":
+                return True, f"sweep_low_unblock_buy [{tf_name}]"
+        elif _sw_state == "SWEEP_HIGH":
+            if signal == "BUY":
+                return False, f"sweep_high_block_buy [{tf_name}]"
+            if signal == "SELL":
+                return True, f"sweep_high_unblock_sell [{tf_name}]"
+    except Exception:
+        pass
+
     per_tf_map = getattr(config, "TREND_FILTER_PER_TF", {}) or {}
     per_tf_on = bool(per_tf_map.get(tf_name, False))
     higher_on = bool(getattr(config, "TREND_FILTER_HIGHER_TF_ENABLED", False))
@@ -1273,14 +1290,25 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
 
 
 def get_trend_label(tf_name: str) -> str:
-    """คืน trend label ของ TF นั้น เช่น 'BULL (strong)', 'BEAR (weak)', 'SIDEWAY'"""
+    """คืน trend label ของ TF นั้น เช่น 'BULL (strong)', 'BEAR (weak)', 'SIDEWAY/HH'"""
     sw = _swing_data.get(tf_name)
     if not sw:
         return "?"
     trend = sw.get("trend") or {}
     t = trend.get("trend", "UNKNOWN")
     s = trend.get("strength", "")
-    return f"{t} ({s})" if s and s != "-" else t
+    label = f"{t} ({s})" if s and s != "-" else t
+    # ถ้า SIDEWAY ให้ append last_label (HH/LH/HL/LL) เพื่อบอก direction ของ SIDEWAY
+    if t == "SIDEWAY":
+        try:
+            from hhll_swing import get_hhll_data as _ghd
+            _hhll = _ghd(tf_name) or {}
+            _last = _hhll.get("last_label", "")
+            if _last:
+                label = f"SIDEWAY/{_last}"
+        except Exception:
+            pass
+    return label
 
 
 def _trend_filter_setup_note(tf_name: str) -> str:
@@ -1649,7 +1677,20 @@ async def check_s3_maru_pending(app):
                 # ✅ จบเขียว → ตั้ง Limit
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
                 _s3_adj = _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
-                if config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
+                # Sweep Filter Block S3 BUY — independent of TREND_FILTER_SCAN_BLOCK
+                _s3_sweep_blocked = False
+                try:
+                    import sweep_filter as _sf_s3b
+                    if _sf_s3b.is_enabled():
+                        _sw_s3 = _sf_s3b.get_sweep_state(tf)
+                        if _sw_s3 == "SWEEP_HIGH":  # block BUY
+                            log_event("TREND_FILTER_BLOCK", f"sweep_high_block_buy S3 [{tf}]", tf=tf, sid=3, signal=direction)
+                            _s3_sweep_blocked = True
+                except Exception:
+                    pass
+                if _s3_sweep_blocked:
+                    pass
+                elif config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
                     print(f"🧭 [{now}] ท่า3 BUY Maru [{tf}] trend filter block ({_s3_why})")
                     log_event("TREND_FILTER_BLOCK", f"block S3 Maru {direction} ({_s3_why})", tf=tf, sid=3, signal=direction)
                 elif not s3_confirm_ref:
@@ -1711,7 +1752,20 @@ async def check_s3_maru_pending(app):
                 # ✅ จบแดง → ตั้ง Limit
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
                 _s3_adj = _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
-                if config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
+                # Sweep Filter Block S3 SELL — independent of TREND_FILTER_SCAN_BLOCK
+                _s3_sweep_blocked = False
+                try:
+                    import sweep_filter as _sf_s3s
+                    if _sf_s3s.is_enabled():
+                        _sw_s3 = _sf_s3s.get_sweep_state(tf)
+                        if _sw_s3 == "SWEEP_LOW":  # block SELL
+                            log_event("TREND_FILTER_BLOCK", f"sweep_low_block_sell S3 [{tf}]", tf=tf, sid=3, signal=direction)
+                            _s3_sweep_blocked = True
+                except Exception:
+                    pass
+                if _s3_sweep_blocked:
+                    pass
+                elif config.TREND_FILTER_SCAN_BLOCK and not _s3_ok:
                     print(f"🧭 [{now}] ท่า3 SELL Maru [{tf}] trend filter block ({_s3_why})")
                     log_event("TREND_FILTER_BLOCK", f"block S3 Maru {direction} ({_s3_why})", tf=tf, sid=3, signal=direction)
                 elif not s3_confirm_ref:
@@ -2167,7 +2221,8 @@ async def scan_s12(app):
     print(f"{sig_e} [{now}] S12 {direction} #{new_count} entry={entry:.2f} sl={sl:.2f} tp={tp:.2f} ticket={ticket}")
     log_event("ORDER_CREATED", f"ท่าที่ 12 Range Trading {sig_e} {direction} #{new_count}",
               tf="M5", sid=12, signal=direction,
-              entry=entry, sl=sl, tp=tp, ticket=ticket, order_type=direction)
+              entry=entry, sl=sl, tp=tp, ticket=ticket, order_type=direction,
+              hhll_last_label=hhll_swing.get_hhll_data("M5").get("last_label", ""))
     await tg(app, (
         f"{sig_e} *S12 Range Trading #{new_count}*\n"
         f"━━━━━━━━━━━━━━━━━\n"
@@ -2492,6 +2547,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         amp_trend.fetch_amp_trend(tf_name)
     except Exception:
         pass
+    # ── Sweep Filter: reset-on-trend-change + detect sweep ───────────
+    try:
+        import sweep_filter as _sf
+        _sf_trend_label = (_trend_info or {}).get("trend", "UNKNOWN")
+        _sf.update_trend_and_check_reset(tf_name, _sf_trend_label)
+        _sf.check_and_update(tf_name)
+    except Exception:
+        pass
     # Guard: แท่งล่าสุดจะถือว่าปิดสมบูรณ์ ก็ต่อเมื่อแท่งใหม่เริ่มแล้ว
     # ดังนั้นใช้ current_bar_time > last_candle_time ก็พอ
     # ตัวอย่าง M5: last=14:44 และ current=14:45 แปลว่าแท่ง 14:44 ปิดแล้ว
@@ -2589,6 +2652,22 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         fvg     = r2["fvg"]
         fvg_key = f"{tf_name}_{last_candle_time}"
         _s2_allowed, _s2_why = trend_allows_signal(tf_name, fvg["signal"])
+        # Sweep Filter Block S2 — independent of TREND_FILTER_SCAN_BLOCK
+        try:
+            import sweep_filter as _sf_s2
+            if _sf_s2.is_enabled():
+                _sw_s2 = _sf_s2.get_sweep_state(tf_name)
+                if (_sw_s2 == "SWEEP_LOW" and fvg["signal"] == "SELL") or \
+                   (_sw_s2 == "SWEEP_HIGH" and fvg["signal"] == "BUY"):
+                    _sw_s2_rsn = (
+                        f"sweep_low_block_sell S2 [{tf_name}]"
+                        if _sw_s2 == "SWEEP_LOW"
+                        else f"sweep_high_block_buy S2 [{tf_name}]"
+                    )
+                    log_event("TREND_FILTER_BLOCK", _sw_s2_rsn, tf=tf_name, sid=2, signal=fvg["signal"])
+                    return False
+        except Exception:
+            pass
         if config.TREND_FILTER_SCAN_BLOCK and not _s2_allowed:
             _print_skip_once(
                 tf_name,
@@ -2767,6 +2846,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         ticket=order["ticket"],
                         order_type=ot_name,
                         trend_filter=",".join(_trend_keys) if _trend_keys else "",
+                        hhll_last_label=hhll_swing.get_hhll_data(tf_name).get("last_label", ""),
                     )
                 save_runtime_state()
 
@@ -3139,6 +3219,34 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     f"⏳ [{now}] {tf_label(tf_name)} ท่า3: ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน {s3_lookback_bars} แท่งย้อนหลัง"
                 )
                 continue
+        # ── Sweep Filter Block — independent of TREND_FILTER_SCAN_BLOCK ──────
+        # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15 bypass)
+        if sid not in (9, 10, 13, 14, 15):
+            try:
+                import sweep_filter as _sf_blk
+                if _sf_blk.is_enabled():
+                    _sw_blk = _sf_blk.get_sweep_state(tf_name)
+                    _sw_should_block = (
+                        (_sw_blk == "SWEEP_LOW"  and signal == "SELL") or
+                        (_sw_blk == "SWEEP_HIGH" and signal == "BUY")
+                    )
+                    if _sw_should_block:
+                        _sw_rsn = (
+                            f"sweep_low_block_sell [{tf_name}]"
+                            if _sw_blk == "SWEEP_LOW"
+                            else f"sweep_high_block_buy [{tf_name}]"
+                        )
+                        _print_skip_once(
+                            tf_name,
+                            f"🧭 [{now}] {tf_label(tf_name)} ท่า{sid}: {_sw_rsn}"
+                        )
+                        log_event(
+                            "TREND_FILTER_BLOCK", _sw_rsn,
+                            tf=tf_name, sid=sid, signal=signal,
+                        )
+                        continue
+            except Exception:
+                pass
         # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption — reversal/standalone → bypass trend filter
         if sid not in (9, 10, 13, 14, 15) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
@@ -3777,6 +3885,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     ticket=order["ticket"],
                     order_type=ot_name,
                     trend_filter=",".join(_trend_keys) if _trend_keys else "",
+                    hhll_last_label=hhll_swing.get_hhll_data(tf_name).get("last_label", ""),
                     flow_id=base_flow_id,
                     htf_ltf=f"{result.get('htf_tf', tf_name)}_{tf_name}" if sid == 10 else "",
                     scale_out=order.get("scale_out", False),

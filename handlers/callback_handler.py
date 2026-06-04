@@ -1136,6 +1136,24 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"Sideway HHLL Filter: {'ON' if config.TREND_FILTER_SIDEWAY_HHLL else 'OFF'}")
 
+    elif data == "toggle_sweep_filter":
+        import sweep_filter as _swf
+        config.SWEEP_FILTER_ENABLED = not getattr(config, "SWEEP_FILTER_ENABLED", False)
+        if not config.SWEEP_FILTER_ENABLED:
+            _swf.reset_all()   # clear state เมื่อปิด
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Sweep Filter: {'ON' if config.SWEEP_FILTER_ENABLED else 'OFF'}")
+
+    elif data == "show_sweep_status":
+        import sweep_filter as _swf
+        txt = _swf.get_status_text()
+        try:
+            await query.message.reply_text(txt, parse_mode="Markdown")
+        except Exception:
+            await query.message.reply_text(txt.replace("*", "").replace("_", "").replace("`", ""))
+        await _qanswer(query)
+
     elif data == "toggle_sl_atr":
         config.SL_ATR_ENABLED = not getattr(config, "SL_ATR_ENABLED", True)
         save_runtime_state()

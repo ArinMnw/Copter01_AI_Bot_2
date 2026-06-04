@@ -1,6 +1,7 @@
 import config
 from config import *
 from bot_log import log_event
+import hhll_swing as _hhll_swing_mod
 from mt5_utils import connect_mt5, open_order, find_swing_tp, should_cancel_pending, get_existing_tp, has_previous_bar_trade
 from trailing import fvg_order_tickets, pending_order_tf, position_tf, position_sid
 
@@ -65,6 +66,24 @@ async def check_fvg_pending(app):
         touched = (signal == "BUY"  and ask <= entry + 0.1) or                   (signal == "SELL" and bid >= entry - 0.1)
 
         if touched:
+            # Sweep Filter Block FVG — independent of TREND_FILTER_SCAN_BLOCK
+            try:
+                import sweep_filter as _sf_pfvg
+                if _sf_pfvg.is_enabled():
+                    _sw_pfvg = _sf_pfvg.get_sweep_state(tf)
+                    if (_sw_pfvg == "SWEEP_LOW" and signal == "SELL") or \
+                       (_sw_pfvg == "SWEEP_HIGH" and signal == "BUY"):
+                        _sw_pfvg_rsn = (
+                            f"sweep_low_block_sell FVG [{tf}]"
+                            if _sw_pfvg == "SWEEP_LOW"
+                            else f"sweep_high_block_buy FVG [{tf}]"
+                        )
+                        print(f"🧭 [{now}] FVG [{tf}] sweep filter block {signal} ({_sw_pfvg_rsn})")
+                        log_event("TREND_FILTER_BLOCK", _sw_pfvg_rsn, tf=tf, sid=2, signal=signal)
+                        to_remove.append(key)
+                        continue
+            except Exception:
+                pass
             if config.TREND_FILTER_SCAN_BLOCK:
                 from scanner import trend_allows_signal
                 _ok, _why = trend_allows_signal(tf, signal)
@@ -129,6 +148,7 @@ async def check_fvg_pending(app):
                         ticket=order["ticket"],
                         order_type=ot_name,
                         trend_filter=",".join(_trend_keys) if _trend_keys else "",
+                        hhll_last_label=_hhll_swing_mod.get_hhll_data(tf).get("last_label", ""),
                     )
                 await tg(app, (
                         f"\u2705 *{ot_name} FVG \u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08!*\n"
@@ -206,6 +226,24 @@ async def check_pb_pending(app):
         touched = (signal == "BUY"  and ask <= entry) or                   (signal == "SELL" and bid >= entry)
 
         if touched:
+            # Sweep Filter Block Pattern B — independent of TREND_FILTER_SCAN_BLOCK
+            try:
+                import sweep_filter as _sf_ppb
+                if _sf_ppb.is_enabled():
+                    _sw_ppb = _sf_ppb.get_sweep_state(tf)
+                    if (_sw_ppb == "SWEEP_LOW" and signal == "SELL") or \
+                       (_sw_ppb == "SWEEP_HIGH" and signal == "BUY"):
+                        _sw_ppb_rsn = (
+                            f"sweep_low_block_sell PB [{tf}]"
+                            if _sw_ppb == "SWEEP_LOW"
+                            else f"sweep_high_block_buy PB [{tf}]"
+                        )
+                        print(f"🧭 [{now}] PB [{tf}] sweep filter block {signal} ({_sw_ppb_rsn})")
+                        log_event("TREND_FILTER_BLOCK", _sw_ppb_rsn, tf=tf, sid=1, signal=signal)
+                        to_remove.append(key)
+                        continue
+            except Exception:
+                pass
             if config.TREND_FILTER_SCAN_BLOCK:
                 from scanner import trend_allows_signal
                 _ok, _why = trend_allows_signal(tf, signal)
@@ -258,6 +296,7 @@ async def check_pb_pending(app):
                     ticket=order.get("ticket"),
                     order_type=ot_name,
                     trend_filter=",".join(_trend_keys) if _trend_keys else "",
+                    hhll_last_label=_hhll_swing_mod.get_hhll_data(tf).get("last_label", ""),
                 )
                 await tg(app, f"✅ *{ot_name} สำเร็จ! (วิธี 2)*\n{sig_e} {ot_name} {SYMBOL} [{tf}]\n📌 Entry: `{order['price']}`\n🔖 Ticket: `{order['ticket']}`")
             elif not order.get("silent"):   # silent = pending-limit guard → ไม่ spam log/tg

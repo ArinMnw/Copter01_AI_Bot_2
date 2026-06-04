@@ -2854,6 +2854,12 @@ async def check_limit_fill_notify(app):
                         _t = _tinfo.get("trend", "")
                         _s = _tinfo.get("strength", "")
                         _fill_trend = f"{_t} ({_s})" if _s and _s != "-" else _t
+                        # append HHLL last_label ถ้า SIDEWAY
+                        if _t == "SIDEWAY":
+                            _hhll_d = _hs.get_hhll_data(_fill_tf) or {}
+                            _last_l = _hhll_d.get("last_label", "")
+                            if _last_l:
+                                _fill_trend = f"SIDEWAY/{_last_l}"
                 except Exception:
                     pass
         except Exception:
