@@ -43,13 +43,19 @@ _trend_filter_last_dir: dict = {}  # {"ticket|tf": "BULL"|"BEAR"|"SIDEWAY"}
 # Premium/Discount zone recheck state per pending order ticket
 # Format: {ticket: {"signal", "tf", "price", "cur_h", "cur_l", "round1": int}}
 # checks[i]: 0 = not yet done, 1 = pass, -1 = fail
-_pd_zone_state: dict = {}
-_pd_zone_fill_checked: set[int] = set()  # tickets ที่ผ่าน PD Zone fill check ครบทุก round แล้ว
-_pd_zone_fill_state:   dict     = {}     # {ticket: {tf, signal, fill_h, fill_l, ...}} รอ round 2
+_pdfiboplus_state: dict = {}
+_pdfiboplus_fill_checked: set[int] = set()  # tickets ที่ผ่าน PD Zone fill check ครบทุก round แล้ว
+_pdfiboplus_fill_state:   dict     = {}     # {ticket: {tf, signal, fill_h, fill_l, ...}} รอ round 2
 
 # Limit Trend Recheck multi-round state
 # {ticket: {"round": int, "rounds_total": int, "cur_h": float, "cur_l": float, "signal": str}}
 _trend_recheck_state: dict = {}
+
+# Pending Trend Check on Approach: state per pending order (pre-fill)
+# {ticket: {"tf": str, "signal": str,
+#            "round1_sh": float|None, "round1_sl": float|None,
+#            "round2_start_time": int}}
+_pending_trend_approach: dict = {}
 
 # ── Triple Recheck combined state ────────────────────────────────────────────
 # {ticket: {"rsi": None|True|False, "trend": None|True|False,
@@ -808,7 +814,7 @@ def _triple_check_all_enabled() -> bool:
     if not getattr(config, "RECHECK_COMBINED_MODE", False):
         return False
     return (
-        getattr(config, "PD_ZONE_CHECK_ENABLED",       False) and
+        getattr(config, "PDFIBOPLUS_ENABLED",       False) and
         getattr(config, "LIMIT_TREND_RECHECK",          False) and
         getattr(config, "PENDING_RSI_RECHECK_ENABLED", False)
     )
@@ -869,6 +875,7 @@ _sl_protect_applied: set[int] = set()
 _last_sl_protect_tg_key = ""
 _s8_fill_sl: dict = {}   # {ticket: intended_sl} for S8 that filled before SL arm
 _fill_rsi_checked: set[int] = set()
+_pending_rsi_close: dict = {}          # {ticket: pos_type} — close fail → retry ทุกรอบสแกน
 _fill_trend_checked: set[int] = set()  # tickets ที่ผ่าน round1 trend recheck แล้ว
 
 # Strategy 6: 2 High 2 Low trail state
@@ -2939,7 +2946,13 @@ async def check_fill_rsi_recheck(app):
         return
     positions = mt5.positions_get(symbol=SYMBOL)
     if not positions:
+        _pending_rsi_close.clear()
         return
+
+    open_pos_tickets = {p.ticket for p in positions}
+    for _t in list(_pending_rsi_close):
+        if _t not in open_pos_tickets:
+            _pending_rsi_close.pop(_t, None)
 
     now = now_bkk().strftime("%H:%M:%S")
     for pos in positions:
@@ -2952,6 +2965,16 @@ async def check_fill_rsi_recheck(app):
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e = "🟢" if pos_type == "BUY" else "🔴"
+
+        # ── Pending close retry (ทุก cycle จนกว่าจะปิดได้) ────────────────────
+        if ticket in _pending_rsi_close:
+            ok, cp = _close_position(pos, pos_type, "fill rsi pending retry")
+            if ok:
+                _pending_rsi_close.pop(ticket, None)
+                _fill_rsi_checked.add(ticket)
+                await tg(app, f"✅ *RSI Recheck retry ปิดสำเร็จ*\n{sig_e} Ticket:`{ticket}` ปิดที่`{cp}`")
+                print(f"[{now}] fill_rsi_retry_close {pos_type} {ticket} @ {cp}")
+            continue
         fvg_info = fvg_order_tickets.get(ticket)
         pattern_name = position_pattern.get(ticket, "") or ""
         # ── resolve _fill_tf (3-tier fallback, same as check_limit_fill_notify) ──
@@ -3048,6 +3071,8 @@ async def check_fill_rsi_recheck(app):
                 if ok_close:
                     _fill_rsi_checked.add(ticket)
                     print(f"[{now}] triple_recheck_close {pos_type} {ticket} close={close_price:.2f}")
+                else:
+                    _pending_rsi_close[ticket] = pos_type
             elif tc_dec == "keep":
                 tc_st = _triple_check_state.pop(ticket, {})
                 _tc_line = (
@@ -3102,6 +3127,8 @@ async def check_fill_rsi_recheck(app):
             if ok_close:
                 _fill_rsi_checked.add(ticket)
                 print(f"[{now}] fill_rsi_close {pos_type} {ticket} close={close_price:.2f}")
+            else:
+                _pending_rsi_close[ticket] = pos_type
         else:
             _fill_rsi_checked.add(ticket)
 
@@ -3211,6 +3238,25 @@ async def check_fill_trend_recheck(app):
 
         # ── รอบ 1: เช็คทุก cycle จนกว่าข้อมูลพร้อม ──────────────────────
         if tr_state is None:
+            # Pre-fill approach check ผ่านมาแล้ว → skip round 1 ใช้ approach-time swing เป็น baseline
+            _approach_pre = _pending_trend_approach.pop(ticket, None)
+            if _approach_pre:
+                _r1_sh = _approach_pre.get("round1_sh")
+                _r1_sl = _approach_pre.get("round1_sl")
+                _r2_st = _approach_pre.get("round2_start_time", int(_time.time()))
+                _trend_recheck_state[ticket] = {
+                    "round": 2,
+                    "rounds_total": ltr_rounds,
+                    "round2_start_time": _r2_st,
+                    "round1_sh": _r1_sh,
+                    "round1_sl": _r1_sl,
+                    "pending_close": False,
+                }
+                log_event("TREND_RECHECK", "fill_round1_skip_approach_passed",
+                          ticket=ticket, tf=_tr_tf, signal=pos_type,
+                          sh=_r1_sh, sl=_r1_sl)
+                continue  # ไป round 2 รอบถัดไป
+
             # ถ้าข้อมูล swing ยังไม่พร้อม → force fetch HHLL ตรงแทนรอ scanner
             if not _sdr(_tr_tf):
                 try:
@@ -3365,39 +3411,269 @@ async def check_fill_trend_recheck(app):
 
 
 # -------------------------------------------------------------
-async def check_fill_pd_zone(app):
+async def check_pending_trend_approach(app):
+    """
+    Pending Trend Check on Approach — เช็ค trend ของ pending order ก่อน fill
+    เมื่อราคาเข้าใกล้ entry ≤ PENDING_TREND_CHECK_POINTS จุด:
+
+    รอบ 1 (approach): เช็ค trend ทันที
+        FAIL → ยกเลิก pending order (ก่อน fill → ไม่เสีย spread+slippage)
+        PASS → บันทึก swing H/L ไว้ รอ round 2
+
+    รอบ 2 (swing ใหม่): เมื่อ swing H/L เปลี่ยนจาก round 1
+        FAIL → ยกเลิก pending (ถ้ายังไม่ fill)
+               check_fill_trend_recheck จะ handle ต่อถ้า fill แล้ว
+        PASS → clear state
+
+    Gate: PENDING_TREND_CHECK_ENABLED
+    Skip: S9, S10, S14, S15 (เหมือน check_fill_trend_recheck)
+    """
+    if not getattr(config, "PENDING_TREND_CHECK_ENABLED", False):
+        return
+
+    orders = mt5.orders_get(symbol=SYMBOL)
+    if not orders:
+        _pending_trend_approach.clear()
+        return
+
+    import time as _time
+    import hhll_swing as _hs
+    from scanner import trend_allows_signal as _tas, swing_data_ready as _sdr
+    from hhll_swing import get_swing_hl_pts as _ghl, get_hhll_data as _ghd
+
+    open_order_tickets = {int(o.ticket) for o in orders}
+    open_pos_tickets   = {int(p.ticket) for p in (mt5.positions_get(symbol=SYMBOL) or [])}
+
+    # Cleanup state สำหรับ ticket ที่ไม่มีแล้ว (ปิด/ยกเลิก และไม่ได้ fill)
+    for _t in list(_pending_trend_approach.keys()):
+        if _t not in open_order_tickets and _t not in open_pos_tickets:
+            _pending_trend_approach.pop(_t, None)
+
+    sym_info = mt5.symbol_info(SYMBOL)
+    if not sym_info:
+        return
+    _pt            = sym_info.point or 0.01
+    _approach_dist = getattr(config, "PENDING_TREND_CHECK_POINTS", 200) * _pt * config.points_scale()
+    tick           = mt5.symbol_info_tick(SYMBOL)
+    if not tick:
+        return
+
+    ltr_rounds = int(getattr(config, "LIMIT_TREND_RECHECK_ROUNDS", 2))
+
+    for order in orders:
+        ticket = int(order.ticket)
+        if order.type not in (mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_SELL_LIMIT):
+            continue
+
+        # Resolve SID
+        sid = position_sid.get(ticket)
+        if sid is None:
+            _pend = pending_order_tf.get(ticket)
+            if isinstance(_pend, dict):
+                sid = _pend.get("sid")
+
+        # Skip เหมือน check_fill_trend_recheck
+        if sid in (9, 10, 14, 15):
+            continue
+
+        # Resolve TF
+        _tf = position_tf.get(ticket)
+        if not _tf:
+            _pend = pending_order_tf.get(ticket)
+            if isinstance(_pend, dict):
+                _tf = _pend.get("tf")
+        if not _tf:
+            _tf = "M1"
+        if _tf.startswith("["):
+            _parts = re.findall(r"[MHD]\d+", _tf)
+            if _parts:
+                _tf = max(_parts, key=lambda t: int(TF_SECONDS_MAP.get(t, 0) or 0))
+
+        pos_type = "BUY" if order.type == mt5.ORDER_TYPE_BUY_LIMIT else "SELL"
+        sig_e    = "🟢" if pos_type == "BUY" else "🔴"
+        entry    = float(order.price_open)
+
+        approach_state = _pending_trend_approach.get(ticket)
+
+        # ─────────────────────────────────────────────────────────────────
+        # ─ Round 1: ตรวจ approach ─────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────────
+        if approach_state is None:
+            # คำนวณว่าราคาปัจจุบัน "เข้าใกล้" entry ไหม
+            if pos_type == "BUY":
+                _cur = float(tick.ask)
+                approaching = _cur <= entry + _approach_dist
+            else:
+                _cur = float(tick.bid)
+                approaching = _cur >= entry - _approach_dist
+
+            if not approaching:
+                continue
+
+            # ── ข้อมูล swing พร้อมไหม ──
+            if not _sdr(_tf):
+                try:
+                    from hhll_swing import fetch_hhll as _fhhll; _fhhll(_tf)
+                except Exception:
+                    pass
+                if not _sdr(_tf):
+                    continue
+
+            _allowed, _why = _tas(_tf, pos_type)
+            if _allowed and _why == "?":
+                try:
+                    from hhll_swing import fetch_hhll as _fhhll; _fhhll(_tf)
+                except Exception:
+                    pass
+                _allowed, _why = _tas(_tf, pos_type)
+                if _allowed and _why == "?":
+                    continue
+
+            _sh, _sl  = _ghl(_tf)
+            _sh_price = float(_sh["price"]) if _sh else None
+            _sl_price = float(_sl["price"]) if _sl else None
+            _dist_pt  = round(abs(_cur - entry) / _pt)
+
+            log_event("PENDING_TREND_CHECK", "round1",
+                      ticket=ticket, tf=_tf, signal=pos_type,
+                      allowed=_allowed, why=_why, dist_pt=_dist_pt, entry=entry)
+
+            if not _allowed:
+                # ── FAIL: ยกเลิก pending order ──
+                _info = pending_order_tf.get(ticket)
+                _ot   = _pending_order_type_name(order)
+                r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+                if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                    pending_order_tf.pop(ticket, None)
+                    log_event(
+                        "ORDER_CANCELED",
+                        f"Pending Trend Check [round1]: trend={_why}",
+                        ticket=ticket, tf=_tf,
+                        side=pos_type, order_type=_ot, entry=entry,
+                        flow_id=_info.get("flow_id", "") if isinstance(_info, dict) else "",
+                        dist_pt=_dist_pt,
+                    )
+                    await tg(app, (
+                        f"🚫 *Pending Trend Check: ยกเลิก [round1]*\n"
+                        f"{sig_e} {_ot} `#{ticket}` [{_tf}]\n"
+                        f"Trend สวนทาง: `{_why}`\n"
+                        f"ราคาใกล้ entry {entry:.2f} ({_dist_pt}pt)"
+                    ))
+                    _pending_trend_approach.pop(ticket, None)
+            else:
+                # ── PASS: บันทึก swing baseline รอ round 2 ──
+                _hhll_d  = _ghd(_tf) or {}
+                _lbl     = _hhll_d.get("last_label", "")
+                _piv     = _hhll_d.get(_lbl.lower()) if _lbl else None
+                _piv_t   = int(_piv["time"]) if _piv and "time" in _piv else 0
+                _tf_secs = int(TF_SECONDS_MAP.get(_tf, 300) or 300)
+                _hhll_rb = int(getattr(_hs, "HHLL_RIGHT", 5))
+                _r2_start = (_piv_t + _hhll_rb * _tf_secs) if _piv_t else (int(_time.time()) + _hhll_rb * _tf_secs)
+
+                _pending_trend_approach[ticket] = {
+                    "tf": _tf,
+                    "signal": pos_type,
+                    "round1_sh": _sh_price,
+                    "round1_sl": _sl_price,
+                    "round2_start_time": _r2_start,
+                }
+                log_event("PENDING_TREND_CHECK", "round1_pass",
+                          ticket=ticket, tf=_tf, signal=pos_type,
+                          sh=_sh_price, sl=_sl_price, dist_pt=_dist_pt)
+                await tg(app, (
+                    f"✅ *Pending Trend Check: ผ่าน [round1]*\n"
+                    f"{sig_e} {_pending_order_type_name(order)} `#{ticket}` [{_tf}]\n"
+                    f"Trend: `{_why}` | ใกล้ entry {_dist_pt}pt\n"
+                    f"รอ Swing ใหม่ → Round 2"
+                ))
+
+        # ─────────────────────────────────────────────────────────────────
+        # ─ Round 2: รอ swing ใหม่ (ยัง pending อยู่) ─────────────────────
+        # ─────────────────────────────────────────────────────────────────
+        else:
+            if _time.time() < approach_state.get("round2_start_time", 0):
+                continue
+
+            _sh, _sl = _ghl(_tf)
+            _new_h   = float(_sh["price"]) if _sh else None
+            _new_l   = float(_sl["price"]) if _sl else None
+            _r1_h    = approach_state.get("round1_sh")
+            _r1_l    = approach_state.get("round1_sl")
+            _h_chg   = (_new_h is not None and _r1_h is not None and abs(_new_h - _r1_h) > 0.01)
+            _l_chg   = (_new_l is not None and _r1_l is not None and abs(_new_l - _r1_l) > 0.01)
+
+            if not (_h_chg or _l_chg):
+                continue  # swing ยังไม่เปลี่ยน
+
+            _allowed, _why = _tas(_tf, pos_type)
+            if _allowed and _why == "?":
+                continue
+
+            _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
+            log_event("PENDING_TREND_CHECK", "round2",
+                      ticket=ticket, tf=_tf, signal=pos_type,
+                      allowed=_allowed, why=_why, swing_changed=_changed)
+
+            if not _allowed:
+                _info = pending_order_tf.get(ticket)
+                _ot   = _pending_order_type_name(order)
+                r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+                if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                    pending_order_tf.pop(ticket, None)
+                    log_event(
+                        "ORDER_CANCELED",
+                        f"Pending Trend Check [round2]: swing={_changed}, trend={_why}",
+                        ticket=ticket, tf=_tf,
+                        side=pos_type, order_type=_ot, entry=entry,
+                        flow_id=_info.get("flow_id", "") if isinstance(_info, dict) else "",
+                    )
+                    await tg(app, (
+                        f"🚫 *Pending Trend Check: ยกเลิก [round2]*\n"
+                        f"{sig_e} {_ot} `#{ticket}` [{_tf}]\n"
+                        f"Swing เปลี่ยน ({_changed}) → Trend สวนทาง: `{_why}`"
+                    ))
+                _pending_trend_approach.pop(ticket, None)
+            else:
+                # Round 2 ผ่าน → clear state
+                log_event("PENDING_TREND_CHECK", "round2_pass",
+                          ticket=ticket, tf=_tf, signal=pos_type, swing_changed=_changed)
+                _pending_trend_approach.pop(ticket, None)
+
+
+# -------------------------------------------------------------
+async def check_fill_pdfiboplus(app):
     """
     PD Zone Fill Check — เช็ค position ที่เพิ่ง fill ว่าอยู่ใน zone ที่ถูกต้องไหม
-    Gate: PD_ZONE_CHECK_ENABLED
+    Gate: PDFIBOPLUS_ENABLED
     Skip: S9 (RSI Divergence)
 
     รอบ 1 (fill_check) : เช็คทันทีหลัง fill — ถ้า FAIL ปิด position
                          ถ้า PASS → บันทึก H/L รอ round 2
     รอบ 2              : เช็คเมื่อ H/L เปลี่ยน — entry อาจเลื่อนเข้า Premium/Discount ผิดฝั่ง
     """
-    if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
+    if not getattr(config, "PDFIBOPLUS_ENABLED", False):
         return
     positions = mt5.positions_get(symbol=SYMBOL)
     if positions is None:
         return  # MT5 error — ไม่ clear state
     if not positions:
-        _pd_zone_fill_state.clear()
-        _pd_zone_fill_checked.clear()
+        _pdfiboplus_fill_state.clear()
+        _pdfiboplus_fill_checked.clear()
         return
 
     open_pos_tickets = {p.ticket for p in positions}
-    for _t in list(_pd_zone_fill_state.keys()):
+    for _t in list(_pdfiboplus_fill_state.keys()):
         if _t not in open_pos_tickets:
-            _pd_zone_fill_state.pop(_t, None)
-    _pd_zone_fill_checked.difference_update(
-        _t for _t in list(_pd_zone_fill_checked) if _t not in open_pos_tickets
+            _pdfiboplus_fill_state.pop(_t, None)
+    _pdfiboplus_fill_checked.difference_update(
+        _t for _t in list(_pdfiboplus_fill_checked) if _t not in open_pos_tickets
     )
 
     from hhll_swing import get_swing_hl_pts as _gshl
 
     for pos in positions:
         ticket = pos.ticket
-        if ticket in _pd_zone_fill_checked:
+        if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
         if sid in (9, 15):
@@ -3435,29 +3711,29 @@ async def check_fill_pd_zone(app):
         _pz_gap_bot = float((fvg_info or {}).get("gap_bot", 0) or 0)
         _pz_gap_top = float((fvg_info or {}).get("gap_top", 0) or 0)
 
-        fs = _pd_zone_fill_state.get(ticket)
+        fs = _pdfiboplus_fill_state.get(ticket)
 
         # ── Pending close retry ─────────────────────────────────────────
         if fs and fs.get("pending_close"):
             ok, cp = _close_position(pos, pos_type, "PD Zone fill_round2 retry")
-            log_event("PD_ZONE_CHECK", "fill_close_round2_retry",
+            log_event("PDFIBOPLUS", "fill_close_round2_retry",
                       ticket=ticket, signal=pos_type, tf=_pz_tf, ok=ok)
             if ok:
                 _entry_state[ticket] = "done"
                 fvg_order_tickets.pop(ticket, None)
                 save_runtime_state()
                 _pz_eq = round((fs["fill_h"] + fs["fill_l"]) / 2, 2)
-                log_event("PD_ZONE_CHECK", "fill_close_round2",
+                log_event("PDFIBOPLUS", "fill_close_round2",
                           ticket=ticket, signal=pos_type, tf=_pz_tf, close_price=cp)
                 _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
                 await tg(app, (
-                    f"🛡️ *PD Zone: ปิด Position [round2] (retry)*\n"
+                    f"🛡️ *PD Fibo Plus: ปิด Position [round2] (retry)*\n"
                     f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
                     f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
                     f"ปิดที่: `{cp:.2f}`"
                 ))
-                _pd_zone_fill_state.pop(ticket, None)
-                _pd_zone_fill_checked.add(ticket)
+                _pdfiboplus_fill_state.pop(ticket, None)
+                _pdfiboplus_fill_checked.add(ticket)
             continue
 
         # ── Round 2: H/L เปลี่ยน → re-check zone ──────────────────────
@@ -3474,13 +3750,13 @@ async def check_fill_pd_zone(app):
                 continue  # H/L ยังไม่เปลี่ยน รอ cycle ถัดไป
             if not (_new_h > _new_l > 0):
                 continue
-            _r2_result = _pd_zone_in_zone(
+            _r2_result = _pdfiboplus_in_zone(
                 float(pos.price_open), pos_type, _new_h, _new_l,
                 sid=sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
             )
             _r2_eq      = round((_new_h + _new_l) / 2, 2)
             _r2_changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
-            log_event("PD_ZONE_CHECK", "fill_round2",
+            log_event("PDFIBOPLUS", "fill_round2",
                       ticket=ticket, signal=pos_type, tf=_pz_tf,
                       price=pos.price_open, h=_new_h, l=_new_l,
                       eq=_r2_eq, changed=_r2_changed,
@@ -3491,35 +3767,35 @@ async def check_fill_pd_zone(app):
                     _entry_state[ticket] = "done"
                     fvg_order_tickets.pop(ticket, None)
                     save_runtime_state()
-                    log_event("PD_ZONE_CHECK", "fill_close_round2",
+                    log_event("PDFIBOPLUS", "fill_close_round2",
                               ticket=ticket, signal=pos_type, tf=_pz_tf,
                               price=pos.price_open, eq=_r2_eq, close_price=cp)
                     _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
                     await tg(app, (
-                        f"🛡️ *PD Zone: ปิด Position [round2]*\n"
+                        f"🛡️ *PD Fibo Plus: ปิด Position [round2]*\n"
                         f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
                         f"H/L เปลี่ยน ({_r2_changed}) → Entry เข้า {_zone_label} (ผิดฝั่ง)\n"
                         f"Entry: `{pos.price_open}` | EQ: `{_r2_eq}`\n"
                         f"H: `{_new_h}` | L: `{_new_l}`\n"
                         f"ปิดที่: `{cp:.2f}`"
                     ))
-                    _pd_zone_fill_state.pop(ticket, None)
-                    _pd_zone_fill_checked.add(ticket)
+                    _pdfiboplus_fill_state.pop(ticket, None)
+                    _pdfiboplus_fill_checked.add(ticket)
                 else:
-                    log_event("PD_ZONE_CHECK", "fill_close_round2_failed",
+                    log_event("PDFIBOPLUS", "fill_close_round2_failed",
                               ticket=ticket, signal=pos_type, tf=_pz_tf)
                     await tg(app, (
-                        f"⚠️ *PD Zone: ปิด Position ล้มเหลว [round2]*\n"
+                        f"⚠️ *PD Fibo Plus: ปิด Position ล้มเหลว [round2]*\n"
                         f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
                         f"H/L เปลี่ยน ({_r2_changed}) → Entry ผิดฝั่ง — จะ retry ทุกรอบสแกน"
                     ))
                     fs["pending_close"] = True
-                    _pd_zone_fill_state[ticket] = fs
+                    _pdfiboplus_fill_state[ticket] = fs
             else:
                 # round 2 ผ่าน — zone ยังถูกต้อง
-                _pd_zone_fill_state.pop(ticket, None)
-                _pd_zone_fill_checked.add(ticket)
-                log_event("PD_ZONE_CHECK", "fill_round2_pass",
+                _pdfiboplus_fill_state.pop(ticket, None)
+                _pdfiboplus_fill_checked.add(ticket)
+                log_event("PDFIBOPLUS", "fill_round2_pass",
                           ticket=ticket, signal=pos_type, tf=_pz_tf,
                           h=_new_h, l=_new_l, eq=_r2_eq, changed=_r2_changed)
             continue
@@ -3543,16 +3819,16 @@ async def check_fill_pd_zone(app):
             except Exception:
                 pass
             if not (_pz_h > _pz_l > 0):
-                log_event("PD_ZONE_CHECK", "fill_round1_skip_no_data",
+                log_event("PDFIBOPLUS", "fill_round1_skip_no_data",
                           ticket=ticket, signal=pos_type, tf=_pz_tf)
                 continue
 
-        _pz_result = _pd_zone_in_zone(
+        _pz_result = _pdfiboplus_in_zone(
             float(pos.price_open), pos_type, _pz_h, _pz_l,
             sid=sid, gap_bot=_pz_gap_bot, gap_top=_pz_gap_top
         )
         _pz_eq = round((_pz_h + _pz_l) / 2, 2)
-        log_event("PD_ZONE_CHECK", "fill_check",
+        log_event("PDFIBOPLUS", "fill_check",
                   ticket=ticket, signal=pos_type, tf=_pz_tf,
                   price=pos.price_open, h=_pz_h, l=_pz_l,
                   eq=_pz_eq, result="PASS" if _pz_result else "FAIL",
@@ -3563,18 +3839,37 @@ async def check_fill_pd_zone(app):
                 _entry_state[ticket] = "done"
                 fvg_order_tickets.pop(ticket, None)
                 save_runtime_state()
-                log_event("PD_ZONE_CHECK", "fill_close",
+                log_event("PDFIBOPLUS", "fill_close",
                           ticket=ticket, signal=pos_type, tf=_pz_tf,
                           price=pos.price_open, eq=_pz_eq, close_price=cp)
                 _zone_label = "Discount 🟢" if pos_type == "SELL" else "Premium 🔴"
                 await tg(app, (
-                    f"🛡️ *PD Zone: ปิด Position ที่ fill ผิด Zone*\n"
+                    f"🛡️ *PD Fibo Plus: ปิด Position ที่ fill ผิด Zone*\n"
                     f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
                     f"Entry อยู่ใน {_zone_label} (ผิดฝั่ง)\n"
                     f"Entry: `{pos.price_open}` | EQ: `{_pz_eq}`\n"
                     f"H: `{_pz_h}` | L: `{_pz_l}`"
                 ))
-            _pd_zone_fill_checked.add(ticket)  # done (fail path)
+                _pdfiboplus_fill_checked.add(ticket)
+            else:
+                # close ล้มเหลว → retry ทุก cycle (ห้าม add _pdfiboplus_fill_checked)
+                log_event("PDFIBOPLUS", "fill_close_failed",
+                          ticket=ticket, signal=pos_type, tf=_pz_tf,
+                          price=pos.price_open, eq=_pz_eq)
+                await tg(app, (
+                    f"⚠️ *PD Fibo Plus: ปิด Position ล้มเหลว [round1]*\n"
+                    f"{sig_e} Ticket:`{ticket}` [{_pz_tf}]\n"
+                    f"Entry ผิดฝั่ง — จะ retry ทุกรอบสแกน"
+                ))
+                _pdfiboplus_fill_state[ticket] = {
+                    "tf":          _pz_tf,
+                    "signal":      pos_type,
+                    "fill_h":      _pz_h,
+                    "fill_l":      _pz_l,
+                    "gap_bot":     _pz_gap_bot,
+                    "gap_top":     _pz_gap_top,
+                    "pending_close": True,
+                }
         else:
             # Round 1 PASS → ตรวจ S14 strong counter-trend ก่อน round 2
             # S14 Sweep RSI bypass fill_trend_recheck โดย design แต่ถ้า trend strong
@@ -3587,7 +3882,7 @@ async def check_fill_pd_zone(app):
                     (pos_type == "BUY"  and "bear" in _stored_tf.lower() and "strong" in _stored_tf.lower())
                 )
                 if _s14_strong_counter:
-                    log_event("PD_ZONE_CHECK", "fill_round1_s14_strong_counter",
+                    log_event("PDFIBOPLUS", "fill_round1_s14_strong_counter",
                               ticket=ticket, signal=pos_type, tf=_pz_tf,
                               trend_filter=_stored_tf, eq=_pz_eq)
                     ok, cp = _close_position(pos, pos_type, "S14 strong-counter fill")
@@ -3595,7 +3890,7 @@ async def check_fill_pd_zone(app):
                         _entry_state[ticket] = "done"
                         fvg_order_tickets.pop(ticket, None)
                         save_runtime_state()
-                        log_event("PD_ZONE_CHECK", "fill_close_s14_strong_counter",
+                        log_event("PDFIBOPLUS", "fill_close_s14_strong_counter",
                                   ticket=ticket, signal=pos_type, tf=_pz_tf,
                                   trend_filter=_stored_tf, close_price=cp)
                         await tg(app, (
@@ -3604,13 +3899,13 @@ async def check_fill_pd_zone(app):
                             f"Trend: `{_stored_tf}` | Entry: `{pos.price_open}` | ปิดที่: `{cp:.2f}`"
                         ))
                         # สำเร็จ → mark checked (จบงาน)
-                        _pd_zone_fill_checked.add(ticket)
+                        _pdfiboplus_fill_checked.add(ticket)
                     else:
                         # close ล้มเหลว → ตั้ง pending_close=True ให้ retry รอบถัดไป
-                        # ห้าม add เข้า _pd_zone_fill_checked ไม่งั้นจะถูก skip ก่อนถึง retry block
-                        log_event("PD_ZONE_CHECK", "fill_s14_strong_counter_close_fail",
+                        # ห้าม add เข้า _pdfiboplus_fill_checked ไม่งั้นจะถูก skip ก่อนถึง retry block
+                        log_event("PDFIBOPLUS", "fill_s14_strong_counter_close_fail",
                                   ticket=ticket, signal=pos_type, tf=_pz_tf)
-                        _pd_zone_fill_state[ticket] = {
+                        _pdfiboplus_fill_state[ticket] = {
                             "tf": _pz_tf, "signal": pos_type,
                             "fill_h": _pz_h, "fill_l": _pz_l,
                             "gap_bot": _pz_gap_bot, "gap_top": _pz_gap_top,
@@ -3619,7 +3914,7 @@ async def check_fill_pd_zone(app):
                     continue
 
             # Round 1 PASS → บันทึก H/L รอ round 2
-            _pd_zone_fill_state[ticket] = {
+            _pdfiboplus_fill_state[ticket] = {
                 "tf":        _pz_tf,
                 "signal":    pos_type,
                 "fill_h":    _pz_h,
@@ -3628,7 +3923,7 @@ async def check_fill_pd_zone(app):
                 "gap_top":   _pz_gap_top,
                 "pending_close": False,
             }
-            log_event("PD_ZONE_CHECK", "fill_round1_pass_wait_hl",
+            log_event("PDFIBOPLUS", "fill_round1_pass_wait_hl",
                       ticket=ticket, signal=pos_type, tf=_pz_tf,
                       h=_pz_h, l=_pz_l, eq=_pz_eq)
 
@@ -3926,7 +4221,7 @@ async def check_entry_candle_quality(app):
         current_price = float(entry_bar["close"])
 
         if state is None:
-            # ── PD Zone fill check ย้ายไป check_fill_pd_zone() แล้ว ──
+            # ── PD Fibo Plus fill check ย้ายไป check_fill_pdfiboplus() แล้ว ──
 
             # Evaluate the entry candle
             bull, body_pct, body_pct_int = bar_info(entry_bar)
@@ -6003,38 +6298,41 @@ async def check_s6_trail(app):
                                       _get_s6_prev_swing_high, _get_s6_prev_swing_low)
 
 
-def _pd_zone_in_zone(order_price: float, signal: str, h: float, l: float,
+def _pdfiboplus_in_zone(order_price: float, signal: str, h: float, l: float,
                      sid: int = 0, gap_bot: float = 0.0, gap_top: float = 0.0) -> bool:
-    """True ถ้า order_price อยู่ใน zone ที่ถูกต้อง
-    BUY  → ต่ำกว่า EQ (Discount zone)
-    SELL → สูงกว่า EQ (Premium zone)
+    """True ถ้า order_price อยู่ใน zone ที่ถูกต้อง (Fibonacci 38.2/61.8)
 
-    S2 พิเศษ: entry อยู่ที่ 98% ของ gap อาจเหนือ EQ แต่ถ้า gap มีบางส่วน
-    อยู่ใน zone ที่ถูกต้องให้ PASS
-      BUY:  gap_bot < eq → gap คร่อม Discount zone
-      SELL: gap_top > eq → gap คร่อม Premium zone
+    Discount (BUY zone)  → price < L + range*0.382  (ต่ำกว่า 38.2%)
+    Premium  (SELL zone) → price > L + range*0.618  (สูงกว่า 61.8%)
+    Middle zone (38.2%–61.8%) → ถือว่าผิดฝั่ง
+
+    S2 พิเศษ: ถ้า gap มีบางส่วนอยู่ใน zone ที่ถูกต้องให้ PASS
+      BUY:  gap_bot < fib_382 → gap คร่อม Discount zone
+      SELL: gap_top > fib_618 → gap คร่อม Premium zone
     """
     if h <= l:
         return True  # invalid range → pass
-    eq = (h + l) / 2.0
+    _range   = h - l
+    fib_382  = l + _range * 0.382
+    fib_618  = l + _range * 0.618
     if sid == 2 and gap_bot > 0 and gap_top > 0 and gap_top > gap_bot:
-        if signal == "BUY" and gap_bot < eq:
-            return True   # gap_bot (0%) อยู่ใน Discount zone → ช่วง 0%-98% คร่อม EQ
-        if signal == "SELL" and gap_top > eq:
-            return True   # gap_top (0% จากบน) อยู่ใน Premium zone → ช่วง 0%-98% คร่อม EQ
-        # gap คร่อม H หรือ L แต่ไม่คร่อม EQ → ปลาย gap หลุดนอก swing range → PASS
-        if signal == "BUY" and gap_top > h and gap_bot >= eq:
-            return True   # gap คร่อม H (premium boundary) ไม่คร่อม EQ
-        if signal == "SELL" and gap_bot < l and gap_top <= eq:
-            return True   # gap คร่อม L (discount boundary) ไม่คร่อม EQ
+        if signal == "BUY" and gap_bot < fib_382:
+            return True   # gap_bot อยู่ใน Discount zone (< 38.2%)
+        if signal == "SELL" and gap_top > fib_618:
+            return True   # gap_top อยู่ใน Premium zone (> 61.8%)
+        # gap คร่อม H หรือ L แต่ไม่คร่อม zone boundary → PASS
+        if signal == "BUY" and gap_top > h and gap_bot >= fib_382:
+            return True   # gap คร่อม H ไม่คร่อม 38.2% boundary
+        if signal == "SELL" and gap_bot < l and gap_top <= fib_618:
+            return True   # gap คร่อม L ไม่คร่อม 61.8% boundary
     if signal == "BUY":
-        return order_price < eq
+        return order_price < fib_382   # Discount zone: below 38.2%
     elif signal == "SELL":
-        return order_price > eq
+        return order_price > fib_618   # Premium zone: above 61.8%
     return True
 
 
-def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> tuple:
+def _pdfiboplus_process(ticket: int, order, info: dict, combined: bool = False) -> tuple:
     """Premium/Discount zone recheck per ticket — 2 รอบ
     เรียกจาก check_cancel_pending_orders ทุก cycle
     Return (status: str, tg_msgs: list[str])
@@ -6046,9 +6344,10 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
     รอบที่ 2 : H หรือ L เปลี่ยนครั้งแรก — คืน "pass" หรือ "fail" (ทั้ง 2 mode)
 
     แบบรวม: ครบ 2 รอบ → นับเป็น 1 โหวต ส่งไปรวมกับ RSI + Trend (2/3 voting)
-    กฎ: entry < EQ → BUY ผ่าน / entry > EQ → SELL ผ่าน
+    กฎ (PD Fibo Plus): entry < 38.2% (Discount) → BUY ผ่าน / entry > 61.8% (Premium) → SELL ผ่าน
+        ช่วง 38.2%–61.8% (Middle) → ถือว่าผิดฝั่งทั้ง BUY/SELL
     """
-    if not getattr(config, "PD_ZONE_CHECK_ENABLED", False):
+    if not getattr(config, "PDFIBOPLUS_ENABLED", False):
         return "wait", []
 
     signal = info.get("signal", "")
@@ -6078,18 +6377,22 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
         return "wait", []
 
     eq      = (h + l) / 2.0
-    state   = _pd_zone_state.get(ticket)
+    _range  = h - l
+    fib_382 = round(l + _range * 0.382, 5)
+    fib_618 = round(l + _range * 0.618, 5)
+    state   = _pdfiboplus_state.get(ticket)
     tg_msgs = []
 
     def _chk_msg(rnd: int, changed: str, result: bool) -> str:
         _chg = f"{changed} เปลี่ยน | " if changed else ""
-        _zone = "Premium 🔴" if order_price > eq else "Discount 🟢"
-        _zone_ok = (signal == "SELL" and order_price > eq) or (signal == "BUY" and order_price < eq)
+        _zone_ok = (signal == "SELL" and order_price > fib_618) or (signal == "BUY" and order_price < fib_382)
+        _zone = ("Premium 🔴" if order_price > fib_618 else
+                 "Discount 🟢" if order_price < fib_382 else "Middle ⚪")
         _zone_str = f"{_zone} {'✅' if _zone_ok else '❌'}"
         return (
-            f"📊 *PD Zone Check — รอบ {rnd}/2*\n"
+            f"📊 *PD Fibo Plus Check — รอบ {rnd}/2*\n"
             f"{sig_e} {ot_name} [{tf}] `#{ticket}`\n"
-            f"{_chg}EQ: `{round(eq,5)}`\n"
+            f"{_chg}38.2%: `{fib_382}` | 61.8%: `{fib_618}`\n"
             f"Entry: `{order_price}` | H: `{h}` | L: `{l}`\n"
             f"Zone: {_zone_str}\n"
             f"ผล: {'✅ PASS' if result else '❌ FAIL'}"
@@ -6154,10 +6457,10 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
                 _wait_round2 = True
                 result = False   # provisional — ใช้แค่เพื่อ save state; จะ return "wait" ไม่ใช่ "fail"
             else:
-                result = _pd_zone_in_zone(order_price, signal, _fb_h, _fb_l,
+                result = _pdfiboplus_in_zone(order_price, signal, _fb_h, _fb_l,
                                           sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
         else:
-            result = _pd_zone_in_zone(order_price, signal, h, l,
+            result = _pdfiboplus_in_zone(order_price, signal, h, l,
                                       sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
 
         # S2 entry adjustment: ย้าย entry → 50% mark เมื่อ PASS via gap rule
@@ -6178,23 +6481,23 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
                     f"Entry: `{order_price}` → `{_s2_adjusted_entry}` ({_s2_adj_reason})\n"
                     f"EQ: `{round(eq,2)}` | Gap: `{_s2_gap_bot}`–`{_s2_gap_top}`"
                 )
-        _pd_zone_state[ticket] = {
+        _pdfiboplus_state[ticket] = {
             "signal": signal, "tf": tf, "price": order_price,
             "cur_h": h, "cur_l": l,
             "round1": 0 if _wait_round2 else (1 if result else -1),
             "outside_pd": _outside_pd,
         }
-        state = _pd_zone_state[ticket]
+        state = _pdfiboplus_state[ticket]
 
         # ─── กรณี: fallback แล้วยังอยู่นอก range → รอรอบ 2 ────────────
         if _wait_round2:
             _fb_eq = round((_fb_h + _fb_l) / 2.0, 5)
-            log_event("PD_ZONE_CHECK", "round1_fallback_wait",
+            log_event("PDFIBOPLUS", "round1_fallback_wait",
                       ticket=ticket, signal=signal, tf=tf,
                       price=order_price, h=h, l=l,
                       fb_h=_fb_h, fb_l=_fb_l, eq=_fb_eq)
             tg_msgs.append(
-                f"📊 *PD Zone Check — รอบ 1/2 (Fallback)*\n"
+                f"📊 *PD Fibo Plus Check — รอบ 1/2 (Fallback)*\n"
                 f"{sig_e} {ot_name} [{tf}] `#{ticket}`\n"
                 f"Entry: `{order_price}` | นอก [L=`{l}`, H=`{h}`]\n"
                 f"Fallback H=`{_fb_h}` / L=`{_fb_l}` → ยังนอก range\n"
@@ -6208,7 +6511,7 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
         _log_eq  = round((_eff_h + _eff_l) / 2.0, 5)
         _fb_note = f"1-swing-back H={_fb_h}/L={_fb_l}" if _fallback_used else ""
         _note    = " | ".join(filter(None, ["outside_pd_range" if _outside_pd else "", _fb_note]))
-        log_event("PD_ZONE_CHECK", "round1",
+        log_event("PDFIBOPLUS", "round1",
                   ticket=ticket, signal=signal, tf=tf,
                   price=order_price, h=_eff_h, l=_eff_l, eq=_log_eq,
                   result="PASS" if result else "FAIL",
@@ -6221,7 +6524,7 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
         tg_msgs.append(_chk_msg(1, _chk_note, result))
         if not result and not combined:
             # แบบแยก: fail ทันที — ไม่ต้องรอรอบ 2
-            log_event("PD_ZONE_CHECK", "fail_round1",
+            log_event("PDFIBOPLUS", "fail_round1",
                       ticket=ticket, signal=signal, tf=tf)
             return "fail", tg_msgs
         # แบบรวม: เก็บผลรอบ 1 ไว้ก่อน รอ H/L เปลี่ยนสำหรับรอบ 2 เสมอ
@@ -6236,23 +6539,23 @@ def _pd_zone_process(ticket: int, order, info: dict, combined: bool = False) -> 
         if l_changed: changed_parts.append("L")
         changed_str = "/".join(changed_parts)
 
-        result = _pd_zone_in_zone(order_price, signal, h, l,
+        result = _pdfiboplus_in_zone(order_price, signal, h, l,
                                   sid=_order_sid, gap_bot=_s2_gap_bot, gap_top=_s2_gap_top)
         state["cur_h"] = h
         state["cur_l"] = l
-        _pd_zone_state[ticket] = state
-        log_event("PD_ZONE_CHECK", "round2",
+        _pdfiboplus_state[ticket] = state
+        log_event("PDFIBOPLUS", "round2",
                   ticket=ticket, signal=signal, tf=tf,
                   price=order_price, h=h, l=l, eq=round(eq, 5),
                   changed=changed_str,
                   result="PASS" if result else "FAIL")
         tg_msgs.append(_chk_msg(2, changed_str, result))
         if result:
-            _pd_zone_state.pop(ticket, None)
-            log_event("PD_ZONE_CHECK", "pass",
+            _pdfiboplus_state.pop(ticket, None)
+            log_event("PDFIBOPLUS", "pass",
                       ticket=ticket, signal=signal, tf=tf)
             return "pass", tg_msgs
-        log_event("PD_ZONE_CHECK", "fail_round2",
+        log_event("PDFIBOPLUS", "fail_round2",
                   ticket=ticket, signal=signal, tf=tf)
         return "fail", tg_msgs
 
@@ -6270,7 +6573,7 @@ async def check_cancel_pending_orders(app):
     orders = mt5.orders_get(symbol=SYMBOL)
     if not orders:
         pending_order_tf.clear()
-        _pd_zone_state.clear()
+        _pdfiboplus_state.clear()
         _triple_check_state.clear()
         return
 
@@ -6280,17 +6583,17 @@ async def check_cancel_pending_orders(app):
     _open_pos_tickets = {p.ticket for p in (mt5.positions_get(symbol=SYMBOL) or [])}
 
     # Cleanup PD zone state for tickets that no longer exist
-    for t in list(_pd_zone_state.keys()):
+    for t in list(_pdfiboplus_state.keys()):
         if t not in open_tickets:
-            _pd_zone_state.pop(t, None)
+            _pdfiboplus_state.pop(t, None)
 
     # Cleanup fill-checked set for closed positions
-    _pd_zone_fill_checked.difference_update(
-        t for t in list(_pd_zone_fill_checked) if t not in _open_pos_tickets
+    _pdfiboplus_fill_checked.difference_update(
+        t for t in list(_pdfiboplus_fill_checked) if t not in _open_pos_tickets
     )
-    for t in list(_pd_zone_fill_state.keys()):
+    for t in list(_pdfiboplus_fill_state.keys()):
         if t not in _open_pos_tickets:
-            _pd_zone_fill_state.pop(t, None)
+            _pdfiboplus_fill_state.pop(t, None)
 
     # Cleanup triple check state for tickets that no longer exist
     for t in list(_triple_check_state.keys()):
@@ -6304,6 +6607,11 @@ async def check_cancel_pending_orders(app):
     _fill_trend_checked.difference_update(
         t for t in list(_fill_trend_checked) if t not in _open_pos_tickets
     )
+
+    # Cleanup pending trend approach state for orders that no longer exist
+    for t in list(_pending_trend_approach.keys()):
+        if t not in open_tickets and t not in _open_pos_tickets:
+            _pending_trend_approach.pop(t, None)
 
     # Cleanup tickets that no longer exist
     for t in list(pending_order_tf.keys()):
@@ -6961,7 +7269,7 @@ async def check_cancel_pending_orders(app):
         # Skip: S9 (RSI Divergence), S15 (VP — ใช้ value-area zone เอง ต่าง reference กับ swing-EQ)
         if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 15):
             _is_combined = _triple_check_all_enabled()
-            pd_status, pd_msgs = _pd_zone_process(ticket, order, info, combined=_is_combined)
+            pd_status, pd_msgs = _pdfiboplus_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
                 await tg(app, _msg)
             if _is_combined:
@@ -6977,7 +7285,7 @@ async def check_cancel_pending_orders(app):
                 if pd_status == "fail":
                     should_cancel = True
                     reason = "PD Zone Recheck: order อยู่นอก Premium/Discount zone"
-                    _pd_zone_state.pop(ticket, None)
+                    _pdfiboplus_state.pop(ticket, None)
 
         # Combined Triple Recheck decision (เมื่อเปิดครบทั้ง 3 อัน)
         if not should_cancel and _triple_check_all_enabled():

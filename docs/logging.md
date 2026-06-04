@@ -75,7 +75,7 @@ logs/
 - `STRONG_TREND_BLOCK` — block signal ที่สวน strong trend สำหรับท่า bypass (เมื่อ `STRONG_TREND_BLOCK_ENABLED=True`)
 - `PENDING_LIMIT_BLOCK` — pending orders เต็ม broker limit (retcode 10033) → skip order ใหม่ (throttle log 5 นาที/ครั้ง, `mt5_utils._pending_limit_blocked`)
 - `TREND_RECHECK` (+ sub: `fill_round1` / `fill_close*` / `fill_round1_skip_no_data`) — Fill Trend Recheck
-- `PD_ZONE_CHECK` (+ sub: `fill_check` / `round1*` / `fill_close`) — PD Zone Recheck
+- `PDFIBOPLUS` (+ sub: `fill_check` / `round1*` / `round2*` / `fill_close*` / `fill_close_failed` / `fill_round1_skip_no_data`) — PD Fibo Plus (เดิม `PD_ZONE_CHECK`; log เก่ายังใช้ชื่อเดิม)
 
 ## Log Retention
 

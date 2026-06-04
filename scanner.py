@@ -1892,8 +1892,8 @@ def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, ga
     return round(int_bot, 2), round(int_top, 2), tfs_list, tickets_to_cancel, patterns_list
 async def auto_scan(app):
     """สแกนทุก Timeframe ที่เปิดอยู่พร้อมกัน"""
-    global auto_active, _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
-    if not auto_active:
+    global _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
+    if not config.auto_active:
         return
     if not connect_mt5():
         await tg(app, "\u26a0\ufe0f MT5 \u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d")

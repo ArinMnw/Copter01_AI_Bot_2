@@ -4,7 +4,7 @@ from collections import defaultdict
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 log_dir = 'logs'
-CUTOFF = '2026-06-03 12:25'  # latest restart with new strict code
+CUTOFF = '2026-06-03 09:00'  # new code deployed at 09:00 BKK
 
 def log_files():
     r = []

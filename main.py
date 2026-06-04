@@ -8,13 +8,14 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from config import *
+import config
 from config import wrap_bot
 from scanner import auto_scan
 from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_breakeven_tp, check_opposite_order_tp,
                       check_cancel_pending_orders, check_s1_zone_rules, check_s1_forward_confirm_rules, check_s6_trail,
                       check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
-                      check_fill_trend_recheck, check_fill_pd_zone)
+                      check_fill_trend_recheck, check_pending_trend_approach, check_fill_pdfiboplus)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
@@ -212,7 +213,7 @@ def main():
                     config.symbol_switch_in_progress = False
                 await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux")
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับกลับ XAUUSD.iux")
-                if auto_active:
+                if config.auto_active:
                     await tg(app, "⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `XAUUSD.iux`")
                     print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> XAUUSD.iux")
                     await auto_scan(app)
@@ -230,14 +231,14 @@ def main():
                 config.symbol_switch_in_progress = False
             await tg(app, f"🔵 *XAUUSD ปิด* → สลับไป BTCUSD.iux")
             print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับไป BTCUSD.iux")
-            if auto_active:
+            if config.auto_active:
                 await tg(app, "⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `BTCUSD.iux`")
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> BTCUSD.iux")
                 await auto_scan(app)
 
     async def run_trail_sl():
         """Trail SL — รันได้เลย ไม่ต้องรอ"""
-        if not auto_active:
+        if not config.auto_active:
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
@@ -250,7 +251,7 @@ def main():
 
     async def run_position_check():
         """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)"""
-        if not auto_active:
+        if not config.auto_active:
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
@@ -260,10 +261,12 @@ def main():
             await check_limit_fill_notify(app)
             # RSI Fill Recheck รันก่อน entry candle — ถ้า fail ปิด position ทันที
             await check_fill_rsi_recheck(app)
+            # Pending Trend Check on Approach — เช็ค trend ของ pending ก่อน fill (200pt)
+            await check_pending_trend_approach(app)
             # Trend Fill Recheck — เช็ค trend หลัง fill (round1 + round2/3 หลัง H/L เปลี่ยน)
             await check_fill_trend_recheck(app)
-            # PD Zone Fill Check — อิสระจาก ENTRY_CANDLE_ENABLED จับ case fill เร็วกว่า pending cycle
-            await check_fill_pd_zone(app)
+            # PD Fibo Plus Fill Check — อิสระจาก ENTRY_CANDLE_ENABLED จับ case fill เร็วกว่า pending cycle
+            await check_fill_pdfiboplus(app)
             await check_entry_candle_quality(app)
             await check_sl_tp_hits(app)
             await check_s1_zone_rules(app)

@@ -160,30 +160,31 @@ config:
 
 พฤติกรรม: ถ้า position ปิดด้วยขาดทุน > threshold → นับเป็น SL hit ใน guard count ของ TF นั้น (ทำงานร่วมกับ `SL_GUARD_ENABLED`)
 
-## PD Zone Recheck Toggle
+## PD Fibo Plus Toggle (เดิม PD Zone Recheck)
 
 อยู่ใน Trend Filter menu ต่อท้าย section "Pending RSI Recheck"
 
 section header: `━ Premium/Discount Zone ━`
 
 ปุ่ม toggle:
-- ON: `🟢 PD Zone Recheck: ON`
-- OFF: `🔴 PD Zone Recheck: OFF`
+- ON: `🟢 PD Fibo Plus: ON`
+- OFF: `🔴 PD Fibo Plus: OFF`
 
-- callback: `toggle_pd_zone_check`
-- config: `PD_ZONE_CHECK_ENABLED` (persist ใน `bot_state.json` key `pd_zone_check_enabled`)
-- handler: ใน `handlers/callback_handler.py` → toggle `config.PD_ZONE_CHECK_ENABLED`, save, refresh menu
+- callback: `toggle_pdfiboplus`
+- config: `PDFIBOPLUS_ENABLED` (persist ใน `bot_state.json` key `pdfiboplus_enabled`)
+- handler: ใน `handlers/callback_handler.py` → toggle `config.PDFIBOPLUS_ENABLED`, save, refresh menu
 
 **พฤติกรรมเมื่อ ON:**
-- เปิด `_pd_zone_process()` ใน `trailing.py`
-- ตรวจ 3 รอบ 2/3 ว่า entry อยู่ใน Premium หรือ Discount zone
+- เปิด `_pdfiboplus_process()` (pending) + `check_fill_pdfiboplus()` (หลัง fill) ใน `trailing.py`
+- ตรวจว่า entry อยู่ใน Discount (`<38.2%`) สำหรับ BUY หรือ Premium (`>61.8%`) สำหรับ SELL
+- ช่วง Middle (38.2%–61.8%) → ผิดฝั่ง → cancel/close
 - ส่ง Telegram แจ้งทุกรอบ
 
 ## Triple Recheck
 
 ไม่มีปุ่ม toggle แยกสำหรับ Triple Recheck — เปิดอัตโนมัติเมื่อ:
 
-- `PD_ZONE_CHECK_ENABLED = True`
+- `PDFIBOPLUS_ENABLED = True`
 - `LIMIT_TREND_RECHECK = True`
 - `PENDING_RSI_RECHECK_ENABLED = True`
 

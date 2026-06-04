@@ -149,7 +149,7 @@ Keep the answer short and make the fix directly.
 - `ENTRY_CANDLE_MODE`
 - `LIMIT_GUARD`
 - `LIMIT_SWEEP`
-- `PD_ZONE_CHECK_ENABLED` (default `True`) — gate สำหรับ PD Zone Recheck ใน `trailing.py`, persist ใน `bot_state.json` key `pd_zone_check_enabled`
+- `PDFIBOPLUS_ENABLED` (default `True`) — gate สำหรับ PD Fibo Plus (Fibonacci 38.2/61.8 zone; เดิม PD Zone Recheck) ใน `trailing.py`, persist ใน `bot_state.json` key `pdfiboplus_enabled`
 - `CANCEL_NEXT_BAR_BODY_ENABLED` (default `False`) — ยกเลิก limit ถ้าแท่งถัดจาก detect ปิดสวนทาง body ≥35%
 - `PENDING_RSI_RECHECK_ENABLED` (default `False`) — เช็ค RSI หลัง fill ก่อนปล่อยให้ position ทำงาน
 - `SL_GUARD_ENABLED` (default `True`) — guard ป้องกัน BUY/SELL LIMIT ใหม่ หลัง SL hit ครบ N ครั้งใน TF นั้น
@@ -203,7 +203,9 @@ state ที่เกี่ยวข้องใน `config.py`:
 
 state เพิ่มเติมใน `trailing.py`:
 
-- `_pd_zone_state: dict` — per-ticket state ของ PD Zone Recheck (round, results, tf, signal)
+- `_pdfiboplus_state: dict` — per-ticket state ของ PD Fibo Plus pending recheck (round, results, tf, signal)
+- `_pdfiboplus_fill_state: dict` / `_pdfiboplus_fill_checked: set` — state ของ PD Fibo Plus หลัง fill (`fill_state` เก็บ `pending_close` สำหรับ retry)
+- `_pending_rsi_close: dict` — `{ticket: pos_type}` RSI Fill Recheck close fail → retry ทุกรอบสแกน
 - `_triple_check_state: dict` — per-ticket state ของ Triple Recheck เก็บ `{rsi, trend, pd, tf, signal}` แต่ละตัวเป็น `None|True|False`
 - `_sl_guard_state: dict` — keyed by `(tf, side)` เก็บ `{count, active, blocked_since_bar, swing_ref, blocked_signals, retry_signals}`
 
@@ -270,7 +272,8 @@ mode ที่รองรับ:
 - รันใน `main.py` `run_position_check` **ก่อน** `check_entry_candle_quality` (ถ้า fail จะปิด position ทันที)
 - ครอบคลุม **ทุก sid** (รวม S12, S13 — เปิดตั้งแต่ 2026-05-18)
 - **Skip**: `sid in (1, 9, 11, 14, 15)` — S14 bypass เพราะเป็น market order, S15 (VP reversal — RSI มัก extreme)
-- **Triple mode**: ถ้าเปิดครบทั้ง 3 (`PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED`) จะไม่ปิด position ทันที แต่ record ผลใน `_triple_check_state[ticket]["rsi"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+- **Triple mode**: ถ้าเปิดครบทั้ง 3 (`PDFIBOPLUS_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED`) จะไม่ปิด position ทันที แต่ record ผลใน `_triple_check_state[ticket]["rsi"]` แล้ว evaluate 2/3 ก่อนตัดสิน
+- **Retry close (2026-06-03)**: ถ้า `_close_position` ล้มเหลว → เก็บ `_pending_rsi_close[ticket]` → retry ทุกรอบสแกนจนปิดได้ (กัน RSI เปลี่ยนค่าแล้วข้ามการปิด)
 
 ## Limit Trend Recheck
 
@@ -296,43 +299,48 @@ mode ที่รองรับ:
 - log event: `TREND_RECHECK` + sub-event (pass / fail / `fill_round1_skip_no_data`)
 - **Triple mode**: ถ้าเปิดครบทั้ง 3 จะไม่ cancel pending ทันที แต่ record ผลใน `_triple_check_state[ticket]["trend"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
-## PD Zone Recheck
+## PD Fibo Plus (เดิม PD Zone Recheck)
 
-- ฟังก์ชัน: `check_fill_pd_zone(app)` ใน `trailing.py`
-- gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
+- ฟังก์ชัน: `check_fill_pdfiboplus(app)` (หลัง fill) + `_pdfiboplus_process(...)` (pending recheck) ใน `trailing.py`
+- helper zone: `_pdfiboplus_in_zone(order_price, signal, h, l, sid, gap_bot, gap_top) -> bool`
+- gate: `config.PDFIBOPLUS_ENABLED` (default `True`)
 - **Skip:** `sid in (9, 15)` — S9 (RSI Div), S15 (VP ใช้ value-area zone เอง ต่าง reference กับ swing-EQ) (S1, S11 ไม่ skip แล้วตั้งแต่ 2026-05-21)
-- state: `_pd_zone_fill_state: dict`, `_pd_zone_fill_checked: set` (module-level ใน `trailing.py`)
+- state: `_pdfiboplus_fill_state: dict`, `_pdfiboplus_fill_checked: set`, `_pdfiboplus_state: dict` (module-level ใน `trailing.py`)
 
-**ที่มาของ H/L:**
+**ที่มาของ H/L + Fibonacci:**
 
 - H = swing high ล่าสุด (HH/LH) จาก `hhll_swing.get_swing_hl_pts(tf)`
 - L = swing low ล่าสุด (HL/LL) จาก `hhll_swing.get_swing_hl_pts(tf)`
-- EQ = (H + L) / 2
+- 38.2% = L + (H−L) × 0.382 | 61.8% = L + (H−L) × 0.618
+
+**กฎ pass/fail (Fibonacci 38.2/61.8 — เปลี่ยนจาก EQ 2026-06-03):**
+
+- `entry < 38.2%` (Discount) → BUY ผ่าน / SELL ล้มเหลว
+- `entry > 61.8%` (Premium) → SELL ผ่าน / BUY ล้มเหลว
+- `38.2% ≤ entry ≤ 61.8%` (Middle) → ผิดฝั่งทั้ง BUY/SELL → FAIL
+- เหตุผล: sim 26-05→03-06 เปลี่ยน EQ→fib ได้ net **+534 USD** (block 140 orders ที่ P/L รวม −534)
+- ⚠️ helper ใช้ทั้ง fill check และ pending recheck → fib กระทบ **การ cancel pending** ด้วย (sim ครอบเฉพาะ fill)
 
 **Logic การเช็ค 2 รอบ:**
 
 - รอบ 1 (fill_check): เช็คทันทีหลัง fill — ถ้า FAIL ปิด position, ถ้า PASS บันทึก H/L รอ round 2
-- รอบ 2: เมื่อ H หรือ L เปลี่ยน → re-check EQ ใหม่
+- รอบ 2: เมื่อ H หรือ L เปลี่ยน → re-check ใหม่
+
+**Retry เมื่อ close ล้มเหลว (2026-06-03):**
+
+- ทุก close path ถ้า `_close_position` fail → ตั้ง `pending_close=True` ใน `_pdfiboplus_fill_state[ticket]` → retry ทุกรอบสแกนจนปิดได้ (ห้าม add `_pdfiboplus_fill_checked`)
+- log: `fill_close_failed` (round1) / `fill_close_round2_failed` (round2)
 
 **Race condition fix (2026-05-28) — รอบ 1:**
 
 - ถ้า `get_swing_hl_pts` คืน `(None, None)` (HHLL ว่าง) → **force-fetch** `fetch_hhll(tf)` ตรงแทนรอ scanner → retry ทันที
-- ถ้ายังไม่พร้อม → log `PD_ZONE_CHECK fill_round1_skip_no_data` → retry cycle ถัดไป
-
-**กฎ pass/fail:**
-
-- `entry < EQ` → BUY ผ่าน (Discount zone) / SELL ล้มเหลว
-- `entry > EQ` → SELL ผ่าน (Premium zone) / BUY ล้มเหลว
-
-**Zone:**
-- Premium (entry > EQ) → SELL ✅ BUY ❌
-- Discount (entry < EQ) → BUY ✅ SELL ❌
+- ถ้ายังไม่พร้อม → log `PDFIBOPLUS fill_round1_skip_no_data` → retry cycle ถัดไป
 
 **Triple mode:** เมื่อเปิดครบทั้ง 3 และได้ผล PASS/FAIL จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
 ## Triple Recheck (Combined 2/3)
 
-- เปิดทำงานเมื่อ: `PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED` ทั้งสามพร้อมกัน
+- เปิดทำงานเมื่อ: `PDFIBOPLUS_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED` ทั้งสามพร้อมกัน
 - helper: `_triple_check_all_enabled() -> bool`
 - state: `_triple_check_state: dict` = `{ticket: {rsi: None|True|False, trend: None|True|False, pd: None|True|False, tf, signal}}`
 - helper: `_triple_check_record(ticket, key, result, tf, signal)`
@@ -351,6 +359,20 @@ mode ที่รองรับ:
 - แต่ละตัวทำงานอิสระเหมือนเดิม ไม่รอ 2/3
 
 ## พฤติกรรมสำคัญของระบบ
+
+### Auto Trade (default OFF ตั้งแต่ 2026-06-03)
+
+- `config.auto_active` (runtime global ใน `config.py`) — **default `False`** ทุก start/restart
+- เมื่อ `False`: `run_scan` / `run_position_check` ใน `main.py` return ทันที (ไม่เปิด/จัดการ order)
+- เปิดผ่านปุ่ม Telegram (`btn_auto`) — ไม่ persist ข้าม restart (ตั้งใจให้เริ่มที่ OFF เสมอ กันเทรดเองหลัง restart โดยไม่ตั้งใจ)
+
+### ปุ่ม Order (Telegram `handlers/btn_order.py`)
+
+- แสดง position ปัจจุบันแยกเป็น message ต่อ 1 ticket พร้อม header (side/lot/SL/TP/PnL/sid/tf/pattern)
+- ดึง log ที่เกี่ยวกับ ticket นั้นจาก `logs/bot.log`:
+  - signal block แรก (TG_SENT แรกของ ticket — ถูกตัด 300 char จาก `_TgWrapper`)
+  - structured events (`ORDER_CREATED`, `ENTRY_FILL`, `PDFIBOPLUS`, `TREND_RECHECK`, `POSITION_CLOSED`, …) — 3 บรรทัด/log
+- `_safe_reply()`: ลอง Markdown ก่อน → fallback strip markers ถ้า parse error (กัน signal block ที่ตัด 300 char ทำ markdown ไม่ balanced → reply ทั้งก้อนส่งไม่ออก)
 
 ### Trail SL
 
@@ -563,7 +585,7 @@ mode ที่รองรับ:
   - scan loop: `sid not in (9, 10, 13, 14)` ใน `scanner.py`
   - fill trend recheck: `sid in (9, 10, 14)` ใน `trailing.py`
 - **bypass RSI Fill Recheck**: `sid in (1, 9, 11, 14)` ใน `trailing.py`
-- **PD Zone filter** ใน scan loop (entry ต้องอยู่ใน Premium/Discount zone)
+- **PD Fibo Plus filter** ใน scan loop (entry ต้องอยู่ใน Discount `<38.2%` / Premium `>61.8%` zone)
 - **Flip logic** (`S14_FLIP_ENABLED`, default True): ปิดฝั่งตรงข้าม per-TF ก่อนเปิดใหม่
   - ฟังก์ชัน: `_clear_opposite_s14_exposure(app, tf_name, signal)` ใน `scanner.py`
   - log: `S14_REVERSE_CLOSE` / `S14_REVERSE_CLOSE_FAIL`
@@ -588,7 +610,7 @@ mode ที่รองรับ:
   - bypass Trend Filter (scan): `sid not in (9, 10, 13, 14, 15)` ใน `scanner.py`
   - skip Fill Trend Recheck: `sid in (9, 10, 14, 15)`
   - skip RSI Fill Recheck: `sid in (1, 9, 11, 14, 15)`
-  - skip PD Zone Recheck (fill + pending): `sid in (9, 15)` — VP ใช้ value-area zone เอง (ต่าง reference กับ swing-EQ)
+  - skip PD Fibo Plus (fill + pending): `sid in (9, 15)` — VP ใช้ value-area zone เอง (ต่าง reference กับ swing-EQ)
   - skip Entry Candle, Trail SL, **Opposite Order** (ถือ 2 ฝั่งได้), Limit Guard: `(10, 12, 13, 15)`
   - **คงไว้**: SL Guard (risk protection)
 - **Strong-Trend Block**: S15 อยู่ใน `STRONG_TREND_BLOCK_SIDS` (default `[9,10,11,13,14,15]`) — เปิด `STRONG_TREND_BLOCK_ENABLED` เพื่อกันไม้สวน strong trend ได้ (default OFF)

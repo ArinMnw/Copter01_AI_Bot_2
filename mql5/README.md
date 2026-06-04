@@ -313,7 +313,7 @@ indicator สำหรับคำนวณและวาด Premium/Discount z
 ### ข้อกำหนด
 
 - ต้องแนบ `HHLLStrategy.mq5` บน chart เดียวกันก่อน
-- ใช้ร่วมกับ Python bot — `_pd_zone_process()` ใน `trailing.py` อ่าน H/L จาก `hhll_swing.py` ในฝั่ง Python
+- ใช้ร่วมกับ Python bot — `_pdfiboplus_process()` ใน `trailing.py` อ่าน H/L จาก `hhll_swing.py` ในฝั่ง Python
 
 ---
 

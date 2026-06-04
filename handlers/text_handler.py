@@ -229,45 +229,41 @@ def _order_type_name(order_type):
 
 
 async def _handle_ticket_lookup(update, ticket: int):
-    """พิมพ์เลข ticket ใน Telegram เพื่อดู log/order history ของใบนั้น"""
+    """พิมพ์เลข ticket ใน Telegram เพื่อดู log/order history ของใบนั้น
+    แสดงในรูปแบบเดียวกับ handle_btn_order: header + signal TG + log events + deal history
+    """
     if not connect_mt5():
         await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อ", reply_markup=main_keyboard())
         return
 
     import trailing
+    from handlers.btn_order import (
+        _load_log_lines, _read_order_meta, _read_signal_tg,
+        _read_ticket_logs, _format_ticket_logs,
+    )
 
     now = datetime.now()
     dt_from = now - timedelta(days=30)
-    dt_to = now + timedelta(days=1)
+    dt_to   = now + timedelta(days=1)
 
-    positions = mt5.positions_get() or []
-    orders_now = mt5.orders_get() or []
-    deals = mt5.history_deals_get(dt_from, dt_to) or []
+    positions   = mt5.positions_get() or []
+    orders_now  = mt5.orders_get() or []
+    deals       = mt5.history_deals_get(dt_from, dt_to) or []
     orders_hist = mt5.history_orders_get(dt_from, dt_to) or []
 
-    pos = next((p for p in positions if int(p.ticket) == ticket), None)
-    cur_order = next((o for o in orders_now if int(o.ticket) == ticket), None)
-
+    pos       = next((p for p in positions   if int(p.ticket) == ticket), None)
+    cur_order = next((o for o in orders_now  if int(o.ticket) == ticket), None)
     linked_orders = [
         o for o in orders_hist
-        if int(getattr(o, "ticket", 0)) == ticket
+        if int(getattr(o, "ticket",      0)) == ticket
         or int(getattr(o, "position_id", 0)) == ticket
     ]
     linked_deals = [
         d for d in deals
         if int(getattr(d, "position_id", 0)) == ticket
-        or int(getattr(d, "order", 0)) == ticket
-        or int(getattr(d, "ticket", 0)) == ticket
+        or int(getattr(d, "order",       0)) == ticket
+        or int(getattr(d, "ticket",      0)) == ticket
     ]
-
-    tf_name = trailing.position_tf.get(ticket) or trailing.pending_order_tf.get(ticket, {}).get("tf", "-")
-    sid = trailing.position_sid.get(ticket, trailing.pending_order_tf.get(ticket, {}).get("sid", "-"))
-    pattern = trailing.position_pattern.get(ticket, "-")
-    entry_state = trailing._entry_state.get(ticket, "-")
-    trail_state = trailing._trail_state.get(ticket, {})
-    mt5_to_bkk_hours = TZ_OFFSET - MT5_SERVER_TZ
-    tz_summary = f"MT5->BKK +{mt5_to_bkk_hours} | MT5 Server UTC+{MT5_SERVER_TZ} | Display BKK"
-
 
     if not pos and not cur_order and not linked_orders and not linked_deals:
         await _safe_reply_md(
@@ -277,65 +273,95 @@ async def _handle_ticket_lookup(update, ticket: int):
         )
         return
 
-    lines = [
-        f"🔎 *Ticket Lookup*",
-        f"🔖 Ticket: `{ticket}`",
-        f"🕒 Time Mode: `{_md_escape(tz_summary)}`",
-        f"🕐 TF: `{_md_escape(tf_name)}` | SID: `{_md_escape(sid)}`",
-        f"🏷 Pattern: `{_md_escape(pattern)}`",
-        f"📋 Entry state: `{_md_escape(entry_state)}`",
-    ]
+    # ── อ่าน log ครั้งเดียว ─────────────────────────────────────
+    all_lines = _load_log_lines()
 
-    if trail_state:
-        lines.append(f"📐 Trail state: `{_md_escape(trail_state)}`")
+    # ── pattern / sid / tf ─────────────────────────────────────
+    sid     = str(trailing.position_sid.get(ticket, "")
+                  or trailing.pending_order_tf.get(ticket, {}).get("sid", ""))
+    pattern = str(trailing.position_pattern.get(ticket, ""))
+    tf      = str(trailing.position_tf.get(ticket, "")
+                  or trailing.pending_order_tf.get(ticket, {}).get("tf", ""))
 
+    if not pattern or not sid or not tf:
+        _pat, _sid, _tf = _read_order_meta(ticket, all_lines)
+        if not pattern: pattern = _pat
+        if not sid:     sid     = _sid
+        if not tf:      tf      = _tf
+
+    # ── Header ─────────────────────────────────────────────────
     if pos:
-        side = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
-        lines += [
-            "",
-            "*Current Position*",
-            f"{side} {_md_escape(pos.symbol)} vol=`{pos.volume}`",
-            f"📌 Open:`{pos.price_open}` | 🛑 SL:`{pos.sl}` | 🎯 TP:`{pos.tp}`",
-            f"💵 Profit:`{pos.profit}` | Time:`{_md_escape(_fmt_dt(pos.time))}`",
-        ]
-
-    if cur_order:
-        lines += [
-            "",
-            "*Current Pending/Order*",
-            f"`{_md_escape(_order_type_name(cur_order.type))}` {_md_escape(cur_order.symbol)} "
-            f"vol=`{getattr(cur_order, 'volume_current', cur_order.volume_initial)}`",
-            f"📌 Open:`{cur_order.price_open}` | 🛑 SL:`{cur_order.sl}` | 🎯 TP:`{cur_order.tp}`",
-            f"🕐 Time:`{_md_escape(_fmt_dt(cur_order.time_setup))}` | "
-            f"Comment:`{_md_escape(getattr(cur_order, 'comment', ''))}`",
-        ]
-
-    if linked_orders:
-        lines += ["", "*Order History*"]
-        for o in sorted(linked_orders, key=lambda x: getattr(x, "time_setup", 0))[-8:]:
-            lines.append(
-                f"`{_md_escape(_fmt_dt(getattr(o, 'time_setup', 0)))}` "
-                f"{_md_escape(_order_type_name(o.type))} "
-                f"state=`{_md_escape(getattr(o, 'state', '-'))}` "
-                f"open=`{getattr(o, 'price_open', 0)}` "
-                f"sl=`{getattr(o, 'sl', 0)}` tp=`{getattr(o, 'tp', 0)}`"
+        # Open position
+        t   = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        e   = "🟢" if t == "BUY" else "🔴"
+        pe  = "🟢" if pos.profit >= 0 else "🔴"
+        header = (
+            f"{e} *{t}* {pos.volume}lot @ `{pos.price_open}`\n"
+            f"🛑`{pos.sl}` 🎯`{pos.tp}` | {pe}`{pos.profit:.2f}` USD\n"
+        )
+    elif cur_order:
+        # Pending order
+        t  = _order_type_name(cur_order.type)
+        e  = "🟢" if "BUY" in t else "🔴"
+        vol = getattr(cur_order, "volume_current", cur_order.volume_initial)
+        header = (
+            f"{e} *{t}* {vol}lot @ `{cur_order.price_open}`\n"
+            f"🛑`{cur_order.sl}` 🎯`{cur_order.tp}` | ⏳ Pending\n"
+        )
+    else:
+        # ปิดไปแล้ว — ดึงจาก deal history
+        in_deals  = [d for d in linked_deals if d.entry == mt5.DEAL_ENTRY_IN]
+        out_deals = [d for d in linked_deals if d.entry == mt5.DEAL_ENTRY_OUT]
+        if in_deals:
+            in_d   = in_deals[0]
+            t      = "BUY" if in_d.type == mt5.DEAL_TYPE_BUY else "SELL"
+            e      = "🟢" if t == "BUY" else "🔴"
+            total_profit = sum(float(getattr(d, "profit", 0)) for d in out_deals)
+            pe     = "🟢" if total_profit >= 0 else "🔴"
+            cl_str = f"→ ปิด `{out_deals[-1].price}`" if out_deals else "→ ยังไม่ปิด"
+            header = (
+                f"{e} *{t}* {in_d.volume}lot @ `{in_d.price}` {cl_str}\n"
+                f"{pe} P/L: `{total_profit:.2f}` USD\n"
             )
+        else:
+            header = f"🔎 *Ticket: {ticket}*\n"
 
+    header += (
+        f"🔖 `#{ticket}`"
+        + (f" | S{sid}" if sid else "")
+        + (f" | {tf}"   if tf  else "")
+        + "\n"
+        + (f"📝 {pattern}\n" if pattern else "")
+        + "━━━━━━━━━━━━━━━━━\n"
+    )
+
+    # ── Signal TG block ─────────────────────────────────────────
+    signal_msg   = _read_signal_tg(ticket, all_lines)
+    signal_block = (signal_msg + "\n━━━━━━━━━━━━━━━━━\n") if signal_msg else ""
+
+    # ── Log events ───────────────────────────────────────────────
+    logs      = _read_ticket_logs(ticket, all_lines)
+    log_block = (_format_ticket_logs(logs) + "\n") if logs else "_ไม่พบ log_\n"
+
+    # ── Deal history (compact, ท้ายสุด) ──────────────────────────
+    deal_lines = []
     if linked_deals:
-        lines += ["", "*Deal History*"]
-        for d in sorted(linked_deals, key=lambda x: getattr(x, "time", 0))[-12:]:
-            lines.append(
-                f"`{_md_escape(_fmt_dt(getattr(d, 'time', 0)))}` "
-                f"{_md_escape(_deal_type_name(d.type))}/{_md_escape(_deal_entry_name(d.entry))} "
-                f"price=`{getattr(d, 'price', 0)}` vol=`{getattr(d, 'volume', 0)}` "
+        deal_lines.append("*📋 Deal History*")
+        for d in sorted(linked_deals, key=lambda x: getattr(x, "time", 0))[-8:]:
+            deal_lines.append(
+                f"`{_fmt_dt(getattr(d, 'time', 0))}` "
+                f"{_deal_type_name(d.type)}/{_deal_entry_name(d.entry)} "
+                f"price=`{getattr(d, 'price', 0)}` "
                 f"profit=`{round(float(getattr(d, 'profit', 0.0)), 2)}`"
             )
+    deal_block = "\n".join(deal_lines) if deal_lines else ""
 
-    text = "\n".join(lines)
-    if len(text) > 3900:
-        text = text[:3900] + "\n\n`...truncated...`"
+    msg = header + signal_block + log_block + deal_block
 
-    await _safe_reply_md(update.message, text, reply_markup=main_keyboard())
+    if len(msg) > 4000:
+        msg = msg[:4000] + "\n…(ตัดออก)"
+
+    await _safe_reply_md(update.message, msg, reply_markup=main_keyboard())
 
 async def start(update, context):
     if not auth(update):

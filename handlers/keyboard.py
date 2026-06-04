@@ -1619,6 +1619,22 @@ def build_trend_filter_keyboard():
         )
         for r in (1, 2, 3)
     ])
+    # === Pending Trend Check on Approach ===
+    ptc_label = (
+        f"🟢 Pending Trend Check: ON ({config.PENDING_TREND_CHECK_POINTS}pt)"
+        if config.PENDING_TREND_CHECK_ENABLED
+        else "🔴 Pending Trend Check: OFF"
+    )
+    rows.append([InlineKeyboardButton("━ Pending Trend Check ━", callback_data="noop_trend_filter")])
+    rows.append([InlineKeyboardButton(ptc_label, callback_data="toggle_pending_trend_check")])
+    ptc_pt_options = [100, 200, 300, 500]
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if config.PENDING_TREND_CHECK_POINTS == p else '⬜'} {p}pt",
+            callback_data=f"set_ptc_pts_{p}"
+        )
+        for p in ptc_pt_options
+    ])
     # === Near Approach Cancel ===
     nac_label = (
         f"🟢 Near Approach Cancel: ON ({config.NEAR_APPROACH_CANCEL_POINTS}pt)"
@@ -1659,12 +1675,12 @@ def build_trend_filter_keyboard():
 
     # === Premium/Discount Zone Recheck ===
     pd_zone_label = (
-        "🟢 PD Zone Recheck: ON"
-        if getattr(config, "PD_ZONE_CHECK_ENABLED", False)
-        else "🔴 PD Zone Recheck: OFF"
+        "🟢 PD Fibo Plus: ON"
+        if getattr(config, "PDFIBOPLUS_ENABLED", False)
+        else "🔴 PD Fibo Plus: OFF"
     )
     rows.append([InlineKeyboardButton("━ Premium/Discount Zone ━", callback_data="noop_trend_filter")])
-    rows.append([InlineKeyboardButton(pd_zone_label, callback_data="toggle_pd_zone_check")])
+    rows.append([InlineKeyboardButton(pd_zone_label, callback_data="toggle_pdfiboplus")])
 
     # === Sideway HHLL Filter ===
     _sideway_hhll = getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)

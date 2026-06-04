@@ -390,44 +390,63 @@ log event: `TREND_RECHECK` + sub-event (pass / fail / `fill_round1_skip_no_data`
 
 Triple mode: ถ้าเปิดครบทั้ง 3 จะ record ผลใน `_triple_check_state[ticket]["trend"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 
-## PD Zone Recheck
+## PD Fibo Plus (เดิม PD Zone Recheck)
 
-ฟังก์ชัน: `check_fill_pd_zone(app)` ใน `trailing.py`
+ฟังก์ชัน: `check_fill_pdfiboplus(app)` ใน `trailing.py` (หลัง fill)
+และ `_pdfiboplus_process(...)` (pending order recheck ใน `check_cancel_pending_orders`)
 
-gate: `config.PD_ZONE_CHECK_ENABLED` (default `True`)
+gate: `config.PDFIBOPLUS_ENABLED` (default `True`, persist key `pdfiboplus_enabled`)
 
-state: `_pd_zone_fill_state: dict`, `_pd_zone_fill_checked: set` (module-level)
+state: `_pdfiboplus_fill_state: dict`, `_pdfiboplus_fill_checked: set`, `_pdfiboplus_state: dict` (module-level)
 
-### ที่มาของ H/L
+helper: `_pdfiboplus_in_zone(order_price, signal, h, l, sid, gap_bot, gap_top) -> bool`
+
+### ที่มาของ H/L และ Fibonacci
 
 - H = swing high ล่าสุด (HH/LH) จาก `hhll_swing.get_swing_hl_pts(tf)`
 - L = swing low ล่าสุด (HL/LL) จาก `hhll_swing.get_swing_hl_pts(tf)`
-- EQ = (H + L) / 2
+- range = H − L
+- 38.2% = L + range × 0.382
+- 61.8% = L + range × 0.618
+
+### กฎ zone (Fibonacci 38.2/61.8)
+
+- **Discount (BUY zone)**: `entry < 38.2%` → BUY ผ่าน
+- **Premium (SELL zone)**: `entry > 61.8%` → SELL ผ่าน
+- **Middle (38.2%–61.8%)**: ถือว่าผิดฝั่งทั้ง BUY/SELL → FAIL
+
+(เดิมใช้ EQ = (H+L)/2 เป็นเส้นแบ่งเดียว; เปลี่ยนเป็น fib 2026-06-03 — sim 26-05→03-06 ได้ net +534 USD)
 
 ### การเช็ค 2 รอบ
 
 - รอบ 1 (fill_check): เช็คทันทีหลัง fill — ถ้า FAIL ปิด position, ถ้า PASS บันทึก H/L รอ round 2
-- รอบ 2: เมื่อ H หรือ L เปลี่ยน → re-check EQ ใหม่ → FAIL ปิด position
+- รอบ 2: เมื่อ H หรือ L เปลี่ยน → re-check ใหม่ → FAIL ปิด position
+
+### Retry เมื่อ close ล้มเหลว (2026-06-03)
+
+ทุก close path ถ้า `_close_position` ล้มเหลว → ตั้ง `pending_close=True` ใน `_pdfiboplus_fill_state[ticket]`
+→ retry ทุกรอบสแกน (5s) จนปิดได้ (ห้าม add `_pdfiboplus_fill_checked`)
+- round1 fail → log `fill_close_failed` → pending retry
+- round2 fail → log `fill_close_round2_failed` → pending retry
+- S14 strong-counter fail → pending retry
 
 ### Race condition fix — รอบ 1 (2026-05-28)
 
 ถ้า `get_swing_hl_pts` คืน `(None, None)` (HHLL ว่าง):
 - **force-fetch** `fetch_hhll(tf)` ตรงแทนรอ scanner → retry ทันที
-- ถ้ายังไม่พร้อม → log `PD_ZONE_CHECK fill_round1_skip_no_data` → retry cycle ถัดไป
-
-### กฎ zone
-
-- `entry < EQ` (Discount zone) → BUY ผ่าน, SELL ล้มเหลว
-- `entry > EQ` (Premium zone) → SELL ผ่าน, BUY ล้มเหลว
+- ถ้ายังไม่พร้อม → log `PDFIBOPLUS fill_round1_skip_no_data` → retry cycle ถัดไป
 
 ### Triple mode
 
 - ถ้าเปิดครบทั้ง 3 และได้ผล PASS/FAIL จะ record ใน `_triple_check_state[ticket]["pd"]` แล้ว evaluate 2/3 ก่อนตัดสิน
 - ถ้าเปิดเฉพาะตัว: เมื่อ FAIL จะ cancel pending หรือ close position ทันที
 
+> หมายเหตุ: `_pdfiboplus_in_zone` ใช้ทั้งตอน fill (`check_fill_pdfiboplus`) และตอน pending recheck
+> (`_pdfiboplus_process`) → การเปลี่ยนเป็น fib กระทบ **การ cancel pending order ด้วย** ไม่ใช่แค่ปิดหลัง fill
+
 ## Triple Recheck (Combined 2/3)
 
-เปิดทำงานเมื่อ: `PD_ZONE_CHECK_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED` ทั้งสามพร้อมกัน
+เปิดทำงานเมื่อ: `PDFIBOPLUS_ENABLED AND LIMIT_TREND_RECHECK AND PENDING_RSI_RECHECK_ENABLED` ทั้งสามพร้อมกัน
 
 helper: `_triple_check_all_enabled() -> bool`
 
@@ -463,7 +482,7 @@ log events: `TRIPLE_RECHECK` + `CANCEL` หรือ `KEEP`
 
 แต่ละตัวทำงานอิสระเหมือนเดิม:</p>
 - Trend Recheck: cancel pending ทันทีถ้า trend ไม่ผ่าน
-- PD Zone: cancel/close ทันทีถ้า fail
+- PD Fibo Plus: cancel/close ทันทีถ้า fail
 - RSI Fill Recheck: close position ทันทีถ้าไม่ผ่าน
 
 ## SL Guard

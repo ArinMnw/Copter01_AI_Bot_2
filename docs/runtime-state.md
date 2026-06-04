@@ -24,7 +24,9 @@
   - General formula: `[min(200pt,TP), min(300pt,TP), min(600pt,TP), TP]`
   - S10 formula: `[min(200pt,TP), min(300pt,TP), TP/2, TP]`
   - `step` ขึ้นถึง `3` (4 steps ทุกกรณี)
-- `_pd_zone_state` (`trailing.py`): per-ticket state ของ PD Zone Recheck — เก็บรอบการเช็ค (round 1-3), ผลแต่ละรอบ, TF, signal; ไม่ persist ข้าม restart
+- `_pdfiboplus_state` (`trailing.py`): per-ticket state ของ PD Fibo Plus pending recheck — เก็บรอบการเช็ค, ผลแต่ละรอบ, TF, signal; ไม่ persist ข้าม restart
+- `_pdfiboplus_fill_state` / `_pdfiboplus_fill_checked` (`trailing.py`): state ของ PD Fibo Plus หลัง fill — `_fill_state` เก็บ `{tf, signal, fill_h, fill_l, gap_bot, gap_top, pending_close}` (รอ round2 / retry), `_fill_checked` เก็บ ticket ที่จบแล้ว; ไม่ persist ข้าม restart
+- `_pending_rsi_close` (`trailing.py`): `{ticket: pos_type}` — RSI Fill Recheck close ล้มเหลว → retry ทุกรอบสแกนจนปิดได้; ไม่ persist ข้าม restart
 - `_triple_check_state` (`trailing.py`): per-ticket state ของ Triple Recheck — เก็บ `{rsi: None|True|False, trend: None|True|False, pd: None|True|False, tf, signal}`; ไม่ persist ข้าม restart
 
 ## S12 State
@@ -89,7 +91,7 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 - `LIMIT_SWEEP`: toggle ตรงจากหน้าหลัก
 - `DELAY_SL_MODE`: `off` / `time` / `price`
 - `SCALE_OUT_ENABLED`: gate ของ Triple Scale-Out (default `True`)
-- `PD_ZONE_CHECK_ENABLED`: gate ของ PD Zone Recheck (default `True`), persist ด้วย key `pd_zone_check_enabled`
+- `PDFIBOPLUS_ENABLED`: gate ของ PD Fibo Plus (Fibonacci 38.2/61.8 zone; เดิม PD Zone Recheck) (default `True`), persist ด้วย key `pdfiboplus_enabled`
 - `SL_GUARD_LOSS_ENABLED`: gate ของ SL Guard Loss (default `False`), persist ด้วย key `sl_guard_loss_enabled`
 - `SL_GUARD_LOSS_THRESHOLD`: threshold ขาดทุนที่นับเป็น SL hit (default `5.0`), persist ด้วย key `sl_guard_loss_threshold`
 

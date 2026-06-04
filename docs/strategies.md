@@ -701,7 +701,7 @@ SELL:
 - **bypass RSI Fill Recheck**: `sid in (1, 9, 11, 14)` ใน `trailing.py`
 - **bypass Fill Trend Recheck**: `sid in (9, 10, 14)` ใน `trailing.py`
 - ไม่เข้า flow: `Entry Candle`, `Trail SL`, `Opposite Order`, `Limit Guard`, `SL Guard`
-- **ใช้** PD Zone filter ใน scan loop (entry ต้องอยู่ใน Premium/Discount zone)
+- **ใช้** PD Fibo Plus filter ใน scan loop (entry ต้องอยู่ใน Discount `<38.2%` / Premium `>61.8%` zone)
 
 ### Triple Scale-Out (TSO) interaction
 
@@ -750,7 +750,7 @@ SELL (LIMIT ที่ POC หรือ VAH):
 
 - **bypass / skip filter ของระบบหลักทั้งหมด** (เหมือน S10/S12/S13/S14):
   - bypass Trend Filter (scan), skip Fill Trend Recheck, RSI Fill Recheck
-  - skip PD Zone Recheck — VP ใช้ value-area zone เอง (ต่าง reference กับ swing-EQ)
+  - skip PD Fibo Plus — VP ใช้ value-area zone เอง (ต่าง reference กับ swing-EQ)
   - skip Entry Candle, Trail SL, Opposite Order (ถือ BUY+SELL พร้อมกันได้), Limit Guard
   - **คงไว้**: SL Guard
 - รองรับ Strong-Trend Block (อยู่ใน `STRONG_TREND_BLOCK_SIDS`, เปิดได้ถ้าต้องการกันไม้สวน strong trend)

@@ -1091,6 +1091,19 @@ async def handle_callback(update, ctx):
             await show_trend_filter_menu(query, is_query=True)
             await _qanswer(query, f"Trend Recheck: {rds} round(s)")
 
+    elif data == "toggle_pending_trend_check":
+        config.PENDING_TREND_CHECK_ENABLED = not config.PENDING_TREND_CHECK_ENABLED
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Pending Trend Check: {'ON' if config.PENDING_TREND_CHECK_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_ptc_pts_"):
+        pts = int(data.replace("set_ptc_pts_", ""))
+        config.PENDING_TREND_CHECK_POINTS = pts
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Pending Trend Check: {pts}pt")
+
     elif data == "toggle_near_approach_cancel":
         config.NEAR_APPROACH_CANCEL_ENABLED = not config.NEAR_APPROACH_CANCEL_ENABLED
         save_runtime_state()
@@ -1111,11 +1124,11 @@ async def handle_callback(update, ctx):
         mode_txt = "รวม 2/3" if config.RECHECK_COMBINED_MODE else "แยก"
         await _qanswer(query, f"Recheck Mode: {mode_txt}")
 
-    elif data == "toggle_pd_zone_check":
-        config.PD_ZONE_CHECK_ENABLED = not config.PD_ZONE_CHECK_ENABLED
+    elif data == "toggle_pdfiboplus":
+        config.PDFIBOPLUS_ENABLED = not config.PDFIBOPLUS_ENABLED
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
-        await _qanswer(query, f"PD Zone Recheck: {'ON' if config.PD_ZONE_CHECK_ENABLED else 'OFF'}")
+        await _qanswer(query, f"PD Fibo Plus: {'ON' if config.PDFIBOPLUS_ENABLED else 'OFF'}")
 
     elif data == "toggle_sideway_hhll_filter":
         config.TREND_FILTER_SIDEWAY_HHLL = not getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)

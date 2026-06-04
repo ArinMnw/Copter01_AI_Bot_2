@@ -73,7 +73,7 @@ for line in iter_log_lines():
             T[tk]["tso_partials"]+=1
         elif kind == "ENTRY_FILL" and tk:
             r=T[tk]; r["fill_ts"]=ts; r["trend_at_fill"]=fld(line,"trend")
-        elif kind == "PD_ZONE_CHECK" and tk:
+        elif kind in ("PD_ZONE_CHECK", "PDFIBOPLUS") and tk:
             sub = line.split("|")[1].strip() if "|" in line else ""
             res = fld(line,"result")
             if sub == "fill_check": T[tk]["pd_fill"]=res
