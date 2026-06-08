@@ -1,4 +1,4 @@
-﻿from config import *
+from config import *
 import config
 import re
 import inspect
@@ -44,6 +44,7 @@ _trend_filter_last_dir: dict = {}  # {"ticket|tf": "BULL"|"BEAR"|"SIDEWAY"}
 # Format: {ticket: {"signal", "tf", "price", "cur_h", "cur_l", "round1": int}}
 # checks[i]: 0 = not yet done, 1 = pass, -1 = fail
 _pdfiboplus_state: dict = {}
+_pdfiboplus_pending_passed: set[int] = set()  # tickets ที่ผ่าน round2 (pending) แล้ว — ป้องกัน round1 วิ่งซ้ำ
 _pdfiboplus_fill_checked: set[int] = set()  # tickets ที่ผ่าน PD Zone fill check ครบทุก round แล้ว
 _pdfiboplus_fill_state:   dict     = {}     # {ticket: {tf, signal, fill_h, fill_l, ...}} รอ round 2
 
@@ -2966,7 +2967,7 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15):
+        if sid in (1, 9, 11, 14, 15, 16):
             continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -3184,7 +3185,7 @@ async def check_fill_trend_recheck(app):
         ticket = pos.ticket
         sid = position_sid.get(ticket)
         # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order), S15 (VP absorption reversal — counter-trend by design)
-        if sid in (9, 10, 14, 15):
+        if sid in (9, 10, 14, 15, 16):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -3247,9 +3248,11 @@ async def check_fill_trend_recheck(app):
             # Pre-fill approach check ผ่านมาแล้ว → skip round 1 ใช้ approach-time swing เป็น baseline
             _approach_pre = _pending_trend_approach.pop(ticket, None)
             if _approach_pre:
-                _r1_sh = _approach_pre.get("round1_sh")
-                _r1_sl = _approach_pre.get("round1_sl")
-                _r2_st = _approach_pre.get("round2_start_time", int(_time.time()))
+                _r1_sh   = _approach_pre.get("round1_sh")
+                _r1_sl   = _approach_pre.get("round1_sl")
+                _r1_sh_t = _approach_pre.get("round1_sh_t", 0)
+                _r1_sl_t = _approach_pre.get("round1_sl_t", 0)
+                _r2_st   = _approach_pre.get("round2_start_time", int(_time.time()))
                 _trend_recheck_state[ticket] = {
                     "round": 2,
                     "rounds_total": ltr_rounds,
@@ -3260,7 +3263,8 @@ async def check_fill_trend_recheck(app):
                 }
                 log_event("TREND_RECHECK", "fill_round1_skip_approach_passed",
                           ticket=ticket, tf=_tr_tf, signal=pos_type,
-                          sh=_r1_sh, sl=_r1_sl)
+                          sh=_r1_sh, sl=_r1_sl,
+                          sh_t=_r1_sh_t, sl_t=_r1_sl_t)
                 continue  # ไป round 2 รอบถัดไป
 
             # ถ้าข้อมูล swing ยังไม่พร้อม → force fetch HHLL ตรงแทนรอ scanner
@@ -3538,6 +3542,8 @@ async def check_pending_trend_approach(app):
             _sh, _sl  = _ghl(_tf)
             _sh_price = float(_sh["price"]) if _sh else None
             _sl_price = float(_sl["price"]) if _sl else None
+            _sh_time  = int(_sh["time"])  if _sh and "time" in _sh else 0
+            _sl_time  = int(_sl["time"])  if _sl and "time" in _sl else 0
             _dist_pt  = round(abs(_cur - entry) / _pt)
 
             log_event("PENDING_TREND_CHECK", "round1",
@@ -3581,11 +3587,15 @@ async def check_pending_trend_approach(app):
                     "signal": pos_type,
                     "round1_sh": _sh_price,
                     "round1_sl": _sl_price,
+                    "round1_sh_t": _sh_time,
+                    "round1_sl_t": _sl_time,
                     "round2_start_time": _r2_start,
                 }
                 log_event("PENDING_TREND_CHECK", "round1_pass",
                           ticket=ticket, tf=_tf, signal=pos_type,
-                          sh=_sh_price, sl=_sl_price, dist_pt=_dist_pt)
+                          sh=_sh_price, sl=_sl_price,
+                          sh_t=_sh_time, sl_t=_sl_time,
+                          dist_pt=_dist_pt)
                 await tg(app, (
                     f"✅ *Pending Trend Check: ผ่าน [round1]*\n"
                     f"{sig_e} {_pending_order_type_name(order)} `#{ticket}` [{_tf}]\n"
@@ -3597,6 +3607,12 @@ async def check_pending_trend_approach(app):
         # ─ Round 2: รอ swing ใหม่ (ยัง pending อยู่) ─────────────────────
         # ─────────────────────────────────────────────────────────────────
         else:
+            # ถ้า config กำหนดแค่ 1 รอบ → ข้ามไปโดยไม่ลบ state
+            # (state ต้องอยู่รอ fill → fill_round1_skip_approach_passed)
+            # ❌ เดิม: pop() ลบ state ทำให้ Round 1 วิ่งซ้ำทุก 2 cycle
+            if int(getattr(config, "PENDING_TREND_CHECK_ROUNDS", 1)) < 2:
+                continue
+
             if _time.time() < approach_state.get("round2_start_time", 0):
                 continue
 
@@ -3996,7 +4012,7 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15):
+        if sid in (10, 12, 13, 15, 16):
             continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
@@ -5066,7 +5082,7 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15):
+        if sid in (10, 12, 13, 15, 16):
             continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
@@ -5306,8 +5322,8 @@ async def check_opposite_order_tp(app):
 
     now      = now_bkk().strftime("%H:%M:%S")
     # S15 (VP) ถือ BUY (VAL) + SELL (VAH) พร้อมกันได้ (range play) → ห้ามให้ Opposite Order ปิดฝั่งตรงข้ามทิ้ง
-    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13, 15)]
-    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13, 15)]
+    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16)]
+    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16)]
 
     def _get_order_tf(ticket):
         info = pending_order_tf.get(ticket)
@@ -5324,8 +5340,8 @@ async def check_opposite_order_tp(app):
     opp_mode = config.OPPOSITE_ORDER_MODE  # "tp_close" | "sl_protect"
 
     if pending and opp_mode == "tp_close":
-        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15)]
-        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15)]
+        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16)]
+        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16)]
 
         # BUY position in profit + SELL limit on same TF -> BUY TP = SELL limit entry
         for pos in buy_pos:
@@ -6356,6 +6372,10 @@ def _pdfiboplus_process(ticket: int, order, info: dict, combined: bool = False) 
     if not getattr(config, "PDFIBOPLUS_ENABLED", False):
         return "wait", []
 
+    # ถ้าผ่าน round2 (pending) แล้ว → skip ไม่ต้องวิ่งซ้ำ
+    if ticket in _pdfiboplus_pending_passed:
+        return "pass", []
+
     signal = info.get("signal", "")
     if signal not in ("BUY", "SELL"):
         ot = getattr(order, "type", None)
@@ -6558,6 +6578,7 @@ def _pdfiboplus_process(ticket: int, order, info: dict, combined: bool = False) 
         tg_msgs.append(_chk_msg(2, changed_str, result))
         if result:
             _pdfiboplus_state.pop(ticket, None)
+            _pdfiboplus_pending_passed.add(ticket)  # ป้องกัน round1 วิ่งซ้ำหลัง round2 PASS
             log_event("PDFIBOPLUS", "pass",
                       ticket=ticket, signal=signal, tf=tf)
             return "pass", tg_msgs
@@ -6580,6 +6601,7 @@ async def check_cancel_pending_orders(app):
     if not orders:
         pending_order_tf.clear()
         _pdfiboplus_state.clear()
+        _pdfiboplus_pending_passed.clear()
         _triple_check_state.clear()
         return
 
@@ -6592,6 +6614,9 @@ async def check_cancel_pending_orders(app):
     for t in list(_pdfiboplus_state.keys()):
         if t not in open_tickets:
             _pdfiboplus_state.pop(t, None)
+    _pdfiboplus_pending_passed.difference_update(
+        t for t in list(_pdfiboplus_pending_passed) if t not in open_tickets
+    )
 
     # Cleanup fill-checked set for closed positions
     _pdfiboplus_fill_checked.difference_update(
@@ -6802,13 +6827,17 @@ async def check_cancel_pending_orders(app):
             mon_tf = str(info.get("tf") or tf or "M1")
             mon_tf_val = TF_OPTIONS.get(mon_tf, mt5.TIMEFRAME_M1)
             mon_tf_secs = max(1, _get_tf_seconds(mon_tf_val))
+            # คำนวณ parent bar close time (open + HTF period) เพื่อข้าม M1 ภายใน parent bar เอง
+            _s10_htf_name_sell = str(info.get("s10_htf_tf") or tf)
+            _s10_htf_secs_sell = max(1, _get_tf_seconds(TF_OPTIONS.get(_s10_htf_name_sell, mt5.TIMEFRAME_H1)))
+            s10_parent_close = s10_parent_time + _s10_htf_secs_sell
             now_ref_ts = int(candle_rates[-1]["time"]) if candle_rates is not None and len(candle_rates) > 0 else int(time.time())
-            bars_needed = max(10, min(500, int((max(0, now_ref_ts - s10_parent_time) // mon_tf_secs) + 10)))
+            bars_needed = max(10, min(500, int((max(0, now_ref_ts - s10_parent_close) // mon_tf_secs) + 10)))
             mon_rates = mt5.copy_rates_from_pos(SYMBOL, mon_tf_val, 0, bars_needed)
             touched_bar = None
             if mon_rates is not None and len(mon_rates) > 0:
                 for _bar in mon_rates:
-                    if int(_bar["time"]) <= s10_parent_time:
+                    if int(_bar["time"]) < s10_parent_close:  # ข้าม M1 ภายใน parent bar
                         continue
                     if float(_bar["low"]) <= s10_parent_low:
                         touched_bar = _bar
@@ -6843,13 +6872,17 @@ async def check_cancel_pending_orders(app):
             mon_tf = str(info.get("tf") or tf or "M1")
             mon_tf_val = TF_OPTIONS.get(mon_tf, mt5.TIMEFRAME_M1)
             mon_tf_secs = max(1, _get_tf_seconds(mon_tf_val))
+            # คำนวณ parent bar close time (open + HTF period) เพื่อข้าม M1 ภายใน parent bar เอง
+            _s10_htf_name_buy = str(info.get("s10_htf_tf") or tf)
+            _s10_htf_secs_buy = max(1, _get_tf_seconds(TF_OPTIONS.get(_s10_htf_name_buy, mt5.TIMEFRAME_H1)))
+            s10_parent_close = s10_parent_time + _s10_htf_secs_buy
             now_ref_ts = int(candle_rates[-1]["time"]) if candle_rates is not None and len(candle_rates) > 0 else int(time.time())
-            bars_needed = max(10, min(500, int((max(0, now_ref_ts - s10_parent_time) // mon_tf_secs) + 10)))
+            bars_needed = max(10, min(500, int((max(0, now_ref_ts - s10_parent_close) // mon_tf_secs) + 10)))
             mon_rates = mt5.copy_rates_from_pos(SYMBOL, mon_tf_val, 0, bars_needed)
             touched_bar = None
             if mon_rates is not None and len(mon_rates) > 0:
                 for _bar in mon_rates:
-                    if int(_bar["time"]) <= s10_parent_time:
+                    if int(_bar["time"]) < s10_parent_close:  # ข้าม M1 ภายใน parent bar
                         continue
                     if float(_bar["high"]) >= s10_parent_high:
                         touched_bar = _bar
@@ -6932,7 +6965,7 @@ async def check_cancel_pending_orders(app):
 
         # Limit Guard: cancel limits whose entry is too far from an existing open position
         # S15 (VP) วาง limit ที่ POC/VAL/VAH ซึ่งอาจไกลจาก position โดยตั้งใจ (รอราคาย้อนมา) → skip
-        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15):
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15, 16):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"
@@ -6982,7 +7015,7 @@ async def check_cancel_pending_orders(app):
                             break
 
         # Near Approach Cancel: cancel limit when price gets near entry then pulls away
-        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED and _order_sid != 10:
+        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED and _order_sid not in (10, 16):
             _nac_sym = mt5.symbol_info(SYMBOL)
             if _nac_sym:
                 _pt = _nac_sym.point or 0.01
@@ -7711,3 +7744,170 @@ async def check_s12_management(app):
         _s12_state["side"]             = "SELL"
         _s12_state["order_count"]      = 0
         _s12_state["last_entry_price"] = None
+
+
+_s14_engulf_exit_checked = set()
+
+async def check_s14_engulf_exits(app):
+    """
+    S14 Engulf exit rule:
+    ถ้าแท่ง หลังแท่ง sweep (HTF bar หลัง entry) จบตามทิศทาง (GREEN สำหรับ SELL, RED สำหรับ BUY) ให้ปิด position ทันที
+    """
+    if not active_strategies.get(14, False):
+        return
+
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+
+    from strategy14 import _get_s14_htf, TF_SECONDS
+    
+    for pos in positions:
+        ticket = int(pos.ticket)
+        # Check if the position belongs to S14 engulf or sweep
+        sid = position_sid.get(ticket)
+        pattern = position_pattern.get(ticket) or ""
+        
+        # If not tracked in memory, try parsing comment
+        comment = getattr(pos, "comment", "")
+        if sid is None:
+            if "_S14_" in comment:
+                sid = 14
+        
+        is_engulf = False
+        is_sweep = False
+        if sid == 14:
+            is_engulf = any(x in comment.upper() for x in ["BSS", "SSS", "ENGULF"]) or "swing" in pattern.lower()
+            is_sweep = any(x in comment.upper() for x in ["BRS", "SRS", "SWEEP"]) or "sweep กลับตัว" in pattern.lower()
+        
+        if sid != 14 or (not is_engulf and not is_sweep):
+            continue
+            
+        # ── Check Secondary HTF exit logic first (only for engulf) ──
+        zone_meta = position_zone_meta.get(ticket) or {}
+        sec_htf = zone_meta.get("sec_htf")
+        ref_level = zone_meta.get("s14_ref_level")
+        entry_time = int(pos.time)
+        
+        if is_engulf and sec_htf and ref_level is not None:
+            sec_htf_secs = TF_SECONDS.get(sec_htf, 1800)
+            sec_htf_start = (entry_time // sec_htf_secs) * sec_htf_secs
+            sec_htf_end = sec_htf_start + sec_htf_secs
+            
+            tick = mt5.symbol_info_tick(SYMBOL)
+            if tick:
+                curr_time = int(tick.time)
+                if curr_time >= sec_htf_end:
+                    sec_htf_const = getattr(mt5, f"TIMEFRAME_{sec_htf.upper()}")
+                    sec_rates = mt5.copy_rates_range(SYMBOL, sec_htf_const, sec_htf_start, sec_htf_start + 10)
+                    sec_bar = None
+                    if sec_rates is not None and len(sec_rates) > 0:
+                        for r in sec_rates:
+                            if int(r["time"]) == sec_htf_start:
+                                sec_bar = r
+                                break
+                    if sec_bar is not None:
+                        sec_c = float(sec_bar["close"])
+                        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+                        should_close = False
+                        if is_buy:
+                            if sec_c < ref_level:
+                                should_close = True
+                        else:
+                            if sec_c > ref_level:
+                                should_close = True
+                                
+                        if should_close:
+                            pos_type = "BUY" if is_buy else "SELL"
+                            ok, cp = _close_position(pos, pos_type, f"S14 secondary HTF engulf exit ({sec_htf})")
+                            if ok:
+                                log_event("S14_SEC_HTF_ENGULF_EXIT", f"Closed S14 position due to secondary HTF {sec_htf} engulf close price {sec_c}", ticket=ticket)
+                                await tg(app, f"⚡ *S14 Engulf ปิดตำแหน่งทันที (Secondary HTF)*\nTicket: `{ticket}`\nเหตุผล: แท่ง Secondary HTF ({sec_htf}) ปิดเป็นกลืนกิน (Close: `{sec_c:.2f}` vs Ref: `{ref_level:.2f}`)")
+                                position_zone_meta.pop(ticket, None)
+                                continue
+                        else:
+                            # ปิดแท่งแบบไม่ใช่ engulf (ปลอดภัย) -> เคลียร์ meta เพื่อไม่ต้องเช็คซ้ำ
+                            position_zone_meta.pop(ticket, None)
+                            save_runtime_state()
+            
+        if ticket in _s14_engulf_exit_checked:
+            continue
+            
+        # Determine TF
+        tf = position_tf.get(ticket)
+        if not tf:
+            comment = getattr(pos, "comment", "")
+            parts = comment.split("_")
+            if parts:
+                tf = parts[0]
+            else:
+                tf = "M1"
+                
+        # Get Check TF and check_secs
+        if is_sweep:
+            check_tf = tf
+            check_secs = TF_SECONDS.get(check_tf, 60)
+            exit_bar_start = (entry_time // check_secs) * check_secs
+            exit_bar_end = exit_bar_start + check_secs
+        else: # is_engulf
+            htf = _get_s14_htf(tf)
+            check_tf = htf
+            check_secs = TF_SECONDS.get(check_tf, 300)
+            entry_htf_start = (entry_time // check_secs) * check_secs
+            exit_bar_start = entry_htf_start + check_secs
+            exit_bar_end = exit_bar_start + check_secs
+        
+        # Get current time (server time)
+        tick = mt5.symbol_info_tick(SYMBOL)
+        if not tick:
+            continue
+        curr_time = int(tick.time)
+        
+        # If the exit bar has not closed yet, wait
+        if curr_time < exit_bar_end:
+            continue
+            
+        # Exit bar has closed! Fetch the completed exit bar
+        check_tf_const = getattr(mt5, f"TIMEFRAME_{check_tf.upper()}")
+        rates_raw = mt5.copy_rates_from_pos(SYMBOL, check_tf_const, 0, 5)
+        if rates_raw is None or len(rates_raw) == 0:
+            continue
+            
+        # Find the bar starting at exit_bar_start
+        exit_bar = None
+        for r in rates_raw:
+            if int(r["time"]) == exit_bar_start:
+                exit_bar = r
+                break
+                
+        if exit_bar is None:
+            rates_range = mt5.copy_rates_range(SYMBOL, check_tf_const, exit_bar_start, exit_bar_start + 10)
+            if rates_range is not None and len(rates_range) > 0:
+                exit_bar = rates_range[0]
+                
+        if exit_bar is None:
+            continue
+            
+        # Mark as checked
+        _s14_engulf_exit_checked.add(ticket)
+        
+        # Check color of exit bar
+        o = float(exit_bar["open"])
+        c = float(exit_bar["close"])
+        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+        
+        should_close = False
+        if is_buy: # BUY position (sweep_low)
+            if c < o: # closed RED
+                should_close = True
+        else: # SELL position (sweep_high)
+            if c > o: # closed GREEN
+                should_close = True
+                
+        if should_close:
+            pos_type = "BUY" if is_buy else "SELL"
+            ok, cp = _close_position(pos, pos_type, f"S14 {'sweep' if is_sweep else 'engulf'} exit color rule ({check_tf})")
+            if ok:
+                log_event("S14_EXIT", f"Closed S14 {'sweep' if is_sweep else 'engulf'} position due to {check_tf} exit bar color rule", ticket=ticket)
+                await tg(app, f"⚡ *S14 {'Sweep' if is_sweep else 'Engulf'} ปิดตำแหน่งทันที*\nTicket: `{ticket}`\nเหตุผล: แท่งถัดจาก sweep ({check_tf}) จบ{'แดง' if is_buy else 'เขียว'} ขัดทิศทาง")
+

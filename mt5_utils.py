@@ -283,10 +283,19 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
         # Sweep กลับตัว (Sweep  sub-pattern): ไส้ยาวกลับมา         → BRS / SRS
         is_buy   = "BUY"  in text
         is_swing = "SWING" in text   # pattern ชื่อมี "Sweep Swing"
+        
+        sec_suffix = ""
+        for tf_item in ["M30", "H1", "H4", "D1", "M15"]:
+            if tf_item in text:
+                sec_suffix = tf_item
+                break
+                
         if is_buy:
-            return "BSS" if is_swing else "BRS"
+            base = "BSS" if is_swing else "BRS"
         else:
-            return "SSS" if is_swing else "SRS"
+            base = "SSS" if is_swing else "SRS"
+            
+        return f"{base}{sec_suffix}"
 
     if sid_text == "15":
         if "VAL" in text:

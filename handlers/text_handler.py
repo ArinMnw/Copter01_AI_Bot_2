@@ -76,6 +76,137 @@ BUTTON_ROUTES = {
 }
 
 
+async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_str: str, symbol_str: str = None):
+    """ฟังก์ชันค้นหาและแสดงผล OHLC ของแท่งราคาตามเวลา BKK ที่ระบุ"""
+    from datetime import datetime, timezone, timedelta
+    import MetaTrader5 as mt5
+    import config
+
+    tf_str = tf_str.upper()
+    _TF_MT5 = {
+        "M1": 1, "M5": 5, "M15": 15, "M30": 30,
+        "H1": 16385, "H4": 16388, "H12": 16396, "D1": 16408,
+    }
+    _TF_SECS = {
+        "M1": 60, "M5": 300, "M15": 900, "M30": 1800,
+        "H1": 3600, "H4": 14400, "H12": 43200, "D1": 86400,
+    }
+
+    if tf_str not in _TF_MT5:
+        await update.message.reply_text(
+            f"❌ ไม่พบ Timeframe `{tf_str}` ค่ะพี่\n"
+            f"รองรับเฉพาะ: {', '.join(_TF_MT5.keys())}",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    try:
+        dt_naive = datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M")
+    except ValueError:
+        await update.message.reply_text(
+            "❌ รูปแบบ วัน-เดือน-ปี หรือ เวลา ไม่ถูกต้องค่ะพี่\n"
+            "ตัวอย่างที่ถูกต้อง: `M5 05-06-2026 11:15` (วัน-เดือน-ปี ค.ศ.)",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    BKK = timezone(timedelta(hours=config.TZ_OFFSET))
+    dt_bkk = dt_naive.replace(tzinfo=BKK)
+    
+    # คำนวณหา timestamp ใน MT5 server time
+    ts_query = int(dt_bkk.timestamp()) + config.MT5_SERVER_TZ * 3600
+
+    if not connect_mt5():
+        await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อค่ะพี่", reply_markup=main_keyboard())
+        return
+
+    # Resolve symbol
+    symbol = symbol_str.strip() if symbol_str else config.SYMBOL
+    sym_info = mt5.symbol_info(symbol)
+    if sym_info is None:
+        # Try appending .iux
+        if not symbol.endswith(".iux"):
+            alt_sym = f"{symbol}.iux"
+            if mt5.symbol_info(alt_sym):
+                symbol = alt_sym
+                sym_info = mt5.symbol_info(symbol)
+
+    if sym_info is None:
+        await update.message.reply_text(
+            f"❌ ไม่พบ Symbol `{symbol}` ในระบบ MT5 ค่ะพี่\n"
+            f"กรุณาตรวจสอบชื่อ Symbol อีกครั้งนะคะ",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    tf_const = _TF_MT5[tf_str]
+    tf_secs = _TF_SECS[tf_str]
+    
+    # ดึงข้อมูลราคาในช่วงเวลานั้น
+    start_time = ts_query - tf_secs
+    end_time = ts_query + tf_secs
+    
+    rates = mt5.copy_rates_range(symbol, tf_const, start_time, end_time)
+    
+    if rates is None or len(rates) == 0:
+        # ลองดึงจากตำแหน่งล่าสุดมาค้นหา (เผื่อเวลาพึ่งผ่านมาไม่นาน)
+        rates = mt5.copy_rates_from_pos(symbol, tf_const, 0, 1000)
+
+    matching_bar = None
+    if rates is not None and len(rates) > 0:
+        for r in rates:
+            if r['time'] <= ts_query < r['time'] + tf_secs:
+                matching_bar = r
+                break
+
+    if matching_bar is None:
+        await update.message.reply_text(
+            f"❌ ไม่พบข้อมูลแท่งราคา `{tf_str}` ที่เวลา BKK `{date_str} {time_str}` ค่ะพี่",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    # แปลงเวลาของแท่งราคากลับเป็น BKK สำหรับแสดงผล
+    bar_bkk = config.mt5_ts_to_bkk(matching_bar['time'])
+    bar_bkk_str = bar_bkk.strftime("%d-%m-%Y %H:%M") if bar_bkk else "-"
+    
+    color = "🟢" if matching_bar['close'] >= matching_bar['open'] else "🔴"
+    
+    requested_str = f"{date_str} {time_str}"
+    time_info = f"🕐 เวลา BKK: `{bar_bkk_str}`"
+    if bar_bkk_str != requested_str:
+        time_info = (
+            f"🕐 เวลา BKK ที่ระบุ: `{requested_str}`\n"
+            f"🕯️ เวลาแท่งราคา (BKK): `{bar_bkk_str}`"
+        )
+
+    o = float(matching_bar['open'])
+    h = float(matching_bar['high'])
+    l = float(matching_bar['low'])
+    c = float(matching_bar['close'])
+    rng = h - l
+    body = abs(c - o)
+    body_pct = (body / rng * 100) if rng > 0 else 0.0
+
+    msg = (
+        f"📊 *OHLC Lookup [{tf_str}]*\n"
+        f"🪙 Symbol: `{symbol}`\n"
+        f"{time_info}\n\n"
+        f"{color} Open: `{o:.2f}`\n"
+        f"📈 High: `{h:.2f}`\n"
+        f"📉 Low: `{l:.2f}`\n"
+        f"🔴 Close: `{c:.2f}`\n"
+        f"📊 Body: `{body_pct:.1f}%` (Range: `{rng:.2f}`)\n"
+        f"📦 Volume: `{matching_bar['tick_volume']}`"
+    )
+
+    await update.message.reply_text(
+        msg,
+        parse_mode="Markdown",
+        reply_markup=main_keyboard()
+    )
+
+
 async def handle_buttons(update, context):
     """Route ข้อความปุ่มไปยัง handler ที่ถูกต้อง"""
     global auto_active
@@ -94,6 +225,17 @@ async def handle_buttons(update, context):
     stripped = text.strip()
     if stripped.isdigit():
         await _handle_ticket_lookup(update, int(stripped))
+        return
+
+    import re
+    ohlc_match = re.match(
+        r'^(?:([A-Za-z0-9._#-]+)\s+)?(M1|M5|M15|M30|H1|H4|D1|m1|m5|m15|m30|h1|h4|d1)\s+(\d{2}-\d{2}-\d{4})\s+(\d{2}:\d{2})(?:\s+([A-Za-z0-9._#-]+))?$',
+        stripped
+    )
+    if ohlc_match:
+        sym_pre, tf_str, date_str, time_str, sym_post = ohlc_match.groups()
+        symbol_str = sym_pre or sym_post
+        await handle_ohlc_lookup(update, context, tf_str, date_str, time_str, symbol_str)
         return
 
     handler = BUTTON_ROUTES.get(text)
@@ -242,7 +384,7 @@ async def _handle_ticket_lookup(update, ticket: int):
 
     import trailing
     from handlers.btn_order import (
-        _load_log_lines, _read_order_meta, _read_signal_tg,
+        _grep_ticket_lines, _read_order_meta, _read_signal_tg,
         _read_ticket_logs, _format_ticket_logs, _fetch_candle_block,
     )
 
@@ -277,8 +419,8 @@ async def _handle_ticket_lookup(update, ticket: int):
         )
         return
 
-    # ── อ่าน log ครั้งเดียว ─────────────────────────────────────
-    all_lines = _load_log_lines()
+    # ── grep เฉพาะบรรทัดที่มี ticket (เร็วกว่า load ทุกบรรทัดมาก) ──
+    all_lines = _grep_ticket_lines(ticket)
 
     # ── pattern / sid / tf ─────────────────────────────────────
     sid     = str(trailing.position_sid.get(ticket, "")
@@ -341,6 +483,18 @@ async def _handle_ticket_lookup(update, ticket: int):
 
     # ── Signal TG block ─────────────────────────────────────────
     signal_msg = _read_signal_tg(ticket, all_lines)
+    
+    # ข้ามข้อความที่เป็นแจ้งเตือนสถานะ เพื่อให้ fallback ไปสร้าง candle block แทน
+    is_status_msg = False
+    if signal_msg:
+        is_status_msg = any(k in signal_msg for k in [
+            "Limit Fill", "SL Hit", "TP Hit", "Position Closed", 
+            "PD Fibo Plus Check", "PD Zone Check", "ยกเลิก", "CANCELED", 
+            "Trailing SL", "Limit Guard"
+        ])
+    if is_status_msg:
+        signal_msg = None
+
     if signal_msg:
         import re as _re
         sig_clean = _re.sub(r'`([^`\n]*)`?', r'\1', signal_msg)
@@ -392,7 +546,7 @@ async def start(update, context):
         f"📊 A: กลืนกิน (เขียว/แดง 2 แท่ง)\n"
         f"📊 B: ตำหนิ (เขียว/แดง 2 แท่ง)\n"
         f"⏰ สแกนทุก {config.SCAN_INTERVAL} นาที\n"
-        f"🕐 TF: {', '.join([tf for tf,on in TF_ACTIVE.items() if on]) or 'ยังไม่ได้เลือก'}\n"
+        f"🕐 TF: {', '.join([tf for tf,on in TF_ACTIVE.items() if on and not (tf == 'M1' and SYMBOL and 'BTCUSD' in SYMBOL)]) or 'ยังไม่ได้เลือก'}\n"
         f"📦 Lot:{AUTO_VOLUME} | Max:{MAX_ORDERS} | Auto:{status}",
         parse_mode='Markdown', reply_markup=main_keyboard()
     )

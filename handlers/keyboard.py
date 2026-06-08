@@ -1,10 +1,17 @@
-﻿from config import *
+from config import *
 import config
 from mt5_utils import connect_mt5
 from datetime import datetime, timedelta, timezone
 from bot_log import BOT_LOG_FILE, get_monthly_bot_log_file
 import re
 import os
+
+def _get_active_tfs():
+    tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+    if SYMBOL and "BTCUSD" in SYMBOL:
+        tfs = [tf for tf in tfs if tf != "M1"]
+    return tfs
+
 
 def main_keyboard():
     return ReplyKeyboardMarkup([
@@ -28,7 +35,7 @@ async def start(update, context):
         f"📊 A: กลืนกิน (เขียว/แดง 2 แท่ง)\n"
         f"📊 B: ตำหนิ (เขียว/แดง 2 แท่ง)\n"
         f"⏰ สแกนทุก {config.SCAN_INTERVAL} นาที\n"
-        f"🕐 TF: {', '.join([tf for tf, on in TF_ACTIVE.items() if on]) or 'ยังไม่ได้เลือก'}\n"
+        f"🕐 TF: {', '.join(_get_active_tfs()) or 'ยังไม่ได้เลือก'}\n"
         f"📦 Lot:{AUTO_VOLUME} | Max:{MAX_ORDERS} | Auto:{status}",
         parse_mode='Markdown', reply_markup=main_keyboard()
     )
@@ -37,7 +44,7 @@ async def start(update, context):
 
 async def show_main_settings_menu(update_or_query, is_query=False):
     """เมนูหลักสำหรับตั้งค่า Strategy, TF, Scan และ Lot"""
-    active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+    active_tfs = _get_active_tfs()
     tf_summary = ", ".join(active_tfs) if active_tfs else "ยังไม่ได้เลือก"
     strat_list = [STRATEGY_NAMES[sid] for sid, on in active_strategies.items() if on]
     strat_summ = ", ".join(strat_list) if strat_list else "ไม่มี"
@@ -605,7 +612,7 @@ async def show_scan_menu(update):
 
 async def show_tf_menu(update):
     """เมนูเลือก Timeframe"""
-    active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+    active_tfs = _get_active_tfs()
     tf_summary = ", ".join(active_tfs) if active_tfs else "ยังไม่ได้เลือก"
     await update.message.reply_text(
         f"🕐 *เลือก Timeframe*\n"
@@ -698,7 +705,7 @@ async def handle_buttons(update, context):
     elif text == "⚙️ สถานะ Auto":
         status = "▶️ ทำงาน" if auto_active else "⏸️ หยุด"
         await update.message.reply_text(
-            f"⚙️ *Auto Trade: {status}*\n⏰ สแกนทุก {config.SCAN_INTERVAL} นาที\n🕐 TF: {', '.join([tf for tf,on in TF_ACTIVE.items() if on]) or 'ยังไม่ได้เลือก'}",
+            f"⚙️ *Auto Trade: {status}*\n⏰ สแกนทุก {config.SCAN_INTERVAL} นาที\n🕐 TF: {', '.join(_get_active_tfs()) or 'ยังไม่ได้เลือก'}",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("⏸️ หยุด" if auto_active else "▶️ เปิด", callback_data="toggle_auto")
@@ -873,6 +880,14 @@ def build_strategy_keyboard():
                 callback_data="set_crt_entry_mode_mtf"
             ),
         ])
+        if crt_entry == "mtf":
+            wait_close = getattr(config, "CRT_WAIT_HTF_CLOSE", False)
+            rows.append([
+                InlineKeyboardButton(
+                    f"{'🟢' if wait_close else '⬜'} ท่า10: รอ HTF sweep ปิดก่อนหา Model",
+                    callback_data="toggle_crt_wait_htf_close"
+                )
+            ])
 
     # sub-option ท่า 14: Flip
     if active_strategies.get(14, False):
@@ -1620,8 +1635,9 @@ def build_trend_filter_keyboard():
         for r in (1, 2, 3)
     ])
     # === Pending Trend Check on Approach ===
+    _ptc_rounds = int(getattr(config, "PENDING_TREND_CHECK_ROUNDS", 1))
     ptc_label = (
-        f"🟢 Pending Trend Check: ON ({config.PENDING_TREND_CHECK_POINTS}pt)"
+        f"🟢 Pending Trend Check: ON ({config.PENDING_TREND_CHECK_POINTS}pt, {_ptc_rounds}R)"
         if config.PENDING_TREND_CHECK_ENABLED
         else "🔴 Pending Trend Check: OFF"
     )
@@ -1634,6 +1650,14 @@ def build_trend_filter_keyboard():
             callback_data=f"set_ptc_pts_{p}"
         )
         for p in ptc_pt_options
+    ])
+    _ptc_round_labels = {1: "1R (approach)", 2: "2R (+swing)"}
+    rows.append([
+        InlineKeyboardButton(
+            f"{'✅' if _ptc_rounds == r else '⬜'} {_ptc_round_labels[r]}",
+            callback_data=f"set_ptc_rounds_{r}"
+        )
+        for r in (1, 2)
     ])
     # === Near Approach Cancel ===
     nac_label = (

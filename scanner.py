@@ -1,4 +1,4 @@
-﻿from config import *
+from config import *
 import config
 import asyncio
 import time as _time
@@ -21,6 +21,7 @@ from strategy11 import strategy_11, record_s1_pattern as s11_record_s1_pattern
 from strategy13 import strategy_13
 from strategy14 import strategy_14
 from strategy15 import strategy_15
+from strategy16 import strategy_16
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -1968,6 +1969,8 @@ async def auto_scan(app):
         print(f"[{now_bkk().strftime('%H:%M:%S')}] \u26a0\ufe0f Order \u0e40\u0e15\u0e47\u0e21 {open_count}/{MAX_ORDERS}")
         return
     active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+    if SYMBOL and "BTCUSD" in SYMBOL:
+        active_tfs = [tf for tf in active_tfs if tf != "M1"]
     if not active_tfs:
         print(f"[{now_bkk().strftime('%H:%M:%S')}] \u26a0\ufe0f \u0e44\u0e21\u0e48\u0e21\u0e35 Timeframe \u0e17\u0e35\u0e48\u0e40\u0e1b\u0e34\u0e14\u0e2d\u0e22\u0e39\u0e48")
         return
@@ -2551,7 +2554,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     try:
         import sweep_filter as _sf
         _sf_trend_label = (_trend_info or {}).get("trend", "UNKNOWN")
-        _sf.update_trend_and_check_reset(tf_name, _sf_trend_label)
+        # last_label = swing label ล่าสุด (HH/HL/LH/LL) — reset เมื่อเปลี่ยน
+        _sf_last_label  = (hhll_swing.get_hhll_data(tf_name) or {}).get("last_label", "")
+        _sf.update_trend_and_check_reset(tf_name, _sf_trend_label, _sf_last_label)
         _sf.check_and_update(tf_name)
     except Exception:
         pass
@@ -2593,7 +2598,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             # เช่น M30 parent ปิด 19:30 → M30 sweep bar เปิด 19:30 กำลัง sweep อยู่
             # Phase 1 + Model อาจเจอบน M1 ได้ตั้งแต่ 19:35 โดยไม่ต้องรอ M30 ปิด 20:00
             # S10_SWEEP_RECHECK ใน trailing.py จะ validate sweep เมื่อ HTF bar ปิด
-            if r10.get("signal") == "WAIT":
+            if r10.get("signal") == "WAIT" and not getattr(config, "CRT_WAIT_HTF_CLOSE", False):
                 from strategy10 import try_pre_arm_htf, _LTF_TO_HTFS
                 _s10_htf_list = _LTF_TO_HTFS.get(tf_name, [])
                 for _s10_htf in _s10_htf_list:
@@ -2646,6 +2651,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     elif r15.get("signal") == "MULTI":
         for _s15_ord in r15.get("orders", []):
             _log_divergence_once(tf_name, 15, _s15_ord.get("signal", "BUY"), last_candle_time, _s15_ord)
+
+    r16 = strategy_16(rates, tf=tf_name) if active_strategies.get(16, False) else {"signal": "WAIT", "reason": "S16 ปิด"}
+    if r16.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 16, r16["signal"], last_candle_time, r16)
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -3037,7 +3046,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3069,7 +3078,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3220,8 +3229,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 )
                 continue
         # ── Sweep Filter Block — independent of TREND_FILTER_SCAN_BLOCK ──────
-        # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15 bypass)
-        if sid not in (9, 10, 13, 14, 15):
+        # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15/S16 bypass)
+        if sid not in (9, 10, 13, 14, 15, 16):
             try:
                 import sweep_filter as _sf_blk
                 if _sf_blk.is_enabled():
@@ -3247,8 +3256,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
             except Exception:
                 pass
-        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption — reversal/standalone → bypass trend filter
-        if sid not in (9, 10, 13, 14, 15) and config.TREND_FILTER_SCAN_BLOCK:
+        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption, S16 AMD iFVG — reversal/standalone → bypass trend filter
+        if sid not in (9, 10, 13, 14, 15, 16) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(
@@ -3265,7 +3274,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         # กัน counter-strong-trend สำหรับท่า bypass (S9/S10/S11/S13/S14)
         # อยู่ก่อน S13 flip (~3470) และ S14 flip (~3480) → continue กันทั้ง flip+order
         if (getattr(config, "STRONG_TREND_BLOCK_ENABLED", False)
-                and sid in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14, 15))):
+                and sid in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14, 15, 16))):
             _stb, _stb_why = _strong_trend_blocks_signal(tf_name, signal)
             if _stb:
                 _print_skip_once(
@@ -3545,6 +3554,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         position_tf[order["ticket"]] = tf_name
                         position_sid[order["ticket"]] = sid
                         position_pattern[order["ticket"]] = place_pattern
+                        if sid == 14 and result.get("sec_htf"):
+                            from trailing import position_zone_meta
+                            position_zone_meta[order["ticket"]] = {
+                                "sec_htf": result["sec_htf"],
+                                "s14_ref_level": result["s14_ref_level"]
+                            }
                         if _trend_keys:
                             from trailing import position_trend_filter as _pos_trend
                             _pos_trend[order["ticket"]] = ",".join(_trend_keys)
@@ -3803,6 +3818,34 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             order_mode = result.get("order_mode", "limit")
             use_delay_sl = (order_mode == "limit") and (sid == 8 or config.DELAY_SL_MODE != "off")
             order_sl = 0.0 if use_delay_sl else sl
+
+            # ── PD Zone pre-creation check (ก่อนสร้าง order) ────────────────
+            # ตรวจว่า entry price อยู่ใน zone ที่ถูกต้องก่อน — ถ้าผิดฝั่ง skip เลย
+            # Skip: S9 (RSI Div), S10 (CRT), S13 (always market), S14 (Sweep RSI),
+            #        S15 (VP counter-trend), market orders
+            _pdz_skip_sids = (9, 10, 13, 14, 15, 16)
+            if (getattr(config, "PDFIBOPLUS_ENABLED", False)
+                    and sid not in _pdz_skip_sids
+                    and order_mode == "limit"
+                    and _sh_info and _sl_info):
+                try:
+                    from trailing import _pdfiboplus_in_zone as _pdz_fn
+                    _pdz_h = float(_sh_info["price"])
+                    _pdz_l = float(_sl_info["price"])
+                    if _pdz_h > _pdz_l > 0:
+                        _pdz_ok = _pdz_fn(entry, signal, _pdz_h, _pdz_l, sid=sid)
+                        if not _pdz_ok:
+                            _pdz_eq    = round((_pdz_h + _pdz_l) / 2, 2)
+                            _pdz_zone  = "Premium" if signal == "SELL" else "Discount"
+                            log_event("PDFIBOPLUS", "pre_create_skip",
+                                      tf=tf_name, sid=sid, signal=signal,
+                                      entry=entry, h=_pdz_h, l=_pdz_l, eq=_pdz_eq)
+                            print(f"🛡️ PD pre-check SKIP [{tf_name}] ท่า{sid} {signal}: entry={entry:.2f} ผิด zone (EQ={_pdz_eq:.2f} H={_pdz_h:.2f} L={_pdz_l:.2f})")
+                            continue
+                except Exception:
+                    pass
+            # ─────────────────────────────────────────────────────────────────
+
             if order_mode == "stop":
                 order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
             elif order_mode == "market":

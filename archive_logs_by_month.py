@@ -29,8 +29,13 @@ logs/error.log ถ้ามี) ไปต่อในไฟล์รายเด
 import os
 import re
 import sys
+import io
 import time
 from datetime import datetime
+
+# force UTF-8 stdout เพื่อให้ภาษาไทยแสดงถูกต้องทุก terminal (รวม Windows CMD)
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 ROOT       = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR    = os.path.join(ROOT, "logs")
@@ -89,12 +94,25 @@ def process_source(src_path: str, prefix: str, cur_ym: tuple) -> dict:
     result["bytes"] = size
     print(f"  + {src_path}  ({size/1024/1024:.1f} MB)")
 
-    # ── เตรียม source: rename เป็น .archiving เพื่อปลด name ให้ bot สร้างใหม่ ──
+    # ── เตรียม source ──────────────────────────────────────────────────────────
+    # พยายาม rename ก่อน (กรณีหยุด bot แล้ว) เพื่อให้ bot สร้างไฟล์ใหม่สะอาด
+    # ถ้า rename ไม่ได้ (ไฟล์ถูก lock โดย bot ที่ยังรันอยู่) → fallback อ่านโดยตรง
+    # แล้ว truncate หลัง archive (bot จะเขียน log ต่อจาก position 0 ของไฟล์ว่าง)
     work_path = src_path + ".archiving"
+    locked_mode = False   # True = อ่านตรงจาก src แล้ว truncate, False = rename→.archiving→ลบ
     if not DRY:
         if os.path.exists(work_path):
-            os.remove(work_path)
-        os.rename(src_path, work_path)
+            try:
+                os.remove(work_path)
+            except PermissionError:
+                pass
+        try:
+            os.rename(src_path, work_path)
+        except PermissionError:
+            # ไฟล์ถูก lock โดย process อื่น — อ่านโดยตรงแล้ว truncate ทีหลัง
+            locked_mode = True
+            work_path   = src_path
+            print("    [LOCK] file locked (bot running) -- reading directly + truncate after archive")
     else:
         work_path = src_path  # dry-run อ่านไฟล์เดิม
 
@@ -133,9 +151,20 @@ def process_source(src_path: str, prefix: str, cur_ym: tuple) -> dict:
             if w:
                 w.close()
 
-    # ── ลบไฟล์ทำงานทิ้ง (ข้อมูลถูกย้ายหมดแล้ว) ──
-    if not DRY and os.path.exists(work_path):
-        os.remove(work_path)
+    # ── cleanup ────────────────────────────────────────────────────────────────
+    if not DRY:
+        if locked_mode:
+            # truncate ไฟล์ต้นฉบับ (bot จะเขียนต่อจาก position 0 = ไฟล์ใหม่สะอาด)
+            try:
+                with open(src_path, "w", encoding="utf-8"):
+                    pass
+                print(f"    [OK] truncated {os.path.basename(src_path)}")
+            except PermissionError:
+                print(f"    [WARN] cannot truncate -- bot will continue writing to existing file")
+        else:
+            # ลบ .archiving (ข้อมูลถูกย้ายหมดแล้ว)
+            if os.path.exists(work_path):
+                os.remove(work_path)
 
     for ym, n in sorted(result["months"].items()):
         tgt = _target_path(prefix, ym, cur_ym)

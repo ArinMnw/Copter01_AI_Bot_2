@@ -16,6 +16,8 @@ async def handle_btn_scan_now(update, context):
         from config import TF_ACTIVE
         import asyncio
         active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+        if SYMBOL and "BTCUSD" in SYMBOL:
+            active_tfs = [tf for tf in active_tfs if tf != "M1"]
         if not active_tfs:
             await msg.edit_text("⚠️ ยังไม่ได้เลือก Timeframe\nไปที่ ⚙️ ตั้งค่า → เลือก TF ก่อนครับ")
             return

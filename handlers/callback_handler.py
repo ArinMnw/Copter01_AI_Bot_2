@@ -212,7 +212,7 @@ async def handle_callback(update, ctx):
         await _qanswer(query)
 
     elif data == "open_tf_menu":
-        active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+        active_tfs = [tf for tf, on in TF_ACTIVE.items() if on and not (tf == 'M1' and SYMBOL and 'BTCUSD' in SYMBOL)]
         tf_summary = ", ".join(active_tfs) if active_tfs else "ยังไม่ได้เลือก"
         try:
             await query.edit_message_text(
@@ -418,7 +418,7 @@ async def handle_callback(update, ctx):
         else:
             msg_answer = "ไม่พบ TF นี้"
 
-        active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
+        active_tfs = [tf for tf, on in TF_ACTIVE.items() if on and not (tf == 'M1' and SYMBOL and 'BTCUSD' in SYMBOL)]
         tf_summary = ", ".join(active_tfs) if active_tfs else "ไม่มี"
         try:
             await query.edit_message_text(
@@ -501,6 +501,16 @@ async def handle_callback(update, ctx):
             await _qanswer(query,f"✅ ท่า 10: {label}")
         else:
             await _qanswer(query,"Entry mode ไม่ถูกต้อง")
+
+    elif data == "toggle_crt_wait_htf_close":
+        config.CRT_WAIT_HTF_CLOSE = not getattr(config, "CRT_WAIT_HTF_CLOSE", False)
+        save_runtime_state()
+        try:
+            await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
+        except Exception:
+            pass
+        status = "รอ HTF sweep ปิด" if config.CRT_WAIT_HTF_CLOSE else "ไม่รอ HTF sweep ปิด"
+        await _qanswer(query, f"✅ ท่า 10: {status}")
 
     elif data in ("toggle_fvg_normal", "toggle_fvg_parallel"):
         if data == "toggle_fvg_normal":
@@ -1103,6 +1113,14 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"Pending Trend Check: {pts}pt")
+
+    elif data.startswith("set_ptc_rounds_"):
+        rds = int(data.replace("set_ptc_rounds_", ""))
+        if rds in (1, 2):
+            config.PENDING_TREND_CHECK_ROUNDS = rds
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await _qanswer(query, f"Pending Trend Check: {rds} round(s)")
 
     elif data == "toggle_near_approach_cancel":
         config.NEAR_APPROACH_CANCEL_ENABLED = not config.NEAR_APPROACH_CANCEL_ENABLED

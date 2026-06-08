@@ -19,6 +19,7 @@
 - `13`: EzAlgo V5
 - `14`: Sweep RSI
 - `15`: Volume Profile POC + Absorption
+- `16`: AMD x iFVG (Asian Range Sweep + Inversion FVG)
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -777,3 +778,58 @@ M5_S15_VAH
   - `🟢 ท่า15: VAL/VAH zones` — callback: `toggle_s15_val_vah`
   - `ท่า15: Lookback 50/100/200` — callback: `set_s15_lookback_*`
   - `ท่า15: RR 1:1 / 1.5 / 2:1` — callback: `set_s15_min_rr_*`
+
+## ท่าที่ 16: AMD x iFVG
+
+ไฟล์หลัก: `strategy16.py` — รันเฉพาะ **M1**
+
+แนวคิด (Accumulation–Manipulation–Distribution + Inversion FVG):
+- **Asian Range**: คำนวณ High/Low จากช่วง `08:00–12:00 BKK` (ตีกรอบหลัง 12:00)
+- **Killzones**: เทรดเฉพาะ London `14:00–17:00` และ NY `19:00–22:00` BKK
+- **Sweep**: ราคาใน killzone ทะลุ Asian_Low (→ BUY) หรือ Asian_High (→ SELL)
+- **Inversion FVG**: หลัง sweep ราคาพุ่งกลับ ปิดผ่าน FVG ฝั่งตรงข้าม → iFVG กลายเป็น entry zone
+- **Entry**: LIMIT ที่ขอบ iFVG หรือ midline (`S16_ENTRY_MODE`)
+- **SL**: ใต้/เหนือจุด sweep + `SL_BUFFER(atr)`
+- **TP**: ขอบ Asian ฝั่งตรงข้าม หรือ fallback RR `S16_MIN_RR` (default 1.5)
+
+### Standalone behavior (เหมือน S10/S14/S15)
+
+- bypass Trend Filter (scan) + Sweep Filter block
+- skip: Fill Trend Recheck, RSI Recheck, Entry Candle, Trail SL, Opposite Order, Limit Guard, Near Approach Cancel, PD Fibo pre-check
+- อยู่ใน `STRONG_TREND_BLOCK_SIDS` (เปิดกันไม้สวน strong trend ได้)
+
+### Config
+
+- `S16_KILLZONES`, `S16_ASIAN_START_BKK="08:00"`, `S16_ASIAN_END_BKK="12:00"`
+- `S16_MIN_RR=1.5`, `S16_ENTRY_MODE`
+- state เก็บใน `s16_state` (asian_high/low, range_date, swept_high/low) → persist ผ่าน `config.save_runtime_state()`
+
+## Sweep Filter (override trend ก่อน trend filter ปกติ)
+
+ไฟล์หลัก: `sweep_filter.py` — เรียกใน `scanner.trend_allows_signal()` **ก่อน** trend filter ปกติ
+
+แนวคิด:
+- `SWEEP_LOW`  → **Block SELL, Unblock BUY**  (ราคา sweep ใต้ swing low แล้ว bounce ขึ้น)
+- `SWEEP_HIGH` → **Block BUY, Unblock SELL** (ราคา sweep เหนือ swing high แล้ว reject ลง)
+- **swing low** = `HL`/`LL` ของ HHLL ที่ใหม่กว่า | **swing high** = `HH`/`LH` ที่ใหม่กว่า
+
+### เงื่อนไข detect (⚠️ แก้ bug 05/06/2026)
+
+SWEEP_LOW — ต้องครบทุกข้อ:
+1. **`bar.open > ref_price`** ← bar ต้องเปิด **เหนือ** swing low ก่อน (ราคายังอยู่เหนือ ref)
+2. `bar.low < ref_price` ← แล้วค่อย dip ลงต่ำกว่า swing low (= sweep จริง)
+3. แท่งถัดไปปิดเขียว (`close > open`)
+4. HTF confirm: HTF bar ที่ cover trigger มี `low < ref` + HTF ถัดไปปิดเขียว
+
+SWEEP_HIGH — สมมาตร: `bar.open < ref_price` + `bar.high > ref_price` + แท่งถัดไปปิดแดง + HTF confirm
+
+> **Bug เดิม**: ไม่เช็ค `bar.open` → bar ที่ trade อยู่ **ใต้** swing low อยู่แล้ว (เช่น downtrend ต่อเนื่อง)
+> ก็ trigger SWEEP_LOW ได้ → BUY ถูก unblock ใน `bear_strong` โดยไม่ควร
+> เช่น order #537988219 (BUY M5 ขณะ bear_strong) → fill → ขาดทุน
+> **แก้**: เพิ่ม `bo > ref` (LOW) / `bo < ref` (HIGH) ทั้ง Pattern A และ B
+
+### Persistence & Reset
+
+- sweep active → คงสถานะไว้ จนกว่า `update_trend_and_check_reset()` จะ reset
+- reset เมื่อ: trend เปลี่ยน (BULL↔BEAR↔SIDEWAY) หรือ (ตอน SIDEWAY) last swing label เปลี่ยน
+- bypass: S9/S10/S13/S14/S15/S16 ไม่ผ่าน sweep filter (standalone)

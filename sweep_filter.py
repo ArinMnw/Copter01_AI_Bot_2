@@ -33,10 +33,11 @@ except ImportError:
     def connect_mt5(): return False
 
 # ── State per TF ──────────────────────────────────────────────────────
-_sweep_state: dict[str, str]   = {}  # "SWEEP_LOW" | "SWEEP_HIGH"
-_sweep_price: dict[str, float] = {}  # ราคา swing ที่เป็น reference
-_sweep_at:    dict[str, str]   = {}  # เวลา detect (BKK string)
-_prev_trend:  dict[str, str]   = {}  # track trend เพื่อ detect change
+_sweep_state:      dict[str, str]   = {}  # "SWEEP_LOW" | "SWEEP_HIGH"
+_sweep_price:      dict[str, float] = {}  # ราคา swing ที่เป็น reference
+_sweep_at:         dict[str, str]   = {}  # เวลา detect (BKK string)
+_prev_trend:       dict[str, str]   = {}  # track trend เพื่อ detect change
+_prev_last_label:  dict[str, str]   = {}  # track last swing label เพื่อ detect change
 
 _BKK = timezone(timedelta(hours=7))
 
@@ -50,6 +51,11 @@ _TF_NEXT: dict[str, str] = {
 }
 
 TRADING_TFS = ["M1", "M5", "M15", "M30", "H1"]
+
+# จำนวนวินาทีของแต่ละ HTF (ใช้หา M5 bar ที่ cover M1 trigger bar)
+_HTF_SECS: dict[str, int] = {
+    "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400,
+}
 
 # HIGH_TYPES: swing ที่ถือว่าเป็น "จุดสูง" → ตรวจ SWEEP_HIGH
 # LOW_TYPES:  swing ที่ถือว่าเป็น "จุดต่ำ" → ตรวจ SWEEP_LOW
@@ -92,26 +98,68 @@ def reset_all() -> None:
     _sweep_at.clear()
 
 
-def update_trend_and_check_reset(tf: str, current_trend: str) -> bool:
+def update_trend_and_check_reset(tf: str, current_trend: str,
+                                  last_label: str = "") -> bool:
     """
-    เรียกทุก scan cycle: ถ้า trend เปลี่ยน → reset sweep state
+    เรียกทุก scan cycle: reset sweep state เมื่อ trend หรือ last swing label เปลี่ยน
+
+    Trend transitions ที่ reset (ทั้งหมด):
+      BULL↔BEAR, BULL↔SIDEWAY, BEAR↔SIDEWAY
+
+    Last label transitions ที่ reset (เฉพาะตอน trend = SIDEWAY เท่านั้น):
+      HL→HH/LH/LL, LH→HH/HL/LL, HH→LH/HL/LL, LL→LH/HL/HH
+      (BULL→BULL หรือ BEAR→BEAR label เปลี่ยน ไม่นับ)
+
     คืน True ถ้า reset เกิดขึ้น
     """
-    prev = _prev_trend.get(tf)
-    changed = (prev is not None and prev != current_trend)
-    if changed:
-        reset_sweep(tf)
+    prev_trend  = _prev_trend.get(tf)
+    prev_label  = _prev_last_label.get(tf, "")
+
     _prev_trend[tf] = current_trend
-    return changed
+    if last_label:
+        _prev_last_label[tf] = last_label
+
+    trend_changed = (prev_trend is not None and prev_trend != current_trend)
+    label_changed = (
+        current_trend == "SIDEWAY"
+        and bool(last_label) and bool(prev_label)
+        and prev_label != last_label
+    )
+
+    if trend_changed or label_changed:
+        reset_sweep(tf)
+        return True
+    return False
 
 
 # ── Core Detection ────────────────────────────────────────────────────
 
+def _get_latest_high_swing(d: dict) -> tuple[str, float, int] | None:
+    """หา swing HIGH ล่าสุด (HH หรือ LH) ตามเวลา — สำหรับ SWEEP_HIGH"""
+    candidates = []
+    for lbl in ("HH", "LH"):
+        pt = d.get(lbl.lower())
+        if pt and pt.get("time") and pt.get("price"):
+            candidates.append((lbl, float(pt["price"]), int(pt["time"])))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda x: x[2])
+
+
+def _get_latest_low_swing(d: dict) -> tuple[str, float, int] | None:
+    """หา swing LOW ล่าสุด (HL หรือ LL) ตามเวลา — สำหรับ SWEEP_LOW"""
+    candidates = []
+    for lbl in ("HL", "LL"):
+        pt = d.get(lbl.lower())
+        if pt and pt.get("time") and pt.get("price"):
+            candidates.append((lbl, float(pt["price"]), int(pt["time"])))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda x: x[2])
+
+
 def _get_latest_swing(d: dict) -> tuple[str, float, int] | None:
-    """
-    หา swing ล่าสุดตามเวลาจากทุก 4 ประเภท (HH/HL/LH/LL)
-    คืน (label, price, time) ของ swing ที่ใหม่ที่สุด หรือ None
-    """
+    """[Compat] หา swing ล่าสุดจากทุก 4 ประเภท (ใช้ใน reset tracking)"""
     candidates = []
     for lbl in ("HH", "HL", "LH", "LL"):
         pt = d.get(lbl.lower())
@@ -119,17 +167,78 @@ def _get_latest_swing(d: dict) -> tuple[str, float, int] | None:
             candidates.append((lbl, float(pt["price"]), int(pt["time"])))
     if not candidates:
         return None
-    return max(candidates, key=lambda x: x[2])  # newest by time
+    return max(candidates, key=lambda x: x[2])
+
+
+def _detect_both(
+    tf: str,
+    d: dict,
+    rates: list,
+    htf_rates_high=None,   # historical HTF rates สำหรับ SWEEP_HIGH
+    htf_rates_low=None,    # historical HTF rates สำหรับ SWEEP_LOW
+) -> str | None:
+    """
+    ตรวจทั้ง SWEEP_HIGH และ SWEEP_LOW แยกกันอิสระ:
+      - SWEEP_HIGH: ใช้ latest HH/LH swing
+      - SWEEP_LOW:  ใช้ latest HL/LL swing
+
+    สาเหตุที่ต้องแยก: swing HIGH และ LOW สามารถสลับกันได้เร็วมากใน M1
+    ถ้าดูแค่ "latest swing" เดียวจะพลาดกรณีที่ HIGH swing ถูก sweep แต่
+    latest swing เปลี่ยนเป็น LOW type ก่อนที่ HTF จะ confirm เสร็จ
+
+    ถ้าทั้งสองด้านตรงเงื่อนไขพร้อมกัน → เลือก trigger bar ที่ใหม่กว่า
+    """
+    result_high = None
+    result_low  = None
+
+    high_sw = _get_latest_high_swing(d)
+    if high_sw:
+        lbl, ref_price, ref_time = high_sw
+        bars_after = [r for r in rates if int(r["time"]) > ref_time]
+        if len(bars_after) >= 2:
+            result_high = _check_sweep_high(
+                tf, ref_price, ref_time, bars_after, rates, htf_rates_high
+            )
+
+    low_sw = _get_latest_low_swing(d)
+    if low_sw:
+        lbl, ref_price, ref_time = low_sw
+        bars_after = [r for r in rates if int(r["time"]) > ref_time]
+        if len(bars_after) >= 2:
+            result_low = _check_sweep_low(
+                tf, ref_price, ref_time, bars_after, rates, htf_rates_low
+            )
+
+    # ถ้าทั้งสองด้านไม่ trigger → None
+    if not result_high and not result_low:
+        return None
+    # ถ้าด้านเดียว trigger → คืนด้านนั้น
+    if result_high and not result_low:
+        return result_high
+    if result_low and not result_high:
+        return result_low
+    # ทั้งสองด้าน trigger → เลือกตาม trigger bar ที่ใหม่กว่า
+    high_ts = _sweep_price.get(tf + "_high_ts", 0)
+    low_ts  = _sweep_price.get(tf + "_low_ts",  0)
+    return result_high if high_ts >= low_ts else result_low
 
 
 def check_and_update(tf: str) -> str | None:
     """
     ตรวจ sweep conditions (เรียกทุก scan cycle)
-    ใช้ swing ล่าสุดจากทุก 4 ประเภท (HH/HL/LH/LL) ตามเวลา
+    ตรวจทั้ง HIGH-type (HH/LH) และ LOW-type (HL/LL) swing แยกกันอิสระ
     คืน 'SWEEP_LOW' | 'SWEEP_HIGH' | None
+
+    Persistence rule:
+      ถ้า sweep active อยู่แล้ว → คงสถานะไว้ (ไม่ reset จาก swing ใหม่)
+      reset ได้เฉพาะผ่าน update_trend_and_check_reset
     """
     if not is_enabled():
         return None
+
+    # ถ้า sweep active อยู่แล้ว → คงสถานะ
+    if _sweep_state.get(tf):
+        return _sweep_state[tf]
 
     try:
         import hhll_swing as _hs
@@ -137,21 +246,14 @@ def check_and_update(tf: str) -> str | None:
     except Exception:
         return None
 
-    latest = _get_latest_swing(d)
-    if not latest:
-        reset_sweep(tf)
+    if not d:
         return None
-
-    latest_lbl, ref_price, ref_time = latest
 
     rates = _get_closed_rates(tf, 80)
-    if rates is None or len(rates) < 2:
+    if rates is None or len(rates) < 3:
         return None
 
-    result = _detect(tf, latest_lbl, ref_price, ref_time, list(rates))
-    if result is None:
-        reset_sweep(tf)
-    return result
+    return _detect_both(tf, d, list(rates))
 
 
 def _detect(
@@ -160,85 +262,124 @@ def _detect(
     ref_price: float,
     ref_time: int,
     rates: list,
+    htf_rates=None,    # historical HTF rates สำหรับ sim (None = ดึง live)
 ) -> str | None:
     """
-    Core detection ตาม swing ล่าสุด:
-      HIGH type (HH, LH) → ตรวจ SWEEP_HIGH
-      LOW  type (LL, HL) → ตรวจ SWEEP_LOW
+    [Internal] Core detection สำหรับ swing เดียว (ใช้ใน check_sweep_at_time)
+    HIGH type (HH, LH) → ตรวจ SWEEP_HIGH
+    LOW  type (LL, HL) → ตรวจ SWEEP_LOW
     """
     bars_after = [r for r in rates if int(r["time"]) > ref_time]
-    if len(bars_after) < 1:
+    if len(bars_after) < 2:
         return None
 
     if latest_lbl in HIGH_TYPES:
-        return _check_sweep_high(tf, ref_price, ref_time, bars_after, rates)
+        return _check_sweep_high(tf, ref_price, ref_time, bars_after, rates, htf_rates)
     else:
-        return _check_sweep_low(tf, ref_price, ref_time, bars_after, rates)
+        return _check_sweep_low(tf, ref_price, ref_time, bars_after, rates, htf_rates)
 
 
 def _check_sweep_low(
-    tf: str, ref_price: float, ref_time: int, bars_after: list, all_rates: list
+    tf: str, ref_price: float, ref_time: int, bars_after: list, all_rates: list,
+    htf_rates=None,
 ) -> str | None:
     """
     SWEEP_LOW detection (สำหรับ LL หรือ HL เป็น swing ล่าสุด):
 
-    PRIMARY: แท่งแรกหลัง swing.time ปิดเขียว → SWEEP_LOW
-    ALT:     แท่งปิดต่ำกว่า ref_price + 2 เขียว + HTF sweep → SWEEP_LOW
-    """
-    # PRIMARY
-    first = bars_after[0]
-    fo, fc = float(first["open"]), float(first["close"])
-    if fc > fo:   # green
-        _activate("SWEEP_LOW", tf, ref_price, int(first["time"]))
-        return "SWEEP_LOW"
+    ลำดับการตรวจ: Pattern B ก่อน Pattern A เสมอ
+    HTF: ใช้ M5 bar ที่ COVER M1 trigger bar (not any future bar)
 
-    # ALT
-    n = len(bars_after)
-    for i in range(n - 2):
-        b    = bars_after[i]
-        nxt  = bars_after[i + 1]
-        nxt2 = bars_after[i + 2]
-        bc        = float(b["close"])
-        no, nc    = float(nxt["open"]),  float(nxt["close"])
-        n2o, n2c  = float(nxt2["open"]), float(nxt2["close"])
-        if bc < ref_price and nc > no and n2c > n2o:
-            htf = _TF_NEXT.get(tf)
-            if htf and _htf_sweep_low(htf, ref_price):
-                _activate("SWEEP_LOW", tf, ref_price, int(b["time"]))
+    Pattern B – Engulf (ตรวจก่อน):
+      แท่ง b: RED (close < open) AND close < ref_price
+      แท่ง b+1 และ b+2: ปิดเขียวทั้งสอง
+      HTF: M5[cover b].low < ref + M5[next] ปิดเขียว
+
+    Pattern A – Simple Sweep (ตรวจทีหลัง):
+      แท่ง b: low < ref_price (any color)
+      แท่ง b+1: ปิดเขียว
+      HTF: M5[cover b].low < ref + M5[next] ปิดเขียว
+    """
+    n   = len(bars_after)
+    htf = _TF_NEXT.get(tf)
+    if htf_rates is None and htf:
+        htf_rates = _get_closed_rates(htf, 30)
+
+    for i in range(n - 1):
+        b   = bars_after[i]
+        nxt = bars_after[i + 1]
+        bl        = float(b["low"])
+        bo, bc    = float(b["open"]),  float(b["close"])
+        no, nc    = float(nxt["open"]), float(nxt["close"])
+        b_time    = int(b["time"])
+
+        # ── Pattern B (ก่อน): RED engulf (close < ref) + 2 เขียว ─────────
+        # bo > ref_price: bar เปิดเหนือ swing low (ราคายังอยู่เหนือ ref)
+        if i + 2 < n and bo > ref_price and bc < ref_price and bc < bo:
+            nxt2     = bars_after[i + 2]
+            n2o, n2c = float(nxt2["open"]), float(nxt2["close"])
+            if nc > no and n2c > n2o:
+                if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=False):
+                    _activate("SWEEP_LOW", tf, ref_price, b_time)
+                    return "SWEEP_LOW"
+
+        # ── Pattern A (ทีหลัง): low < ref + open > ref (sweep จริง) + 1 เขียว ──
+        # bo > ref_price: bar ต้องเปิดเหนือ swing low ก่อน แล้วค่อย dip ลงต่ำกว่า
+        if bo > ref_price and bl < ref_price and nc > no:
+            if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=False):
+                _activate("SWEEP_LOW", tf, ref_price, b_time)
                 return "SWEEP_LOW"
 
     return None
 
 
 def _check_sweep_high(
-    tf: str, ref_price: float, ref_time: int, bars_after: list, all_rates: list
+    tf: str, ref_price: float, ref_time: int, bars_after: list, all_rates: list,
+    htf_rates=None,
 ) -> str | None:
     """
     SWEEP_HIGH detection (สำหรับ HH หรือ LH เป็น swing ล่าสุด):
 
-    PRIMARY: แท่งแรกหลัง swing.time ปิดแดง → SWEEP_HIGH
-    ALT:     แท่งปิดสูงกว่า ref_price + 2 แดง + HTF sweep → SWEEP_HIGH
-    """
-    # PRIMARY
-    first = bars_after[0]
-    fo, fc = float(first["open"]), float(first["close"])
-    if fc < fo:   # red
-        _activate("SWEEP_HIGH", tf, ref_price, int(first["time"]))
-        return "SWEEP_HIGH"
+    ลำดับการตรวจ: Pattern B ก่อน Pattern A เสมอ
+    HTF: ใช้ M5 bar ที่ COVER M1 trigger bar (not any future bar)
 
-    # ALT
-    n = len(bars_after)
-    for i in range(n - 2):
-        b    = bars_after[i]
-        nxt  = bars_after[i + 1]
-        nxt2 = bars_after[i + 2]
-        bc        = float(b["close"])
-        no, nc    = float(nxt["open"]),  float(nxt["close"])
-        n2o, n2c  = float(nxt2["open"]), float(nxt2["close"])
-        if bc > ref_price and nc < no and n2c < n2o:
-            htf = _TF_NEXT.get(tf)
-            if htf and _htf_sweep_high(htf, ref_price):
-                _activate("SWEEP_HIGH", tf, ref_price, int(b["time"]))
+    Pattern B – Engulf (ตรวจก่อน):
+      แท่ง b: GREEN (close > open) AND close > ref_price
+      แท่ง b+1 และ b+2: ปิดแดงทั้งสอง
+      HTF: M5[cover b].high > ref + M5[next] ปิดแดง
+
+    Pattern A – Simple Sweep (ตรวจทีหลัง):
+      แท่ง b: high > ref_price (any color)
+      แท่ง b+1: ปิดแดง
+      HTF: M5[cover b].high > ref + M5[next] ปิดแดง
+    """
+    n   = len(bars_after)
+    htf = _TF_NEXT.get(tf)
+    if htf_rates is None and htf:
+        htf_rates = _get_closed_rates(htf, 30)
+
+    for i in range(n - 1):
+        b   = bars_after[i]
+        nxt = bars_after[i + 1]
+        bh        = float(b["high"])
+        bo, bc    = float(b["open"]),  float(b["close"])
+        no, nc    = float(nxt["open"]), float(nxt["close"])
+        b_time    = int(b["time"])
+
+        # ── Pattern B (ก่อน): GREEN engulf (close > ref) + 2 แดง ─────────
+        # bo < ref_price: bar เปิดใต้ swing high (ราคายังอยู่ใต้ ref)
+        if i + 2 < n and bo < ref_price and bc > ref_price and bc > bo:
+            nxt2     = bars_after[i + 2]
+            n2o, n2c = float(nxt2["open"]), float(nxt2["close"])
+            if nc < no and n2c < n2o:
+                if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=True):
+                    _activate("SWEEP_HIGH", tf, ref_price, b_time)
+                    return "SWEEP_HIGH"
+
+        # ── Pattern A (ทีหลัง): high > ref + open < ref (sweep จริง) + 1 แดง ──
+        # bo < ref_price: bar ต้องเปิดใต้ swing high ก่อน แล้วค่อย spike ขึ้นเหนือ
+        if bo < ref_price and bh > ref_price and nc < no:
+            if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=True):
+                _activate("SWEEP_HIGH", tf, ref_price, b_time)
                 return "SWEEP_HIGH"
 
     return None
@@ -246,20 +387,45 @@ def _check_sweep_high(
 
 # ── HTF Confirmation ──────────────────────────────────────────────────
 
-def _htf_sweep_high(htf: str, price: float) -> bool:
-    """Higher TF มีแท่งที่ High > price AND Close < Open (red = reject)"""
-    rates = _get_closed_rates(htf, 30)
-    if not rates:
-        return False
-    return any(float(r["high"]) > price and float(r["close"]) < float(r["open"]) for r in rates)
+def _htf_confirm_at(htf: str | None, price: float, trigger_time: int,
+                    htf_rates, high: bool) -> bool:
+    """
+    ตรวจ HTF confirmation โดยใช้ M5 bar ที่ COVER M1 trigger_time
+    (ป้องกัน M5 bar ไกลๆ ในอนาคตที่ไม่ควรนับ)
 
+    หลักการ:
+      หา M5 bar ที่มี time <= trigger_time < time + htf_secs
+      → ต้องมี high/low ผ่าน ref_price
+      → M5 bar ถัดไปต้องปิดทิศทางที่ถูก (RED สำหรับ HIGH, GREEN สำหรับ LOW)
 
-def _htf_sweep_low(htf: str, price: float) -> bool:
-    """Higher TF มีแท่งที่ Low < price AND Close > Open (green = bounce)"""
-    rates = _get_closed_rates(htf, 30)
-    if not rates:
+    high=True  → M5[cover].high > price AND M5[next] ปิดแดง
+    high=False → M5[cover].low  < price AND M5[next] ปิดเขียว
+    """
+    if not htf or htf_rates is None or len(htf_rates) < 2:
         return False
-    return any(float(r["low"]) < price and float(r["close"]) > float(r["open"]) for r in rates)
+
+    htf_secs = _HTF_SECS.get(htf, 300)
+
+    # หา index ของ M5 bar ที่ cover trigger_time
+    containing_idx = None
+    for idx in range(len(htf_rates) - 1):
+        rt = int(htf_rates[idx]["time"])
+        if rt <= trigger_time < rt + htf_secs:
+            containing_idx = idx
+            break
+
+    if containing_idx is None:
+        return False
+
+    bar_m5  = htf_rates[containing_idx]
+    bar_nxt = htf_rates[containing_idx + 1]
+
+    if high:
+        return (float(bar_m5["high"])  > price and
+                float(bar_nxt["close"]) < float(bar_nxt["open"]))
+    else:
+        return (float(bar_m5["low"])   < price and
+                float(bar_nxt["close"]) > float(bar_nxt["open"]))
 
 
 # ── MT5 Helpers ───────────────────────────────────────────────────────
@@ -306,13 +472,17 @@ def get_status_text() -> str:
 
 def check_sweep_at_time(
     tf: str,
-    end_dt,           # datetime (BKK) ของเวลาที่ order สร้าง
-    swings: dict,     # {"HH": {price,time}|None, "HL":..., "LH":..., "LL":...}
+    end_dt,           # datetime (raw +1h) ของเวลาที่ต้องการตรวจ
+    swings: dict,     # {"hh": {price,time}|None, "hl":..., "lh":..., "ll":...}
 ) -> str | None:
     """
     ใช้สำหรับ simulation: ตรวจ sweep state ณ เวลา end_dt
-    swings = dict จาก get_hhll_at() ที่มี HH/HL/LH/LL ครบ
+    swings = dict จาก get_hhll_at() ที่มี hh/hl/lh/ll ครบ
     คืน 'SWEEP_LOW' | 'SWEEP_HIGH' | None
+
+    ตรวจทั้ง HIGH-type (HH/LH) และ LOW-type (HL/LL) แยกกันอิสระ
+    เพื่อป้องกันกรณีที่ HIGH swing ถูก sweep แต่ latest swing
+    เปลี่ยนเป็น LOW type ก่อนที่ HTF จะ confirm เสร็จ
     """
     if not connect_mt5():
         return None
@@ -320,17 +490,40 @@ def check_sweep_at_time(
     if not tf_id:
         return None
 
-    # หา swing ล่าสุดจาก swings dict
-    latest = _get_latest_swing(swings)
-    if not latest:
+    # ถ้า sweep active อยู่แล้ว → คงสถานะ (persistence rule เหมือน check_and_update)
+    if _sweep_state.get(tf):
+        return _sweep_state[tf]
+
+    # หา HIGH และ LOW swing แยกกัน
+    high_sw = _get_latest_high_swing(swings)
+    low_sw  = _get_latest_low_swing(swings)
+
+    if not high_sw and not low_sw:
         return None
-    latest_lbl, ref_price, ref_time = latest
 
-    start_dt = datetime.fromtimestamp(ref_time, tz=_BKK)
-    end_adj  = end_dt - timedelta(seconds=60)
+    end_adj = end_dt - timedelta(seconds=60)
 
+    # หา start_dt เป็น oldest swing time (เพื่อ fetch rates ครอบคลุมทั้งสอง)
+    times = []
+    if high_sw: times.append(high_sw[2])
+    if low_sw:  times.append(low_sw[2])
+    oldest_ref_time = min(times)
+    start_dt = datetime.fromtimestamp(oldest_ref_time, tz=_BKK)
+
+    # ดึง rates ของ TF หลัก (ครอบคลุมตั้งแต่ swing เก่าสุดถึง end_adj)
     rates = mt5.copy_rates_range(SYMBOL, tf_id, start_dt, end_adj)
-    if rates is None or len(rates) < 2:
+    if rates is None or len(rates) < 3:
         return None
 
-    return _detect(tf, latest_lbl, ref_price, ref_time, list(rates))
+    # ดึง historical HTF rates (ใช้ร่วมกันทั้งสองทิศ)
+    htf_rates = None
+    htf = _TF_NEXT.get(tf)
+    if htf:
+        htf_id = TF_OPTIONS.get(htf)
+        if htf_id:
+            htf_start = start_dt - timedelta(hours=2)
+            htf_r = mt5.copy_rates_range(SYMBOL, htf_id, htf_start, end_adj)
+            if htf_r is not None and len(htf_r) > 0:
+                htf_rates = htf_r
+
+    return _detect_both(tf, swings, list(rates), htf_rates, htf_rates)

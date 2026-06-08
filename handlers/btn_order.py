@@ -6,7 +6,23 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     build_tf_keyboard, build_tf_keyboard_with_back,
     build_scan_keyboard, build_scan_keyboard_with_back)
 
-BOT_LOG_FILE = os.path.join("logs", "bot.log")
+BOT_LOG_FILE  = os.path.join("logs", "bot.log")
+BOT_LOG_DIR   = os.path.join("logs", "old_logs")   # archived bot-YYYY-MM.log
+
+def _all_bot_log_files() -> list[str]:
+    """คืน list ของ log files เรียงจากใหม่→เก่า: bot.log, bot-2026-06.log, bot-2026-05.log, ..."""
+    import glob
+    files: list[str] = []
+    if os.path.exists(BOT_LOG_FILE):
+        files.append(BOT_LOG_FILE)
+    if os.path.isdir(BOT_LOG_DIR):
+        archived = sorted(
+            [f for f in glob.glob(os.path.join(BOT_LOG_DIR, "bot-2[0-9][0-9][0-9]-[0-9][0-9].log"))
+             if os.path.isfile(f)],
+            reverse=True,
+        )
+        files.extend(archived)
+    return files
 
 # events ที่ต้องการดึงมาแสดง
 _WANT_EVENTS = {
@@ -27,12 +43,25 @@ _SHOW_FIELDS = {
     "ENTRY_FILL":                  ["price", "sl", "tp", "trend", "rsi", "rsi2_state"],
     "PDFIBOPLUS":                  ["result", "price", "h", "l", "eq"],
     "PD_ZONE_CHECK":               ["result", "price", "h", "l", "eq"],
-    "TREND_RECHECK":               ["allowed", "why", "close_price"],
+    "TREND_RECHECK":               ["allowed", "why", "close_price", "sh", "sl", "sh_t", "sl_t"],
     "ENTRY_FILL_RSI_RECHECK_FAIL": ["rsi", "side", "tf"],
     "ENTRY_CANDLE":                ["body_pct", "open", "high", "low", "close"],
     "ENTRY_QUALITY":               ["state", "close_price", "reason"],
     "TSO_REGISTERED":              ["base_volume", "scaled_volume", "n_steps"],
     "POSITION_CLOSED":             ["close_price", "profit", "reason"],
+}
+
+# คำอธิบาย sub-event ของ TREND_RECHECK เพื่อแสดงใน ticket lookup
+_TREND_RECHECK_LABEL = {
+    "fill_round1_skip_approach_passed": "⏭️ R1 ข้าม — approach ผ่านก่อน fill แล้ว (ใช้ swing ตอน approach เป็น baseline R2)",
+    "fill_round1":                      "🔍 R1 เช็ค trend",
+    "fill_round1_pass_wait_pivot":      "⏳ R1 ผ่าน — รอ pivot ยืนยัน (sh/sl baseline R2)",
+    "fill_round2":                      "🔍 R2 เช็ค trend",
+    "fill_all_rounds_pass":             "✅ ทุก round ผ่าน — ถือ position ต่อ",
+    "fill_close_round1":                "❌ R1 trend สวนทาง → ปิด",
+    "fill_close_round1_failed":         "⚠️ R1 สั่งปิดแต่ล้มเหลว",
+    "fill_close_round2":                "❌ R2 trend สวนทาง → ปิด",
+    "fill_close_round2_failed":         "⚠️ R2 สั่งปิดแต่ล้มเหลว",
 }
 
 
@@ -41,28 +70,102 @@ def _fld(line, key):
     return m.group(1).strip() if m else None
 
 
-def _load_log_lines() -> list[str]:
-    """อ่าน bot.log ทั้งหมดเป็น list — cache ใน module level ต่อ request"""
-    if not os.path.exists(BOT_LOG_FILE):
+def _load_log_lines(max_lines: int = 800_000) -> list[str]:
+    """[Legacy] อ่านทุก log files — ใช้สำหรับ caller ที่ไม่รู้ ticket ล่วงหน้า
+    ถ้ารู้ ticket ให้ใช้ _grep_ticket_lines(ticket) แทน (เร็วกว่ามาก)
+    """
+    files = _all_bot_log_files()
+    if not files:
         return []
-    try:
-        with open(BOT_LOG_FILE, encoding='utf-8', errors='replace') as f:
-            return f.readlines()
-    except Exception:
-        return []
+    lines: list[str] = []
+    for path in files:
+        if len(lines) >= max_lines:
+            break
+        try:
+            with open(path, encoding='utf-8', errors='replace') as f:
+                chunk = f.readlines()
+            remaining = max_lines - len(lines)
+            if len(chunk) > remaining:
+                chunk = chunk[-remaining:]
+            lines.extend(chunk)
+        except Exception:
+            pass
+    return lines
+
+
+def _grep_ticket_lines(ticket: int) -> list[str]:
+    """เร็วกว่า _load_log_lines มาก — scan ทุก log files
+    คืนเฉพาะบรรทัดที่มี ticket number (plain string match, ไม่ใช้ regex)
+    เรียงตาม file order: bot.log → bot-2026-06.log → bot-2026-05.log → ...
+    """
+    tk_str = str(ticket)
+    matched: list[str] = []
+    for path in _all_bot_log_files():
+        try:
+            with open(path, encoding='utf-8', errors='replace') as f:
+                for line in f:
+                    if tk_str in line:
+                        matched.append(line)
+        except Exception:
+            pass
+    return matched
+
+
+def _grep_tg_sent_near_ts(ts_unix: int, pattern_key: str, window_sec: int = 90) -> str:
+    """หา TG_SENT ที่ match pattern_key ภายใน ±window_sec วินาทีของ ts_unix
+    ใช้แทน line-proximity search ของ _read_signal_tg (ทำงานถูกต้องทุก file)
+    """
+    _TS_RE_LOG = re.compile(r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]')
+    key = pattern_key[:40]
+
+    def _parse_ts(line: str) -> int:
+        m = _TS_RE_LOG.match(line)
+        if not m:
+            return 0
+        try:
+            from datetime import timezone as _tz
+            dt = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+            # log timestamps ใช้ UTC+6 (user's BKK)
+            import config as _cfg
+            offset = getattr(_cfg, "TZ_OFFSET", 7) - 1  # UTC+6
+            from datetime import timedelta as _td
+            return int(dt.replace(tzinfo=timezone(timedelta(hours=offset))).timestamp())
+        except Exception:
+            return 0
+
+    lo, hi = ts_unix - window_sec, ts_unix + window_sec
+    for path in _all_bot_log_files():
+        try:
+            with open(path, encoding='utf-8', errors='replace') as f:
+                for line in f:
+                    if '] TG_SENT |' not in line:
+                        continue
+                    # Remove backslashes to handle escaped brackets in logs (e.g. \[H4→M5])
+                    clean_line = line.replace("\\", "")
+                    clean_key = key.replace("\\", "")
+                    if clean_key not in clean_line:
+                        continue
+                    t = _parse_ts(line)
+                    if t == 0 or lo <= t <= hi:
+                        m2 = re.match(r'^\[.+?\]\s+TG_SENT \| (.+)', line)
+                        if m2:
+                            return m2.group(1).rstrip().replace(" | ", "\n")
+        except Exception:
+            pass
+    return ""
 
 
 def _read_order_meta(ticket: int, all_lines: list) -> tuple[str, str, str]:
     """ดึง (pattern, sid, tf) จาก ORDER_CREATED log สำหรับ ticket นี้
-    ใช้เป็น fallback เมื่อ position_pattern/sid/tf dict ว่าง (เช่น หลัง bot restart)"""
+    ถ้า all_lines ว่าง → ใช้ _grep_ticket_lines (fast path)
+    """
+    lines = all_lines if all_lines else _grep_ticket_lines(ticket)
     tk_str = str(ticket)
-    tk_re = re.compile(rf'\b{tk_str}\b')
-    for line in all_lines:
-        if not tk_re.search(line):
+    for line in lines:
+        if tk_str not in line:
             continue
         if '] ORDER_CREATED |' not in line:
             continue
-        # pattern = field แรกหลัง ORDER_CREATED |
         m = re.match(r'^\[.+?\]\s+ORDER_CREATED \| ([^|]+)', line)
         pattern = m.group(1).strip() if m else ""
         sid = _fld(line, 'sid') or ""
@@ -74,70 +177,77 @@ def _read_order_meta(ticket: int, all_lines: list) -> tuple[str, str, str]:
 def _read_signal_tg(ticket: int, all_lines: list) -> str:
     """หา TG_SENT ที่เป็น signal notification สำหรับ ticket นี้
 
-    Bug เดิม: signal TG_SENT ถูก log แค่ 300 chars และ ticket อยู่ท้ายข้อความ
-    → ticket number ถูกตัดออก → หาไม่เจอ หรือเจอ PD Fibo Check แทน
-
-    Strategy ใหม่:
-    1. หา ORDER_CREATED line ของ ticket → ดึง pattern name
-    2. หา TG_SENT ใน ±40 lines รอบ ORDER_CREATED ที่ match pattern name (30 chars แรก)
-    3. fallback: หา TG_SENT แรกที่ ticket ปรากฏ (เผื่อ ticket อยู่ใน log ตรงๆ)
+    Strategy:
+    1. หา ORDER_CREATED line ของ ticket → pattern name + timestamp
+    2. ค้น TG_SENT ด้วย timestamp window ±90s (ทำงานถูกต้องข้าม file)
+    3. fallback: หา TG_SENT แรกที่ ticket ปรากฏตรงๆ
     """
-    tk_str = str(ticket)
-    tk_re = re.compile(rf'\b{tk_str}\b')
+    _TS_RE_LOG = re.compile(r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]')
 
-    # Step 1: หา ORDER_CREATED line และ pattern name
-    oc_lineno = None
+    # ใช้ grep lines ถ้า all_lines ว่าง
+    tk_lines = all_lines if all_lines else _grep_ticket_lines(ticket)
+    tk_str = str(ticket)
+
+    # Step 1: หา ORDER_CREATED line → pattern name + timestamp
+    oc_ts_str    = None
     pattern_name = None
-    for i, line in enumerate(all_lines):
-        if not tk_re.search(line):
+    for line in tk_lines:
+        if tk_str not in line:
             continue
         if '] ORDER_CREATED |' not in line:
             continue
-        oc_lineno = i
+        tm = _TS_RE_LOG.match(line)
+        if tm:
+            oc_ts_str = tm.group(1)
         m = re.match(r'^\[.+?\]\s+ORDER_CREATED \| ([^|]+)', line)
         if m:
             pattern_name = m.group(1).strip()
         break
 
-    if oc_lineno is None:
+    if oc_ts_str is None:
         return ""
 
-    # Step 2: หา TG_SENT ใกล้ ORDER_CREATED ที่ match pattern name
-    if pattern_name:
-        key = pattern_name[:40]  # 40 chars แรกของ pattern name พอ unique
-        search_start = max(0, oc_lineno - 5)
-        search_end   = min(len(all_lines), oc_lineno + 40)
-        for line in all_lines[search_start:search_end]:
-            if '] TG_SENT |' not in line:
-                continue
-            if key not in line:
-                continue
-            m = re.match(r'^\[.+?\]\s+TG_SENT \| (.+)', line)
-            if not m:
-                continue
-            return m.group(1).rstrip().replace(" | ", "\n")
+    # แปลง timestamp → unix
+    oc_unix = 0
+    try:
+        import config as _cfg
+        offset = getattr(_cfg, "TZ_OFFSET", 7) - 1  # log = UTC+6
+        dt = datetime.strptime(oc_ts_str, "%Y-%m-%d %H:%M:%S")
+        oc_unix = int(dt.replace(tzinfo=timezone(timedelta(hours=offset))).timestamp())
+    except Exception:
+        pass
 
-    # Step 3: fallback — TG_SENT แรกที่ ticket ปรากฏ (ถ้า ticket อยู่ใน 300 chars)
-    for line in all_lines:
-        if not tk_re.search(line):
+    # Step 2: timestamp window search (ไม่ขึ้นกับ line number)
+    if pattern_name and oc_unix > 0:
+        result = _grep_tg_sent_near_ts(oc_unix, pattern_name, window_sec=90)
+        if result:
+            return result
+
+    # Step 3: fallback — TG_SENT ที่มี ticket ตรงๆ (ข้ามพวกข้อความแจ้งเตือนสถานะเพื่อให้ได้ข้อความ signal Setup แท้)
+    for line in tk_lines:
+        if tk_str not in line:
             continue
         if '] TG_SENT |' not in line:
             continue
-        m = re.match(r'^\[.+?\]\s+TG_SENT \| (.+)', line)
-        if not m:
+        # ข้าม status notifications เพื่อไม่ดึงข้อความแจ้งเตือนสถานะมาแทน signal Setup
+        if any(k in line for k in ["Limit Fill", "SL Hit", "TP Hit", "Position Closed", "PD Fibo Plus Check", "PD Zone Check", "ยกเลิก", "Trailing SL", "Limit Guard"]):
             continue
-        return m.group(1).rstrip().replace(" | ", "\n")
+        m = re.match(r'^\[.+?\]\s+TG_SENT \| (.+)', line)
+        if m:
+            return m.group(1).rstrip().replace(" | ", "\n")
 
     return ""
 
 
 def _read_ticket_logs(ticket: int, all_lines: list) -> list[tuple[str, str, str, list[str]]]:
-    """อ่าน bot.log คืน [(time, event, sub, fields), ...] สำหรับ ticket นี้"""
+    """อ่าน log events สำหรับ ticket นี้
+    ถ้า all_lines ว่าง → ใช้ _grep_ticket_lines (fast path)
+    """
+    lines = all_lines if all_lines else _grep_ticket_lines(ticket)
     tk_str = str(ticket)
-    tk_re = re.compile(rf'\b{tk_str}\b')
     results = []
-    for line in all_lines:
-        if not tk_re.search(line):
+    for line in lines:
+        if tk_str not in line:
             continue
         m = re.match(r'^\[(\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2}))\]\s+(\S+)', line)
         if not m:
@@ -154,6 +264,50 @@ def _read_ticket_logs(ticket: int, all_lines: list) -> list[tuple[str, str, str,
             v = _fld(line, k)
             if v and v not in ("-", "None", "none"):
                 pairs.append(f"{k}=`{v}`")
+        # TREND_RECHECK: merge sh_t/sl_t timestamp เข้ากับ sh/sl → "4485.12 @HH:MM DD-Mon"
+        if event == "TREND_RECHECK":
+            UTC6 = timezone(timedelta(hours=6))
+            for price_key, time_key in (("sh", "sh_t"), ("sl", "sl_t")):
+                t_raw = _fld(line, time_key)
+                if not t_raw or t_raw in ("0", "None", "-"):
+                    continue
+                try:
+                    dt_bkk = datetime.fromtimestamp(int(t_raw), UTC6)
+                    time_str = dt_bkk.strftime("%H:%M %d-%b")
+                    # หา index ของ pair ที่เป็น price_key แล้วต่อท้าย @time
+                    pairs = [
+                        p[:-1] + f" @{time_str}`"   # ตัด ` ท้าย ต่อด้วย @time แล้วปิด `
+                        if p.startswith(f"{price_key}=`") and p.endswith("`")
+                        else p
+                        for p in pairs
+                    ]
+                except Exception:
+                    pass
+            # ลบ sh_t/sl_t ออกจาก pairs (ไม่ต้องแสดง raw timestamp)
+            pairs = [p for p in pairs if not p.startswith("sh_t=") and not p.startswith("sl_t=")]
+
+        # คำนวณ PD Fibo % สำหรับ PDFIBOPLUS และ PD_ZONE_CHECK
+        if event in ("PDFIBOPLUS", "PD_ZONE_CHECK"):
+            try:
+                price = float(_fld(line, "price") or 0)
+                h_val = float(_fld(line, "h") or 0)
+                l_val = float(_fld(line, "l") or 0)
+                if h_val > l_val and price > 0:
+                    pct = (price - l_val) / (h_val - l_val) * 100
+                    sig = _fld(line, "signal") or ""
+                    # BUY: ต้องการ < 50% (discount), SELL: ต้องการ > 50% (premium)
+                    # label ตาม signal: BUY ต้องการ discount (<50%), SELL ต้องการ premium (>50%)
+                    if sig == "BUY":
+                        ok = pct <= 50
+                        label = f"{'✅' if ok else '⚠️'} {pct:.1f}% (discount)" if pct < 50 else f"{'⚠️'} {pct:.1f}% (premium)"
+                    elif sig == "SELL":
+                        ok = pct >= 50
+                        label = f"{'✅' if ok else '⚠️'} {pct:.1f}% (premium)" if pct >= 50 else f"{'⚠️'} {pct:.1f}% (discount)"
+                    else:
+                        label = f"{pct:.1f}%"
+                    pairs.append(f"pd%=`{label}`")
+            except Exception:
+                pass
         results.append((time_s, event, sub, pairs))
     return results
 
@@ -166,8 +320,11 @@ def _format_ticket_logs(logs: list) -> str:
     blocks = []
     for time_s, event, sub, pairs in logs:
         label = _WANT_EVENTS.get(event, event)
-        # emoji > U+FFFF ใน code span ทำ Telegram Markdown offset ผิด → plain text
-        if sub and any(ord(c) > 0xFFFF for c in sub):
+        # TREND_RECHECK: แปลง sub-event code → คำอธิบายภาษาไทย
+        if event == "TREND_RECHECK" and sub in _TREND_RECHECK_LABEL:
+            sub_s = f"\n   📌 {_TREND_RECHECK_LABEL[sub]}"
+        elif sub and any(ord(c) > 0xFFFF for c in sub):
+            # emoji > U+FFFF ใน code span ทำ Telegram Markdown offset ผิด → plain text
             sub_s = f" {sub}"
         else:
             sub_s = f" `{sub}`" if sub else ""
@@ -185,10 +342,131 @@ _TF_MT5 = {
 _BKK = timezone(timedelta(hours=7))
 
 
+def _fetch_ticket_metadata_from_mt5(ticket: int) -> dict | None:
+    """ดึงข้อมูลของ ticket โดยตรงจาก MT5 เมื่อไม่มีข้อมูลใน log"""
+    import MetaTrader5 as mt5
+    # 1. ลองดึงจาก active position
+    pos = mt5.positions_get(ticket=ticket)
+    if pos:
+        p = pos[0]
+        return {
+            "symbol": p.symbol,
+            "comment": p.comment,
+            "type": "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL",
+            "time_setup": p.time,  # ใช้เวลาเปิดเป็นเวลาตั้งต้น
+            "price_open": p.price_open,
+            "sl": p.sl,
+            "tp": p.tp,
+            "volume": p.volume,
+        }
+    
+    # 2. ลองดึงจาก active pending order
+    orders = mt5.orders_get(ticket=ticket)
+    if orders:
+        o = orders[0]
+        direction = "BUY"
+        if o.type in (mt5.ORDER_TYPE_SELL, mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP, mt5.ORDER_TYPE_SELL_STOP_LIMIT):
+            direction = "SELL"
+        return {
+            "symbol": o.symbol,
+            "comment": o.comment,
+            "type": direction,
+            "time_setup": o.time_setup,
+            "price_open": o.price_open,
+            "sl": o.sl,
+            "tp": o.tp,
+            "volume": getattr(o, "volume_current", o.volume_initial),
+        }
+        
+    # 3. ลองดึงจาก history orders
+    hist_orders = mt5.history_orders_get(ticket=ticket)
+    if hist_orders:
+        ho = hist_orders[0]
+        direction = "BUY"
+        if ho.type in (mt5.ORDER_TYPE_SELL, mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP, mt5.ORDER_TYPE_SELL_STOP_LIMIT):
+            direction = "SELL"
+        return {
+            "symbol": ho.symbol,
+            "comment": ho.comment,
+            "type": direction,
+            "time_setup": ho.time_setup,
+            "price_open": ho.price_open,
+            "sl": ho.sl,
+            "tp": ho.tp,
+            "volume": ho.volume_initial,
+        }
+        
+    # 4. ลองดึงจาก history deals
+    now = datetime.now()
+    from_date = now - timedelta(days=90)
+    to_date = now + timedelta(days=1)
+    deals = mt5.history_deals_get(from_date, to_date) or []
+    pos_deals = [d for d in deals if d.position_id == ticket or d.order == ticket]
+    if pos_deals:
+        pos_deals = sorted(pos_deals, key=lambda x: x.time)
+        in_deal = None
+        for d in pos_deals:
+            if d.entry == mt5.DEAL_ENTRY_IN:
+                in_deal = d
+                break
+        if not in_deal:
+            in_deal = pos_deals[0]
+            
+        hist_orders = mt5.history_orders_get(ticket=ticket)
+        comment = hist_orders[0].comment if hist_orders else in_deal.comment
+        
+        direction = "BUY"
+        if in_deal.type in (mt5.DEAL_TYPE_SELL, mt5.DEAL_TYPE_SELL_CANCELED):
+            direction = "SELL"
+            
+        sl = hist_orders[0].sl if hist_orders else 0
+        tp = hist_orders[0].tp if hist_orders else 0
+        
+        return {
+            "symbol": in_deal.symbol,
+            "comment": comment,
+            "type": direction,
+            "time_setup": in_deal.time,
+            "price_open": in_deal.price,
+            "sl": sl,
+            "tp": tp,
+            "volume": in_deal.volume,
+        }
+        
+    return None
+
+
+def _parse_comment(comment: str) -> tuple[str, str, str]:
+    """แยก tf_name, sid, pattern จาก comment ของ order/position"""
+    if not comment:
+        return "", "", ""
+    m_sid = re.search(r'_?S(\d+)', comment)
+    if m_sid:
+        sid = m_sid.group(1)
+        tf_name = comment[:m_sid.start()].strip()
+        pattern_code = comment[m_sid.end():].strip("_ ")
+    else:
+        parts = comment.split("_")
+        if len(parts) >= 2:
+            tf_name = parts[0]
+            if parts[1].startswith("S") and parts[1][1:].isdigit():
+                sid = parts[1][1:]
+                pattern_code = "_".join(parts[2:])
+            else:
+                sid = ""
+                pattern_code = "_".join(parts[1:])
+        else:
+            tf_name = comment
+            sid = ""
+            pattern_code = ""
+    return tf_name, sid, pattern_code
+
+
 def _fetch_candle_block(ticket: int, all_lines: list) -> str:
     """ดึง candle OHLC จาก MT5 history เพื่อ reconstruct signal block
     ใช้เมื่อ TG_SENT ถูกตัดกลางคำ (order เก่าที่ log แค่ 300 chars)"""
     oc_time_str = tf_name = entry = sl = tp = sid = signal = trend = hhll_log = None
+    htf_ltf = None
     tk_str = str(ticket)
     for line in all_lines:
         if tk_str not in line or '] ORDER_CREATED |' not in line:
@@ -204,39 +482,77 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
         signal   = _fld(line, 'signal')
         trend    = _fld(line, 'trend_filter')
         hhll_log = _fld(line, 'hhll_last_label')  # บันทึก ณ ตอนสร้าง order
+        htf_ltf  = _fld(line, 'htf_ltf')
         break
 
+    symbol = SYMBOL
     if not oc_time_str or not tf_name:
-        return ""
+        if not connect_mt5():
+            return ""
+        meta = _fetch_ticket_metadata_from_mt5(ticket)
+        if meta:
+            symbol = meta["symbol"]
+            clean_tf, parsed_sid, pattern_code = _parse_comment(meta["comment"])
+            clean_tf = re.sub(r'[\[\]]', '', clean_tf)
+            tf_name = meta["comment"] if meta["comment"] else f"[{clean_tf}]"
+            entry = str(meta["price_open"])
+            sl = str(meta["sl"]) if meta["sl"] else ""
+            tp = str(meta["tp"]) if meta["tp"] else ""
+            sid = parsed_sid
+            signal = meta["type"]
+            
+            dt_bkk_raw = mt5_ts_to_bkk(meta["time_setup"])
+            if dt_bkk_raw:
+                oc_dt = dt_bkk_raw.replace(tzinfo=_BKK)
+                oc_time_str = oc_dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                return ""
+            
+            if sid == '10' and ("_" in clean_tf or "-" in clean_tf):
+                htf_ltf = clean_tf.replace("-", "_")
+        else:
+            return ""
+    else:
+        try:
+            oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_BKK)
+        except Exception:
+            return ""
 
     # parse composite TF เช่น [M5_H1] → ใช้ TF แรก
     raw_tf = re.sub(r'[\[\]]', '', tf_name).split('_')[0].split('-')[0]
-    mt5_tf_id = _TF_MT5.get(raw_tf)
-    if not mt5_tf_id or not connect_mt5():
+    if not connect_mt5():
         return ""
 
     try:
-        oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_BKK)
         tf_mins = {"M1":1,"M5":5,"M15":15,"M30":30,"H1":60,"H4":240,"H12":720,"D1":1440}
-        step = tf_mins.get(raw_tf, 1)
-        # ดึงแท่งที่ปิดก่อน oc_time
-        # ลบ 60 วินาที เพื่อกัน bar ที่กำลัง form (open_time ≤ oc_time) ถูกรวมเข้ามา
-        start = oc_dt - timedelta(minutes=step * 6)
-        end   = oc_dt - timedelta(seconds=60)
-        rates = mt5.copy_rates_range(SYMBOL, mt5_tf_id, start, end)
-        if rates is None or len(rates) < 2:
-            return ""
+        
+        # Parse composite or MTF mapping
+        htf_tf = None
+        ltf_tf = raw_tf
+        if htf_ltf and "_" in htf_ltf:
+            htf_tf, ltf_tf = htf_ltf.split("_")
+        
+        def _get_rates(tf_str, count):
+            tf_id = _TF_MT5.get(tf_str)
+            if not tf_id:
+                return None
+            step = tf_mins.get(tf_str, 1)
+            # ดึงแท่งที่ปิดก่อน oc_time
+            start = oc_dt - timedelta(minutes=step * (count + 4))
+            end   = oc_dt - timedelta(seconds=1)
+            raw = mt5.copy_rates_range(symbol, tf_id, start, end)
+            if raw is not None and len(raw) >= count:
+                filtered = [r for r in raw if int(r["time"]) < int(oc_dt.timestamp())]
+                return filtered[-count:]
+            return raw
 
-        def _fmt_bar(r, idx):
+        def _fmt_bar(r, idx, tf_str):
             bar_dt = datetime.fromtimestamp(r['time'], tz=_BKK)
             bar_str = bar_dt.strftime("%H:%M %d-%b-%Y")
             color = "🟢" if r['close'] >= r['open'] else "🔴"
             return (f"{color} แท่ง[{idx}]: "
-                    f"O:{r['open']:.2f} H:{r['high']:.2f} "
-                    f"L:{r['low']:.2f} C:{r['close']:.2f} {bar_str}")
-
-        bar0 = rates[-1]
-        bar1 = rates[-2]
+                    f"O:`{r['open']:.2f}` H:`{r['high']:.2f}` "
+                    f"L:`{r['low']:.2f}` C:`{r['close']:.2f}` {bar_str}")
 
         # trend label — ใช้ log ที่บันทึกตอนสร้าง order เป็นหลัก (ประวัติที่แม่นยำ)
         # ถ้าไม่มีใน log (order เก่า) → fall back ไปดึง live
@@ -267,11 +583,42 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
 
         lines = [
             f"🕐 {oc_time_str[:10]} {oc_time_str[11:16]}",
-            f"📊 Timeframe: {raw_tf}" + (f" | S{sid}" if sid else ""),
+            f"📊 Timeframe: {tf_name}" + (f" | S{sid}" if sid else ""),
             "",
-            _fmt_bar(bar1, 1),
-            _fmt_bar(bar0, 0),
         ]
+
+        if sid == '10' and htf_tf:
+            # Reconstruct S10 MTF candle block (HTF H4 + LTF M5)
+            htf_rates = _get_rates(htf_tf, 2)
+            ltf_rates = _get_rates(ltf_tf, 3)
+            
+            if htf_rates is not None and len(htf_rates) >= 2:
+                lines.append(f"📍 *HTF {htf_tf}* (เจอ CRT):")
+                lines.append(_fmt_bar(htf_rates[0], 1, htf_tf))
+                
+                # Check if current HTF bar is in progress at order creation time
+                htf_secs = tf_mins.get(htf_tf, 60) * 60
+                ts_0 = int(htf_rates[1]["time"])
+                in_progress = (ts_0 + htf_secs) > int(oc_dt.timestamp())
+                progress_tag = " ⏳(in-progress)" if in_progress else ""
+                lines.append(_fmt_bar(htf_rates[1], 0, htf_tf) + progress_tag)
+                lines.append("")
+                
+            if ltf_rates is not None and len(ltf_rates) >= 3:
+                lines.append(f"📍 *LTF {ltf_tf}* (trigger):")
+                lines.append(_fmt_bar(ltf_rates[0], 2, ltf_tf))
+                lines.append(_fmt_bar(ltf_rates[1], 1, ltf_tf))
+                lines.append(_fmt_bar(ltf_rates[2], 0, ltf_tf))
+                lines.append("")
+        else:
+            # Reconstruct single TF candle block (3 bars for S1, S2, S3, S4, S16; 2 bars for others)
+            count = 3 if sid in ('1', '2', '3', '4', '16') else 2
+            rates = _get_rates(ltf_tf, count)
+            if rates is not None and len(rates) >= count:
+                for idx, r in enumerate(rates):
+                    lines.append(_fmt_bar(r, count - 1 - idx, ltf_tf))
+                lines.append("")
+
         if entry:
             rr_parts = []
             try:
@@ -283,13 +630,17 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             except Exception:
                 pass
             lines += [
-                "",
                 f"📌 Entry: {entry}"
                 + (f" | SL: {sl}" if sl else "")
                 + (f" | TP: {tp}" if tp else ""),
                 " | ".join(rr_parts) if rr_parts else "",
             ]
         lines.append(f"🧭 Trend: {trend_lbl}")
+        
+        # Cleanup trailing empty lines
+        while lines and lines[-1] == "":
+            lines.pop()
+            
         return "\n".join(l for l in lines if l is not None)
     except Exception:
         return ""

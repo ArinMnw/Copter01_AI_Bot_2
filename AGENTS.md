@@ -68,7 +68,21 @@ rates = mt5.copy_rates_range(SYMBOL, mt5.TIMEFRAME_M1, start, end)
 t_chart = datetime.fromtimestamp(r['time'], tz=BKK) - timedelta(hours=1)
 ```
 
+### กฎการสอบถามและการดึง OHLC ของ User
+
+- **ข้อตกลงในการถาม:** User จะถามเวลาอ้างอิงเป็น **BKK (UTC+7) เสมอ**
+- **วิธีการดึง OHLC ในระบบ Backtest:**
+  เวลาในระบบ Backtester (`to_bkk`) จะถูกทรานสเลทไปเป็น chart time UTC+6 (คือ BKK - 1h)
+  หากต้องการค้นหา OHLC ของบาร์ราคาจากเวลา BKK ที่พี่ถาม ให้ทำดังนี้:
+  1. ใช้ฟังก์ชัน `to_bkk` แปลงเวลาของบาร์เพื่อเทียบกับเวลา BKK ที่ต้องการหา
+  2. ตัวอย่างคำสั่งในการดึง OHLC ผ่าน Python command:
+     ```bash
+     python -c "import MetaTrader5 as mt5, config; mt5.initialize(); rates = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_M5, 0, 5200); import sim_s14_backtest; bkk_rates = [(sim_s14_backtest.to_bkk(r['time']).strftime('%Y-%m-%d %H:%M'), r['open'], r['high'], r['low'], r['close']) for r in rates]; print('\n'.join([str(x) for x in bkk_rates if x[0] == 'YYYY-MM-DD HH:MM'])); mt5.shutdown()"
+     ```
+     *(โดยใส่เวลา `YYYY-MM-DD HH:MM` ในรูปเวลา BKK ที่ต้องการตรวจสอบ เช่น `2026-06-05 13:15`)*
+
 ## วิธีรัน
+
 
 ```bash
 python main.py
@@ -130,6 +144,7 @@ Keep the answer short and make the fix directly.
 
 - `CLAUDE.md`
 - `codex.md`
+- `commands_and_tips.md`
 - `docs/strategies.md`
 - `docs/trailing.md`
 - `docs/runtime-state.md`
