@@ -7,6 +7,10 @@ import argparse
 import MetaTrader5 as mt5
 from datetime import datetime, timezone, timedelta
 import config
+import json
+import os
+
+BKK = timezone(timedelta(hours=getattr(config, "TZ_OFFSET", 7)))
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Check S10 details for a specific parent bar')
@@ -20,7 +24,7 @@ args = parser.parse_args()
 
 # Import sim_s10_backtest to get timezone offset logic and simulation engine
 import sim_s10_backtest
-from sim_s10_backtest import backtest_tf, TF_MAP, to_bkk, TF_SECONDS
+from sim_s10_backtest import backtest_tf, TF_MAP, to_bkk, TF_SECONDS, sync_strategy10_runtime_config
 import strategy10
 from strategy10 import strategy_10, _armed_states, reset_mtf_state, _HTF_TO_LTF
 
@@ -41,6 +45,11 @@ def parse_bkk_dt(dt_str: str) -> datetime:
             continue
     raise ValueError(f'Invalid datetime format: {dt_str}. Use YYYY-MM-DD HH:MM')
 
+
+def mt5_range_dt_from_ts(ts: int) -> datetime:
+    dt = to_bkk(ts)
+    return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=BKK)
+
 def run_diagnostics():
     if not mt5.initialize():
         print('MT5 init failed:', mt5.last_error())
@@ -49,12 +58,20 @@ def run_diagnostics():
     # Reset config to defaults and load config state from bot_state
     import importlib
     importlib.reload(config)
-    config.restore_runtime_state()
+    restore_info = config.restore_runtime_state()
     
     # Set symbol
-    symbol = args.symbol or config.SYMBOL
+    state_symbol = ""
+    try:
+        if os.path.exists(config.STATE_FILE):
+            with open(config.STATE_FILE, "r", encoding="utf-8") as f:
+                state_symbol = str((json.load(f) or {}).get("symbol", "") or "")
+    except Exception:
+        state_symbol = ""
+    symbol = args.symbol or state_symbol or config.SYMBOL
     config.set_runtime_symbol(symbol)
     sim_s10_backtest.SYMBOL = symbol
+    sync_strategy10_runtime_config()
 
     htf_tf = args.tf.upper()
     if htf_tf not in _HTF_TO_LTF:
@@ -70,12 +87,13 @@ def run_diagnostics():
     parent_time_str = parent_bkk.strftime('%Y-%m-%d %H:%M')
 
     print(f'Symbol         : {symbol}')
+    print(f'Restore        : {restore_info}')
     print(f'HTF Timeframe  : {htf_tf}')
     print(f'LTF Timeframe  : {ltf_tf}')
     print(f'Parent BKK Time: {parent_time_str}')
     print(f'S10 Settings   : active_strategies[10]={config.active_strategies.get(10, False)}')
     print(f'                 CRT_BAR_MODE={getattr(config, "CRT_BAR_MODE", "2bar")} | CRT_WAIT_HTF_CLOSE={getattr(config, "CRT_WAIT_HTF_CLOSE", False)}')
-    print(f'                 PDFIBOPLUS_ENABLED={getattr(config, "PDFIBOPLUS_ENABLED", True)}')
+    print(f'                 PDFIBOPLUS_ENABLED={getattr(config, "PDFIBOPLUS_ENABLED", True)} | PD_SKIP_SIDS=9,10,13,14,15,16')
     print('=' * 65)
 
     if not config.active_strategies.get(10, False):
@@ -219,11 +237,8 @@ def run_diagnostics():
         lookback_bars = 2000 if tf_secs < 3600 else 500
         start_ts = int(parent['time']) - lookback_bars * tf_secs
         end_ts = int(parent['time']) + int(2.5 * 86400)
-        
-        start_dt = datetime.fromtimestamp(start_ts, tz=timezone.utc).replace(tzinfo=None)
-        end_dt = datetime.fromtimestamp(end_ts, tz=timezone.utc).replace(tzinfo=None)
-        
-        return mt5.copy_rates_range(sym, tf, start_dt, end_dt)
+
+        return mt5.copy_rates_range(sym, tf, mt5_range_dt_from_ts(start_ts), mt5_range_dt_from_ts(end_ts))
 
     mt5.copy_rates_from_pos = mock_copy_rates_from_pos
 
@@ -242,7 +257,6 @@ def run_diagnostics():
     
     # Filter trades belonging to this parent candle
     parent_trades = [t for t in all_trades if t.get('s10_parent_time') == int(parent['time'])]
-
     if parent_trades:
         print(f"\n🎉 Simulation found {len(parent_trades)} trade(s) for this parent candle:")
         grand_total = 0.0
@@ -257,7 +271,10 @@ def run_diagnostics():
             print(f"\n--- Trade #{idx+1} ---")
             print(f"  [{tf_display}] {et} {t['signal']} [{t.get('pattern', 'S10')}]")
             print(f"  Entry  = {t['entry']:.2f} | SL = {t['sl']:.2f} | TP = {t['tp']:.2f}")
-            print(f"  Result -> {t['close_type']} @ {t.get('close_price', 0):.2f} [{ct}]  PnL={pnl_s} USD")
+            close_label = t['close_type']
+            if close_label == 'PD_FAIL':
+                close_label = 'PD_FILL_FAIL' if t.get('pd_result') == 'FAIL' else 'PD_PENDING_FAIL'
+            print(f"  Result -> {close_label} @ {t.get('close_price', 0):.2f} [{ct}]  PnL={pnl_s} USD")
             
             if t.get('cancel_reason'):
                 print(f"  Cancel Reason: {t['cancel_reason']}")
@@ -290,7 +307,7 @@ def run_diagnostics():
                     h_t = to_bkk(t['pd_h_time']).strftime('%d-%m %H:%M') if t.get('pd_h_time') else '?'
                     l_t = to_bkk(t['pd_l_time']).strftime('%d-%m %H:%M') if t.get('pd_l_time') else '?'
                     print(f"    PD Range : H = {t['pd_h']:.2f} [{h_t}] | L = {t['pd_l']:.2f} [{l_t}]")
-    else:
+    if not parent_trades:
         print("\nℹ️ No trades/orders were generated in backtest for this parent candle. Performing trigger checks...")
         # Diagnose why it didn't trigger
         # Fetch LTF rates around the armed window
@@ -299,7 +316,12 @@ def run_diagnostics():
         start_ltf = parent['time'] - 100 * ltf_secs
         end_ltf = sweep_time + 2 * htf_secs
         
-        ltf_rates_raw = mt5.copy_rates_range(symbol, ltf_val, start_ltf, end_ltf)
+        ltf_rates_raw = mt5.copy_rates_range(
+            symbol,
+            ltf_val,
+            mt5_range_dt_from_ts(start_ltf),
+            mt5_range_dt_from_ts(end_ltf),
+        )
         if ltf_rates_raw is None or len(ltf_rates_raw) == 0:
             print(f"❌ Failed to fetch LTF ({ltf_tf}) rates for details check.")
         else:

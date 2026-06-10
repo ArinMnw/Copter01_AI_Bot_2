@@ -532,22 +532,30 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
         if htf_ltf and "_" in htf_ltf:
             htf_tf, ltf_tf = htf_ltf.split("_")
         
-        def _get_rates(tf_str, count):
+        def _get_rates(tf_str, count, closed_only=False):
             tf_id = _TF_MT5.get(tf_str)
             if not tf_id:
                 return None
             step = tf_mins.get(tf_str, 1)
+            tf_secs = step * 60
             # ดึงแท่งที่ปิดก่อน oc_time
             start = oc_dt - timedelta(minutes=step * (count + 4))
             end   = oc_dt - timedelta(seconds=1)
             raw = mt5.copy_rates_range(symbol, tf_id, start, end)
             if raw is not None and len(raw) >= count:
-                filtered = [r for r in raw if int(r["time"]) < int(oc_dt.timestamp())]
-                return filtered[-count:]
+                # r['time'] = server-local encoded (unix ของ server time)
+                # oc_dt.timestamp() = TRUE UTC → ต้องบวก MT5_SERVER_TZ เพื่อให้เทียบกัน
+                oc_ts = int(oc_dt.timestamp()) + MT5_SERVER_TZ * 3600
+                if closed_only:
+                    # เอาเฉพาะแท่งที่ปิดสมบูรณ์ก่อน order (กัน bar ที่เพิ่งเปิด เข้ามาแทน CRT bars)
+                    filtered = [r for r in raw if int(r["time"]) + tf_secs <= oc_ts]
+                else:
+                    filtered = [r for r in raw if int(r["time"]) < oc_ts]
+                return filtered[-count:] if len(filtered) >= count else (filtered or None)
             return raw
 
         def _fmt_bar(r, idx, tf_str):
-            bar_dt = datetime.fromtimestamp(r['time'], tz=_BKK)
+            bar_dt = mt5_ts_to_bkk(r['time'])  # server-local encoded → BKK ที่ถูก
             bar_str = bar_dt.strftime("%H:%M %d-%b-%Y")
             color = "🟢" if r['close'] >= r['open'] else "🔴"
             return (f"{color} แท่ง[{idx}]: "
@@ -589,7 +597,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
 
         if sid == '10' and htf_tf:
             # Reconstruct S10 MTF candle block (HTF H4 + LTF M5)
-            htf_rates = _get_rates(htf_tf, 2)
+            htf_rates = _get_rates(htf_tf, 2, closed_only=True)
             ltf_rates = _get_rates(ltf_tf, 3)
             
             if htf_rates is not None and len(htf_rates) >= 2:
@@ -599,7 +607,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
                 # Check if current HTF bar is in progress at order creation time
                 htf_secs = tf_mins.get(htf_tf, 60) * 60
                 ts_0 = int(htf_rates[1]["time"])
-                in_progress = (ts_0 + htf_secs) > int(oc_dt.timestamp())
+                in_progress = (ts_0 + htf_secs) > int(oc_dt.timestamp()) + MT5_SERVER_TZ * 3600
                 progress_tag = " ⏳(in-progress)" if in_progress else ""
                 lines.append(_fmt_bar(htf_rates[1], 0, htf_tf) + progress_tag)
                 lines.append("")

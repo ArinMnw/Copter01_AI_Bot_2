@@ -87,6 +87,11 @@ SYMBOL       = config.SYMBOL
 SINCE        = datetime(2026, 5, 24, 0, 0, 0, tzinfo=timezone.utc)
 VOLUME       = 0.01
 PRICE_TO_USD = 100 * VOLUME
+def sync_strategy10_runtime_config():
+    """Keep strategy10 module-level aliases in sync after config.restore_runtime_state()."""
+    import strategy10 as _s10
+    _s10.CRT_BAR_MODE = getattr(config, "CRT_BAR_MODE", _s10.CRT_BAR_MODE)
+    _s10.CRT_SWEEP_DEPTH_PCT = getattr(config, "CRT_SWEEP_DEPTH_PCT", _s10.CRT_SWEEP_DEPTH_PCT)
 
 TF_SECONDS = {
     "M1": 60, "M5": 300, "M15": 900, "M30": 1800,
@@ -106,12 +111,324 @@ TF_EXTRA_BARS = {
 UTC = timezone.utc
 TZ_OFF = getattr(config, 'TZ_OFFSET', 7)
 SRV_TZ = getattr(config, 'MT5_SERVER_TZ', 1)
+BKK_TZ = timezone(timedelta(hours=TZ_OFF))
 
 def to_bkk(ts: int) -> datetime:
     return datetime.fromtimestamp(ts, tz=UTC) + timedelta(hours=TZ_OFF - SRV_TZ)
 
+
+def _mt5_range_dt_from_ts(ts: int) -> datetime:
+    dt = to_bkk(ts)
+    return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=BKK_TZ)
+
+
+def _copy_rates_covering_since(symbol: str, tf_val: int, tf_name: str):
+    extra = TF_EXTRA_BARS.get(tf_name, 200)
+    total = 5000 + extra
+    rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, total)
+    if rates is None or len(rates) == 0:
+        return rates
+
+    since_ts = int(SINCE.timestamp())
+    window_needed = 200
+    first_needed_ts = since_ts - (window_needed + extra) * TF_SECONDS.get(tf_name, 60)
+    if int(rates[0]["time"]) <= first_needed_ts:
+        return rates
+
+    end_ts = int(rates[-1]["time"]) + TF_SECONDS.get(tf_name, 60)
+    ranged = mt5.copy_rates_range(
+        symbol,
+        tf_val,
+        _mt5_range_dt_from_ts(first_needed_ts),
+        _mt5_range_dt_from_ts(end_ts),
+    )
+    return ranged if ranged is not None and len(ranged) > 0 else rates
+
 def profit(price_diff: float) -> float:
     return round(price_diff * PRICE_TO_USD, 2)
+
+
+def s10_runtime_feature_coverage() -> list[dict]:
+    """Describe S10 runtime feature coverage for replay reports."""
+    return [
+        {
+            "name": "S10 CRT detect / model orders",
+            "config_on": bool(config.active_strategies.get(10, False)),
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "HTF arm, LTF model orders, sibling cancel",
+        },
+        {
+            "name": "S10 sweep/structure/parent-touch cancel",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "Managed in S10 pending invalidation",
+        },
+        {
+            "name": "Fixed SL/TP close",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "Bar high/low replay",
+        },
+        {
+            "name": "SL Guard",
+            "config_on": any([
+                getattr(config, "SL_GUARD_ENABLED", False),
+                getattr(config, "SL_GUARD_COMBINED_ENABLED", False),
+                getattr(config, "SL_GUARD_GROUP_ENABLED", False),
+            ]),
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "Per-TF, combined, group; close-on-activate supported",
+        },
+        {
+            "name": "PD Fibo Plus",
+            "config_on": getattr(config, "PDFIBOPLUS_ENABLED", True),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "Skip SIDs: 9,10,13,14,15,16",
+        },
+        {
+            "name": "Trend Recheck",
+            "config_on": getattr(config, "LIMIT_TREND_RECHECK", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "S10 CRT-managed",
+        },
+        {
+            "name": "RSI Fill Recheck",
+            "config_on": getattr(config, "PENDING_RSI_RECHECK_ENABLED", False),
+            "runtime": "apply",
+            "replay": "not_implemented",
+            "note": "Runtime currently does not skip sid 10; no effect while config is OFF",
+        },
+        {
+            "name": "Entry Candle",
+            "config_on": getattr(config, "ENTRY_CANDLE_ENABLED", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "Runtime skip sid 10; includes entry candle mode and TP update",
+        },
+        {
+            "name": "Trail SL",
+            "config_on": getattr(config, "TRAIL_SL_ENABLED", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "Runtime skip sid 10; includes reversal trail override",
+        },
+        {
+            "name": "Opposite Order",
+            "config_on": getattr(config, "OPPOSITE_ORDER_ENABLED", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "Runtime filters sid 10 positions/orders",
+        },
+        {
+            "name": "Limit Guard",
+            "config_on": getattr(config, "LIMIT_GUARD", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "Runtime skip sid 10 pending orders",
+        },
+        {
+            "name": "Limit TP/SL Break Cancel",
+            "config_on": getattr(config, "LIMIT_BREAK_CANCEL", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "S10 managed by parent-touch cancel",
+        },
+        {
+            "name": "Delay SL",
+            "config_on": getattr(config, "DELAY_SL_MODE", "off") != "off",
+            "runtime": "apply",
+            "replay": "not_implemented",
+            "note": "S10 model limit orders can place SL later when delay SL is ON",
+        },
+        {
+            "name": "Engulf minimum",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "S10 model-2 FVG uses strategy10.engulf_min_price() in both runtime and replay",
+        },
+        {
+            "name": "Trend Filter Scan Block",
+            "config_on": getattr(config, "TREND_FILTER_SCAN_BLOCK", False),
+            "runtime": "skip_s10",
+            "replay": "skip_s10",
+            "note": "S10 bypasses normal trend filter scan block",
+        },
+        {
+            "name": "Strong Trend Block",
+            "config_on": (
+                getattr(config, "STRONG_TREND_BLOCK_ENABLED", False)
+                and 10 in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14, 15, 16))
+            ),
+            "runtime": "apply",
+            "replay": "not_implemented",
+            "note": "No effect while config is OFF; replay must be added before enabling for S10 backtests",
+        },
+        {
+            "name": "Limit Sweep",
+            "config_on": getattr(config, "LIMIT_SWEEP", False),
+            "runtime": "apply",
+            "replay": "not_implemented",
+            "note": "No effect while config is OFF; replay must be added before using S10 with Limit Sweep ON",
+        },
+    ]
+
+
+def s10_unreplayed_active_features() -> list[dict]:
+    return [
+        item for item in s10_runtime_feature_coverage()
+        if item["config_on"] and item["runtime"] == "apply" and item["replay"] != "apply"
+    ]
+
+
+def _sim_point() -> float:
+    try:
+        info = mt5.symbol_info(SYMBOL)
+        return float(getattr(info, "point", 0.01) or 0.01)
+    except Exception:
+        return 0.01
+
+
+class SimSLGuard:
+    """Small replay model for SL Guard effects used by the live scanner/trailing flow."""
+
+    def __init__(self):
+        self.per_tf = {}
+        self.combined = {}
+        self.group = {}
+        self.near_price = float(getattr(config, "SL_GUARD_NEAR_POINTS", 200) or 200) * _sim_point() * config.points_scale()
+
+    def _swing_ref(self, tf: str, side: str) -> float:
+        try:
+            sh, sl = _hs.get_swing_hl_pts(tf)
+            if side == "BUY" and sl:
+                return float(sl["price"])
+            if side == "SELL" and sh:
+                return float(sh["price"])
+        except Exception:
+            pass
+        return 0.0
+
+    def _group_keys(self, tf: str) -> list[tuple]:
+        keys = []
+        for group in list(getattr(config, "SL_GUARD_GROUP_GROUPS", []) or []):
+            if tf in group:
+                keys.append(tuple(group))
+        return keys
+
+    def check_unblock(self, tf: str, side: str) -> None:
+        if getattr(config, "SL_GUARD_ENABLED", False):
+            st = self.per_tf.get((tf, side))
+            if st and st.get("active"):
+                ref = float(st.get("swing_ref", 0.0) or 0.0)
+                cur = self._swing_ref(tf, side)
+                if cur > 0 and ref > 0 and abs(cur - ref) > 0.01:
+                    st["active"] = False
+
+        if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            st = self.combined.get(side)
+            if st and st.get("tf_blocked", {}).get(tf):
+                ref = float(st.get("tf_swing_ref", {}).get(tf, 0.0) or 0.0)
+                cur = self._swing_ref(tf, side)
+                if cur > 0 and ref > 0 and abs(cur - ref) > 0.01:
+                    st["tf_blocked"][tf] = False
+
+        if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            for key in self._group_keys(tf):
+                st = self.group.get((side, key))
+                if st and st.get("tf_blocked", {}).get(tf):
+                    ref = float(st.get("tf_swing_ref", {}).get(tf, 0.0) or 0.0)
+                    cur = self._swing_ref(tf, side)
+                    if cur > 0 and ref > 0 and abs(cur - ref) > 0.01:
+                        st["tf_blocked"][tf] = False
+
+    def is_blocked(self, tf: str, side: str) -> bool:
+        self.check_unblock(tf, side)
+        if getattr(config, "SL_GUARD_ENABLED", False):
+            st = self.per_tf.get((tf, side))
+            if st and st.get("active"):
+                return True
+        if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            st = self.combined.get(side)
+            if st and st.get("tf_blocked", {}).get(tf):
+                return True
+        if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            for key in self._group_keys(tf):
+                st = self.group.get((side, key))
+                if st and st.get("tf_blocked", {}).get(tf):
+                    return True
+        return False
+
+    def near_blocked(self, tf: str, side: str, entry: float, bar: dict) -> bool:
+        if not self.is_blocked(tf, side):
+            return False
+        if side == "BUY":
+            probe = float(bar["low"])
+        else:
+            probe = float(bar["high"])
+        return abs(probe - float(entry)) <= self.near_price
+
+    def record_close(self, tf: str, side: str, close_type: str, pnl: float) -> bool:
+        loss_guard = (
+            getattr(config, "SL_GUARD_LOSS_ENABLED", False)
+            and float(pnl) < -float(getattr(config, "SL_GUARD_LOSS_THRESHOLD", 5.0) or 5.0)
+        )
+        if close_type == "TP":
+            self._reset_on_tp(tf, side)
+            return False
+        if close_type != "SL" and not loss_guard:
+            return False
+        return self._record_sl(tf, side)
+
+    def _record_sl(self, tf: str, side: str) -> bool:
+        activated = False
+        if getattr(config, "SL_GUARD_ENABLED", False):
+            key = (tf, side)
+            st = self.per_tf.setdefault(key, {"count": 0, "active": False, "swing_ref": 0.0})
+            st["count"] += 1
+            if st["count"] >= int(getattr(config, "SL_GUARD_COUNT", 2) or 2) and not st.get("active"):
+                st["active"] = True
+                st["swing_ref"] = self._swing_ref(tf, side)
+                activated = True
+
+        if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            tfs = list(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+            if tf in tfs:
+                st = self.combined.setdefault(side, {"count": 0, "tf_blocked": {}, "tf_swing_ref": {}})
+                st["count"] += 1
+                if st["count"] >= int(getattr(config, "SL_GUARD_COMBINED_COUNT", 2) or 2):
+                    was_blocked = any(st.get("tf_blocked", {}).values())
+                    for t in tfs:
+                        st["tf_blocked"][t] = True
+                        st["tf_swing_ref"][t] = self._swing_ref(t, side) if t == tf else 0.0
+                    activated = activated or not was_blocked
+
+        if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            for key in self._group_keys(tf):
+                st = self.group.setdefault((side, key), {"count": 0, "tf_blocked": {}, "tf_swing_ref": {}})
+                st["count"] += 1
+                if st["count"] >= int(getattr(config, "SL_GUARD_GROUP_COUNT", 2) or 2):
+                    was_blocked = any(st.get("tf_blocked", {}).values())
+                    for t in key:
+                        st["tf_blocked"][t] = True
+                        st["tf_swing_ref"][t] = self._swing_ref(t, side) if t == tf else 0.0
+                    activated = activated or not was_blocked
+        return activated
+
+    def _reset_on_tp(self, tf: str, side: str) -> None:
+        if getattr(config, "SL_GUARD_ENABLED", False):
+            self.per_tf[(tf, side)] = {"count": 0, "active": False, "swing_ref": 0.0}
+        if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            self.combined.pop(side, None)
+        if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            for key in self._group_keys(tf):
+                self.group.pop((side, key), None)
 
 
 def get_htf_rates_at_time(htf_tf: str, ltf_time: int, ltf_bars_so_far: list, htf_rates_all: list) -> list:
@@ -300,17 +617,14 @@ def check_pending_order_pd_cancel(pending, current_ltf_bar, tf_name: str) -> tup
 
 def backtest_tf(tf_name: str, tf_val: int) -> list:
     global VOLUME, PRICE_TO_USD, CURRENT_SIM_TIME
-    _PD_ENABLED = getattr(config, 'PDFIBOPLUS_ENABLED', True)
+    _PD_ENABLED = False  # S10 does not use PD Fibo Plus in live runtime.
     VOLUME = getattr(config, 'AUTO_VOLUME', 0.01)
     if getattr(config, 'SCALE_OUT_ENABLED', False):
         VOLUME = config.scale_out_total_volume()
     PRICE_TO_USD = 100 * VOLUME
 
-    extra = TF_EXTRA_BARS.get(tf_name, 200)
-    total = 5000 + extra
-
     # ดึงแท่งราคา LTF
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
+    rates = _copy_rates_covering_since(SYMBOL, tf_val, tf_name)
     if rates is None or len(rates) == 0:
         return []
 
@@ -326,7 +640,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
     htf_rates_all = {}
     for htf in htf_list:
         htf_val_const = mt5.TIMEFRAME_H4 if htf == 'H4' else (mt5.TIMEFRAME_D1 if htf == 'D1' else (mt5.TIMEFRAME_H12 if htf == 'H12' else (mt5.TIMEFRAME_H1 if htf == 'H1' else (mt5.TIMEFRAME_M30 if htf == 'M30' else mt5.TIMEFRAME_M15))))
-        raw_htf = mt5.copy_rates_from_pos(SYMBOL, htf_val_const, 0, total)
+        raw_htf = _copy_rates_covering_since(SYMBOL, htf_val_const, htf)
         if raw_htf is not None:
             htf_rates_all[htf] = [
                 {'time': int(r['time']), 'open': float(r['open']),
@@ -352,6 +666,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
     trades = []
     pending_orders = []   # วาง Pending Limit รอราคาเกี่ยว
     in_trades = []        # ออเดอร์ที่ถูก fill และถือครองอยู่
+    sl_guard = SimSLGuard()
+    guard_closed_tickets = set()
     ticket_counter = 100000
     
     # รีเซ็ตสถานะภายในโมดูล strategy10
@@ -368,12 +684,60 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
 
         # 1. ทำการคำนวณและอัปเดตระดับสวิงราคา HHLL ปัจจุบัน
         _inject_hhll(tf_name, ltf_bars_so_far)
+        sl_guard.check_unblock(tf_name, "BUY")
+        sl_guard.check_unblock(tf_name, "SELL")
+
+        def _cancel_guard_scope(side: str, reason: str, skip_ticket: int | None = None) -> None:
+            nonlocal pending_orders, in_trades
+            if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+                return
+            kept_pending = []
+            for p in pending_orders:
+                if p.get("signal") == side:
+                    trades.append({
+                        **p,
+                        'close_type': 'CANCEL',
+                        'close_price': b['open'],
+                        'close_time': bt,
+                        'pnl': 0.0,
+                        'cancel_reason': reason,
+                    })
+                    from strategy10 import handle_ticket_closed
+                    handle_ticket_closed(p['s10_htf_tf'], p['ticket'], "cancel")
+                else:
+                    kept_pending.append(p)
+            pending_orders = kept_pending
+
+            kept_trades = []
+            for t in in_trades:
+                if skip_ticket is not None and t.get("ticket") == skip_ticket:
+                    kept_trades.append(t)
+                    continue
+                if t.get("signal") == side:
+                    close_px = float(b['close'])
+                    pnl = profit(close_px - t['entry']) if side == 'BUY' else profit(t['entry'] - close_px)
+                    trades.append({
+                        **t,
+                        'close_type': 'SL_GUARD_CLOSE',
+                        'close_price': close_px,
+                        'close_time': bt,
+                        'pnl': pnl,
+                        'cancel_reason': reason,
+                    })
+                    guard_closed_tickets.add(t.get("ticket"))
+                    from strategy10 import handle_ticket_closed
+                    handle_ticket_closed(t['s10_htf_tf'], t['ticket'], "cancel")
+                else:
+                    kept_trades.append(t)
+            in_trades = kept_trades
 
         # 2. ตรวจสอบออเดอร์ที่ถูกเติม (Position ในตลาด)
         still_in_trades = []
         for in_trade in in_trades:
+            if in_trade.get("ticket") in guard_closed_tickets:
+                continue
             pd_closed = False
-            # 2.1 ตรวจสอบความปลอดภัยตามเกณฑ์ PD Fibo Plus (Round 2 หลัง Fill)
+            # 2.1 PD Fibo Plus is skipped for S10.
             if _PD_ENABLED and in_trade.get('pd_result') == 'PASS':
                 try:
                     sh_pt, sl_pt = _hs.get_swing_hl_pts(tf_name)
@@ -428,6 +792,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     pnl = profit(in_trade['sl'] - in_trade['entry'])
                     trades.append({**in_trade, 'close_type': 'SL',
                                    'close_price': in_trade['sl'], 'close_time': bt, 'pnl': pnl})
+                    if sl_guard.record_close(tf_name, sig, "SL", pnl):
+                        _cancel_guard_scope(sig, "SL Guard activated after SL hit", in_trade.get("ticket"))
                     from strategy10 import handle_ticket_closed
                     handle_ticket_closed(in_trade['s10_htf_tf'], in_trade['ticket'], "sl")
                     trade_closed = True
@@ -435,6 +801,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     pnl = profit(in_trade['tp'] - in_trade['entry'])
                     trades.append({**in_trade, 'close_type': 'TP',
                                    'close_price': in_trade['tp'], 'close_time': bt, 'pnl': pnl})
+                    sl_guard.record_close(tf_name, sig, "TP", pnl)
                     from strategy10 import handle_ticket_closed
                     handle_ticket_closed(in_trade['s10_htf_tf'], in_trade['ticket'], "tp")
                     trade_closed = True
@@ -443,6 +810,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     pnl = profit(in_trade['entry'] - in_trade['sl'])
                     trades.append({**in_trade, 'close_type': 'SL',
                                    'close_price': in_trade['sl'], 'close_time': bt, 'pnl': pnl})
+                    if sl_guard.record_close(tf_name, sig, "SL", pnl):
+                        _cancel_guard_scope(sig, "SL Guard activated after SL hit", in_trade.get("ticket"))
                     from strategy10 import handle_ticket_closed
                     handle_ticket_closed(in_trade['s10_htf_tf'], in_trade['ticket'], "sl")
                     trade_closed = True
@@ -450,6 +819,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     pnl = profit(in_trade['entry'] - in_trade['tp'])
                     trades.append({**in_trade, 'close_type': 'TP',
                                    'close_price': in_trade['tp'], 'close_time': bt, 'pnl': pnl})
+                    sl_guard.record_close(tf_name, sig, "TP", pnl)
                     from strategy10 import handle_ticket_closed
                     handle_ticket_closed(in_trade['s10_htf_tf'], in_trade['ticket'], "tp")
                     trade_closed = True
@@ -476,6 +846,19 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                 handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
                 continue
             # 3.1 ตรวจสอบเงื่อนไขการโดนยกเลิกออเดอร์ (Cancel Criteria)
+            if sl_guard.near_blocked(tf_name, pending["signal"], pending["entry"], b):
+                trades.append({
+                    **pending,
+                    'close_type': 'CANCEL',
+                    'close_price': b['open'],
+                    'close_time': bt,
+                    'pnl': 0.0,
+                    'cancel_reason': "SL Guard active near entry"
+                })
+                from strategy10 import handle_ticket_closed
+                handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
+                continue
+
             cancel_reason = check_pending_order_invalid(pending, b, ltf_bars_so_far, htf_rates_all[pending['s10_htf_tf']])
             if cancel_reason:
                 trades.append({
@@ -490,7 +873,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                 handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
                 continue
 
-            # 3.1.2 ตรวจสอบเงื่อนไข PD Fibo Plus สำหรับ Pending Order
+            # 3.1.2 PD Fibo Plus is skipped for S10.
             if _PD_ENABLED:
                 pd_cancel, pd_reason = check_pending_order_pd_cancel(pending, b, tf_name)
                 if pd_cancel:
@@ -523,7 +906,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     'entry_idx': i
                 }
                 
-                # ตรวจสอบความปลอดภัยตามเกณฑ์ PD Fibo Plus (Round 1) ทันทีที่ Fill
+                # PD Fibo Plus is skipped for S10.
                 if _PD_ENABLED:
                     pd_pass, fibo_pct, fill_h, fill_l, fill_h_time, fill_l_time = _check_pd_fibo(
                         in_trade_obj['signal'], in_trade_obj['entry'], tf_name
@@ -603,6 +986,24 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
         # ส่งข้อมูลแท่ง M5 เข้าไปเพื่อหาจุดเข้าใน LTF
         r10 = strategy_10(ltf_bars_so_far, tf_name)
         if r10.get("signal") in ("BUY", "SELL") and r10.get("s10_model_orders"):
+            if sl_guard.is_blocked(tf_name, r10["signal"]):
+                trades.append({
+                    "ticket": 0,
+                    "signal": r10["signal"],
+                    "entry": float(r10.get("entry", 0.0) or 0.0),
+                    "sl": float(r10.get("sl", 0.0) or 0.0),
+                    "tp": float(r10.get("tp", 0.0) or 0.0),
+                    "pattern": r10.get("pattern", "S10"),
+                    "entry_time": bt,
+                    "entry_time_raw": int(b['time']),
+                    "s10_htf_tf": r10.get("htf_tf") or (htf_list[0] if htf_list else ""),
+                    "close_type": "BLOCK",
+                    "close_price": float(r10.get("entry", 0.0) or 0.0),
+                    "close_time": bt,
+                    "pnl": 0.0,
+                    "cancel_reason": "SL Guard blocked new LIMIT",
+                })
+                continue
             # ดึงข้อมูลการ Arm
             from strategy10 import _armed_states
             active_htf = r10.get("htf_tf") or (htf_list[0] if htf_list else "")
@@ -621,17 +1022,13 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                 parent_low = float(state.get("candles", [{}])[0].get("low", 0.0) or 0.0)
                 bar_mode = state.get("s10_bar_mode", "2bar")
             
-            # ลงทะเบียน tickets ใน arm state เพื่อคุม continuous re-trigger
-            mock_tickets = []
             specs_to_place = []
             for spec in r10["s10_model_orders"]:
                 ticket_counter += 1
-                mock_tickets.append(ticket_counter)
                 specs_to_place.append((ticket_counter, spec))
-                
-            from strategy10 import register_fired_tickets
-            register_fired_tickets(active_htf, mock_tickets)
-            
+
+            placed_pending = []
+            placed_tickets = []
             for tkt, spec in specs_to_place:
                 pending_order_obj = {
                     "ticket":           tkt,
@@ -648,7 +1045,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     "s10_parent_high":  parent_high,
                     "s10_parent_low":   parent_low,
                     "s10_bar_mode":     bar_mode,
-                    "s10_sibling_tickets": mock_tickets,
+                    "s10_sibling_tickets": [],
                     "s10_m1_price":     r10.get("s10_m1_price"),
                     "s10_m1_time":      r10.get("s10_m1_time"),
                     "s10_m2_price":     r10.get("s10_m2_price"),
@@ -657,23 +1054,15 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     "s10_m3_time":      r10.get("s10_m3_time"),
                 }
                 
-                # Check PD Fibo Plus immediately at creation time
-                if _PD_ENABLED:
-                    pd_cancel, pd_reason = check_pending_order_pd_cancel(pending_order_obj, b, tf_name)
-                    if pd_cancel:
-                        trades.append({
-                            **pending_order_obj,
-                            'close_type': 'PD_FAIL',
-                            'close_price': pending_order_obj['entry'],
-                            'close_time': bt,
-                            'pnl': 0.0,
-                            'cancel_reason': pd_reason
-                        })
-                        from strategy10 import handle_ticket_closed
-                        handle_ticket_closed(pending_order_obj['s10_htf_tf'], pending_order_obj['ticket'], "cancel")
-                        continue
-                        
-                pending_orders.append(pending_order_obj)
+                placed_pending.append(pending_order_obj)
+                placed_tickets.append(tkt)
+
+            if placed_tickets:
+                from strategy10 import register_fired_tickets
+                register_fired_tickets(active_htf, placed_tickets)
+                for pending_order_obj in placed_pending:
+                    pending_order_obj["s10_sibling_tickets"] = placed_tickets
+                    pending_orders.append(pending_order_obj)
 
     # จัดการออเดอร์ที่ค้างอยู่ ณ สิ้นสุดการเทส
     if bars:
@@ -698,6 +1087,7 @@ def main():
 
     # Load auto trade config state from bot_state.json
     config.restore_runtime_state()
+    sync_strategy10_runtime_config()
 
     # Calculate actual volume for display
     display_vol = getattr(config, 'AUTO_VOLUME', 0.01)
@@ -708,7 +1098,7 @@ def main():
     print(f'Since  : {SINCE.strftime("%d-%m-%Y")}  Volume: {display_vol} lot')
     print(f'S10 Settings: active_strategies[10]={config.active_strategies.get(10, False)}')
     print(f'              CRT_BAR_MODE={getattr(config,"CRT_BAR_MODE","2bar")}  CRT_ENTRY_MODE={getattr(config,"CRT_ENTRY_MODE","htf")}')
-    print(f'              CRT_WAIT_HTF_CLOSE={getattr(config,"CRT_WAIT_HTF_CLOSE",False)} | CRT_PARENT_MIN_BODY_PCT={getattr(config,"CRT_PARENT_MIN_BODY_PCT",0.50)} | PDFIBOPLUS_ENABLED={getattr(config,"PDFIBOPLUS_ENABLED",True)}')
+    print(f'              CRT_WAIT_HTF_CLOSE={getattr(config,"CRT_WAIT_HTF_CLOSE",False)} | CRT_PARENT_MIN_BODY_PCT={getattr(config,"CRT_PARENT_MIN_BODY_PCT",0.50)} | PDFIBOPLUS_ENABLED={getattr(config,"PDFIBOPLUS_ENABLED",True)} | PD_SKIP_SIDS=9,10,13,14,15,16')
     print('=' * 65)
 
     if not config.active_strategies.get(10, False):

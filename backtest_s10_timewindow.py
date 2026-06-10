@@ -6,6 +6,8 @@ import argparse
 import MetaTrader5 as mt5
 from datetime import datetime, timezone, timedelta
 import config
+import json
+import os
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Backtest S10 signals for a specific Bangkok datetime window')
@@ -25,7 +27,14 @@ args = parser.parse_args()
 
 # Now import from sim_s10_backtest (which will use updated config values)
 import sim_s10_backtest
-from sim_s10_backtest import backtest_tf, TF_MAP, to_bkk
+from sim_s10_backtest import (
+    backtest_tf,
+    TF_MAP,
+    s10_runtime_feature_coverage,
+    s10_unreplayed_active_features,
+    sync_strategy10_runtime_config,
+    to_bkk,
+)
 
 SYMBOL = config.SYMBOL
 VOLUME = 0.01
@@ -63,18 +72,44 @@ def run_backtest():
         return
 
     # Load auto trade config state from bot_state.json
-    config.restore_runtime_state()
-    if args.symbol:
-        config.set_runtime_symbol(args.symbol)
-        sim_s10_backtest.SYMBOL = args.symbol
+    restore_info = config.restore_runtime_state()
+    state_symbol = ""
+    try:
+        if os.path.exists(config.STATE_FILE):
+            with open(config.STATE_FILE, "r", encoding="utf-8") as f:
+                state_symbol = str((json.load(f) or {}).get("symbol", "") or "")
+    except Exception:
+        state_symbol = ""
+    selected_symbol = args.symbol or state_symbol or config.SYMBOL
+    if selected_symbol:
+        config.set_runtime_symbol(selected_symbol)
+        sim_s10_backtest.SYMBOL = selected_symbol
         global SYMBOL
-        SYMBOL = args.symbol
+        SYMBOL = selected_symbol
+    sync_strategy10_runtime_config()
 
     print(f'Symbol : {SYMBOL}')
+    print(f'Restore: {restore_info}')
     print(f'Window : {window_start_bkk} → {window_end_bkk} (Bangkok timezone)')
     print(f'S10 Settings: active_strategies[10]={config.active_strategies.get(10, False)}')
     print(f'              CRT_BAR_MODE={getattr(config, "CRT_BAR_MODE", "2bar")} | CRT_WAIT_HTF_CLOSE={getattr(config, "CRT_WAIT_HTF_CLOSE", False)} | CRT_PARENT_MIN_BODY_PCT={getattr(config, "CRT_PARENT_MIN_BODY_PCT", 0.50)}')
-    print(f'              PDFIBOPLUS_ENABLED={getattr(config, "PDFIBOPLUS_ENABLED", True)}')
+    print(f'              PDFIBOPLUS_ENABLED={getattr(config, "PDFIBOPLUS_ENABLED", True)} | PD_SKIP_SIDS=9,10,13,14,15,16')
+    print('S10 Coverage:')
+    for item in s10_runtime_feature_coverage():
+        if item["runtime"] == "skip_s10":
+            status = "runtime skip"
+        elif item["replay"] == "apply":
+            status = "replayed"
+        elif item["config_on"]:
+            status = "ACTIVE GAP"
+        else:
+            status = "off gap"
+        print(f'  {item["name"]:<34} config={str(item["config_on"]):<5} {status:<12} {item["note"]}')
+    gaps = s10_unreplayed_active_features()
+    if gaps:
+        print('WARNING: Active S10 runtime features not replayed yet:')
+        for item in gaps:
+            print(f'  - {item["name"]}: {item["note"]}')
     print('=' * 65)
 
     if not config.active_strategies.get(10, False):
@@ -152,51 +187,54 @@ def run_backtest():
                 print(f"\n--- Trade #{idx+1} ---")
                 print(f"  [{tf_display}] {et} {t['signal']} [{t.get('pattern', 'S10')}]")
                 print(f"  Entry  = {t['entry']:.2f} | SL = {t['sl']:.2f} | TP = {t['tp']:.2f}")
-                print(f"  Result -> {t['close_type']} @ {t.get('close_price', 0):.2f} [{ct}]  PnL={pnl_s} USD")
+                close_label = t['close_type']
+                if close_label == 'PD_FAIL':
+                    close_label = 'PD_FILL_FAIL' if t.get('pd_result') == 'FAIL' else 'PD_PENDING_FAIL'
+                print(f"  Result -> {close_label} @ {t.get('close_price', 0):.2f} [{ct}]  PnL={pnl_s} USD")
 
-            if grp_trades and grp_trades[-1].get('cancel_reason'):
-                print(f"  Cancel Reason: {grp_trades[-1]['cancel_reason']}")
+                if t.get('cancel_reason'):
+                    print(f"  Cancel Reason: {t['cancel_reason']}")
 
-            # Parent & Sweep HTF details
-            htf_tf = t.get('s10_htf_tf')
-            if htf_tf:
-                parent_h = t.get('s10_parent_high', 0.0)
-                parent_low = t.get('s10_parent_low', 0.0)
-                parent_range = parent_h - parent_low
-                parent_time_unix = t.get('s10_parent_time', 0)
-                sweep_time_unix = t.get('s10_sweep_time', 0)
-                parent_t_str = to_bkk(parent_time_unix).strftime('%d-%m %H:%M') if parent_time_unix else '?'
-                sweep_t_str = to_bkk(sweep_time_unix).strftime('%d-%m %H:%M') if sweep_time_unix else '?'
-                bar_mode = t.get('s10_bar_mode', '2bar')
+                # Parent & Sweep HTF details
+                htf_tf = t.get('s10_htf_tf')
+                if htf_tf:
+                    parent_h = t.get('s10_parent_high', 0.0)
+                    parent_low = t.get('s10_parent_low', 0.0)
+                    parent_range = parent_h - parent_low
+                    parent_time_unix = t.get('s10_parent_time', 0)
+                    sweep_time_unix = t.get('s10_sweep_time', 0)
+                    parent_t_str = to_bkk(parent_time_unix).strftime('%Y-%m-%d %H:%M') if parent_time_unix else '?'
+                    sweep_t_str = to_bkk(sweep_time_unix).strftime('%d-%m %H:%M') if sweep_time_unix else '?'
+                    bar_mode = t.get('s10_bar_mode', '2bar')
 
-                print(f"  HTF Details:")
-                print(f"    HTF TF = {htf_tf} | Bar Mode = {bar_mode}")
-                print(f"    Parent Bar: High = {parent_h:.2f}, Low = {parent_low:.2f}, Range = {parent_range:.2f} | Time = {parent_t_str}")
-                print(f"    Sweep Time: {sweep_t_str}")
+                    print(f"  HTF Details:")
+                    print(f"    HTF TF = {htf_tf} | Bar Mode = {bar_mode}")
+                    print(f"    Parent Bar: High = {parent_h:.2f}, Low = {parent_low:.2f}, Range = {parent_range:.2f} | Time = {parent_t_str}")
+                    print(f"    Sweep Time: {sweep_t_str}")
 
-                m1_p = t.get('s10_m1_price')
-                m1_t = t.get('s10_m1_time')
-                m2_p = t.get('s10_m2_price')
-                m2_t = t.get('s10_m2_time')
-                m3_p = t.get('s10_m3_price')
-                m3_t = t.get('s10_m3_time')
-                print(f"  Models Info:")
-                print(f"    Model 1 (OB.open): {f'{m1_p:.2f}' if m1_p is not None else 'n/a'} @ {m1_t or 'n/a'}")
-                print(f"    Model 2 (FVG 98%): {f'{m2_p:.2f}' if m2_p is not None else 'n/a'} @ {m2_t or 'n/a'}")
-                print(f"    Model 3 (MSS)    : {f'{m3_p:.2f}' if m3_p is not None else 'n/a'} @ {m3_t or 'n/a'}")
+                    m1_p = t.get('s10_m1_price')
+                    m1_t = t.get('s10_m1_time')
+                    m2_p = t.get('s10_m2_price')
+                    m2_t = t.get('s10_m2_time')
+                    m3_p = t.get('s10_m3_price')
+                    m3_t = t.get('s10_m3_time')
+                    print(f"  Models Info:")
+                    print(f"    Model 1 (OB.open): {f'{m1_p:.2f}' if m1_p is not None else 'n/a'} @ {m1_t or 'n/a'}")
+                    print(f"    Model 2 (FVG 98%): {f'{m2_p:.2f}' if m2_p is not None else 'n/a'} @ {m2_t or 'n/a'}")
+                    print(f"    Model 3 (MSS)    : {f'{m3_p:.2f}' if m3_p is not None else 'n/a'} @ {m3_t or 'n/a'}")
 
-            # PD Fibo Plus details
-            pd_val = t.get('pd_result')
-            if pd_val:
-                fibo_pct = t.get('pd_fibo_pct')
-                pd_round = t.get('pd_round', 1)
-                pd_fibo_str = f" ({fibo_pct:.1f}%)" if fibo_pct is not None else ""
-                print(f"  PD Fibo Plus:")
-                print(f"    PD Result: {pd_val}{pd_fibo_str} [Round {pd_round}]")
-                if t.get('pd_h') is not None and t.get('pd_l') is not None:
-                    h_t = to_bkk(t['pd_h_time']).strftime('%d-%m %H:%M') if t.get('pd_h_time') else '?'
-                    l_t = to_bkk(t['pd_l_time']).strftime('%d-%m %H:%M') if t.get('pd_l_time') else '?'
-                    print(f"    PD Range : H = {t['pd_h']:.2f} [{h_t}] | L = {t['pd_l']:.2f} [{l_t}]")
+                # PD Fibo Plus details (kept for non-skipped strategies if present in old/custom data)
+                pd_val = t.get('pd_result')
+                if pd_val:
+                    fibo_pct = t.get('pd_fibo_pct')
+                    pd_round = t.get('pd_round', 1)
+                    pd_fibo_str = f" ({fibo_pct:.1f}%)" if fibo_pct is not None else ""
+                    print(f"  PD Fibo Plus:")
+                    print(f"    PD Result: {pd_val}{pd_fibo_str} [Round {pd_round}]")
+                    if t.get('pd_h') is not None and t.get('pd_l') is not None:
+                        h_t = to_bkk(t['pd_h_time']).strftime('%d-%m %H:%M') if t.get('pd_h_time') else '?'
+                        l_t = to_bkk(t['pd_l_time']).strftime('%d-%m %H:%M') if t.get('pd_l_time') else '?'
+                        print(f"    PD Range : H = {t['pd_h']:.2f} [{h_t}] | L = {t['pd_l']:.2f} [{l_t}]")
 
     print('\n' + '=' * 65)
     print(f'GRAND TOTAL P&L for window: {grand_total:+.2f} USD')

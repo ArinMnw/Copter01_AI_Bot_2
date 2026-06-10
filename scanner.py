@@ -3318,12 +3318,26 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             from datetime import datetime as _dt, timezone as _tz
             _now_ts = int(_dt.now(_tz.utc).timestamp())
             candle_txt += f"📍 *HTF {_htf_tf}* (เจอ CRT):\n"
+            _htf_tf_val = TF_OPTIONS.get(_htf_tf)
             for i, c in enumerate(_htf_candles):
                 o, h, l, cl = float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])
                 clr = "🟢" if cl > o else "🔴"
                 ts = int(c.get("time", 0))
-                # tag ถ้า bar ยังไม่ปิด (ts + tf_secs > now)
-                in_progress = bool(_htf_secs and ts and (ts + _htf_secs) > _now_ts)
+                # tag ถ้า bar ยังไม่ปิด — normalize server-local ts เป็น UTC ก่อนเทียบ
+                _ts_utc = ts - MT5_SERVER_TZ * 3600
+                in_progress = bool(_htf_secs and ts and (_ts_utc + _htf_secs) > _now_ts)
+                # refresh OHLC จาก MT5 ถ้า bar ปิดแล้ว (ป้องกัน stale data จากตอน arm)
+                if not in_progress and ts and _htf_tf_val:
+                    try:
+                        _fresh = mt5.copy_rates_range(SYMBOL, _htf_tf_val, ts, ts + (_htf_secs or 1800))
+                        if _fresh is not None and len(_fresh) > 0:
+                            o  = float(_fresh[0]["open"])
+                            h  = float(_fresh[0]["high"])
+                            l  = float(_fresh[0]["low"])
+                            cl = float(_fresh[0]["close"])
+                            clr = "🟢" if cl > o else "🔴"
+                    except Exception:
+                        pass
                 progress_tag = " ⏳(in-progress)" if in_progress else ""
                 candle_txt += (
                     f"{clr} แท่ง{_hlabels[i]}: O:`{o:.2f}` H:`{h:.2f}` "
@@ -3371,7 +3385,22 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 )
                 continue
         elif result.get("order_mode") != "market":
-            dup_ticket, dup_source = _find_duplicate_pending_setup(tf_name, sid, signal, entry, sl, tp)
+            # S16: SL คำนวณจาก ATR ทุกนาที → drift เกิน tol=0.05 ทำให้สร้าง order ซ้ำ
+            # เช็ก duplicate บน (signal, entry, tp) อย่างเดียว ไม่รวม SL
+            if sid == 16:
+                dup_ticket = next(
+                    (t for t, info in pending_order_tf.items()
+                     if isinstance(info, dict)
+                     and info.get("tf") == tf_name
+                     and info.get("sid") == 16
+                     and info.get("signal") == signal
+                     and _same_price(info.get("entry"), entry, 0.05)
+                     and _same_price(info.get("tp"), tp, 0.05)),
+                    None
+                )
+                dup_source = "runtime_state_s16_entry_tp" if dup_ticket else ""
+            else:
+                dup_ticket, dup_source = _find_duplicate_pending_setup(tf_name, sid, signal, entry, sl, tp)
             if dup_ticket:
                 _print_skip_once(
                     tf_name,
@@ -3821,8 +3850,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
 
             # ── PD Zone pre-creation check (ก่อนสร้าง order) ────────────────
             # ตรวจว่า entry price อยู่ใน zone ที่ถูกต้องก่อน — ถ้าผิดฝั่ง skip เลย
-            # Skip: S9 (RSI Div), S10 (CRT), S13 (always market), S14 (Sweep RSI),
-            #        S15 (VP counter-trend), market orders
+            # Skip: S9 (RSI Div), S10 (CRT), S13/S14/S16 standalone, S15 (VP), market orders
             _pdz_skip_sids = (9, 10, 13, 14, 15, 16)
             if (getattr(config, "PDFIBOPLUS_ENABLED", False)
                     and sid not in _pdz_skip_sids

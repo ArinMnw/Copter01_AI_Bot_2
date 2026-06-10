@@ -81,7 +81,12 @@ async def check_sl_tp_hits(app):
 
     # ดึง positions ปัจจุบัน
     current_positions = mt5.positions_get(symbol=SYMBOL)
-    current_tickets   = {p.ticket for p in current_positions} if current_positions else set()
+    # ถ้า positions_get() คืน None = MT5 error (เช่น maintenance window หรือ disconnect)
+    # ห้ามประมวลผลต่อ เพราะจะทำให้ tracked_positions ทั้งหมดดูเหมือน "ปิดแล้ว"
+    # และยิง phantom POSITION_CLOSED พร้อม profit=0, close_time=fill_time
+    if current_positions is None:
+        return
+    current_tickets = {p.ticket for p in current_positions}
 
     # หา ticket ที่หายไป (ปิดไปแล้ว = โดน SL หรือ TP หรือ manual)
     closed_tickets = set(tracked_positions.keys()) - current_tickets

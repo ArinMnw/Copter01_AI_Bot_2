@@ -4,6 +4,7 @@ import time as _time
 from datetime import datetime
 from bot_log import log_event, log_error, setup_python_logging, cleanup_old_logs
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram.error import NetworkError
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -48,6 +49,22 @@ async def _tg_error(app, job_name: str, exc: Exception) -> None:
         pass
 
 
+async def _handle_app_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Central handler for telegram.ext callback and polling errors."""
+    import traceback
+
+    exc = context.error
+    if isinstance(exc, NetworkError):
+        log_event("TG_NETWORK_ERROR", str(exc)[:200])
+        return
+
+    tb = "".join(traceback.format_exception(None, exc, exc.__traceback__)) if exc else ""
+    log_error(
+        "TG_APP_ERROR",
+        f"{type(exc).__name__ if exc else 'UnknownError'}: {exc}\n{tb[-800:]}",
+    )
+
+
 def main():
     import sys as _sys, traceback as _tb2
 
@@ -79,6 +96,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_error_handler(_handle_app_error)
 
     scheduler = AsyncIOScheduler()
 

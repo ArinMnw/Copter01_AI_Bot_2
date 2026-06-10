@@ -36,6 +36,7 @@ except ImportError:
 _sweep_state:      dict[str, str]   = {}  # "SWEEP_LOW" | "SWEEP_HIGH"
 _sweep_price:      dict[str, float] = {}  # ราคา swing ที่เป็น reference
 _sweep_at:         dict[str, str]   = {}  # เวลา detect (BKK string)
+_sweep_ts:         dict[str, int]   = {}  # เวลา detect (unix ของ trigger bar) — ใช้เช็ค expiry
 _prev_trend:       dict[str, str]   = {}  # track trend เพื่อ detect change
 _prev_last_label:  dict[str, str]   = {}  # track last swing label เพื่อ detect change
 
@@ -75,6 +76,10 @@ def get_sweep_state(tf: str) -> str | None:
     """คืน 'SWEEP_LOW' | 'SWEEP_HIGH' | None"""
     if not is_enabled():
         return None
+    # หมดอายุ → reset แล้วคืน None (กัน sweep เก่าค้าง override trend นานเกิน)
+    if _sweep_state.get(tf) and _is_expired(tf):
+        reset_sweep(tf)
+        return None
     return _sweep_state.get(tf)
 
 
@@ -86,16 +91,25 @@ def get_sweep_info(tf: str) -> dict:
     }
 
 
-def reset_sweep(tf: str) -> None:
+def reset_sweep(tf: str, reason: str = "") -> None:
+    prev = _sweep_state.get(tf)
+    if prev:
+        try:
+            from bot_log import log_event as _log
+            _log("SWEEP_RESET", prev, tf=tf, reason=reason or "-")
+        except Exception:
+            pass
     _sweep_state.pop(tf, None)
     _sweep_price.pop(tf, None)
     _sweep_at.pop(tf, None)
+    _sweep_ts.pop(tf, None)
 
 
 def reset_all() -> None:
     _sweep_state.clear()
     _sweep_price.clear()
     _sweep_at.clear()
+    _sweep_ts.clear()
 
 
 def update_trend_and_check_reset(tf: str, current_trend: str,
@@ -127,7 +141,8 @@ def update_trend_and_check_reset(tf: str, current_trend: str,
     )
 
     if trend_changed or label_changed:
-        reset_sweep(tf)
+        reason = f"trend_changed:{prev_trend}→{current_trend}" if trend_changed else f"label_changed:{prev_label}→{last_label}"
+        reset_sweep(tf, reason=reason)
         return True
     return False
 
@@ -236,9 +251,12 @@ def check_and_update(tf: str) -> str | None:
     if not is_enabled():
         return None
 
-    # ถ้า sweep active อยู่แล้ว → คงสถานะ
+    # ถ้า sweep active อยู่แล้ว → คงสถานะ (เว้นแต่หมดอายุ → reset แล้วหาใหม่)
     if _sweep_state.get(tf):
-        return _sweep_state[tf]
+        if _is_expired(tf):
+            reset_sweep(tf, reason="expired")
+        else:
+            return _sweep_state[tf]
 
     try:
         import hhll_swing as _hs
@@ -314,19 +332,26 @@ def _check_sweep_low(
 
         # ── Pattern B (ก่อน): RED engulf (close < ref) + 2 เขียว ─────────
         # bo > ref_price: bar เปิดเหนือ swing low (ราคายังอยู่เหนือ ref)
-        if i + 2 < n and bo > ref_price and bc < ref_price and bc < bo:
-            nxt2     = bars_after[i + 2]
-            n2o, n2c = float(nxt2["open"]), float(nxt2["close"])
-            if nc > no and n2c > n2o:
-                if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=False):
-                    _activate("SWEEP_LOW", tf, ref_price, b_time)
-                    return "SWEEP_LOW"
+        if bo > ref_price and bc < ref_price and bc < bo:
+            # bar ปิดต่ำกว่า ref → ถ้า Pattern B ไม่ผ่าน = LL ถูก break แล้ว
+            if i + 2 < n:
+                nxt2     = bars_after[i + 2]
+                n2o, n2c = float(nxt2["open"]), float(nxt2["close"])
+                if nc > no and n2c > n2o:
+                    if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=False):
+                        _activate("SWEEP_LOW", tf, ref_price, b_time, confirm_ts=int(nxt["time"]))
+                        return "SWEEP_LOW"
+            return None  # Pattern B failed (bar ปิดต่ำกว่า ref) → LL invalidated
+
+        # LL invalidated: bar ปิดต่ำกว่า ref โดยไม่ผ่าน Pattern B
+        if bc < ref_price:
+            return None
 
         # ── Pattern A (ทีหลัง): low < ref + open > ref (sweep จริง) + 1 เขียว ──
         # bo > ref_price: bar ต้องเปิดเหนือ swing low ก่อน แล้วค่อย dip ลงต่ำกว่า
         if bo > ref_price and bl < ref_price and nc > no:
             if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=False):
-                _activate("SWEEP_LOW", tf, ref_price, b_time)
+                _activate("SWEEP_LOW", tf, ref_price, b_time, confirm_ts=int(nxt["time"]))
                 return "SWEEP_LOW"
 
     return None
@@ -367,19 +392,26 @@ def _check_sweep_high(
 
         # ── Pattern B (ก่อน): GREEN engulf (close > ref) + 2 แดง ─────────
         # bo < ref_price: bar เปิดใต้ swing high (ราคายังอยู่ใต้ ref)
-        if i + 2 < n and bo < ref_price and bc > ref_price and bc > bo:
-            nxt2     = bars_after[i + 2]
-            n2o, n2c = float(nxt2["open"]), float(nxt2["close"])
-            if nc < no and n2c < n2o:
-                if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=True):
-                    _activate("SWEEP_HIGH", tf, ref_price, b_time)
-                    return "SWEEP_HIGH"
+        if bo < ref_price and bc > ref_price and bc > bo:
+            # bar ปิดสูงกว่า ref → ถ้า Pattern B ไม่ผ่าน = LH ถูก break แล้ว
+            if i + 2 < n:
+                nxt2     = bars_after[i + 2]
+                n2o, n2c = float(nxt2["open"]), float(nxt2["close"])
+                if nc < no and n2c < n2o:
+                    if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=True):
+                        _activate("SWEEP_HIGH", tf, ref_price, b_time, confirm_ts=int(nxt["time"]))
+                        return "SWEEP_HIGH"
+            return None  # Pattern B failed (bar ปิดสูงกว่า ref) → LH invalidated
+
+        # LH invalidated: bar ปิดสูงกว่า ref โดยไม่ผ่าน Pattern B
+        if bc > ref_price:
+            return None
 
         # ── Pattern A (ทีหลัง): high > ref + open < ref (sweep จริง) + 1 แดง ──
         # bo < ref_price: bar ต้องเปิดใต้ swing high ก่อน แล้วค่อย spike ขึ้นเหนือ
         if bo < ref_price and bh > ref_price and nc < no:
             if _htf_confirm_at(htf, ref_price, b_time, htf_rates, high=True):
-                _activate("SWEEP_HIGH", tf, ref_price, b_time)
+                _activate("SWEEP_HIGH", tf, ref_price, b_time, confirm_ts=int(nxt["time"]))
                 return "SWEEP_HIGH"
 
     return None
@@ -438,10 +470,38 @@ def _get_closed_rates(tf: str, n: int = 80):
     return mt5.copy_rates_from_pos(SYMBOL, tf_id, 1, n)
 
 
-def _activate(state: str, tf: str, price: float, bar_ts: int) -> None:
+def _activate(state: str, tf: str, price: float, bar_ts: int, confirm_ts: int = 0) -> None:
     _sweep_state[tf] = state
     _sweep_price[tf] = price
-    _sweep_at[tf]    = datetime.fromtimestamp(bar_ts, tz=_BKK).strftime("%H:%M %d-%b")
+    _sweep_ts[tf]    = int(bar_ts)
+    bar_str = datetime.fromtimestamp(bar_ts, tz=_BKK).strftime("%H:%M %d-%b-%Y")
+    _sweep_at[tf]    = bar_str
+    try:
+        from bot_log import log_event as _log
+        conf_str = datetime.fromtimestamp(confirm_ts, tz=_BKK).strftime("%H:%M %d-%b-%Y") if confirm_ts else "-"
+        _log("SWEEP_ACTIVATE", state,
+             tf=tf, ref_price=f"{price:.2f}",
+             sweep_bar=bar_str, confirm_bar=conf_str)
+    except Exception:
+        pass
+
+
+def _is_expired(tf: str) -> bool:
+    """เช็คว่า sweep state หมดอายุหรือยัง (ตาม SWEEP_FILTER_EXPIRY_MIN)
+    expiry = 0 → ไม่หมดอายุ (behavior เดิม)
+    วัดจาก trigger bar time → ปัจจุบัน
+    """
+    if _cfg_mod is None:
+        return False
+    expiry_min = int(getattr(_cfg_mod, "SWEEP_FILTER_EXPIRY_MIN", 0) or 0)
+    if expiry_min <= 0:
+        return False
+    trig_ts = _sweep_ts.get(tf, 0)
+    if trig_ts <= 0:
+        return False
+    import time as _t
+    age_sec = _t.time() - trig_ts
+    return age_sec > expiry_min * 60
 
 
 # ── Telegram Display ──────────────────────────────────────────────────

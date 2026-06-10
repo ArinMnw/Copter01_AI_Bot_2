@@ -3698,8 +3698,8 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (9, 15):
-            continue  # S9 (RSI Div), S15 (VP — ใช้ value-area เป็น zone เอง ต่าง reference กับ swing-EQ) — skip
+        if sid in (9, 10, 13, 14, 15, 16):
+            continue  # S9/S10/S13/S14/S15/S16 skip PD Fibo Plus
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
@@ -7305,8 +7305,8 @@ async def check_cancel_pending_orders(app):
                                       f" setup ล้มเหลว")
 
         # Premium/Discount zone recheck
-        # Skip: S9 (RSI Divergence), S15 (VP — ใช้ value-area zone เอง ต่าง reference กับ swing-EQ)
-        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 15):
+        # Skip: S9 (RSI Divergence), S10 (CRT), S13/S14/S16 standalone, S15 (VP)
+        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 10, 13, 14, 15, 16):
             _is_combined = _triple_check_all_enabled()
             pd_status, pd_msgs = _pdfiboplus_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
@@ -7910,4 +7910,3 @@ async def check_s14_engulf_exits(app):
             if ok:
                 log_event("S14_EXIT", f"Closed S14 {'sweep' if is_sweep else 'engulf'} position due to {check_tf} exit bar color rule", ticket=ticket)
                 await tg(app, f"⚡ *S14 {'Sweep' if is_sweep else 'Engulf'} ปิดตำแหน่งทันที*\nTicket: `{ticket}`\nเหตุผล: แท่งถัดจาก sweep ({check_tf}) จบ{'แดง' if is_buy else 'เขียว'} ขัดทิศทาง")
-

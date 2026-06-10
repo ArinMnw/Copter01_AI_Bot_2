@@ -210,11 +210,15 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
 async def handle_buttons(update, context):
     """Route ข้อความปุ่มไปยัง handler ที่ถูกต้อง"""
     global auto_active
+    message = update.effective_message
+    if message is None or not getattr(message, "text", None):
+        return
+
     if not auth(update):
         await alert_intruder(update)
         return
 
-    text = update.message.text
+    text = message.text
 
     # ── ตรวจ waiting_lot_input ก่อน ──────────────────────────────
     waiting = context.user_data.get("waiting_lot_input")
