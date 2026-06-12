@@ -15,6 +15,7 @@ from handlers.btn_cancel_pending import handle_btn_cancel_pending
 from handlers.btn_settings import handle_btn_settings
 from handlers.btn_tf import handle_btn_tf
 from handlers.btn_profit import handle_btn_profit
+from handlers.btn_tg_status import handle_btn_tg_status
 from mt5_utils import connect_mt5
 from handlers.keyboard import main_keyboard
 from datetime import datetime, timedelta
@@ -73,6 +74,7 @@ BUTTON_ROUTES = {
     "⚙️ ตั้งค่า":         handle_btn_settings,
     "🕐 เลือก Timeframe": handle_btn_tf,
     "📊 สรุปกำไร":        handle_btn_profit,
+    "🚦 TG Status":       handle_btn_tg_status,
 }
 
 
@@ -166,8 +168,9 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
         )
         return
 
-    # แปลงเวลาของแท่งราคากลับเป็น BKK สำหรับแสดงผล
+    # แปลงเวลาของแท่งราคากลับเป็น BKK สำหรับแสดงผล (+1h เพราะ mt5_ts_to_bkk คืน UTC+6)
     bar_bkk = config.mt5_ts_to_bkk(matching_bar['time'])
+    bar_bkk = (bar_bkk + timedelta(hours=1)) if bar_bkk else None
     bar_bkk_str = bar_bkk.strftime("%d-%m-%Y %H:%M") if bar_bkk else "-"
     
     color = "🟢" if matching_bar['close'] >= matching_bar['open'] else "🔴"
@@ -207,6 +210,216 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
     )
 
 
+def _batch_find_detect(tf_str: str, windows: "list[tuple[int,int]]") -> "dict[int,str|None]":
+    """Batch search log ครั้งเดียวสำหรับหลาย confirm windows
+    windows: [(confirm_ts_mt5, deadline_ts_mt5), ...]
+    returns: {confirm_ts_mt5: 'YYYY-MM-DD HH:MM:SS' or None}
+    """
+    import os, re
+    from datetime import datetime, timedelta
+    import config as _cfg
+
+    result    = {cn: None for cn, _ in windows}
+    remaining = set(cn for cn, _ in windows)
+    if not remaining:
+        return result
+
+    def _to_naive(ts_mt5: int) -> datetime:
+        bkk = _cfg.mt5_ts_to_bkk(ts_mt5)
+        return bkk.replace(tzinfo=None) if bkk else datetime.utcfromtimestamp(ts_mt5)
+
+    win_naive    = {cn: (_to_naive(cn), _to_naive(dl)) for cn, dl in windows}
+    global_start = min(v[0] for v in win_naive.values())
+    global_end   = max(v[1] for v in win_naive.values())
+
+    log_dir     = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "logs"))
+    old_log_dir = os.path.join(log_dir, "old_logs")
+    log_paths: list[str] = []
+    for d in [old_log_dir, log_dir]:
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            if fn.startswith("bot") and ".log" in fn:
+                p = os.path.join(d, fn)
+                if p not in log_paths:
+                    log_paths.append(p)
+
+    tf_pat = re.compile(rf'\b{re.escape(tf_str)}\b')
+    ts_pat = re.compile(r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]')
+
+    for path in log_paths:
+        if not remaining:
+            break
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if not remaining:
+                        break
+                    m = ts_pat.match(line)
+                    if not m:
+                        continue
+                    line_ts = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+                    if line_ts > global_end:
+                        break
+                    if line_ts < global_start:
+                        continue
+                    if "SCAN" not in line or not tf_pat.search(line):
+                        continue
+                    for cn_ts in list(remaining):
+                        cn_naive, dl_naive = win_naive[cn_ts]
+                        if cn_naive <= line_ts <= dl_naive:
+                            result[cn_ts] = m.group(1)
+                            remaining.discard(cn_ts)
+                            break
+        except Exception:
+            continue
+
+    return result
+
+
+async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_str: str):
+    """ค้นหา HHLL trend ณ เวลาที่ระบุ — แสดง 8 swing points ล่าสุดพร้อมราคา bar time confirm detect"""
+    from datetime import datetime, timezone, timedelta
+    import MetaTrader5 as mt5
+    import config
+
+    tf_str = tf_str.upper()
+    _TF_MT5 = {
+        "M1": 1, "M5": 5, "M15": 15, "M30": 30,
+        "H1": 16385, "H4": 16388, "H12": 16396, "D1": 16408,
+    }
+    _TF_SECS = {
+        "M1": 60, "M5": 300, "M15": 900, "M30": 1800,
+        "H1": 3600, "H4": 14400, "H12": 43200, "D1": 86400,
+    }
+
+    if tf_str not in _TF_MT5:
+        await update.message.reply_text(
+            f"❌ ไม่พบ Timeframe `{tf_str}` ค่ะพี่\nรองรับ: {', '.join(_TF_MT5.keys())}",
+            parse_mode="Markdown", reply_markup=main_keyboard()
+        )
+        return
+
+    try:
+        dt_naive = datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M")
+    except ValueError:
+        await update.message.reply_text(
+            "❌ รูปแบบไม่ถูกต้องค่ะพี่\nตัวอย่าง: `trend M5 05-06-2026 11:15`",
+            parse_mode="Markdown", reply_markup=main_keyboard()
+        )
+        return
+
+    BKK      = timezone(timedelta(hours=config.TZ_OFFSET))
+    dt_bkk   = dt_naive.replace(tzinfo=BKK)
+    ts_query = int(dt_bkk.timestamp()) + config.MT5_SERVER_TZ * 3600
+
+    if not connect_mt5():
+        await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อค่ะพี่", reply_markup=main_keyboard())
+        return
+
+    tf_const = _TF_MT5[tf_str]
+    tf_secs  = _TF_SECS[tf_str]
+
+    try:
+        from hhll_swing import _build_zz, _classify_pt
+        hhll_lb    = int(getattr(config, "HHLL_LOOKBACK", 500))
+        hhll_left  = int(getattr(config, "HHLL_LEFT",    5))
+        hhll_right = int(getattr(config, "HHLL_RIGHT",   5))
+    except Exception as e:
+        await update.message.reply_text(f"❌ import hhll_swing ไม่ได้: {e}", reply_markup=main_keyboard())
+        return
+
+    need      = hhll_lb + hhll_left + hhll_right + 10
+    rates_raw = mt5.copy_rates_range(config.SYMBOL, tf_const,
+                                     ts_query - need * tf_secs, ts_query + tf_secs)
+
+    if rates_raw is None or len(rates_raw) == 0:
+        await update.message.reply_text(
+            f"❌ ไม่พบข้อมูลราคา `{tf_str}` ในช่วงเวลาที่ระบุค่ะพี่",
+            parse_mode="Markdown", reply_markup=main_keyboard()
+        )
+        return
+
+    rates = [r for r in rates_raw if int(r["time"]) <= ts_query]
+    if len(rates) < hhll_left + hhll_right + 10:
+        await update.message.reply_text(
+            f"❌ ข้อมูลไม่พอสำหรับ HHLL (มี {len(rates)} แท่ง)", reply_markup=main_keyboard()
+        )
+        return
+
+    zz = _build_zz(rates, hhll_left, hhll_right)
+    if len(zz) < 5:
+        await update.message.reply_text("❌ Zigzag ไม่พอสำหรับ classify ค่ะพี่", reply_markup=main_keyboard())
+        return
+
+    # เก็บ list ทั้งหมด (oldest→newest) — ไม่ dedup ต่อ label
+    zz_pts: list[tuple[str, float, int]] = []
+    for k in range(len(zz)):
+        lbl = _classify_pt(zz, k)
+        if lbl:
+            zz_pts.append((lbl, float(zz[k]["price"]), int(zz[k]["time"])))
+
+    pts_new  = list(reversed(zz_pts))   # newest → oldest
+    h_labels = [l for l, _, _ in pts_new if l in ("HH", "LH")]
+    l_labels = [l for l, _, _ in pts_new if l in ("HL", "LL")]
+
+    last_label, last_price_v, last_time_v = pts_new[0] if pts_new else ("—", 0, 0)
+
+    if not h_labels or not l_labels:
+        trend_str = "❓ UNKNOWN"
+    else:
+        h0, l0 = h_labels[0], l_labels[0]
+        h1 = h_labels[1] if len(h_labels) > 1 else None
+        l1 = l_labels[1] if len(l_labels) > 1 else None
+        if h0 == "HH" and l0 == "HL":
+            trend_str = f"🟢 BULL ({'strong' if h1 == 'HH' and l1 == 'HL' else 'weak'})"
+        elif h0 == "LH" and l0 == "LL":
+            trend_str = f"🔴 BEAR ({'strong' if h1 == 'LH' and l1 == 'LL' else 'weak'})"
+        else:
+            trend_str = f"⚪ SIDEWAY (h0={h0} l0={l0})"
+
+    def _fmt_ts(ts_mt5: int) -> str:
+        bkk = config.mt5_ts_to_bkk(ts_mt5)
+        return bkk.strftime("%d-%m %H:%M") if bkk else "?"
+
+    # SIDEWAY แสดงแค่ 4 จุด (h0 l0 h1 l1), BULL/BEAR แสดง 8 จุด
+    n_display   = 4 if trend_str.startswith("⚪") else 8
+    display_pts = pts_new[:n_display]
+
+    # Batch log search ครั้งเดียว
+    windows = [(bar_ts + hhll_right * tf_secs,
+                bar_ts + hhll_right * tf_secs + 2 * 3600)
+               for _, _, bar_ts in display_pts]
+    detect_map = _batch_find_detect(tf_str, windows)
+
+    struct_display = " ▸ ".join(l for l, _, _ in pts_new[:8]) if pts_new else "—"
+    last_bar_str   = f" `{last_price_v:.2f}`  แท่ง `{_fmt_ts(last_time_v)}`" if last_time_v else ""
+
+    swing_lines = []
+    for lbl, price, bar_ts in display_pts:
+        confirm_ts  = bar_ts + hhll_right * tf_secs
+        detect      = detect_map.get(confirm_ts)
+        detect_line = f"`{detect}`" if detect else f"`{_fmt_ts(confirm_ts)}` *(est)*"
+        swing_lines.append(
+            f"`{lbl}` `{price:.2f}`\n"
+            f"  แท่ง: `{_fmt_ts(bar_ts)}` | confirm: `{_fmt_ts(confirm_ts)}` | เจอ: {detect_line}"
+        )
+
+    lines = [
+        f"📊 *HHLL Trend Lookup [{tf_str}]*",
+        f"🕐 ณ BKK: `{date_str} {time_str}`",
+        "",
+        f"📈 Trend: {trend_str}",
+        f"🏷 Last label: `{last_label}`{last_bar_str}",
+        f"🔗 Structure: `{struct_display}`",
+        "",
+        "*Swing Points (newest → oldest):*",
+        *swing_lines,
+    ]
+
+    await _safe_reply_md(update.message, "\n".join(lines), reply_markup=main_keyboard())
+
+
 async def handle_buttons(update, context):
     """Route ข้อความปุ่มไปยัง handler ที่ถูกต้อง"""
     global auto_active
@@ -232,6 +445,17 @@ async def handle_buttons(update, context):
         return
 
     import re
+
+    # ── trend lookup: "trend M5 05-06-2026 11:15" ────────────────
+    trend_match = re.match(
+        r'^[Tt]rend\s+(M1|M5|M15|M30|H1|H4|D1|m1|m5|m15|m30|h1|h4|d1)\s+(\d{2}-\d{2}-\d{4})\s+(\d{2}:\d{2})$',
+        stripped
+    )
+    if trend_match:
+        tf_str, date_str, time_str = trend_match.groups()
+        await handle_trend_lookup(update, context, tf_str, date_str, time_str)
+        return
+
     ohlc_match = re.match(
         r'^(?:([A-Za-z0-9._#-]+)\s+)?(M1|M5|M15|M30|H1|H4|D1|m1|m5|m15|m30|h1|h4|d1)\s+(\d{2}-\d{2}-\d{4})\s+(\d{2}:\d{2})(?:\s+([A-Za-z0-9._#-]+))?$',
         stripped
@@ -503,9 +727,10 @@ async def _handle_ticket_lookup(update, ticket: int):
         import re as _re
         sig_clean = _re.sub(r'`([^`\n]*)`?', r'\1', signal_msg)
         sig_clean = sig_clean.replace('`', '').replace('*', '')
-        # ถ้า TG_SENT ถูกตัดกลางคำ → เติม candle จาก MT5 ต่อท้าย
+        # ถ้า TG_SENT ถูกตัดกลางคำ → fetch candle จาก MT5 แทน
+        # แต่ถ้า signal มี OHLC อยู่แล้ว (มี "O:") แปลว่าครบแล้ว → ไม่ต้อง fetch ใหม่
         raw_line_len = len(signal_msg.replace('\n', ' | '))
-        if raw_line_len >= 295:
+        if raw_line_len >= 295 and 'O:' not in sig_clean:
             mt5_block = _fetch_candle_block(ticket, all_lines)
             if mt5_block:
                 sig_clean = mt5_block

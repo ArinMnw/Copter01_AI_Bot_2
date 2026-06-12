@@ -237,14 +237,12 @@ def strategy_1(rates, tf=""):
         c1_engulf  = bull_engulf(cl1, h2)        # [1] กลืนกิน: Close > High[2] + gap
         c0_engulf  = bull_engulf(cl0, h1)        # [0] กลืนกิน: Close > High[1] + gap (ยืนยัน)
         zone       = (not use_zone) or (zone_low_3 <= sl_z + buf)
-        # body ≥ 35% ของ [1] เท่านั้น ([2] ไม่จำกัด)
         r1 = h1 - l1; b1 = abs(cl1 - o1)
         r2 = h2 - l2; b2 = abs(cl2 - o2)
-        body1_ok = r1 > 0 and b1 / r1 >= 0.35
         body1_pct = round(b1/r1*100) if r1 > 0 else 0
         body2_pct = round(b2/r2*100) if r2 > 0 else 0
 
-        if c1_engulf and c0_engulf and body1_ok:
+        if c1_engulf and c0_engulf:
             # ข้อ 1: SL = min(l0,l1,l2) - SL_BUFFER(atr) เหมือน Pattern B
             lowest   = min(l0, l1, l2)
             entry    = round((h1 + l1) / 2, 2)
@@ -268,8 +266,6 @@ def strategy_1(rates, tf=""):
             }, use_zone, "BUY", zone_low_3, sl_z, zone)
         if not zone:
             buy_wait_reason = f"⚠️ BUY A ไม่อยู่ Low Zone (Low:{zone_low_3:.2f} | Swing:{sl_z:.2f})"
-        elif not body1_ok:
-            buy_wait_reason = f"⚠️ BUY A แท่ง[1] Body:{body1_pct}% < 35%"
         elif not c1_engulf:
             buy_wait_reason = f"⚠️ BUY A [1] Close:{cl1:.2f} ≤ High[2]:{h2:.2f}"
         else:
@@ -327,14 +323,12 @@ def strategy_1(rates, tf=""):
         c1_engulf  = bear_engulf(cl1, l2)        # [1] กลืนกิน: Close < Low[2] - gap
         c0_engulf  = bear_engulf(cl0, l1)        # [0] กลืนกิน: Close < Low[1] - gap (ยืนยัน)
         zone       = (not use_zone) or (zone_high_3 >= sh - buf)
-        # body ≥ 35% ของ [1] เท่านั้น ([2] ไม่จำกัด)
         r1 = h1 - l1; b1 = abs(cl1 - o1)
         r2 = h2 - l2; b2 = abs(cl2 - o2)
-        body1_ok = r1 > 0 and b1 / r1 >= 0.35
         body1_pct = round(b1/r1*100) if r1 > 0 else 0
         body2_pct = round(b2/r2*100) if r2 > 0 else 0
 
-        if c1_engulf and c0_engulf and body1_ok:
+        if c1_engulf and c0_engulf:
             # ข้อ 1: SL = max(h0,h1,h2) + SL_BUFFER(atr) เหมือน Pattern B
             highest  = max(h0, h1, h2)
             entry    = round((h1 + l1) / 2, 2)
@@ -358,8 +352,6 @@ def strategy_1(rates, tf=""):
             }, use_zone, "SELL", zone_high_3, sh, zone)
         if not zone:
             sell_wait_reason = f"⚠️ SELL A ไม่อยู่ High Zone (High:{zone_high_3:.2f} | Swing:{sh:.2f})"
-        elif not body1_ok:
-            sell_wait_reason = f"⚠️ SELL A แท่ง[1] Body:{body1_pct}% < 35%"
         elif not c1_engulf:
             sell_wait_reason = f"⚠️ SELL A [1] Close:{cl1:.2f} ≥ Low[2]:{l2:.2f}"
         else:

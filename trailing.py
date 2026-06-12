@@ -618,6 +618,7 @@ def _group_guard_record_sl(tf: str, side: str) -> list:
         sg = sg_side.setdefault(gkey, {
             "count": 0, "active": False,
             "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+            "tf_swing_bar_time": {},
             "tf_blocked_signals": {}, "tf_retry_signals": {},
         })
 
@@ -664,9 +665,16 @@ def _group_guard_is_blocked(tf: str, side: str) -> bool:
     return False
 
 
+_TF_SECONDS = {
+    "M1": 60, "M5": 300, "M15": 900, "M30": 1800,
+    "H1": 3600, "H4": 14400, "H12": 43200, "D1": 86400,
+}
+
+
 def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
     """
     ตรวจ swing low (BUY) / swing high (SELL) ที่เกิดหลัง lock
+    swing ต้องได้รับการยืนยันด้วย SL_GUARD_GROUP_SWING_BARS แท่งหลังจาก swing bar
     ถ้าเจอ → unblock TF นี้ออกจากทุก group ที่ block อยู่
     คืน True ถ้า unblock อย่างน้อย 1 group
     """
@@ -676,6 +684,10 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
     sg_side = _sl_guard_group.get(side, {})
     if not sg_side or rates is None or len(rates) < 5:
         return False
+
+    confirm_bars = max(1, int(getattr(config, "SL_GUARD_GROUP_SWING_BARS", 5)))
+    tf_secs      = _TF_SECONDS.get(tf.upper(), 60)
+    latest_bar_time = int(rates[-1]["time"]) if len(rates) > 0 else 0
 
     did_unblock = False
     for gkey, sg in sg_side.items():
@@ -694,42 +706,49 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
             sg.setdefault("tf_swing_ref", {})[tf] = swing_ref
             sg_side[gkey] = sg
 
-        bars_after    = [r for r in rates if int(r["time"]) > blocked_since]
+        bars_after = [r for r in rates if int(r["time"]) > blocked_since]
         if not bars_after:
             continue
 
-        unblock   = False
+        # หา swing bar ที่เกิดขึ้นแล้ว (ยังไม่ตัดสินว่า confirm หรือยัง)
         if side == "BUY":
-            new_low = min(float(r["low"]) for r in bars_after)
-            if new_low < swing_ref:
-                unblock = True
+            candidate = min(bars_after, key=lambda r: float(r["low"]))
+            swing_found = float(candidate["low"]) < swing_ref
         else:
-            new_high = max(float(r["high"]) for r in bars_after)
-            if new_high > swing_ref:
-                unblock = True
+            candidate = max(bars_after, key=lambda r: float(r["high"]))
+            swing_found = float(candidate["high"]) > swing_ref
 
-        if not unblock:
+        if not swing_found:
+            # ยังไม่เจอ swing ใหม่เลย — ล้าง pending ถ้ามี
+            sg.get("tf_swing_bar_time", {}).pop(tf, None)
             continue
 
-        if side == "BUY":
-            swing_bar = min(bars_after, key=lambda r: float(r["low"]))
-        else:
-            swing_bar = max(bars_after, key=lambda r: float(r["high"]))
-        swing_bar_time = int(swing_bar["time"])
+        swing_bar_time = int(candidate["time"])
+
+        # บันทึก swing bar time ครั้งแรกที่เจอ (หรืออัปเดตถ้า swing ใหม่ดีกว่า)
+        prev_swing = sg.setdefault("tf_swing_bar_time", {}).get(tf, 0)
+        if swing_bar_time != prev_swing:
+            sg["tf_swing_bar_time"][tf] = swing_bar_time
+
+        # รอ confirm_bars แท่งหลัง swing bar ก่อน unblock
+        confirm_time = swing_bar_time + confirm_bars * tf_secs
+        if latest_bar_time < confirm_time:
+            continue
 
         blocked_sigs = sg.get("tf_blocked_signals", {}).get(tf, [])
-        retry_sigs   = [s for s in blocked_sigs if (s.get("candle_time") or 0) > swing_bar_time]
+        retry_sigs   = [s for s in blocked_sigs if (s.get("candle_time") or 0) >= swing_bar_time]
         sg["tf_blocked"][tf] = False
+        sg["tf_swing_bar_time"].pop(tf, None)
         sg.setdefault("tf_retry_signals", {})[tf]   = retry_sigs
         sg.setdefault("tf_blocked_signals", {})[tf] = []
         did_unblock = True
         log_event("SL_GUARD_GROUP_UNBLOCK",
-                  f"{side} [{tf}] group=[{gkey}] swing unblocked retry={len(retry_sigs)}/{len(blocked_sigs)}",
-                  side=side, tf=tf, group=gkey)
+                  f"{side} [{tf}] group=[{gkey}] swing confirmed retry={len(retry_sigs)}/{len(blocked_sigs)}",
+                  side=side, tf=tf, group=gkey, swing_bar_time=swing_bar_time, confirm_time=confirm_time)
         try:
             print(
                 f"[SL_GUARD] Group Guard TF unblocked: [{tf}] {side} group=[{gkey}] "
-                f"swing {'L' if side=='BUY' else 'H'} @ bar {swing_bar_time} "
+                f"swing {'L' if side=='BUY' else 'H'} @ bar {swing_bar_time} confirmed @ {confirm_time} "
                 f"(retry {len(retry_sigs)}/{len(blocked_sigs)})"
             )
         except Exception:
@@ -742,6 +761,7 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
             sg_side[gkey] = {
                 "count": 0, "active": False,
                 "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+                "tf_swing_bar_time": {},
                 "tf_blocked_signals": {}, "tf_retry_signals": preserved,
             }
             log_event("SL_GUARD_GROUP_RESET",
@@ -788,6 +808,7 @@ def _group_guard_reset_on_tp(tf: str, side: str) -> str:
             sg_side[gkey] = {
                 "count": 0, "active": False,
                 "tf_blocked": {}, "tf_since": {}, "tf_swing_ref": {},
+                "tf_swing_bar_time": {},
                 "tf_blocked_signals": {}, "tf_retry_signals": {},
             }
 
@@ -2967,8 +2988,8 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15, 16):
-            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme) — skip RSI Recheck
+        if sid in (1, 9, 11, 14, 15, 16, 17):
+            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e = "🟢" if pos_type == "BUY" else "🔴"
@@ -3184,8 +3205,8 @@ async def check_fill_trend_recheck(app):
     for pos in positions:
         ticket = pos.ticket
         sid = position_sid.get(ticket)
-        # Skip S9 (RSI Divergence), S10 (CRT), S14 (Sweep RSI — market order), S15 (VP absorption reversal — counter-trend by design)
-        if sid in (9, 10, 14, 15, 16):
+        # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design)
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -3288,6 +3309,41 @@ async def check_fill_trend_recheck(app):
                 if _allowed and _why == "?":
                     continue
 
+            # เช็ค last_label + swing direction ใน round1
+            # BUY block: LL (low < prev low) หรือ HL ที่กำลังลด (hl < prev_hl)
+            # SELL block: HH (high > prev high) หรือ LH ที่กำลังสูงขึ้น (lh > prev_lh)
+            _hhll_d_r1   = _ghd(_tr_tf) or {}
+            _last_lbl_r1 = _hhll_d_r1.get("last_label", "")
+            if _allowed and _last_lbl_r1:
+                _hl_r1      = _hhll_d_r1.get("hl") or {}
+                _ll_r1      = _hhll_d_r1.get("ll") or {}
+                _lh_r1      = _hhll_d_r1.get("lh") or {}
+                _hh_r1      = _hhll_d_r1.get("hh") or {}
+                _prev_hl_r1 = _hhll_d_r1.get("prev_hl") or {}
+                _prev_lh_r1 = _hhll_d_r1.get("prev_lh") or {}
+                if pos_type == "BUY":
+                    if _last_lbl_r1 == "ll" and _ll_r1 and _hl_r1:
+                        _allowed = False
+                        _why = f"LL ({float(_ll_r1['price']):.2f} < {float(_hl_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "hl" and _hl_r1 and _prev_hl_r1:
+                        if float(_hl_r1["price"]) < float(_prev_hl_r1["price"]):
+                            _allowed = False
+                            _why = f"HL ต่ำลง ({float(_hl_r1['price']):.2f} < {float(_prev_hl_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "lh" and _lh_r1 and _hh_r1:
+                        _allowed = False
+                        _why = f"LH ({float(_lh_r1['price']):.2f} < {float(_hh_r1['price']):.2f})"
+                elif pos_type == "SELL":
+                    if _last_lbl_r1 == "hh" and _hh_r1 and _lh_r1:
+                        _allowed = False
+                        _why = f"HH ({float(_hh_r1['price']):.2f} > {float(_lh_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "lh" and _lh_r1 and _prev_lh_r1:
+                        if float(_lh_r1["price"]) > float(_prev_lh_r1["price"]):
+                            _allowed = False
+                            _why = f"LH สูงขึ้น ({float(_lh_r1['price']):.2f} > {float(_prev_lh_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "hl" and _hl_r1 and _ll_r1:
+                        _allowed = False
+                        _why = f"HL ({float(_hl_r1['price']):.2f} > {float(_ll_r1['price']):.2f})"
+
             log_event("TREND_RECHECK", "fill_round1",
                       ticket=ticket, tf=_tr_tf, signal=pos_type,
                       allowed=_allowed, why=_why, rounds_config=ltr_rounds)
@@ -3327,7 +3383,7 @@ async def check_fill_trend_recheck(app):
 
             elif ltr_rounds >= 2:
                 # รอบ 1 ผ่าน → คำนวณ round2_start_time จาก pivot ล่าสุด + HHLL_RIGHT × tf_secs
-                _hhll_d   = _ghd(_tr_tf) or {}
+                _hhll_d   = _hhll_d_r1  # reuse จาก round1 check ด้านบน
                 _last_lbl = _hhll_d.get("last_label", "")
                 _pivot_pt = _hhll_d.get(_last_lbl.lower()) if _last_lbl else None
                 _piv_t    = int(_pivot_pt["time"]) if _pivot_pt and "time" in _pivot_pt else 0
@@ -3362,6 +3418,12 @@ async def check_fill_trend_recheck(app):
             continue
 
         # รอ swing ใหม่ (sh/sl ต้องเปลี่ยนจาก round 1)
+        # force fetch HHLL เพื่อได้ข้อมูลล่าสุดก่อนเช็ค — R1 ทำเหมือนกัน
+        try:
+            from hhll_swing import fetch_hhll as _fhhll
+            _fhhll(_tr_tf)
+        except Exception:
+            pass
         _sh, _sl   = _ghl(_tr_tf)
         _new_h     = float(_sh["price"]) if _sh else None
         _new_l     = float(_sl["price"]) if _sl else None
@@ -3375,6 +3437,25 @@ async def check_fill_trend_recheck(app):
         _allowed, _why = _tas(_tr_tf, pos_type)
         if _allowed and _why == "?":
             continue  # HHLL ยังไม่พร้อม → retry
+
+        # เช็คทิศทาง swing (ทุก trend mode) เทียบกับ baseline ของ round1
+        # BUY block: LL (new_l < r1_l) หรือ LH (new_h < r1_h → resistance ลด)
+        # SELL block: HH (new_h > r1_h) หรือ HL (new_l > r1_l → support ขึ้น)
+        if _allowed:
+            if pos_type == "BUY":
+                if _l_chg and _new_l < _r1_l:
+                    _allowed = False
+                    _why = f"LL ({_new_l:.2f} < {_r1_l:.2f})"
+                elif _h_chg and _new_h < _r1_h:
+                    _allowed = False
+                    _why = f"LH ({_new_h:.2f} < {_r1_h:.2f})"
+            elif pos_type == "SELL":
+                if _h_chg and _new_h > _r1_h:
+                    _allowed = False
+                    _why = f"HH ({_new_h:.2f} > {_r1_h:.2f})"
+                elif _l_chg and _new_l > _r1_l:
+                    _allowed = False
+                    _why = f"HL ({_new_l:.2f} > {_r1_l:.2f})"
 
         _total   = tr_state.get("rounds_total", ltr_rounds)
         _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
@@ -3395,7 +3476,7 @@ async def check_fill_trend_recheck(app):
                 await tg(app, (
                     f"📊 *Trend Recheck: ปิด Position [round2/{_total}]*\n"
                     f"{sig_e} Ticket:`{ticket}` [{_tr_tf}]\n"
-                    f"Swing เปลี่ยน ({_changed}) → Trend สวนทาง: `{_why}`\n"
+                    f"Swing เปลี่ยน ({_changed}) → `{_why}`\n"
                     f"ปิดที่: `{cp:.2f}`"
                 ))
                 _trend_recheck_state.pop(ticket, None)
@@ -3482,8 +3563,8 @@ async def check_pending_trend_approach(app):
             if isinstance(_pend, dict):
                 sid = _pend.get("sid")
 
-        # Skip เหมือน check_fill_trend_recheck
-        if sid in (9, 10, 14, 15):
+        # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck)
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17):
             continue
 
         # Resolve TF
@@ -3546,6 +3627,41 @@ async def check_pending_trend_approach(app):
             _sl_time  = int(_sl["time"])  if _sl and "time" in _sl else 0
             _dist_pt  = round(abs(_cur - entry) / _pt)
 
+            # เช็ค last_label + swing direction ใน round1
+            # BUY block: LL (low < prev low) หรือ HL ที่กำลังลด (hl < prev_hl)
+            # SELL block: HH (high > prev high) หรือ LH ที่กำลังสูงขึ้น (lh > prev_lh)
+            _hhll_d_r1   = _ghd(_tf) or {}
+            _last_lbl_r1 = _hhll_d_r1.get("last_label", "")
+            if _allowed and _last_lbl_r1:
+                _hl_r1      = _hhll_d_r1.get("hl") or {}
+                _ll_r1      = _hhll_d_r1.get("ll") or {}
+                _lh_r1      = _hhll_d_r1.get("lh") or {}
+                _hh_r1      = _hhll_d_r1.get("hh") or {}
+                _prev_hl_r1 = _hhll_d_r1.get("prev_hl") or {}
+                _prev_lh_r1 = _hhll_d_r1.get("prev_lh") or {}
+                if pos_type == "BUY":
+                    if _last_lbl_r1 == "ll" and _ll_r1 and _hl_r1:
+                        _allowed = False
+                        _why = f"LL ({float(_ll_r1['price']):.2f} < {float(_hl_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "hl" and _hl_r1 and _prev_hl_r1:
+                        if float(_hl_r1["price"]) < float(_prev_hl_r1["price"]):
+                            _allowed = False
+                            _why = f"HL ต่ำลง ({float(_hl_r1['price']):.2f} < {float(_prev_hl_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "lh" and _lh_r1 and _hh_r1:
+                        _allowed = False
+                        _why = f"LH ({float(_lh_r1['price']):.2f} < {float(_hh_r1['price']):.2f})"
+                elif pos_type == "SELL":
+                    if _last_lbl_r1 == "hh" and _hh_r1 and _lh_r1:
+                        _allowed = False
+                        _why = f"HH ({float(_hh_r1['price']):.2f} > {float(_lh_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "lh" and _lh_r1 and _prev_lh_r1:
+                        if float(_lh_r1["price"]) > float(_prev_lh_r1["price"]):
+                            _allowed = False
+                            _why = f"LH สูงขึ้น ({float(_lh_r1['price']):.2f} > {float(_prev_lh_r1['price']):.2f})"
+                    elif _last_lbl_r1 == "hl" and _hl_r1 and _ll_r1:
+                        _allowed = False
+                        _why = f"HL ({float(_hl_r1['price']):.2f} > {float(_ll_r1['price']):.2f})"
+
             log_event("PENDING_TREND_CHECK", "round1",
                       ticket=ticket, tf=_tf, signal=pos_type,
                       allowed=_allowed, why=_why, dist_pt=_dist_pt, entry=entry)
@@ -3574,7 +3690,7 @@ async def check_pending_trend_approach(app):
                     _pending_trend_approach.pop(ticket, None)
             else:
                 # ── PASS: บันทึก swing baseline รอ round 2 ──
-                _hhll_d  = _ghd(_tf) or {}
+                _hhll_d  = _hhll_d_r1  # reuse จาก round1 check ด้านบน
                 _lbl     = _hhll_d.get("last_label", "")
                 _piv     = _hhll_d.get(_lbl.lower()) if _lbl else None
                 _piv_t   = int(_piv["time"]) if _piv and "time" in _piv else 0
@@ -3631,6 +3747,25 @@ async def check_pending_trend_approach(app):
             if _allowed and _why == "?":
                 continue
 
+            # เช็คทิศทาง swing (ทุก trend mode) เทียบกับ baseline ของ round1
+            # BUY block: LL (new_l < r1_l) หรือ LH (new_h < r1_h → resistance ลด)
+            # SELL block: HH (new_h > r1_h) หรือ HL (new_l > r1_l → support ขึ้น)
+            if _allowed:
+                if pos_type == "BUY":
+                    if _l_chg and _new_l < _r1_l:
+                        _allowed = False
+                        _why = f"LL ({_new_l:.2f} < {_r1_l:.2f})"
+                    elif _h_chg and _new_h < _r1_h:
+                        _allowed = False
+                        _why = f"LH ({_new_h:.2f} < {_r1_h:.2f})"
+                elif pos_type == "SELL":
+                    if _h_chg and _new_h > _r1_h:
+                        _allowed = False
+                        _why = f"HH ({_new_h:.2f} > {_r1_h:.2f})"
+                    elif _l_chg and _new_l > _r1_l:
+                        _allowed = False
+                        _why = f"HL ({_new_l:.2f} > {_r1_l:.2f})"
+
             _changed = "/".join(p for p in ["H" if _h_chg else "", "L" if _l_chg else ""] if p)
             log_event("PENDING_TREND_CHECK", "round2",
                       ticket=ticket, tf=_tf, signal=pos_type,
@@ -3644,7 +3779,7 @@ async def check_pending_trend_approach(app):
                     pending_order_tf.pop(ticket, None)
                     log_event(
                         "ORDER_CANCELED",
-                        f"Pending Trend Check [round2]: swing={_changed}, trend={_why}",
+                        f"Pending Trend Check [round2]: swing={_changed}, block={_why}",
                         ticket=ticket, tf=_tf,
                         side=pos_type, order_type=_ot, entry=entry,
                         flow_id=_info.get("flow_id", "") if isinstance(_info, dict) else "",
@@ -3652,7 +3787,7 @@ async def check_pending_trend_approach(app):
                     await tg(app, (
                         f"🚫 *Pending Trend Check: ยกเลิก [round2]*\n"
                         f"{sig_e} {_ot} `#{ticket}` [{_tf}]\n"
-                        f"Swing เปลี่ยน ({_changed}) → Trend สวนทาง: `{_why}`"
+                        f"Swing เปลี่ยน ({_changed}) → `{_why}`"
                     ))
                 _pending_trend_approach.pop(ticket, None)
             else:
@@ -3698,8 +3833,8 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (9, 10, 13, 14, 15, 16):
-            continue  # S9/S10/S13/S14/S15/S16 skip PD Fibo Plus
+        if sid in (1, 2, 3, 9, 10, 11, 13, 14, 15, 16, 17):
+            continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17 skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
@@ -4012,7 +4147,7 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16):
+        if sid in (10, 12, 13, 15, 16, 17):
             continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
@@ -5082,7 +5217,7 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16):
+        if sid in (10, 12, 13, 15, 16, 17):
             continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
@@ -5322,8 +5457,8 @@ async def check_opposite_order_tp(app):
 
     now      = now_bkk().strftime("%H:%M:%S")
     # S15 (VP) ถือ BUY (VAL) + SELL (VAH) พร้อมกันได้ (range play) → ห้ามให้ Opposite Order ปิดฝั่งตรงข้ามทิ้ง
-    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16)]
-    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16)]
+    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16, 17)]
+    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16, 17)]
 
     def _get_order_tf(ticket):
         info = pending_order_tf.get(ticket)
@@ -5340,8 +5475,8 @@ async def check_opposite_order_tp(app):
     opp_mode = config.OPPOSITE_ORDER_MODE  # "tp_close" | "sl_protect"
 
     if pending and opp_mode == "tp_close":
-        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16)]
-        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16)]
+        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16, 17)]
+        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16, 17)]
 
         # BUY position in profit + SELL limit on same TF -> BUY TP = SELL limit entry
         for pos in buy_pos:
@@ -6780,29 +6915,32 @@ async def check_cancel_pending_orders(app):
             _sb_htf    = info.get("s10_htf_tf") or tf
             _sb_tf_val = TF_OPTIONS.get(_sb_htf, tf_val)
             _sb_sweep_ts = int(info.get("s10_sweep_time", 0) or 0)
+            # ใช้ sweep_low/high ถ้ามี (fallback → parent_low/high)
             _sb_p_low    = float(info.get("s10_parent_low",  0) or 0)
             _sb_p_high   = float(info.get("s10_parent_high", 0) or 0)
+            _sb_s_low    = float(info.get("s10_sweep_low",   0) or 0) or _sb_p_low
+            _sb_s_high   = float(info.get("s10_sweep_high",  0) or 0) or _sb_p_high
             _sb_sig      = info.get("signal", "")
-            if _sb_sig in ("BUY", "SELL") and (_sb_p_low > 0 or _sb_p_high > 0):
+            if _sb_sig in ("BUY", "SELL") and (_sb_s_low > 0 or _sb_s_high > 0):
                 _sb_n = max(TF_LOOKBACK.get(_sb_htf, SWING_LOOKBACK) + 6, 50)
                 _sb_rates = mt5.copy_rates_from_pos(SYMBOL, _sb_tf_val, 1, _sb_n)
                 if _sb_rates is not None and len(_sb_rates) > 0:
                     _bars_post_sweep = [r for r in _sb_rates if int(r["time"]) > _sb_sweep_ts]
                     if _bars_post_sweep:
                         _sb_broken = False
-                        if _sb_sig == "BUY" and _sb_p_low > 0:
-                            # แท่ง HTF ปิดต่ำกว่า parent low → sweep structure ถูก engulf → invalid
-                            _sb_broken = any(float(r["close"]) < _sb_p_low for r in _bars_post_sweep)
-                        elif _sb_sig == "SELL" and _sb_p_high > 0:
-                            # แท่ง HTF ปิดสูงกว่า parent high → sweep structure ถูก engulf → invalid
-                            _sb_broken = any(float(r["close"]) > _sb_p_high for r in _bars_post_sweep)
+                        if _sb_sig == "BUY" and _sb_s_low > 0:
+                            # แท่ง HTF ปิดต่ำกว่า sweep low → structure พัง → invalid
+                            _sb_broken = any(float(r["close"]) < _sb_s_low for r in _bars_post_sweep)
+                        elif _sb_sig == "SELL" and _sb_s_high > 0:
+                            # แท่ง HTF ปิดสูงกว่า sweep high → structure พัง → invalid
+                            _sb_broken = any(float(r["close"]) > _sb_s_high for r in _bars_post_sweep)
                         if _sb_broken:
                             _sb_dir  = "low" if _sb_sig == "BUY" else "high"
-                            _sb_lvl  = _sb_p_low if _sb_sig == "BUY" else _sb_p_high
+                            _sb_lvl  = _sb_s_low if _sb_sig == "BUY" else _sb_s_high
                             should_cancel = True
                             reason = (
                                 f"S10 HTF Structure Break [{_sb_htf}]: "
-                                f"แท่งหลัง sweep ปิด break parent {_sb_dir}={_sb_lvl:.2f} — "
+                                f"แท่งหลัง sweep ปิด break sweep {_sb_dir}={_sb_lvl:.2f} — "
                                 f"CRT pattern invalid"
                             )
                             log_event(
@@ -6810,6 +6948,7 @@ async def check_cancel_pending_orders(app):
                                 "CANCEL",
                                 ticket=ticket, tf=tf, htf_tf=_sb_htf,
                                 signal=_sb_sig,
+                                sweep_low=_sb_s_low, sweep_high=_sb_s_high,
                                 parent_low=_sb_p_low, parent_high=_sb_p_high,
                                 sweep_time=fmt_mt5_bkk_ts(_sb_sweep_ts, "%H:%M %d-%b-%Y"),
                             )
@@ -6965,7 +7104,7 @@ async def check_cancel_pending_orders(app):
 
         # Limit Guard: cancel limits whose entry is too far from an existing open position
         # S15 (VP) วาง limit ที่ POC/VAL/VAH ซึ่งอาจไกลจาก position โดยตั้งใจ (รอราคาย้อนมา) → skip
-        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15, 16):
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15, 16, 17):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"
@@ -7305,8 +7444,8 @@ async def check_cancel_pending_orders(app):
                                       f" setup ล้มเหลว")
 
         # Premium/Discount zone recheck
-        # Skip: S9 (RSI Divergence), S10 (CRT), S13/S14/S16 standalone, S15 (VP)
-        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 10, 13, 14, 15, 16):
+        # Skip: S9 (RSI Divergence), S10 (CRT), S13/S14/S16/S17 standalone, S15 (VP)
+        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 10, 13, 14, 15, 16, 17):
             _is_combined = _triple_check_all_enabled()
             pd_status, pd_msgs = _pdfiboplus_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
@@ -7777,8 +7916,9 @@ async def check_s14_engulf_exits(app):
         is_engulf = False
         is_sweep = False
         if sid == 14:
-            is_engulf = any(x in comment.upper() for x in ["BSS", "SSS", "ENGULF"]) or "swing" in pattern.lower()
-            is_sweep = any(x in comment.upper() for x in ["BRS", "SRS", "SWEEP"]) or "sweep กลับตัว" in pattern.lower()
+            # BES/SES = new engulf codes, BSS/SSS = old engulf codes (backward compat)
+            is_engulf = any(x in comment.upper() for x in ["BES", "SES", "BSS", "SSS"]) or "engulf swing" in pattern.lower() or "sweep swing" in pattern.lower()
+            is_sweep  = any(x in comment.upper() for x in ["BRS", "SRS"]) or "sweep กลับตัว" in pattern.lower()
         
         if sid != 14 or (not is_engulf and not is_sweep):
             continue
@@ -7818,13 +7958,24 @@ async def check_s14_engulf_exits(app):
                                 should_close = True
                                 
                         if should_close:
-                            pos_type = "BUY" if is_buy else "SELL"
-                            ok, cp = _close_position(pos, pos_type, f"S14 secondary HTF engulf exit ({sec_htf})")
-                            if ok:
-                                log_event("S14_SEC_HTF_ENGULF_EXIT", f"Closed S14 position due to secondary HTF {sec_htf} engulf close price {sec_c}", ticket=ticket)
-                                await tg(app, f"⚡ *S14 Engulf ปิดตำแหน่งทันที (Secondary HTF)*\nTicket: `{ticket}`\nเหตุผล: แท่ง Secondary HTF ({sec_htf}) ปิดเป็นกลืนกิน (Close: `{sec_c:.2f}` vs Ref: `{ref_level:.2f}`)")
+                            if getattr(config, "S14_ENGULF_BREAKEVEN", True):
+                                new_tp = round(float(pos.price_open), 2)
+                                ok = _modify_sl_tp(pos, pos.sl, new_tp)
+                                if ok:
+                                    log_event("S14_SEC_HTF_BREAKEVEN", f"TP=entry set for S14 position, {sec_htf} closed {'below' if is_buy else 'above'} ref {ref_level:.2f} (close={sec_c:.2f})", ticket=ticket)
+                                    await tg(app, f"⚠️ *S14 Engulf ย้าย TP = Entry*\nTicket: `{ticket}` | HTF: `{sec_htf}`\nแท่ง {sec_htf} ปิด `{sec_c:.2f}` {'ต่ำกว่า' if is_buy else 'สูงกว่า'} ref `{ref_level:.2f}`\n→ TP ใหม่ = `{new_tp:.2f}` (entry)")
+                                    position_zone_meta.pop(ticket, None)
+                                else:
+                                    retry = zone_meta.get("breakeven_retry", 0) + 1
+                                    if retry >= 3:
+                                        log_event("S14_SEC_HTF_BREAKEVEN_FAIL", f"Failed to set TP=entry after {retry} retries, giving up", ticket=ticket)
+                                        position_zone_meta.pop(ticket, None)
+                                    else:
+                                        zone_meta["breakeven_retry"] = retry
+                                        position_zone_meta[ticket] = zone_meta
+                            else:
                                 position_zone_meta.pop(ticket, None)
-                                continue
+                            continue
                         else:
                             # ปิดแท่งแบบไม่ใช่ engulf (ปลอดภัย) -> เคลียร์ meta เพื่อไม่ต้องเช็คซ้ำ
                             position_zone_meta.pop(ticket, None)

@@ -26,13 +26,36 @@ from config import SL_BUFFER
 from mt5_utils import calc_atr
 
 # runtime state: บันทึกและกู้คืนโดย config.py
+# "fired": one-shot dedup ต่อ (tf, side, killzone window) — แก้เคส 09/06/2026
+#   ที่ pending สะสมจน fill พร้อมกัน 13 ไม้ (dup check entry/tp หลุดเพราะ ATR drift)
 s16_state = {
     "asian_high": 0.0,
     "asian_low": 0.0,
     "range_date": "",
     "swept_high": False,
     "swept_low": False,
+    "fired": {},
 }
+
+
+def _s16_fired_key(tf: str, sig: str, kz_start_ts: int) -> str:
+    return f"{tf}|{sig}|{int(kz_start_ts)}"
+
+
+def _s16_already_fired(tf: str, sig: str, kz_start_ts: int) -> bool:
+    fired = s16_state.setdefault("fired", {})
+    return _s16_fired_key(tf, sig, kz_start_ts) in fired
+
+
+def _s16_mark_fired(tf: str, sig: str, kz_start_ts: int) -> None:
+    fired = s16_state.setdefault("fired", {})
+    fired[_s16_fired_key(tf, sig, kz_start_ts)] = int(kz_start_ts)
+    # prune key เก่ากว่า 2 วัน (เทียบจาก kz ปัจจุบัน — ไม่พึ่ง wall clock)
+    cutoff = int(kz_start_ts) - 172800
+    for k in list(fired.keys()):
+        if fired.get(k, 0) < cutoff:
+            fired.pop(k, None)
+    config.save_runtime_state()
 
 def bkk_to_server_ts(dt_bkk):
     """แปลง BKK datetime เป็น MT5 server timestamp แบบ timezone-safe"""
@@ -184,7 +207,11 @@ def strategy_16(rates, tf: str = ""):
     atr = calc_atr(rates, 14)
     if not atr or atr <= 0:
         atr = 1.0 # fallback
-    sl_buf = SL_BUFFER(atr)
+    # SL buffer ของ S16 เอง (ค่า ATR mult) — fallback SL_BUFFER กลางถ้าตั้ง None
+    _s16_slb = getattr(config, "S16_SL_ATR_BUFFER", None)
+    sl_buf = (atr * float(_s16_slb)) if _s16_slb is not None else SL_BUFFER(atr)
+    # risk cap: skip setup ที่ SL ห่างเกิน ATR × นี้ (0 = ปิด) — ข้อมูลจริง 06/2026 แพ้เฉลี่ย -$30..-$49/ไม้
+    max_risk = atr * float(getattr(config, "S16_MAX_RISK_ATR_MULT", 0) or 0)
     min_rr = float(getattr(config, "S16_MIN_RR", 1.5))
     entry_mode = getattr(config, "S16_ENTRY_MODE", "boundary")
 
@@ -233,7 +260,8 @@ def strategy_16(rates, tf: str = ""):
 
             # ตรวจสอบความถูกต้องและคำนวณ RR
             risk = entry - sl
-            if risk > 0:
+            if risk > 0 and (max_risk <= 0 or risk <= max_risk) \
+                    and not _s16_already_fired(tf, "BUY", kz_start_ts):
                 # ตรวจว่าราคาปัจจุบัน (close ล่าสุด) อยู่เหนือ entry หรือไม่ เพื่อให้เป็น LIMIT Order
                 cur_close = float(rates[-1]["close"])
                 if cur_close > entry:
@@ -244,7 +272,8 @@ def strategy_16(rates, tf: str = ""):
                     
                     # บันทึกแท่งเทียนที่ทำให้เกิด Setup
                     trigger_candles = list(rates[target_fvg["fvg_idx"] - 2 : target_fvg["fvg_idx"] + 1])
-                    
+
+                    _s16_mark_fired(tf, "BUY", kz_start_ts)
                     return {
                         "signal":      "BUY",
                         "entry":       round(entry, 2),
@@ -303,7 +332,8 @@ def strategy_16(rates, tf: str = ""):
             tp = a_low # ตั้ง TP ที่ Asian_Low
 
             risk = sl - entry
-            if risk > 0:
+            if risk > 0 and (max_risk <= 0 or risk <= max_risk) \
+                    and not _s16_already_fired(tf, "SELL", kz_start_ts):
                 cur_close = float(rates[-1]["close"])
                 if cur_close < entry:
                     reward = entry - tp
@@ -312,6 +342,7 @@ def strategy_16(rates, tf: str = ""):
 
                     trigger_candles = list(rates[target_fvg["fvg_idx"] - 2 : target_fvg["fvg_idx"] + 1])
 
+                    _s16_mark_fired(tf, "SELL", kz_start_ts)
                     return {
                         "signal":      "SELL",
                         "entry":       round(entry, 2),

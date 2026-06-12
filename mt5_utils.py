@@ -12,12 +12,13 @@ def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
 
     Logic:
       - skip S13 (มี logic แยก — สร้าง 4 orders แยก)
+      - skip S17 (TP สั้น 0.3×ATR — TSO step เล็กเกิน + backtest validate แบบ flat lot)
       - skip ถ้า TSO disabled หรือ TP/entry invalid
       - คำนวณ effective_steps (เสมอ 4 steps) จาก config.compute_tso_effective_steps
       - scaled_volume = 4 × base_volume
     """
     try:
-        if str(sid) == "13":
+        if str(sid) in ("13", "17"):
             return float(base_volume), []
         if not config.SCALE_OUT_ENABLED or base_volume <= 0:
             return float(base_volume), []
@@ -279,22 +280,27 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
             return "EZ"
 
     if sid_text == "14":
-        # Sweep Swing  (Engulf sub-pattern): ปิดทะลุ swing level → BSS / SSS
-        # Sweep กลับตัว (Sweep  sub-pattern): ไส้ยาวกลับมา         → BRS / SRS
-        is_buy   = "BUY"  in text
-        is_swing = "SWING" in text   # pattern ชื่อมี "Sweep Swing"
-        
+        # Engulf Swing : ปิดทะลุ swing level + HTF confirm → BES_{HTF} / SES_{HTF}
+        # Sweep Swing  : ไส้ยาวกลับมา (HHLL ref)           → BSS / SSS
+        # Sweep กลับตัว: ไส้ยาวกลับมา (local ref)          → BRS / SRS
+        is_buy    = "BUY"    in text
+        is_engulf = "ENGULF" in text
+        is_swing  = "SWING"  in text and not is_engulf
+
         sec_suffix = ""
         for tf_item in ["M30", "H1", "H4", "D1", "M15"]:
             if tf_item in text:
                 sec_suffix = tf_item
                 break
-                
-        if is_buy:
-            base = "BSS" if is_swing else "BRS"
+
+        if is_engulf:
+            base = "BES" if is_buy else "SES"
+            return f"{base}_{sec_suffix}" if sec_suffix else base
+        elif is_swing:
+            base = "BSS" if is_buy else "SSS"
         else:
-            base = "SSS" if is_swing else "SRS"
-            
+            base = "BRS" if is_buy else "SRS"
+
         return f"{base}{sec_suffix}"
 
     if sid_text == "15":
@@ -305,6 +311,14 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
         if "POC" in text:
             return "POC"
         return "VP"
+
+    if sid_text == "17":
+        # Sweep Sniper: SNB = BUY, SNS = SELL
+        if "BUY" in text:
+            return "SNB"
+        if "SELL" in text:
+            return "SNS"
+        return "SNP"
 
     if "PATTERN A" in text:
         return "PA"

@@ -21,6 +21,7 @@ def main_keyboard():
         [KeyboardButton("🤖 สแกนตอนนี้"), KeyboardButton("⚙️ สถานะ Auto")],
         [KeyboardButton("⏳ Pending Orders"), KeyboardButton("🗑️ ยกเลิก Pending")],
         [KeyboardButton("📊 สรุปกำไร"), KeyboardButton("⚙️ ตั้งค่า")],
+        [KeyboardButton("🚦 TG Status")],
     ], resize_keyboard=True)
 
 
@@ -801,177 +802,18 @@ async def show_settings_menu(update):
 
 
 def build_strategy_keyboard():
-    """สร้าง keyboard สำหรับเลือก Strategy พร้อม sub-option ของท่า 1 และ 2"""
+    """สร้าง keyboard สำหรับเลือก Strategy (กดเพื่อเข้าหน้า detail ของแต่ละตัว)"""
     rows = []
     row = []
     for sid, name in STRATEGY_NAMES.items():
         is_on = active_strategies.get(sid, False)
         label = f"{'✅' if is_on else '⬜'} {name}"
-        row.append(InlineKeyboardButton(label, callback_data=f"toggle_strategy_{sid}"))
+        row.append(InlineKeyboardButton(label, callback_data=f"open_strategy_detail_{sid}"))
         if len(row) == 2:
             rows.append(row)
             row = []
     if row:
         rows.append(row)
-
-    # sub-option ท่า 1: Zone mode
-    if active_strategies.get(1, False):
-        zone_mode = config.S1_ZONE_MODE
-        rows.append([
-            InlineKeyboardButton(
-                f"{'✅' if zone_mode == 'zone' else '⬜'} ท่า1: Zone",
-                callback_data="set_s1_zone_mode_zone"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if zone_mode == 'normal' else '⬜'} ท่า1: ปกติ (ไม่สนใจ Zone)",
-                callback_data="set_s1_zone_mode_normal"
-            ),
-        ])
-
-    # sub-option ท่า 2: FVG Mode
-    if active_strategies.get(2, False):
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if config.FVG_NORMAL else '⬜'} ท่า2: ปกติ",
-                callback_data="toggle_fvg_normal"
-            ),
-            InlineKeyboardButton(
-                f"{'🟢' if config.FVG_PARALLEL else '⬜'} ท่า2: Parallel",
-                callback_data="toggle_fvg_parallel"
-            ),
-        ])
-
-    # sub-option ท่า 9: RSI Divergence — รวม bull/bear ในแต่ละแบบ (Regular / Hidden)
-    if active_strategies.get(9, False):
-        regular_on = config.RSI9_PLOT_BULLISH and config.RSI9_PLOT_BEARISH
-        hidden_on  = config.RSI9_PLOT_HIDDEN_BULLISH and config.RSI9_PLOT_HIDDEN_BEARISH
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if regular_on else '⬜'} ท่า9: Regular",
-                callback_data="toggle_rsi9_regular"
-            ),
-            InlineKeyboardButton(
-                f"{'🟢' if hidden_on else '⬜'} ท่า9: Hidden",
-                callback_data="toggle_rsi9_hidden"
-            ),
-        ])
-
-    # sub-option ท่า 10: CRT bar mode (2bar / 3bar)
-    if active_strategies.get(10, False):
-        crt_mode = getattr(config, "CRT_BAR_MODE", "2bar")
-        rows.append([
-            InlineKeyboardButton(
-                f"{'✅' if crt_mode == '2bar' else '⬜'} ท่า10: 2bar (classic)",
-                callback_data="set_crt_bar_mode_2bar"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if crt_mode == '3bar' else '⬜'} ท่า10: 3bar (TBS)",
-                callback_data="set_crt_bar_mode_3bar"
-            ),
-        ])
-        crt_entry = getattr(config, "CRT_ENTRY_MODE", "htf")
-        rows.append([
-            InlineKeyboardButton(
-                f"{'✅' if crt_entry == 'htf' else '⬜'} ท่า10: HTF entry",
-                callback_data="set_crt_entry_mode_htf"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if crt_entry == 'mtf' else '⬜'} ท่า10: MTF TBS (LTF entry)",
-                callback_data="set_crt_entry_mode_mtf"
-            ),
-        ])
-        if crt_entry == "mtf":
-            wait_close = getattr(config, "CRT_WAIT_HTF_CLOSE", False)
-            rows.append([
-                InlineKeyboardButton(
-                    f"{'🟢' if wait_close else '⬜'} ท่า10: รอ HTF sweep ปิดก่อนหา Model",
-                    callback_data="toggle_crt_wait_htf_close"
-                )
-            ])
-
-    # sub-option ท่า 14: Flip
-    if active_strategies.get(14, False):
-        flip_on = getattr(config, "S14_FLIP_ENABLED", True)
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if flip_on else '⬜'} ท่า14: Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)",
-                callback_data="toggle_s14_flip"
-            ),
-        ])
-
-    # sub-option ท่า 15: Volume Profile POC Absorption
-    if active_strategies.get(15, False):
-        vv_on      = getattr(config, "S15_USE_VAL_VAH", True)
-        lb         = int(getattr(config, "S15_LOOKBACK", 100))
-        rr         = float(getattr(config, "S15_MIN_RR", 1.0))
-        tf_on      = getattr(config, "S15_TREND_FILTER", True)
-        strict_on  = getattr(config, "S15_STRICT_MODE", True)
-        rsi_on     = getattr(config, "S15_RSI_FILTER", True)
-        cd_bars    = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if tf_on else '⬜'} ท่า15: Trend Filter (EMA50)",
-                callback_data="toggle_s15_trend_filter"
-            ),
-            InlineKeyboardButton(
-                f"{'🟢' if strict_on else '⬜'} ท่า15: Strict Mode",
-                callback_data="toggle_s15_strict_mode"
-            ),
-        ])
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if rsi_on else '⬜'} ท่า15: RSI Filter (≤60/≥40)",
-                callback_data="toggle_s15_rsi_filter"
-            ),
-        ])
-        rows.append([
-            InlineKeyboardButton(
-                f"{'✅' if cd_bars == 5  else '⬜'} ท่า15: Cooldown 5bar",
-                callback_data="set_s15_cooldown_5"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if cd_bars == 15 else '⬜'} ท่า15: Cooldown 15bar",
-                callback_data="set_s15_cooldown_15"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if cd_bars == 30 else '⬜'} ท่า15: Cooldown 30bar",
-                callback_data="set_s15_cooldown_30"
-            ),
-        ])
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if vv_on else '⬜'} ท่า15: VAL/VAH zones",
-                callback_data="toggle_s15_val_vah"
-            ),
-        ])
-        rows.append([
-            InlineKeyboardButton(
-                f"{'✅' if lb == 50  else '⬜'} ท่า15: Lookback 50",
-                callback_data="set_s15_lookback_50"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if lb == 100 else '⬜'} ท่า15: Lookback 100",
-                callback_data="set_s15_lookback_100"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if lb == 200 else '⬜'} ท่า15: Lookback 200",
-                callback_data="set_s15_lookback_200"
-            ),
-        ])
-        rows.append([
-            InlineKeyboardButton(
-                f"{'✅' if rr == 1.0 else '⬜'} ท่า15: RR 1:1",
-                callback_data="set_s15_min_rr_10"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if rr == 1.5 else '⬜'} ท่า15: RR 1.5",
-                callback_data="set_s15_min_rr_15"
-            ),
-            InlineKeyboardButton(
-                f"{'✅' if rr == 2.0 else '⬜'} ท่า15: RR 2:1",
-                callback_data="set_s15_min_rr_20"
-            ),
-        ])
 
     all_on = all(active_strategies.values())
     ctrl = [
@@ -985,6 +827,270 @@ def build_strategy_keyboard():
     return InlineKeyboardMarkup(rows)
 
 
+def build_strategy_detail_keyboard(sid: int):
+    """สร้าง keyboard สำหรับ detail ของ strategy แต่ละตัว"""
+    is_on = active_strategies.get(sid, False)
+    name  = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+    toggle_label = f"🟢 เปิดใช้งาน {name}" if is_on else f"🔴 ปิดใช้งาน {name}"
+    rows = [[InlineKeyboardButton(toggle_label, callback_data=f"toggle_strategy_{sid}")]]
+
+    if sid == 1:
+        zone_mode = config.S1_ZONE_MODE
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if zone_mode == 'zone' else '⬜'} Zone (ต้องใกล้ Swing)",
+                callback_data="set_s1_zone_mode_zone"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if zone_mode == 'normal' else '⬜'} ปกติ (ไม่สนใจ Zone)",
+                callback_data="set_s1_zone_mode_normal"
+            ),
+        ])
+
+    elif sid == 2:
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if config.FVG_NORMAL else '⬜'} ปกติ",
+                callback_data="toggle_fvg_normal"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if config.FVG_PARALLEL else '⬜'} Parallel",
+                callback_data="toggle_fvg_parallel"
+            ),
+        ])
+
+    elif sid == 9:
+        regular_on = config.RSI9_PLOT_BULLISH and config.RSI9_PLOT_BEARISH
+        hidden_on  = config.RSI9_PLOT_HIDDEN_BULLISH and config.RSI9_PLOT_HIDDEN_BEARISH
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if regular_on else '⬜'} Regular",
+                callback_data="toggle_rsi9_regular"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if hidden_on else '⬜'} Hidden",
+                callback_data="toggle_rsi9_hidden"
+            ),
+        ])
+
+    elif sid == 10:
+        crt_mode  = getattr(config, "CRT_BAR_MODE", "2bar")
+        crt_entry = getattr(config, "CRT_ENTRY_MODE", "htf")
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if crt_mode == '2bar' else '⬜'} 2bar (classic)",
+                callback_data="set_crt_bar_mode_2bar"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if crt_mode == '3bar' else '⬜'} 3bar (TBS)",
+                callback_data="set_crt_bar_mode_3bar"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if crt_entry == 'htf' else '⬜'} HTF entry",
+                callback_data="set_crt_entry_mode_htf"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if crt_entry == 'mtf' else '⬜'} MTF TBS (LTF entry)",
+                callback_data="set_crt_entry_mode_mtf"
+            ),
+        ])
+        if crt_entry == "mtf":
+            wait_close = getattr(config, "CRT_WAIT_HTF_CLOSE", False)
+            rows.append([
+                InlineKeyboardButton(
+                    f"{'🟢' if wait_close else '⬜'} รอ HTF sweep ปิดก่อนหา Model",
+                    callback_data="toggle_crt_wait_htf_close"
+                )
+            ])
+        retry_sl = getattr(config, "S10_RETRY_AFTER_SL", False)
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if retry_sl else '⬜'} Retry หลัง SL (ถ้า HTF ยังไม่ปิดผ่าน parent)",
+                callback_data="toggle_s10_retry_after_sl"
+            )
+        ])
+
+    elif sid == 14:
+        flip_on        = getattr(config, "S14_FLIP_ENABLED",      True)
+        swing_on       = getattr(config, "S14_SWEEP_SWING",       True)
+        eswing_on      = getattr(config, "S14_ENGULF_SWING",      True)
+        sweep_ret_on   = getattr(config, "S14_SWEEP_RETURN",      True)
+        ebeven_on      = getattr(config, "S14_ENGULF_BREAKEVEN",  True)
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if swing_on else '⬜'} Sweep Swing (BSS/SSS)",
+                callback_data="toggle_s14_sweep_swing"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if eswing_on else '⬜'} Engulf Swing (BES)",
+                callback_data="toggle_s14_engulf_swing"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if sweep_ret_on else '⬜'} Sweep กลับตัว (BRS/SRS)",
+                callback_data="toggle_s14_sweep_return"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if ebeven_on else '⬜'} Engulf Breakeven (BES)",
+                callback_data="toggle_s14_engulf_breakeven"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if flip_on else '⬜'} Flip (ปิดฝั่งตรงข้ามอัตโนมัติ)",
+                callback_data="toggle_s14_flip"
+            ),
+        ])
+
+    elif sid == 15:
+        vv_on     = getattr(config, "S15_USE_VAL_VAH", True)
+        lb        = int(getattr(config, "S15_LOOKBACK", 100))
+        rr        = float(getattr(config, "S15_MIN_RR", 1.0))
+        tf_on     = getattr(config, "S15_TREND_FILTER", True)
+        strict_on = getattr(config, "S15_STRICT_MODE", True)
+        rsi_on    = getattr(config, "S15_RSI_FILTER", True)
+        cd_bars   = int(getattr(config, "S15_LEVEL_COOLDOWN_BARS", 15))
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if tf_on else '⬜'} Trend Filter (EMA50)",
+                callback_data="toggle_s15_trend_filter"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if strict_on else '⬜'} Strict Mode",
+                callback_data="toggle_s15_strict_mode"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if rsi_on else '⬜'} RSI Filter (≤60/≥40)",
+                callback_data="toggle_s15_rsi_filter"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if vv_on else '⬜'} VAL/VAH zones",
+                callback_data="toggle_s15_val_vah"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if cd_bars == 5  else '⬜'} Cooldown 5bar",
+                callback_data="set_s15_cooldown_5"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if cd_bars == 15 else '⬜'} Cooldown 15bar",
+                callback_data="set_s15_cooldown_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if cd_bars == 30 else '⬜'} Cooldown 30bar",
+                callback_data="set_s15_cooldown_30"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if lb == 50  else '⬜'} Lookback 50",
+                callback_data="set_s15_lookback_50"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if lb == 100 else '⬜'} Lookback 100",
+                callback_data="set_s15_lookback_100"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if lb == 200 else '⬜'} Lookback 200",
+                callback_data="set_s15_lookback_200"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.0 else '⬜'} RR 1:1",
+                callback_data="set_s15_min_rr_10"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.5 else '⬜'} RR 1.5",
+                callback_data="set_s15_min_rr_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 2.0 else '⬜'} RR 2:1",
+                callback_data="set_s15_min_rr_20"
+            ),
+        ])
+
+    elif sid == 16:
+        entry_mode = getattr(config, "S16_ENTRY_MODE", "boundary")
+        kz_shot    = getattr(config, "S16_KZ_ONE_SHOT", True)
+        rr         = float(getattr(config, "S16_MIN_RR", 1.5))
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'boundary' else '⬜'} Entry Boundary",
+                callback_data="set_s16_entry_mode_boundary"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'midline' else '⬜'} Entry Midline",
+                callback_data="set_s16_entry_mode_midline"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if kz_shot else '⬜'} KZ One-Shot (1 ไม้/KZ)",
+                callback_data="toggle_s16_kz_one_shot"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.0 else '⬜'} RR 1:1",
+                callback_data="set_s16_min_rr_10"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.5 else '⬜'} RR 1.5",
+                callback_data="set_s16_min_rr_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 2.0 else '⬜'} RR 2:1",
+                callback_data="set_s16_min_rr_20"
+            ),
+        ])
+
+    elif sid == 17:
+        sess_on    = getattr(config, "S17_SESSION_FILTER", True)
+        pd_on      = getattr(config, "S17_PD_FILTER", True)
+        trend_on   = getattr(config, "S17_TREND_FILTER", False)
+        entry_mode = getattr(config, "S17_ENTRY_MODE", "limit_618")
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if sess_on else '⬜'} Session Filter",
+                callback_data="toggle_s17_session_filter"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if pd_on else '⬜'} PD Filter",
+                callback_data="toggle_s17_pd_filter"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if trend_on else '⬜'} Trend Filter (EMA)",
+                callback_data="toggle_s17_trend_filter"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'limit_618' else '⬜'} Limit 61.8%",
+                callback_data="set_s17_entry_mode_limit_618"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'limit_50' else '⬜'} Limit 50%",
+                callback_data="set_s17_entry_mode_limit_50"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'market' else '⬜'} Market",
+                callback_data="set_s17_entry_mode_market"
+            ),
+        ])
+
+    rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
 async def show_strategy_menu(update):
     """แสดงเมนูเลือก Strategy พร้อมสถานะเปิด/ปิด"""
     active_list = [STRATEGY_NAMES[sid] for sid, on in active_strategies.items() if on]
@@ -993,7 +1099,7 @@ async def show_strategy_menu(update):
         "📋 *เลือก Strategy*\n"
         "━━━━━━━━━━━━━━━━━\n"
         f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-        "กดเพื่อเปิด/ปิด (เลือกพร้อมกันได้):"
+        "กดที่ท่าไหนเพื่อดู option และเปิด/ปิดใช้งาน:"
     )
     await update.message.reply_text(
         msg,

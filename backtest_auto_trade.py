@@ -803,10 +803,10 @@ def load_mt5_history_orders(start_bkk: datetime, end_bkk: datetime, symbol: str,
             "_scale_out_deals": [],
         })
 
-        deal_dt = config.mt5_ts_to_bkk(int(getattr(d, "time", 0) or 0))
-        if deal_dt is None:
+        _deal_ts = int(getattr(d, "time", 0) or 0)
+        if not _deal_ts:
             continue
-        deal_time = deal_dt.replace(tzinfo=None)
+        deal_time = datetime.fromtimestamp(_deal_ts, tz=bkk_tz).replace(tzinfo=None)
         deal_type = int(getattr(d, "type", -1))
         deal_entry = int(getattr(d, "entry", -1))
         volume = float(getattr(d, "volume", 0.0) or 0.0)
@@ -2094,7 +2094,9 @@ def format_trade(tf_display: str, idx: int, t: dict) -> None:
     print(f"\n--- Trade #{idx} ---")
     print(f"  [{tf_display}] {et} {t['signal']} [{t.get('pattern', 'S10')}]")
     print(f"  Entry  = {t['entry']:.2f} | SL = {t['sl']:.2f} | TP = {t['tp']:.2f}")
-    print(f"  Result -> {t['close_type']} @ {t.get('close_price', 0):.2f} [{ct}]  PnL={pnl_s} USD")
+    cp = t.get('close_price')
+    cp_str = f"{cp:.2f}" if cp is not None else "?"
+    print(f"  Result -> {t['close_type']} @ {cp_str} [{ct}]  PnL={pnl_s} USD")
     if t.get("cancel_reason"):
         print(f"  Reason : {t['cancel_reason']}")
 

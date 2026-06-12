@@ -35,7 +35,14 @@ _WANT_EVENTS = {
     "ENTRY_CANDLE":                "🕯️ Entry Candle",
     "ENTRY_QUALITY":               "📊 Entry Quality",
     "TSO_REGISTERED":              "⚡ TSO",
+    "TSO_PARTIAL_CLOSE_TP1":       "💰 TSO TP1",
+    "TSO_PARTIAL_CLOSE_TP2":       "💰💰 TSO TP2",
+    "TSO_PARTIAL_CLOSE_TP3":       "💰💰💰 TSO TP3",
+    "TSO_PARTIAL_CLOSE_TP4":       "💰💰💰💰 TSO TP4",
     "POSITION_CLOSED":             "🛑 ปิด",
+    "ORDER_CANCELED":              "❌ Cancel",
+    "POSITION_CLOSE_REQUEST":      "🔔 Close Req",
+    "SL_GUARD_CLOSE":              "🛡️ SL Guard",
 }
 
 _SHOW_FIELDS = {
@@ -48,7 +55,14 @@ _SHOW_FIELDS = {
     "ENTRY_CANDLE":                ["body_pct", "open", "high", "low", "close"],
     "ENTRY_QUALITY":               ["state", "close_price", "reason"],
     "TSO_REGISTERED":              ["base_volume", "scaled_volume", "n_steps"],
+    "TSO_PARTIAL_CLOSE_TP1":       ["close_price", "entry", "close_volume", "target_dist", "passed_dist", "remaining_steps"],
+    "TSO_PARTIAL_CLOSE_TP2":       ["close_price", "entry", "close_volume", "target_dist", "passed_dist", "remaining_steps"],
+    "TSO_PARTIAL_CLOSE_TP3":       ["close_price", "entry", "close_volume", "target_dist", "passed_dist", "remaining_steps"],
+    "TSO_PARTIAL_CLOSE_TP4":       ["close_price", "entry", "close_volume", "target_dist", "passed_dist", "remaining_steps"],
     "POSITION_CLOSED":             ["close_price", "profit", "reason"],
+    "ORDER_CANCELED":              ["entry", "sl", "tp"],
+    "POSITION_CLOSE_REQUEST":      ["close_price", "entry"],
+    "SL_GUARD_CLOSE":              [],
 }
 
 # คำอธิบาย sub-event ของ TREND_RECHECK เพื่อแสดงใน ticket lookup
@@ -339,7 +353,7 @@ _TF_MT5 = {
     "M1": 1, "M5": 5, "M15": 15, "M30": 30,
     "H1": 16385, "H4": 16388, "H12": 16396, "D1": 16408,
 }
-_BKK = timezone(timedelta(hours=7))
+_UTC6 = timezone(timedelta(hours=6))
 
 
 def _fetch_ticket_metadata_from_mt5(ticket: int) -> dict | None:
@@ -466,7 +480,8 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
     """ดึง candle OHLC จาก MT5 history เพื่อ reconstruct signal block
     ใช้เมื่อ TG_SENT ถูกตัดกลางคำ (order เก่าที่ log แค่ 300 chars)"""
     oc_time_str = tf_name = entry = sl = tp = sid = signal = trend = hhll_log = None
-    htf_ltf = None
+    htf_ltf = sub_pattern_log = None
+    s14_ref_bar_time = s14_signal_bar_time = 0
     tk_str = str(ticket)
     for line in all_lines:
         if tk_str not in line or '] ORDER_CREATED |' not in line:
@@ -482,7 +497,13 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
         signal   = _fld(line, 'signal')
         trend    = _fld(line, 'trend_filter')
         hhll_log = _fld(line, 'hhll_last_label')  # บันทึก ณ ตอนสร้าง order
-        htf_ltf  = _fld(line, 'htf_ltf')
+        htf_ltf         = _fld(line, 'htf_ltf')
+        sub_pattern_log = _fld(line, 'sub_pattern') or ""
+        try:
+            s14_ref_bar_time    = int(_fld(line, 's14_ref_bar_time') or 0)
+            s14_signal_bar_time = int(_fld(line, 's14_signal_bar_time') or 0)
+        except (ValueError, TypeError):
+            pass
         break
 
     symbol = SYMBOL
@@ -501,12 +522,9 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             sid = parsed_sid
             signal = meta["type"]
             
-            dt_bkk_raw = mt5_ts_to_bkk(meta["time_setup"])
-            if dt_bkk_raw:
-                oc_dt = dt_bkk_raw.replace(tzinfo=_BKK)
-                oc_time_str = oc_dt.strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                return ""
+            # meta["time_setup"] = true UTC Unix timestamp → แสดงเป็น UTC+6 (chart time)
+            oc_dt = datetime.fromtimestamp(int(meta["time_setup"]), tz=_UTC6)
+            oc_time_str = oc_dt.strftime("%Y-%m-%d %H:%M:%S")
             
             if sid == '10' and ("_" in clean_tf or "-" in clean_tf):
                 htf_ltf = clean_tf.replace("-", "_")
@@ -514,7 +532,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             return ""
     else:
         try:
-            oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_BKK)
+            oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_UTC6)
         except Exception:
             return ""
 
@@ -555,7 +573,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             return raw
 
         def _fmt_bar(r, idx, tf_str):
-            bar_dt = mt5_ts_to_bkk(r['time'])  # server-local encoded → BKK ที่ถูก
+            bar_dt = mt5_ts_to_bkk(r['time'])  # UTC+6 (chart time)
             bar_str = bar_dt.strftime("%H:%M %d-%b-%Y")
             color = "🟢" if r['close'] >= r['open'] else "🔴"
             return (f"{color} แท่ง[{idx}]: "
@@ -596,20 +614,27 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
         ]
 
         if sid == '10' and htf_tf:
-            # Reconstruct S10 MTF candle block (HTF H4 + LTF M5)
-            htf_rates = _get_rates(htf_tf, 2, closed_only=True)
-            ltf_rates = _get_rates(ltf_tf, 3)
-            
+            # Reconstruct S10 MTF candle block: parent + sweep + confirm
+            htf_rates = _get_rates(htf_tf, 3, closed_only=True)
+            ltf_rates = _get_rates(ltf_tf, 3, closed_only=True)
+
             if htf_rates is not None and len(htf_rates) >= 2:
                 lines.append(f"📍 *HTF {htf_tf}* (เจอ CRT):")
-                lines.append(_fmt_bar(htf_rates[0], 1, htf_tf))
-                
-                # Check if current HTF bar is in progress at order creation time
                 htf_secs = tf_mins.get(htf_tf, 60) * 60
-                ts_0 = int(htf_rates[1]["time"])
-                in_progress = (ts_0 + htf_secs) > int(oc_dt.timestamp()) + MT5_SERVER_TZ * 3600
-                progress_tag = " ⏳(in-progress)" if in_progress else ""
-                lines.append(_fmt_bar(htf_rates[1], 0, htf_tf) + progress_tag)
+
+                if len(htf_rates) >= 3:
+                    lines.append(_fmt_bar(htf_rates[0], 2, htf_tf) + " ← parent")
+                    lines.append(_fmt_bar(htf_rates[1], 1, htf_tf) + " ← sweep")
+                    ts_0 = int(htf_rates[2]["time"])
+                    in_progress = (ts_0 + htf_secs) > int(oc_dt.timestamp()) + MT5_SERVER_TZ * 3600
+                    progress_tag = " ⏳(in-progress)" if in_progress else ""
+                    lines.append(_fmt_bar(htf_rates[2], 0, htf_tf) + progress_tag)
+                else:
+                    lines.append(_fmt_bar(htf_rates[0], 1, htf_tf) + " ← sweep")
+                    ts_0 = int(htf_rates[1]["time"])
+                    in_progress = (ts_0 + htf_secs) > int(oc_dt.timestamp()) + MT5_SERVER_TZ * 3600
+                    progress_tag = " ⏳(in-progress)" if in_progress else ""
+                    lines.append(_fmt_bar(htf_rates[1], 0, htf_tf) + progress_tag)
                 lines.append("")
                 
             if ltf_rates is not None and len(ltf_rates) >= 3:
@@ -618,10 +643,34 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
                 lines.append(_fmt_bar(ltf_rates[1], 1, ltf_tf))
                 lines.append(_fmt_bar(ltf_rates[2], 0, ltf_tf))
                 lines.append("")
+        elif sid == '14' and (s14_ref_bar_time or s14_signal_bar_time):
+            # S14: แสดง ref bar และ engulf/sweep bar โดยตรง
+            tf_id_ltf = _TF_MT5.get(ltf_tf)
+            step_ltf = tf_mins.get(ltf_tf, 5)
+            tf_secs_ltf = step_ltf * 60
+            if tf_id_ltf:
+                def _fetch_bar_at(ts: int):
+                    if not ts:
+                        return None
+                    raw = mt5.copy_rates_range(symbol, tf_id_ltf, ts, ts + tf_secs_ltf)
+                    if raw is not None and len(raw) > 0:
+                        return raw[0]
+                    return None
+
+                ref_bar = _fetch_bar_at(s14_ref_bar_time)
+                sig_bar = _fetch_bar_at(s14_signal_bar_time)
+                if ref_bar is not None:
+                    lines.append("📍 Ref (LL/HL):")
+                    lines.append(_fmt_bar(ref_bar, "ref", ltf_tf))
+                if sig_bar is not None:
+                    label = "engulf" if "engulf" in (sub_pattern_log or "") or "direct" in (sub_pattern_log or "") else "sweep"
+                    lines.append(f"📍 {label.capitalize()} Bar:")
+                    lines.append(_fmt_bar(sig_bar, label, ltf_tf))
+                lines.append("")
         else:
             # Reconstruct single TF candle block (3 bars for S1, S2, S3, S4, S16; 2 bars for others)
             count = 3 if sid in ('1', '2', '3', '4', '16') else 2
-            rates = _get_rates(ltf_tf, count)
+            rates = _get_rates(ltf_tf, count, closed_only=True)
             if rates is not None and len(rates) >= count:
                 for idx, r in enumerate(rates):
                     lines.append(_fmt_bar(r, count - 1 - idx, ltf_tf))

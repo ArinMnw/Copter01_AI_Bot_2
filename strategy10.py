@@ -182,6 +182,44 @@ def _arm_target_hit_reason(state, rates, htf_tf: str = "") -> str:
     return ""
 
 
+def _arm_parent_close_broken(state: dict, htf_rates) -> str:
+    """
+    คืน reason ถ้า HTF bar หลัง armed_at ปิด beyond sweep bar range:
+    BUY:  bar_close < sweep_low  → ราคาปิดหลุด low sweep → setup พัง
+    SELL: bar_close > sweep_high → ราคาปิดเกิน high sweep → setup พัง
+    (ใช้ sweep bar ไม่ใช่ parent เพื่อให้ retry ได้ถ้ายังไม่เลยจุด sweep)
+    """
+    candles = state.get("candles") or []
+    if len(candles) < 2:
+        return ""
+    sweep   = candles[1]
+    s_high  = float(_s10_bar_value(sweep, "high", 0) or 0)
+    s_low   = float(_s10_bar_value(sweep, "low", 0) or 0)
+    if s_high <= 0 or s_low <= 0:
+        return ""
+    direction = str(state.get("direction", "") or "").upper()
+    armed_at  = int(state.get("armed_at", 0) or 0)
+    htf_tf    = str(state.get("htf_tf", "") or "")
+
+    for bar in ([] if htf_rates is None else htf_rates):
+        bar_time  = _s10_bar_int(bar, "time", 0)
+        if bar_time <= armed_at:
+            continue
+        bar_close = float(_s10_bar_value(bar, "close", 0) or 0)
+        bar_ts    = fmt_mt5_bkk_ts(bar_time, "%H:%M %d-%b-%Y")
+        if direction == "BUY" and bar_close < s_low:
+            return (
+                f"S10 {htf_tf}: invalidate BUY arm — "
+                f"HTF ปิดต่ำกว่า sweep low {s_low:.2f} (close:{bar_close:.2f}) @ {bar_ts}"
+            )
+        if direction == "SELL" and bar_close > s_high:
+            return (
+                f"S10 {htf_tf}: invalidate SELL arm — "
+                f"HTF ปิดสูงกว่า sweep high {s_high:.2f} (close:{bar_close:.2f}) @ {bar_ts}"
+            )
+    return ""
+
+
 # ══════════════════════════════════════════════════════════════════
 # Public entry point
 # ══════════════════════════════════════════════════════════════════
@@ -601,6 +639,14 @@ def _strategy_10_mtf(rates, tf_name: str):
 
     # Step 2: ถ้า TF นี้เป็น HTF ใน mapping → run detection + arm
     if tf_name in _HTF_TO_LTF:
+        # ถ้ามี arm อยู่ + Retry mode เปิด → เช็กว่า HTF ปิดผ่าน parent range หรือยัง
+        existing_arm = _armed_states.get(tf_name)
+        if existing_arm:
+            broken_reason = _arm_parent_close_broken(existing_arm, rates)
+            if broken_reason:
+                _armed_states.pop(tf_name, None)
+                _last_fired_armed_at.pop(tf_name, None)
+                return {"signal": "WAIT", "reason": broken_reason}
         htf_result = _strategy_10_htf(rates)
         sig = htf_result.get("signal")
         if sig in ("BUY", "SELL"):
@@ -1094,6 +1140,8 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
         "s10_parent_low": round(float(parent_low), 2),
         "s10_parent_time": _s10_bar_int(parent, "time", 0),
         "s10_sweep_time": _s10_bar_int(htf_candles[1], "time", 0) if len(htf_candles) > 1 else 0,
+        "s10_sweep_low":  round(float(_s10_bar_value(htf_candles[1], "low",  0) or 0), 2) if len(htf_candles) > 1 else 0.0,
+        "s10_sweep_high": round(float(_s10_bar_value(htf_candles[1], "high", 0) or 0), 2) if len(htf_candles) > 1 else 0.0,
         "s10_bar_mode": CRT_BAR_MODE,
         "s10_model_orders": model_orders,
         "s10_m1_price": m1_entry,
@@ -1311,7 +1359,12 @@ def handle_ticket_closed(htf_tf: str, ticket: int, close_reason: str = ""):
             state["awaiting_choch"] = True
             # reset fire window guard เพื่อให้ retry ใน HTF bar เดิมได้
             _last_fired_armed_at.pop(htf_tf, None)
+        elif bool(getattr(_config, "S10_RETRY_AFTER_SL", False)):
+            # Retry mode: เก็บ arm ไว้ รอ HTF bar ถัดไป
+            # _arm_parent_close_broken จะ invalidate ถ้า HTF ปิดผ่าน parent range
+            _last_fired_armed_at.pop(htf_tf, None)
+            state["retry_count"] = int(state.get("retry_count", 0)) + 1
         else:
-            # สำหรับ normal arm: ถ้า SL/ปิดตัวอื่นทั้งหมด -> ล้าง arm state ทิ้งเลยเพื่อกันยิงซ้ำจนเสียรัว ๆ (เนื่องจากกรอบ sweep ถูกทำลายแล้ว)
+            # Default: ล้าง arm ทิ้งทันที (กันยิงซ้ำจนเสียรัวๆ)
             _armed_states.pop(htf_tf, None)
             _last_fired_armed_at.pop(htf_tf, None)

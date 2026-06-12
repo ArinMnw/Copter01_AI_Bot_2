@@ -22,6 +22,7 @@ from strategy13 import strategy_13
 from strategy14 import strategy_14
 from strategy15 import strategy_15
 from strategy16 import strategy_16
+from strategy17 import strategy_17
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -81,9 +82,9 @@ async def _notify_skip_once(app, dedup_key: str, text: str, tf_name: str = "", l
 
 
 async def _notify_pattern_found_once(app, dedup_key: str, text: str) -> bool:
-    if _last_pattern_notify_by_key.get(dedup_key) == text:
+    if dedup_key in _last_pattern_notify_by_key:
         return False
-    _last_pattern_notify_by_key[dedup_key] = text
+    _last_pattern_notify_by_key[dedup_key] = True
     await tg(app, text, parse_mode="Markdown")
     return True
 
@@ -1123,29 +1124,24 @@ def _export_trend_state_for_mt5():
 
 
 def swing_data_ready(tf_name: str) -> bool:
-    """True ถ้า _swing_data (และ _hhll_data ถ้าจำเป็น) มีข้อมูลพร้อมสำหรับ TF นั้น
+    """True ถ้า _hhll_data มีข้อมูลพร้อมสำหรับ TF นั้น
     ใช้ตรวจก่อนเรียก trend_allows_signal เพื่อหลีกเลี่ยง early-return True
-    กรณี swing data ยังไม่ถูก populate (race condition ใน fill recheck)
-
-    กรณีพิเศษ: ถ้า trend เป็น SIDEWAY และ TREND_FILTER_SIDEWAY_HHLL เปิดอยู่
-    จะตรวจ _hhll_data ด้วย เพื่อให้ HHLL last_label check ทำงานได้ถูกต้อง
-    แทนที่จะ return True, "" แบบ silent เมื่อ hhll data ว่าง
+    กรณี hhll data ยังไม่ถูก populate (race condition ใน fill recheck)
     """
-    sw = _swing_data.get(tf_name)
-    if not sw:
+    if not _swing_data.get(tf_name):
         return False
-    trend_val = (sw.get("trend") or {}).get("trend")
-    if not trend_val:
-        return False
-    # ถ้า SIDEWAY + SIDEWAY_HHLL เปิด → ต้องมี hhll last_label ด้วย
-    if trend_val == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
-        try:
-            from hhll_swing import get_hhll_data as _ghd
+    try:
+        from hhll_swing import get_trend_from_structure as _gts, get_hhll_data as _ghd
+        trend = _gts(tf_name)
+        if not trend or not trend.get("trend"):
+            return False
+        # ถ้า SIDEWAY + SIDEWAY_HHLL เปิด → ต้องมี last_label ด้วย
+        if trend.get("trend") == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
             d = _ghd(tf_name)
             if not d or not d.get("last_label"):
                 return False
-        except Exception:
-            return False
+    except Exception:
+        return False
     return True
 
 
@@ -1156,10 +1152,13 @@ def _strong_trend_blocks_signal(tf_name: str, signal: str) -> tuple[bool, str]:
     - BEAR strong + BUY  → block
     คืน (block?, reason)
     """
-    sw = _swing_data.get(tf_name)
-    if not sw:
+    if not _swing_data.get(tf_name):
         return False, ""
-    trend = sw.get("trend") or {}
+    try:
+        from hhll_swing import get_trend_from_structure as _gts
+        trend = _gts(tf_name) or {}
+    except Exception:
+        trend = {}
     t = trend.get("trend", "")
     s = trend.get("strength", "")
     if s != "strong":
@@ -1215,10 +1214,16 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
     mode = getattr(config, "TREND_FILTER_MODE", "basic")
 
     def _check(ref_tf: str) -> tuple[bool, str]:
-        sw = _swing_data.get(ref_tf)
-        if not sw:
+        # ใช้ _swing_data เป็น guard ว่า TF นี้เคย scan แล้ว
+        if not _swing_data.get(ref_tf):
             return True, ""
-        trend = sw.get("trend") or {}
+        # อ่าน trend สดจาก _hhll_data (เหมือน MQL5 SetTrend คำนวณทุกครั้ง)
+        sw = _swing_data.get(ref_tf) or {}
+        try:
+            from hhll_swing import get_trend_from_structure as _gts
+            trend = _gts(ref_tf) or {}
+        except Exception:
+            trend = {}
         t = trend.get("trend", "UNKNOWN")
         if mode == "breakout":
             if t not in ("BULL", "BEAR"):
@@ -1233,10 +1238,24 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
                     if not _last:
                         # hhll data ยังไม่พร้อม — return sentinel "?" เพื่อให้ caller retry
                         return True, "?"
-                    if _last in ("LH", "LL") and signal == "BUY":
-                        return False, f"{ref_tf} SIDEWAY/{_last}"
-                    if _last in ("HH", "HL") and signal == "SELL":
-                        return False, f"{ref_tf} SIDEWAY/{_last}"
+                    # Price validation: เปรียบ swing ล่าสุด vs swing ก่อนหน้าของ type เดียวกัน
+                    # HL declining (hl < prev_hl) → treat as LL | LH rising → treat as HH | etc.
+                    _lk      = _last.lower()
+                    _cur_pt  = _d.get(_lk) or {}
+                    _prev_pt = _d.get(f"prev_{_lk}") or {}
+                    _cur_p   = float(_cur_pt["price"])  if _cur_pt.get("price")  is not None else None
+                    _prev_p  = float(_prev_pt["price"]) if _prev_pt.get("price") is not None else None
+                    _effective = _last
+                    if _cur_p is not None and _prev_p is not None:
+                        if   _last == "HH" and _cur_p < _prev_p: _effective = "LH"
+                        elif _last == "HL" and _cur_p < _prev_p: _effective = "LL"
+                        elif _last == "LH" and _cur_p > _prev_p: _effective = "HH"
+                        elif _last == "LL" and _cur_p > _prev_p: _effective = "HL"
+                    _label_str = _last if _effective == _last else f"{_last}→{_effective}"
+                    if _effective in ("LH", "LL") and signal == "BUY":
+                        return False, f"{ref_tf} SIDEWAY/{_label_str}"
+                    if _effective in ("HH", "HL") and signal == "SELL":
+                        return False, f"{ref_tf} SIDEWAY/{_label_str}"
                 return True, ""
             strength = trend.get("strength", "-")
             breakout = sw.get("breakout") or {}
@@ -1268,13 +1287,28 @@ def trend_allows_signal(tf_name: str, signal: str) -> tuple[bool, str]:
         if t == "SIDEWAY" and getattr(config, "TREND_FILTER_SIDEWAY_HHLL", False):
             try:
                 from hhll_swing import get_hhll_data as _ghd
-                _last = (_ghd(ref_tf) or {}).get("last_label", "")
+                _d2   = _ghd(ref_tf) or {}
+                _last = _d2.get("last_label", "")
             except Exception:
+                _d2   = {}
                 _last = ""
-            if _last in ("LH", "LL") and signal == "BUY":
-                return False, f"{ref_tf} SIDEWAY/{_last}"
-            if _last in ("HH", "HL") and signal == "SELL":
-                return False, f"{ref_tf} SIDEWAY/{_last}"
+            if _last:
+                _lk2      = _last.lower()
+                _cur_pt2  = _d2.get(_lk2) or {}
+                _prev_pt2 = _d2.get(f"prev_{_lk2}") or {}
+                _cur_p2   = float(_cur_pt2["price"])  if _cur_pt2.get("price")  is not None else None
+                _prev_p2  = float(_prev_pt2["price"]) if _prev_pt2.get("price") is not None else None
+                _eff2 = _last
+                if _cur_p2 is not None and _prev_p2 is not None:
+                    if   _last == "HH" and _cur_p2 < _prev_p2: _eff2 = "LH"
+                    elif _last == "HL" and _cur_p2 < _prev_p2: _eff2 = "LL"
+                    elif _last == "LH" and _cur_p2 > _prev_p2: _eff2 = "HH"
+                    elif _last == "LL" and _cur_p2 > _prev_p2: _eff2 = "HL"
+                _lstr2 = _last if _eff2 == _last else f"{_last}→{_eff2}"
+                if _eff2 in ("LH", "LL") and signal == "BUY":
+                    return False, f"{ref_tf} SIDEWAY/{_lstr2}"
+                if _eff2 in ("HH", "HL") and signal == "SELL":
+                    return False, f"{ref_tf} SIDEWAY/{_lstr2}"
         return True, ""
 
     if per_tf_on:
@@ -2397,31 +2431,38 @@ async def _group_guard_place_retries(app, tf_name: str, rates) -> bool:
             continue
 
         for sig in retries:
-            sid     = sig.get("sid", 0)
-            signal  = sig.get("signal", side)
-            entry   = sig.get("entry", 0)
-            sl      = sig.get("sl", 0)
-            tp      = sig.get("tp", 0)
-            pattern = sig.get("pattern", "")
-            if not (entry and sl and tp):
+            sid        = sig.get("sid", 0)
+            signal     = sig.get("signal", side)
+            entry      = sig.get("entry", 0)
+            sl         = sig.get("sl", 0)
+            tp         = sig.get("tp", 0)
+            pattern    = sig.get("pattern", "")
+            order_mode = sig.get("order_mode", "limit")
+            if not (sl and tp):
                 continue
-            order = open_order(signal, get_volume(), sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            # market order → entry_price=None (open now), limit → entry_price=entry
+            ep = entry if order_mode == "limit" else None
+            if order_mode == "limit" and not entry:
+                continue
+            order = open_order(signal, get_volume(), sl, tp, entry_price=ep, tf=tf_name, sid=sid, pattern=pattern)
             if order.get("success"):
                 placed_any = True
-                ticket = order.get("ticket", 0)
-                rr     = round(abs(tp - entry) / abs(entry - sl), 2) if abs(entry - sl) > 0 else 0
+                ticket     = order.get("ticket", 0)
+                fill_price = order.get("price", entry) or entry
+                rr         = round(abs(tp - fill_price) / abs(fill_price - sl), 2) if abs(fill_price - sl) > 0 else 0
+                mode_tag   = "LIMIT" if ep else "MARKET"
                 log_event("SL_GUARD_GROUP_RETRY",
-                          f"[{tf_name}] {signal} S{sid} re-placed after group guard off",
-                          tf=tf_name, sid=sid, signal=signal, entry=entry, sl=sl, tp=tp, ticket=ticket)
+                          f"[{tf_name}] {signal} S{sid} re-placed ({mode_tag}) after group guard off",
+                          tf=tf_name, sid=sid, signal=signal, entry=fill_price, sl=sl, tp=tp, ticket=ticket)
                 await tg(app, (
                     f"🛡️ *Group Guard: Re-place Order*\n"
                     f"━━━━━━━━━━━━━━━━━\n"
-                    f"{'🟢' if signal=='BUY' else '🔴'} {pattern} [{tf_name}]\n"
+                    f"{'🟢' if signal=='BUY' else '🔴'} {pattern} [{tf_name}] `{mode_tag}`\n"
                     f"🆕 Swing ใหม่ใน `{tf_name}` → คืน order ที่ถูก block\n"
-                    f"📌 Entry:`{entry}` SL:`{sl}` TP:`{tp}` RR:`{rr}`\n"
+                    f"📌 Entry:`{fill_price}` SL:`{sl}` TP:`{tp}` RR:`{rr}`\n"
                     f"🔖 Ticket:`{ticket}`"
                 ))
-                print(f"🛡️ [{now}] Group Guard retry PLACED: [{tf_name}] {signal} S{sid}")
+                print(f"🛡️ [{now}] Group Guard retry PLACED ({mode_tag}): [{tf_name}] {signal} S{sid}")
 
     return placed_any
 
@@ -2655,6 +2696,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r16 = strategy_16(rates, tf=tf_name) if active_strategies.get(16, False) else {"signal": "WAIT", "reason": "S16 ปิด"}
     if r16.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 16, r16["signal"], last_candle_time, r16)
+
+    r17 = strategy_17(rates, tf=tf_name) if active_strategies.get(17, False) else {"signal": "WAIT", "reason": "S17 ปิด"}
+    if r17.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 17, r17["signal"], last_candle_time, r17)
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -3046,7 +3091,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3078,7 +3123,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3230,7 +3275,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 continue
         # ── Sweep Filter Block — independent of TREND_FILTER_SCAN_BLOCK ──────
         # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15/S16 bypass)
-        if sid not in (9, 10, 13, 14, 15, 16):
+        if sid not in (9, 10, 13, 14, 15, 16, 17):
             try:
                 import sweep_filter as _sf_blk
                 if _sf_blk.is_enabled():
@@ -3256,8 +3301,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
             except Exception:
                 pass
-        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption, S16 AMD iFVG — reversal/standalone → bypass trend filter
-        if sid not in (9, 10, 13, 14, 15, 16) and config.TREND_FILTER_SCAN_BLOCK:
+        # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption, S16 AMD iFVG, S17 Sweep Sniper — reversal/standalone → bypass trend filter
+        if sid not in (9, 10, 13, 14, 15, 16, 17) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(
@@ -3554,6 +3599,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                             "s10_sweep_time": int(result.get("s10_sweep_time", 0) or 0),
                             "s10_parent_high": float(result.get("s10_parent_high", 0.0) or 0.0),
                             "s10_parent_low": float(result.get("s10_parent_low", 0.0) or 0.0),
+                            "s10_sweep_high": float(result.get("s10_sweep_high", 0.0) or 0.0),
+                            "s10_sweep_low": float(result.get("s10_sweep_low", 0.0) or 0.0),
                             "s10_bar_mode": result.get("s10_bar_mode", ""),
                             "s10_sweep_checked": False,
                             "s10_model": place_model,
@@ -3764,38 +3811,38 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                                 })
                         continue
 
-            # ── SL Guard Group: บล็อก LIMIT order ใหม่ถ้า group guard active ──
+            # ── SL Guard Group: บล็อก order ใหม่ (ทั้ง LIMIT และ MARKET) ถ้า group guard active ──
             if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
                 from trailing import (_group_guard_is_blocked, _group_guard_check_unblock,
                                       _group_guard_get_blocked_groups, _sl_guard_group)
                 _gg_order_mode = result.get("order_mode", "limit")
-                if _gg_order_mode == "limit":
-                    _group_guard_check_unblock(tf_name, signal.upper(), rates)
-                    if _group_guard_is_blocked(tf_name, signal.upper()):
-                        _gg_groups = _group_guard_get_blocked_groups(tf_name, signal.upper())
-                        _gg_grp_str = ", ".join(f"[{g}]" for g in _gg_groups)
-                        print(f"🛡️ [{now}] Group Guard BLOCK: [{tf_name}] {signal} LIMIT sid={sid} groups={_gg_grp_str}")
-                        log_event("SL_GUARD_GROUP_BLOCK",
-                                  f"[{tf_name}] {signal} LIMIT blocked by Group Guard {_gg_grp_str}",
-                                  tf=tf_name, sid=sid, signal=signal)
-                        _gg_side = signal.upper()
-                        for _gg_gkey, _gg_sg in _sl_guard_group.get(_gg_side, {}).items():
-                            if not (_gg_sg.get("active") and _gg_sg.get("tf_blocked", {}).get(tf_name)):
-                                continue
-                            _gg_sigs = _gg_sg.setdefault("tf_blocked_signals", {}).setdefault(tf_name, [])
-                            _gg_dup  = any(
-                                b.get("candle_time") == last_candle_time and b.get("sid") == sid
-                                for b in _gg_sigs
-                            )
-                            if not _gg_dup:
-                                _gg_sigs.append({
-                                    "sid": sid, "signal": signal,
-                                    "entry": entry, "sl": sl, "tp": tp,
-                                    "pattern": pattern,
-                                    "candle_time": last_candle_time,
-                                    "use_delay_sl": (sid == 8 or config.DELAY_SL_MODE != "off"),
-                                })
-                        continue
+                _group_guard_check_unblock(tf_name, signal.upper(), rates)
+                if _group_guard_is_blocked(tf_name, signal.upper()):
+                    _gg_groups = _group_guard_get_blocked_groups(tf_name, signal.upper())
+                    _gg_grp_str = ", ".join(f"[{g}]" for g in _gg_groups)
+                    print(f"🛡️ [{now}] Group Guard BLOCK: [{tf_name}] {signal} {_gg_order_mode.upper()} sid={sid} groups={_gg_grp_str}")
+                    log_event("SL_GUARD_GROUP_BLOCK",
+                              f"[{tf_name}] {signal} {_gg_order_mode.upper()} blocked by Group Guard {_gg_grp_str}",
+                              tf=tf_name, sid=sid, signal=signal, order_mode=_gg_order_mode)
+                    _gg_side = signal.upper()
+                    for _gg_gkey, _gg_sg in _sl_guard_group.get(_gg_side, {}).items():
+                        if not (_gg_sg.get("active") and _gg_sg.get("tf_blocked", {}).get(tf_name)):
+                            continue
+                        _gg_sigs = _gg_sg.setdefault("tf_blocked_signals", {}).setdefault(tf_name, [])
+                        _gg_dup  = any(
+                            b.get("candle_time") == last_candle_time and b.get("sid") == sid
+                            for b in _gg_sigs
+                        )
+                        if not _gg_dup:
+                            _gg_sigs.append({
+                                "sid": sid, "signal": signal,
+                                "entry": entry, "sl": sl, "tp": tp,
+                                "pattern": pattern,
+                                "candle_time": last_candle_time,
+                                "order_mode": _gg_order_mode,
+                                "use_delay_sl": (sid == 8 or config.DELAY_SL_MODE != "off"),
+                            })
+                    continue
 
             # ── Shared TP: ถ้ามี Order ทิศเดียวกันอยู่แล้ว ──────────
             # BUY → TP = Swing High ย่อย ร่วมกัน
@@ -3806,6 +3853,33 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 tp = existing_tp
                 base_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, entry, sl, tp)
                 rr = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
+            order_mode = result.get("order_mode", "limit")
+
+            # ── PD Zone pre-creation check (ก่อนสร้าง order) ────────────────
+            # ย้ายมาก่อน PATTERN_FOUND เพื่อไม่ให้ log/TG ซ้ำทุก scan เมื่อ skip
+            # Skip: S9 (RSI Div), S10 (CRT), S13/S14/S16/S17 standalone, S15 (VP), market orders
+            _pdz_skip_sids = (9, 10, 13, 14, 15, 16, 17)
+            if (getattr(config, "PDFIBOPLUS_ENABLED", False)
+                    and sid not in _pdz_skip_sids
+                    and order_mode == "limit"
+                    and _sh_info and _sl_info):
+                try:
+                    from trailing import _pdfiboplus_in_zone as _pdz_fn
+                    _pdz_h = float(_sh_info["price"])
+                    _pdz_l = float(_sl_info["price"])
+                    if _pdz_h > _pdz_l > 0:
+                        _pdz_ok = _pdz_fn(entry, signal, _pdz_h, _pdz_l, sid=sid)
+                        if not _pdz_ok:
+                            _pdz_eq = round((_pdz_h + _pdz_l) / 2, 2)
+                            log_event("PDFIBOPLUS", "pre_create_skip",
+                                      tf=tf_name, sid=sid, signal=signal,
+                                      entry=entry, h=_pdz_h, l=_pdz_l, eq=_pdz_eq)
+                            print(f"🛡️ PD pre-check SKIP [{tf_name}] ท่า{sid} {signal}: entry={entry:.2f} ผิด zone (EQ={_pdz_eq:.2f} H={_pdz_h:.2f} L={_pdz_l:.2f})")
+                            continue
+                except Exception:
+                    pass
+            # ─────────────────────────────────────────────────────────────────
+
             log_event(
                 "PATTERN_FOUND",
                 pattern,
@@ -3844,35 +3918,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     flow_id=base_flow_id,
                 ),
             )
-            order_mode = result.get("order_mode", "limit")
             use_delay_sl = (order_mode == "limit") and (sid == 8 or config.DELAY_SL_MODE != "off")
             order_sl = 0.0 if use_delay_sl else sl
-
-            # ── PD Zone pre-creation check (ก่อนสร้าง order) ────────────────
-            # ตรวจว่า entry price อยู่ใน zone ที่ถูกต้องก่อน — ถ้าผิดฝั่ง skip เลย
-            # Skip: S9 (RSI Div), S10 (CRT), S13/S14/S16 standalone, S15 (VP), market orders
-            _pdz_skip_sids = (9, 10, 13, 14, 15, 16)
-            if (getattr(config, "PDFIBOPLUS_ENABLED", False)
-                    and sid not in _pdz_skip_sids
-                    and order_mode == "limit"
-                    and _sh_info and _sl_info):
-                try:
-                    from trailing import _pdfiboplus_in_zone as _pdz_fn
-                    _pdz_h = float(_sh_info["price"])
-                    _pdz_l = float(_sl_info["price"])
-                    if _pdz_h > _pdz_l > 0:
-                        _pdz_ok = _pdz_fn(entry, signal, _pdz_h, _pdz_l, sid=sid)
-                        if not _pdz_ok:
-                            _pdz_eq    = round((_pdz_h + _pdz_l) / 2, 2)
-                            _pdz_zone  = "Premium" if signal == "SELL" else "Discount"
-                            log_event("PDFIBOPLUS", "pre_create_skip",
-                                      tf=tf_name, sid=sid, signal=signal,
-                                      entry=entry, h=_pdz_h, l=_pdz_l, eq=_pdz_eq)
-                            print(f"🛡️ PD pre-check SKIP [{tf_name}] ท่า{sid} {signal}: entry={entry:.2f} ผิด zone (EQ={_pdz_eq:.2f} H={_pdz_h:.2f} L={_pdz_l:.2f})")
-                            continue
-                except Exception:
-                    pass
-            # ─────────────────────────────────────────────────────────────────
 
             if order_mode == "stop":
                 order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
@@ -3921,6 +3968,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     _pend_info["s10_sweep_time"] = int(result.get("s10_sweep_time", 0) or 0)
                     _pend_info["s10_parent_high"] = float(result.get("s10_parent_high", 0.0) or 0.0)
                     _pend_info["s10_parent_low"] = float(result.get("s10_parent_low", 0.0) or 0.0)
+                    _pend_info["s10_sweep_high"] = float(result.get("s10_sweep_high", 0.0) or 0.0)
+                    _pend_info["s10_sweep_low"] = float(result.get("s10_sweep_low", 0.0) or 0.0)
                     _pend_info["s10_bar_mode"] = result.get("s10_bar_mode", "")
                     _pend_info["s10_sweep_checked"] = False
                 if sid == 9 and setup_sig:
@@ -3932,6 +3981,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         _pend_info["s14_ref_source"] = str(result["ref_source"])
                     if result.get("sub_pattern"):
                         _pend_info["s14_sub_pattern"] = str(result["sub_pattern"])
+                    # เก็บ time ของ ref bar และ engulf/sweep bar เพื่อแสดง OHLC ใน ticket lookup
+                    _pend_info["s14_ref_bar_time"] = int(result.get("ref_time") or 0)
+                    sub_p = result.get("sub_pattern", "")
+                    if "engulf" in sub_p or "direct" in sub_p:
+                        _pend_info["s14_signal_bar_time"] = int(result.get("engulf_bar_time") or 0)
+                    elif "sweep" in sub_p:
+                        _pend_info["s14_signal_bar_time"] = int(result.get("sweep_bar_time") or 0)
                 if use_delay_sl:
                     _pend_info["intended_sl"] = sl
                     _pend_info["sl_armed"] = False
@@ -3962,7 +4018,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     scale_out=order.get("scale_out", False),
                     scaled_volume=order.get("scaled_volume"),
                     **({"ref_source": result.get("ref_source", ""),
-                        "sub_pattern": result.get("sub_pattern", "")}
+                        "sub_pattern": result.get("sub_pattern", ""),
+                        "s14_ref_bar_time": int(result.get("ref_time") or 0),
+                        "s14_signal_bar_time": int(
+                            result.get("engulf_bar_time") or result.get("sweep_bar_time") or 0
+                        )}
                        if sid == 14 else {}),
                 )
             save_runtime_state()

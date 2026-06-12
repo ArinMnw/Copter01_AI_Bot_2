@@ -105,6 +105,13 @@
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --tf M1 --strategies 16 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
+*   **ตัวอย่างรัน S17 Sweep Sniper backtest (standalone sim — เรียก `detect_s17()` ตรง):**
+    ```bash
+    python sim_s17_backtest.py --days 60 --tf M1 --csv
+    python sim_s17_backtest.py --days 30 --tf M1,M5 --sweep4   # จูน entry mode/TP/SLbuf/RSI
+    ```
+    *   `--mode/--tp/--slb/--rsib/--rsis/--wick` override config รายตัวได้, `--spread` ปรับ spread ต่อไม้ (default $0.20)
+    *   CSV ออกที่ `excel_reports/backtest_compare/s17/`
 *   **ตัวอย่างรัน S10 และ S14 พร้อมกัน:**
     ```bash
     python backtest_auto_trade.py --start "2026-06-05 08:00" --end "2026-06-05 10:00" --strategies 10,14 --exclude-cancelled --symbol XAUUSD.iux --compare-csv --compare-xlsx
@@ -186,7 +193,64 @@
 
 ---
 
-## 3. การค้นหาและตรวจสอบประวัติออเดอร์ (Ticket Lookup)
+## 3. การดู HHLL Trend ณ เวลาย้อนหลัง ผ่าน Telegram
+
+พี่สามารถสอบถาม Trend ของ HHLL ณ ช่วงเวลาใด ๆ ย้อนหลังได้ทันที บอทจะดึงข้อมูลจาก MT5 แล้วคำนวณ HH/HL/LH/LL + Trend จริงตามโครงสร้างตลาด พร้อมบอกเวลาแท่ง, confirm และเวลาที่บอทตรวจจับเจอจริงจาก log ค่ะ
+
+### รูปแบบคำสั่ง
+
+```text
+trend [Timeframe] [วัน-เดือน-ปี ค.ศ.] [เวลา ชั่วโมง:นาที]
+```
+
+### ตัวอย่าง
+
+```text
+trend M5 05-06-2026 11:15
+trend M15 06-06-2026 09:00
+trend H1 07-06-2026 14:30
+```
+
+### ตัวอย่างผลลัพธ์
+
+```
+📊 *HHLL Trend Lookup [M5]*
+🕐 ณ BKK: `05-06-2026 11:15`
+
+📈 Trend: 🔴 BEAR (strong)
+🏷 Last label: `LL` `4435.25`  แท่ง `05-06 10:20`
+🔗 Structure: `LL ▸ LH ▸ LL ▸ LH ▸ LL ▸ LL`
+
+*Swing Points:*
+`HH` `4483.34`
+  แท่ง: `05-06 02:00` | confirm: `05-06 02:25` | เจอ: `2026-06-05 02:25:04`
+`LH` `4455.13`
+  แท่ง: `05-06 09:25` | confirm: `05-06 09:50` | เจอ: `2026-06-05 09:50:03`
+`HL` `4476.85`
+  แท่ง: `05-06 02:45` | confirm: `05-06 03:10` | เจอ: `2026-06-05 03:10:04`
+`LL` `4435.25`
+  แท่ง: `05-06 10:20` | confirm: `05-06 10:45` | เจอ: `05-06 10:45` *(est)*
+```
+
+### รันผ่าน Python CLI (ไม่ต้องเปิด Telegram)
+
+```bash
+python trend_lookup.py M5 05-06-2026 11:15
+python trend_lookup.py H1 07-06-2026 14:30
+```
+
+### หมายเหตุ
+
+- เวลาที่ป้อนเป็น **Bangkok (UTC+7)** เสมอ
+- **Trend:** `BULL` / `BEAR` / `SIDEWAY` + `strong` / `weak` คำนวณจาก h0+l0 ของ HHLL structure เหมือนกับที่ MQL5 `SetTrend` ใช้
+- **Last label:** label ล่าสุดตาม **timestamp จริง** (ไม่ใช่ ZZ array order)
+- **confirm time:** บาร์ที่ `HHLL_RIGHT` บาร์หลังแท่ง swing (เวลาที่ pivot ถูก confirm)
+- **detect time:** เวลาที่บอทตรวจจับเจอจริงจาก log (`SCAN` line) ถ้าหาใน log ไม่เจอจะแสดง `(est)` แทน เช่น กรณีบอท restart ช่วงนั้น
+- Timeframe รองรับ: `M1`, `M5`, `M15`, `M30`, `H1`, `H4`, `D1`
+
+---
+
+## 4. การค้นหาและตรวจสอบประวัติออเดอร์ (Ticket Lookup)  <!-- เดิม section 3 -->
 
 เมื่อต้องการทราบสถานะหรือประวัติของตั๋ว (Ticket) ใด ๆ ย้อนหลัง
 
@@ -200,7 +264,7 @@
 
 ---
 
-## 4. เคล็ดลับและคำแนะนำเพิ่มเติมสำหรับผู้พัฒนา (Tips & Tricks)
+## 5. เคล็ดลับและคำแนะนำเพิ่มเติมสำหรับผู้พัฒนา (Tips & Tricks)
 
 ### การแปลค่าความต่างของเวลาชาร์ต (MT5 Server Time vs Bangkok Time)
 *   **เวลาบน Chart ของ IUX (UTC+6):** จะช้ากว่าเวลา BKK อยู่ 1 ชั่วโมง
@@ -214,6 +278,31 @@
 ```bash
 python -c "import MetaTrader5 as mt5, config; mt5.initialize(); rates = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_M5, 0, 5200); import sim_s14_backtest; bkk_rates = [(sim_s14_backtest.to_bkk(r['time']).strftime('%Y-%m-%d %H:%M'), r['open'], r['high'], r['low'], r['close']) for r in rates]; print('\n'.join([str(x) for x in bkk_rates if x[0] == '2026-06-05 13:15'])); mt5.shutdown()"
 ```
+
+### สถาปัตยกรรม HHLL vs Swing (สำคัญสำหรับ Trend)
+
+ระบบมี pivot 2 ชุดที่ต่างกัน ห้ามสลับกัน:
+
+| ชุด | ตัวแปร | RIGHT | หน้าที่ |
+|---|---|---|---|
+| Swing | `_swing_data` | 10 | raw pivot สำหรับ display / breakout |
+| HHLL | `_hhll_data` | 5 | classify HH/HL/LH/LL → Trend |
+
+- **Trend (BULL/BEAR/SIDEWAY)** อ่านจาก `_hhll_data` เสมอ ผ่าน `get_trend_from_structure(tf)` (`scanner.py`, `trailing.py`)
+- ห้ามอ่าน trend จาก `_swing_data` เพราะเป็น cache รอบก่อน
+- Logic ตรงกับ MQL5 `SetTrend`: `HH+HL=BULL`, `LH+LL=BEAR`, อื่น=SIDEWAY
+
+### Trend Recheck Rounds (trailing.py)
+
+- `LIMIT_TREND_RECHECK_ROUNDS` ใน config ควบคุมจำนวนรอบ recheck
+  - `1` = R1 เท่านั้น (default ปัจจุบัน)
+  - `2` = เปิด R2 ด้วย (R2 รอ swing ใหม่แล้วค่อยตัดสิน)
+- R2 ต้องเรียก `fetch_hhll(tf)` ก่อน `get_swing_hl_pts(tf)` เสมอ เพราะถ้าไม่ fetch จะอ่าน cache เก่าจาก R1
+
+### Last label ของ HHLL
+
+- `last_label` คือ label ของ swing point ที่มี **timestamp ล่าสุดที่สุด** (เทียบข้าม HH/HL/LH/LL)
+- ห้ามใช้ลำดับสุดท้ายของ ZZ array เพราะ ZZ เรียงตาม price path ไม่ใช่เวลา
 
 ### คำสั่งตรวจสอบความปลอดภัยของ Repository (ก่อน Deploy หรือ Commit)
 *   **ตรวจสอบการเข้ารหัสและสระภาษาไทยล้มเหลว (Mojibake):**

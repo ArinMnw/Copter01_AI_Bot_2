@@ -20,6 +20,7 @@
 - `14`: Sweep RSI
 - `15`: Volume Profile POC + Absorption
 - `16`: AMD x iFVG (Asian Range Sweep + Inversion FVG)
+- `17`: Sweep Sniper (Triple-Confluence Mean Reversion — M1 only)
 
 ## ท่าที่ 1: กลืนกิน / ตำหนิ / ย้อนโครงสร้าง
 
@@ -726,6 +727,11 @@ M1_S14_sweep
 
 ไฟล์หลัก: `strategy15.py`
 
+> 📊 **ผล order จริง (audit 11/06/2026, ช่วง 01/05-11/06)**: 63 ไม้ รวม +11.09 USD —
+> ขาดทุนเกือบทั้งหมดมาจาก **ก่อน** fix 02-03/06 (BUY POC 0/7 ชนะ -59.92, M30 POC -55.71)
+> หลัง STRICT_MODE ทำงาน (04/06 เป็นต้นมา): **~+56 USD, WR ~52%, เหลือเฉพาะ VAL/VAH** → คงค่าปัจจุบันไว้
+> bucket ที่ดีที่สุด: `M1 BUY VAL` (+63.24 จาก 21 ไม้) | แย่สุดก่อน fix: `M1/M30 BUY POC`
+
 แนวคิด:
 - คำนวณ Volume Profile จาก `tick_volume` (proxy) ย้อนหลัง `S15_LOOKBACK` bars
 - `POC` = ราคาที่มี volume สูงสุด (แม่เหล็กราคา), `VAH`/`VAL` = ขอบ Value Area 70%
@@ -783,6 +789,20 @@ M5_S15_VAH
 
 ไฟล์หลัก: `strategy16.py` — รันเฉพาะ **M1**
 
+> ⚠️ **default OFF ตั้งแต่ 11/06/2026** — order จริง 08-10/06: **-510.54 USD จาก 35 ไม้** (WR 42.9%)
+> และ sim A/B (24/05-11/06) ติดลบทุก config: เดิม -145.51 → fix ครบ (ดีสุด) -15.38
+> เปิดใหม่ได้ผ่าน Telegram ถ้าอยากเก็บข้อมูลต่อ แต่ควรใช้ lot เล็กสุด
+
+### Fixes 11/06/2026 (จากข้อมูล order จริง)
+
+1. **One-shot dedup ต่อ (tf, side, killzone)** — เคส 09/06 19:46:52 มี SELL 13 ไม้ fill
+   วินาทีเดียวกัน + รอบ 20:47 อีก 8 ไม้ (-226 USD ในนาทีเดียว) เพราะ scanner dup check
+   เทียบ (entry, tp) แต่ TP คำนวณจาก ATR ที่ drift ทุกนาที → pending สะสม
+   แก้: `s16_state["fired"]` key `tf|side|kz_start` — persist ข้าม restart, prune > 2 วัน
+2. **SL buffer ของตัวเอง** `S16_SL_ATR_BUFFER=0.5` (เดิม `SL_BUFFER` กลาง = 2×ATR
+   → แพ้เฉลี่ย -$30..-$49/ไม้ ขณะชนะ ~+$10) + `S16_MAX_RISK_ATR_MULT=4.0` skip setup risk กว้าง
+3. sim (`sim_s16_backtest.py`) mirror ทั้ง 2 ข้อ + flag `S16_KZ_ONE_SHOT` สำหรับ A/B
+
 แนวคิด (Accumulation–Manipulation–Distribution + Inversion FVG):
 - **Asian Range**: คำนวณ High/Low จากช่วง `08:00–12:00 BKK` (ตีกรอบหลัง 12:00)
 - **Killzones**: เทรดเฉพาะ London `14:00–17:00` และ NY `19:00–22:00` BKK
@@ -802,7 +822,59 @@ M5_S15_VAH
 
 - `S16_KILLZONES`, `S16_ASIAN_START_BKK="08:00"`, `S16_ASIAN_END_BKK="12:00"`
 - `S16_MIN_RR=1.5`, `S16_ENTRY_MODE`
-- state เก็บใน `s16_state` (asian_high/low, range_date, swept_high/low) → persist ผ่าน `config.save_runtime_state()`
+- `S16_SL_ATR_BUFFER=0.5`, `S16_MAX_RISK_ATR_MULT=4.0`, `S16_KZ_ONE_SHOT=True` (11/06/2026)
+- state เก็บใน `s16_state` (asian_high/low, range_date, swept_high/low, **fired**) → persist ผ่าน `config.save_runtime_state()`
+
+## ท่าที่ 17: Sweep Sniper
+
+ไฟล์หลัก: `strategy17.py` — รันเฉพาะ **M1** (`S17_ALLOWED_TFS`)
+
+⚠️ **ความเข้าใจที่ถูกต้อง**: win rate สูงของท่านี้มาจาก "TP สั้น + SL กว้าง" (RR ต่ำ ~0.17)
+— 1 SL กิน TP ~6 ไม้ ไม่ใช่เวทมนตร์ ต้องคุม lot เล็กและยอมรับ tail risk
+
+แนวคิด (4 ชั้น confluence — เข้าเฉพาะ setup ที่กรองครบ):
+1. **Liquidity Sweep**: แท่ง signal ไส้ทะลุ low/high ของกรอบ `S17_LOOKBACK` (60) แท่ง
+   แต่ **เปิดในกรอบ + ปิดกลับเข้ากรอบ** (stop hunt แล้วถูกปฏิเสธ — เช็ค open ด้วยตามบทเรียน sweep_filter)
+2. **Rejection Wick**: ไส้ฝั่ง sweep ≥ `S17_WICK_MIN_PCT` (30%) ของ range แท่ง
+3. **RSI Extreme**: RSI ≤ 32 (BUY) / ≥ 68 (SELL) ที่แท่ง signal
+4. **PD Fibo Zone**: close อยู่ Discount (<38.2%) / Premium (>61.8%) ของกรอบ
++ **Session**: เทรดเฉพาะ Killzones London `14:00–18:00` / NY `19:00–23:00` BKK
+
+Entry/Exit:
+- **Entry**: LIMIT รอ retrace 61.8% ของแท่ง sweep (`S17_ENTRY_MODE="limit_618"`)
+  ไม่ fill ภายใน `S17_LIMIT_CANCEL_BARS` (5) แท่ง → ยกเลิกผ่านกลไก `cancel_bars` กลาง
+- **TP**: entry ± `S17_TP_ATR_MULT` (0.3) × ATR — สั้นมากโดยตั้งใจ
+- **SL**: ใต้/เหนือไส้ sweep ∓ `S17_SL_ATR_BUFFER` (1.0) × ATR (buffer ของท่าเอง ไม่ใช้ `SL_BUFFER` กลาง)
+- dedup: 1 ไม้/แท่ง signal + level cooldown `S17_LEVEL_COOLDOWN_BARS` (20) แท่ง (in-memory ไม่ persist)
+
+### ผล backtest (sim_s17_backtest.py, spread $0.20/ไม้, lot 0.01)
+
+| ช่วง | n | WR | P/L | แพ้ติดกันสูงสุด |
+|---|---|---|---|---|
+| M1 30 วัน (05-06/2026) | 146 | 92.5% | +$42.96 | 1 |
+| M1 60 วัน (03-06/2026) | 248 | 91.1% | +$78.90 | 2 |
+| M1 30 วัน spread $0.35 | 146 | 89.0% | +$21.06 | 5 |
+
+- **M5/M15/M30 ขาดทุนทุก combo ที่ทดสอบ** → จึง gate เฉพาะ M1
+- ทางเลือก `S17_TP_ATR_MULT=0.4`: WR 87.1% แต่กำไรมากกว่า (+$89.73 / 60 วัน)
+- trend filter แบบ EMA slope (`S17_TREND_FILTER`) ตัด setup เกือบหมด → default OFF
+- time stop (`S17_TIME_STOP_BARS`) ไม่ช่วยใน backtest → default 0
+
+### Standalone behavior (เหมือน S14/S15/S16)
+
+- bypass Trend Filter (scan) + Sweep Filter block
+- skip: Fill Trend Recheck, Pending Trend Check, RSI Recheck (เข้าที่ RSI extreme by design), PD Fibo Plus ทั้ง fill+pending (ใช้ PD ใน detect เอง), Entry Candle, Trail SL, Opposite Order, Limit Guard
+- **ไม่เข้า TSO** — ออก lot คงที่ `AUTO_VOLUME` ต่อไม้ (backtest validate แบบ flat lot; TP สั้นเกินกว่าจะแบ่ง 4 step)
+- อยู่ใน `STRONG_TREND_BLOCK_SIDS` (เปิดกันไม้สวน strong trend ได้)
+- comment: `M1_S17_SNB` (BUY) / `M1_S17_SNS` (SELL)
+
+### Config
+
+- `S17_ALLOWED_TFS=["M1"]`, `S17_LOOKBACK=60`, `S17_RSI_BUY_MAX=32`, `S17_RSI_SELL_MIN=68`
+- `S17_WICK_MIN_PCT=0.30`, `S17_TP_ATR_MULT=0.3`, `S17_SL_ATR_BUFFER=1.0`, `S17_MAX_RISK_ATR_MULT=4.0`
+- `S17_ENTRY_MODE="limit_618"`, `S17_LIMIT_CANCEL_BARS=5`, `S17_PD_FILTER=True`
+- `S17_SESSION_FILTER=True`, `S17_SESSIONS=[("14:00","18:00"),("19:00","23:00")]`
+- `S17_LEVEL_COOLDOWN_BARS=20`
 
 ## Sweep Filter (override trend ก่อน trend filter ปกติ)
 
@@ -832,4 +904,8 @@ SWEEP_HIGH — สมมาตร: `bar.open < ref_price` + `bar.high > ref_pric
 
 - sweep active → คงสถานะไว้ จนกว่า `update_trend_and_check_reset()` จะ reset
 - reset เมื่อ: trend เปลี่ยน (BULL↔BEAR↔SIDEWAY) หรือ (ตอน SIDEWAY) last swing label เปลี่ยน
+- **Expiry** (เพิ่ม 05/06/2026): sweep หมดอายุหลัง `SWEEP_FILTER_EXPIRY_MIN` นาที (default 60)
+  - กัน sweep เก่าค้าง override trend นานเกิน (เช่น order #537988219 sweep valid 03:30 แต่ยัง unblock ที่ 07:40)
+  - `_sweep_ts[tf]` เก็บ unix ของ trigger bar → `get_sweep_state()` + `check_and_update()` เช็ค `_is_expired()` ก่อนคืนค่า
+  - `SWEEP_FILTER_EXPIRY_MIN = 0` → ปิด expiry (persist จนกว่า trend/label เปลี่ยน — behavior เดิม)
 - bypass: S9/S10/S13/S14/S15/S16 ไม่ผ่าน sweep filter (standalone)

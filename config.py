@@ -448,7 +448,8 @@ active_strategies = {
     13: False, # Strategy 13: EzAlgo V5 Supertrend
     14: True,  # ท่าที่ 14: Sweep RSI
     15: True,  # ท่าที่ 15: Volume Profile POC + Absorption (Win Rate 85-90%)
-    16: True,  # ท่าที่ 16: AMD x iFVG (Win Rate 85-90%+)
+    16: True,  # ท่าที่ 16: AMD x iFVG
+    17: True,  # ท่าที่ 17: Sweep Sniper (Triple-Confluence — TP สั้น เน้น win rate สูง)
 }
 
 STRATEGY_NAMES = {
@@ -468,6 +469,7 @@ STRATEGY_NAMES = {
     14: "ท่าที่ 14: Sweep RSI",
     15: "ท่าที่ 15: VP POC",
     16: "ท่าที่ 16: AMD iFVG",
+    17: "ท่าที่ 17: Sweep Sniper",
 }
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
@@ -514,19 +516,16 @@ S14_RSI_PERIOD        = 14     # RSI period
 S14_RSI_APPLIED_PRICE = "close"
 S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับตัว + LL/HH zone
 # เปิด/ปิด sub-pattern (ใช้ร่วมกันทั้ง BUY และ SELL)
-S14_ENGULF            = True  # Engulf pattern (close เกิน LL/HH)
-S14_ENGULF_AFTER_SWEEP = True   # Enable Engulf‑After‑Sweep logic for S14 (sweep → engulf → 2‑bar color rule)
-S14_SWEEP             = True   # Sweep pattern  (ไส้เกิน LL/HH แต่ปิดกลับมา)
+# S14_SWEEP_SWING  : BSS/SSS  — Engulf ใน TF + HTF swept กลับมาเหนือ ref (ใช้ HHLL สำหรับ ref)
+# S14_ENGULF_SWING : BSSM30 ฯลฯ — Engulf ใน TF + HTF ทะลุ ref + sec_HTF กำลัง sweep (ใช้ HHLL + sec_HTF)
+# S14_SWEEP_RETURN : BRS/SRS  — ไส้ยาวกลับมา ไม่มี HTF check
+S14_SWEEP_SWING       = True
+S14_ENGULF_SWING      = True
+S14_SWEEP_RETURN      = False   # BRS/SRS — ไส้เกิน LL/HH แต่ปิดกลับมา
+S14_ENGULF_BREAKEVEN  = True   # ถ้า sec_HTF ปิดต่ำกว่า ref_low หลัง entry → ตั้ง TP = entry price
 S14_BLOCK_SIDEWAY     = False   # block S14 ใน SIDEWAY trend (data 06-2026: 0% WR, -$58 จาก 4 orders)
 S14_FLIP_ENABLED      = True   # Flip: ปิดฝั่งตรงข้ามทันทีเมื่อ signal ใหม่มา (per-TF)
 S14_RSI_MIN_DIFF      = 1.0   # RSI divergence ต้องห่างกัน > นี้ (BUY: cur-ref > 1, SELL: ref-cur > 1)
-# LL/HH ref เพิ่มเติมจาก HHLL module
-# False (default) = ใช้ min low ของ reversal bars เท่านั้น
-# True            = ใช้ HHLL HL (BUY) / HH (SELL) เป็น ref เพิ่มด้วย
-#                   BUY : ll_val = max(reversal_ll, hhll.hl.price)
-#                   SELL: hh_val = min(reversal_hh, hhll.hh.price)
-S14_LL_USE_HHLL       = True
-S14_SEC_HTF_ENABLED   = True
 
 # ── Strategy 15: Volume Profile POC + Absorption ──────────────────
 # Win rate อ้างอิง: 85-90% (POC defense + absorption institutional pattern)
@@ -556,6 +555,39 @@ S16_ASIAN_END_BKK        = "12:00"
 S16_KILLZONES            = [("14:00", "17:00"), ("19:00", "22:00")]
 S16_MIN_RR               = 1.5
 S16_ENTRY_MODE           = "boundary"  # "boundary" (ขอบ FVG) หรือ "midline" (50% ของ FVG)
+# ── S16 fixes 11/06/2026 (จากข้อมูล order จริง 08-10/06: -510.54 USD) ──
+# 1. one-shot dedup ต่อ (tf, side, killzone) ใน s16_state["fired"] — แก้ 13 ไม้ fill พร้อมกัน
+# 2. SL buffer ของตัวเอง — เดิมใช้ SL_BUFFER กลาง 2×ATR → แพ้เฉลี่ย -$30..-$49/ไม้
+# sim A/B (24/05-11/06 M1+M5+M15): เดิม -145.51 → one-shot -173.11 → SLbuf1.0 -71.71
+#   → SLbuf0.5 -15.38 (ดีสุด; 0.3 แย่ลง -57.00) — ยังติดลบทุก config จึงปิด default
+S16_SL_ATR_BUFFER        = 0.5   # SL = sweep extreme ∓ ATR × นี้ (None = ใช้ SL_BUFFER กลาง)
+S16_MAX_RISK_ATR_MULT    = 4.0   # skip setup ที่ risk > ATR × นี้ (0 = ปิด)
+S16_KZ_ONE_SHOT          = True  # 1 order ต่อ (side, killzone) — runtime บังคับเสมอ; flag ใช้ใน sim A/B
+
+# ── Strategy 17: Sweep Sniper (Triple-Confluence Mean Reversion) ─────
+# ⚠️ win rate สูงมาจาก TP สั้น (RR ต่ำ) — 1 SL กิน TP หลายไม้ ต้องคุม lot
+# default ปรับจาก backtest 30+60 วัน (sim_s17_backtest.py, 06/2026):
+#   M1 60 วัน: n=248 WR 91.1% P/L +$78.90 ต่อ 0.01 lot, แพ้ติดกันสูงสุด 2
+#   ทางเลือก TP 0.4 → WR 87.1% แต่กำไรมากกว่า (+$89.73)
+S17_ALLOWED_TFS         = ["M1"]  # ⚠️ เฉพาะ M1 — backtest: M5/M15/M30 ขาดทุนทุก combo
+S17_LOOKBACK            = 60    # bars กรอบอ้างอิง sweep + fib zone
+S17_RSI_PERIOD          = 14
+S17_RSI_BUY_MAX         = 32    # BUY เข้าเฉพาะ RSI แท่ง signal ≤ นี้
+S17_RSI_SELL_MIN        = 68    # SELL เข้าเฉพาะ RSI แท่ง signal ≥ นี้
+S17_WICK_MIN_PCT        = 0.30  # ไส้ฝั่ง sweep ขั้นต่ำ (% ของ range แท่ง)
+S17_TP_ATR_MULT         = 0.3   # TP = entry ± ATR × นี้ (สั้น = win rate สูง)
+S17_SL_ATR_BUFFER       = 1.0   # SL = ไส้ sweep ∓ ATR × นี้ (buffer ของ S17 เอง — ไม่ใช้ SL_BUFFER กลาง)
+S17_MAX_RISK_ATR_MULT   = 4.0   # skip ถ้า SL ห่างเกิน ATR × นี้
+S17_PD_FILTER           = True  # close แท่ง signal ต้องอยู่ Discount/Premium (fib 38.2/61.8)
+S17_ENTRY_MODE          = "limit_618"  # "limit_618"=retrace 61.8% | "limit_50"=50% | "market"
+S17_LIMIT_CANCEL_BARS   = 5     # limit ไม่ fill ภายใน N แท่ง → ยกเลิก (กลไก cancel_bars กลาง)
+S17_TREND_FILTER        = False # EMA slope filter (backtest 06/2026: ตัด setup เกือบหมด — ปิดไว้)
+S17_TREND_EMA           = 50
+S17_TREND_SLOPE_BARS    = 10
+S17_TIME_STOP_BARS      = 0     # ปิดไม้ที่แช่เกิน N แท่ง (0 = ปิดใช้งาน; ใช้ใน sim — backtest: ไม่ช่วย)
+S17_SESSION_FILTER      = True  # เทรดเฉพาะ Killzones
+S17_SESSIONS            = [("14:00", "18:00"), ("19:00", "23:00")]  # BKK London/NY
+S17_LEVEL_COOLDOWN_BARS = 20    # กันยิงซ้ำ level เดิมภายใน N แท่ง
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
@@ -672,8 +704,8 @@ SL_GUARD_NEAR_POINTS = 200  # ระยะ (points) ที่ถือว่า 
 # ── SL Guard Loss ────────────────────────────────────────────
 # นับ close ที่ขาดทุนเกิน threshold ว่าเป็น "SL hit" ด้วย (ไม่ว่าจะปิดด้วยเหตุใด)
 # เช่น manual close / bot close ที่ profit < -5$ → นับ +1 เหมือน SL hit
-SL_GUARD_LOSS_ENABLED   = False
-SL_GUARD_LOSS_THRESHOLD = 5.0   # USD — ขาดทุนเกินนี้ถึงนับ
+SL_GUARD_LOSS_ENABLED   = True
+SL_GUARD_LOSS_THRESHOLD = 2.5   # USD — ขาดทุนเกินนี้ถึงนับ
 SL_GUARD_CLOSE_ON_ACTIVATE = True  # ปิด open position ฝั่งเดียวกัน/TF เดียวกันเมื่อ Guard activate
 
 # ── SL Guard Combined TF ──────────────────────────────────────
@@ -689,8 +721,9 @@ SL_GUARD_COMBINED_TFS: list = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"
 # เมื่อ count รวมใน group ≥ threshold → ล็อกทุก TF ใน group นั้น
 # เมื่อ activate → ปิด position ทั้งหมดของ side นั้น (ไม่สน TF)
 # แต่ละ TF unblock อิสระเมื่อเจอ swing low/high ของตัวเอง
-SL_GUARD_GROUP_ENABLED = True   # default mode
-SL_GUARD_GROUP_COUNT   = 2
+SL_GUARD_GROUP_ENABLED     = True   # default mode
+SL_GUARD_GROUP_COUNT       = 2
+SL_GUARD_GROUP_SWING_BARS  = 5      # จำนวนแท่งยืนยัน swing ก่อน unblock
 SL_GUARD_GROUP_GROUPS: list = [
     ["H4",  "H12", "D1"],
     ["H1",  "H4",  "H12"],
@@ -793,7 +826,7 @@ TREND_FILTER_MODE = "breakout"
 # แพ้บ่อย (46% win, net -314) → ถ้าเปิด flag นี้จะบล็อก signal ที่สวน strong trend
 # เฉพาะท่าใน STRONG_TREND_BLOCK_SIDS (default OFF — ไม่กระทบ behavior เดิม)
 STRONG_TREND_BLOCK_ENABLED = False
-STRONG_TREND_BLOCK_SIDS = [9, 10, 11, 13, 14, 15, 16]
+STRONG_TREND_BLOCK_SIDS = [9, 10, 11, 13, 14, 15, 16, 17]
 
 # ── Strategy 10: CRT TBS — runtime mode (constants ที่ helper ใช้ภายหลังอยู่ด้านล่าง) ──
 # Bar mode: "2bar" (classic CRT — sweep+close ในแท่งเดียว) หรือ "3bar" (TBS — sweep+confirm แยก)
@@ -809,6 +842,9 @@ CRT_ENTRY_MODE = "mtf"
 CRT_WAIT_HTF_CLOSE = True
 # Min parent body percentage (สัดส่วนเนื้อเทียนขั้นต่ำของแท่งตั้งต้น อิงตามทฤษฎี CRT เพื่อกรองแท่ง Doji)
 CRT_PARENT_MIN_BODY_PCT = 0.35  # 35% ของกรอบราคา (Range) ของแท่งตั้งต้น
+# Retry after SL: True = เก็บ arm ไว้หลัง SL hit (retry ได้บน HTF bar ถัดไป)
+#   ถ้า HTF bar ปิดผ่าน parent low/high → invalidate arm ทันที
+S10_RETRY_AFTER_SL = True
 
 # กลุ่ม TF คู่ขนาน — ถ้า gap ของ TF เล็กอยู่ใน gap ของ TF ใหญ่
 # ให้ใช้ TF เล็กเป็นหลัก (entry แม่นกว่า) และยกเลิก TF อื่นในกลุ่ม
@@ -1031,15 +1067,54 @@ _RUNTIME_DEFAULTS = {
     "SWING_PIVOT_RIGHT": SWING_PIVOT_RIGHT,
     "SCALE_OUT_ENABLED": SCALE_OUT_ENABLED,
     # S14 sub-pattern toggles (runtime-resettable)
-    "S14_ENGULF":        S14_ENGULF,
-    "S14_SWEEP":         S14_SWEEP,
-    "S14_LL_USE_HHLL":   S14_LL_USE_HHLL,
-    "S14_FLIP_ENABLED":  S14_FLIP_ENABLED,
-    "S14_SEC_HTF_ENABLED": S14_SEC_HTF_ENABLED,
+    "S14_SWEEP_SWING":    S14_SWEEP_SWING,
+    "S14_ENGULF_SWING":   S14_ENGULF_SWING,
+    "S14_SWEEP_RETURN":   S14_SWEEP_RETURN,
+    "S14_FLIP_ENABLED":       S14_FLIP_ENABLED,
+    "S14_ENGULF_BREAKEVEN":   S14_ENGULF_BREAKEVEN,
     # S15 config (runtime-resettable)
-    "S15_USE_VAL_VAH":   S15_USE_VAL_VAH,
-    "S15_LOOKBACK":      S15_LOOKBACK,
-    "S15_MIN_RR":        S15_MIN_RR,
+    "S15_USE_VAL_VAH":          S15_USE_VAL_VAH,
+    "S15_LOOKBACK":             S15_LOOKBACK,
+    "S15_MIN_RR":               S15_MIN_RR,
+    "S15_TREND_FILTER":         S15_TREND_FILTER,
+    "S15_STRICT_MODE":          S15_STRICT_MODE,
+    "S15_LEVEL_COOLDOWN_BARS":  S15_LEVEL_COOLDOWN_BARS,
+    "S15_RSI_FILTER":           S15_RSI_FILTER,
+    # Scan / recheck flags
+    "TREND_FILTER_SCAN_BLOCK":  TREND_FILTER_SCAN_BLOCK,
+    "PDFIBOPLUS_ENABLED":       PDFIBOPLUS_ENABLED,
+    "RECHECK_COMBINED_MODE":    RECHECK_COMBINED_MODE,
+    "PENDING_RSI_RECHECK_MODE": PENDING_RSI_RECHECK_MODE,
+    # SL Guard
+    "SL_GUARD_ENABLED":           SL_GUARD_ENABLED,
+    "SL_GUARD_COUNT":             SL_GUARD_COUNT,
+    "SL_GUARD_NEAR_POINTS":       SL_GUARD_NEAR_POINTS,
+    "SL_GUARD_LOSS_ENABLED":      SL_GUARD_LOSS_ENABLED,
+    "SL_GUARD_LOSS_THRESHOLD":    SL_GUARD_LOSS_THRESHOLD,
+    "SL_GUARD_CLOSE_ON_ACTIVATE": SL_GUARD_CLOSE_ON_ACTIVATE,
+    "SL_GUARD_COMBINED_ENABLED":  SL_GUARD_COMBINED_ENABLED,
+    "SL_GUARD_COMBINED_COUNT":    SL_GUARD_COMBINED_COUNT,
+    "SL_GUARD_COMBINED_TFS":      copy.deepcopy(SL_GUARD_COMBINED_TFS),
+    "SL_GUARD_GROUP_ENABLED":     SL_GUARD_GROUP_ENABLED,
+    "SL_GUARD_GROUP_COUNT":       SL_GUARD_GROUP_COUNT,
+    # S16 AMD x iFVG (runtime-resettable)
+    "S16_ENTRY_MODE":        S16_ENTRY_MODE,
+    "S16_MIN_RR":            S16_MIN_RR,
+    "S16_SL_ATR_BUFFER":     S16_SL_ATR_BUFFER,
+    "S16_MAX_RISK_ATR_MULT": S16_MAX_RISK_ATR_MULT,
+    "S16_KZ_ONE_SHOT":       S16_KZ_ONE_SHOT,
+    # S17 Sweep Sniper (runtime-resettable)
+    "S17_SESSION_FILTER":      S17_SESSION_FILTER,
+    "S17_PD_FILTER":           S17_PD_FILTER,
+    "S17_TREND_FILTER":        S17_TREND_FILTER,
+    "S17_ENTRY_MODE":          S17_ENTRY_MODE,
+    "S17_RSI_BUY_MAX":         S17_RSI_BUY_MAX,
+    "S17_RSI_SELL_MIN":        S17_RSI_SELL_MIN,
+    "S17_TP_ATR_MULT":         S17_TP_ATR_MULT,
+    "S17_SL_ATR_BUFFER":       S17_SL_ATR_BUFFER,
+    "S17_MAX_RISK_ATR_MULT":   S17_MAX_RISK_ATR_MULT,
+    "S17_LEVEL_COOLDOWN_BARS": S17_LEVEL_COOLDOWN_BARS,
+    "S17_LIMIT_CANCEL_BARS":   S17_LIMIT_CANCEL_BARS,
 }
 
 fvg_pending       = {}   # {key: {tf, signal, entry, sl, tp, gap_top, gap_bot, candle_key}}
@@ -1226,6 +1301,11 @@ def save_runtime_state():
             "crt_entry_mode": CRT_ENTRY_MODE,
             "crt_wait_htf_close": CRT_WAIT_HTF_CLOSE,
             "crt_parent_min_body_pct": CRT_PARENT_MIN_BODY_PCT,
+            "s10_retry_after_sl": S10_RETRY_AFTER_SL,
+            "s14_sweep_swing":      S14_SWEEP_SWING,
+            "s14_engulf_swing":     S14_ENGULF_SWING,
+            "s14_sweep_return":     S14_SWEEP_RETURN,
+            "s14_engulf_breakeven": S14_ENGULF_BREAKEVEN,
             "s10_armed_states": s10_armed_serialized,
             "rsi9_plot_bullish": RSI9_PLOT_BULLISH,
             "rsi9_plot_hidden_bullish": RSI9_PLOT_HIDDEN_BULLISH,
@@ -1351,6 +1431,8 @@ def restore_runtime_state():
         global TREND_FILTER_MODE
         global SWING_SUMMARY_MODE, SWING_PIVOT_LEFT, SWING_PIVOT_RIGHT
         global CRT_BAR_MODE, CRT_SWEEP_DEPTH_PCT, CRT_ENTRY_MODE, CRT_WAIT_HTF_CLOSE, CRT_PARENT_MIN_BODY_PCT
+        global S10_RETRY_AFTER_SL
+        global S14_SWEEP_SWING, S14_ENGULF_SWING, S14_SWEEP_RETURN, S14_ENGULF_BREAKEVEN
         global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
@@ -1485,6 +1567,11 @@ def restore_runtime_state():
         if saved_crt_entry in ("htf", "mtf"):
             CRT_ENTRY_MODE = saved_crt_entry
         CRT_WAIT_HTF_CLOSE = bool(state.get("crt_wait_htf_close", CRT_WAIT_HTF_CLOSE))
+        S10_RETRY_AFTER_SL = bool(state.get("s10_retry_after_sl", S10_RETRY_AFTER_SL))
+        S14_SWEEP_SWING   = bool(state.get("s14_sweep_swing",   S14_SWEEP_SWING))
+        S14_ENGULF_SWING  = bool(state.get("s14_engulf_swing",  S14_ENGULF_SWING))
+        S14_SWEEP_RETURN      = bool(state.get("s14_sweep_return",      S14_SWEEP_RETURN))
+        S14_ENGULF_BREAKEVEN  = bool(state.get("s14_engulf_breakeven",  S14_ENGULF_BREAKEVEN))
         try:
             saved_crt_body = float(state.get("crt_parent_min_body_pct", CRT_PARENT_MIN_BODY_PCT))
             if 0.0 <= saved_crt_body <= 1.0:

@@ -2,6 +2,7 @@ from config import *
 import config
 from mt5_utils import connect_mt5
 from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
+    build_strategy_detail_keyboard,
     build_tf_keyboard, build_tf_keyboard_with_back,
     build_scan_keyboard, build_scan_keyboard_with_back,
     build_lot_keyboard,
@@ -22,6 +23,196 @@ async def _qanswer(query, text=""):
         await query.answer(text)
     except Exception:
         pass
+
+
+_STRATEGY_DESC = {
+    1:  "📐 *Pattern A* — กลืนกินซ้อน 3 แท่ง\n"
+        "BUY: [2]🔴 [1]🟢Close>High[2]+gap [0]🟢Close>High[1]+gap body≥35%\n"
+        "SELL: [2]🟢 [1]🔴Close<Low[2]-gap [0]🔴Close<Low[1]-gap\n\n"
+        "📐 *Pattern B* — ตำหนิ + กลืน\n"
+        "BUY: [2]🔴 [1]🟢ตำหนิ(ไส้เข้าใน[2]) [0]🟢กลืน[1]\n\n"
+        "📐 *Pattern E* — 2 แท่งเดียวกัน + กลืน\n"
+        "BUY: [2]🔴 [1]🔴 [0]🟢Close>High[1]+gap body≥35%\n\n"
+        "📐 *Pattern C/P4* — ย้อนโครงสร้าง 3-4 แท่ง\n\n"
+        "🔹 Zone ON: ยกเลิก pending ถ้าหลุด swing zone\n"
+        "🔹 Zone OFF: ไม่เช็ค swing — เข้าทุก setup ที่ผ่าน pattern\n"
+        "🔹 Forward Confirm: รอ S1/S2/S3 ฝั่งเดียวภายใน 5 แท่ง\n"
+        "🔹 entry = Limit ที่ High/Low ของ pattern",
+
+    2:  "📐 *FVG (Fair Value Gap)*\n"
+        "หา imbalance ระหว่าง [2][1][0]\n"
+        "BUY: [1]🟢Close>High[2]+gap | Low[0]>High[2] (gap ยังเปิด)\n"
+        "SELL: [1]🔴Close<Low[2]-gap | High[0]<Low[2]\n\n"
+        "🔹 entry = LIMIT ที่ขอบด้านในของ gap\n"
+        "🔹 *ปกติ*: ต้องมี S1/S2/S3 ฝั่งเดียวย้อนหลังก่อน (ยืนยัน trend)\n"
+        "🔹 *Parallel*: ไม่ต้องรอยืนยัน — fire ทันทีที่เจอ gap\n"
+        "🔹 ถ้า [0] เป็น Marubozu → รอ confirm แท่งถัดไปก่อน",
+
+    3:  "📐 *DM SP / Marubozu*\n"
+        "BUY: [2]🟢body≥35% [1]🔴หรือ doji [0]🟢Close>High[1]+gap\n"
+        "SELL: [2]🔴body≥35% [1]🟢หรือ doji [0]🔴Close<Low[1]-gap\n\n"
+        "🔹 ต้องมี S1/S2/S3 ฝั่งเดียวย้อนหลัง 8 แท่งก่อน\n"
+        "🔹 No-Engulf Pending: [0]ถูกทิศแต่ยังไม่กลืน → รอแท่งถัดไปกลืน\n"
+        "🔹 Marubozu Pending: [0] marubozu → รอแท่งถัดไป confirm",
+
+    4:  "📐 *นัยยะสำคัญ FVG*\n"
+        "FVG ที่กลืน Swing สำคัญจริง ไม่ใช่แค่ gap ธรรมดา\n\n"
+        "BUY: [1]🟢High[1]>High[2] | Low[0]>High[2] (gap เปิด)\n"
+        "Close[1] > Swing High ก่อนหน้า + ห่าง ≥ engulf_min\n"
+        "Swing High นั้นต้องอยู่ 'ใน gap' ด้วย\n\n"
+        "SELL: [1]🔴Low[1]<Low[2] | High[0]<Low[2]\n"
+        "Close[1] < Swing Low + ห่าง ≥ engulf_min",
+
+    5:  "⚠️ *Scalping* — ยังไม่ใช้งานเต็มรูปแบบ\n"
+        "logic ยังไม่ครบ — เปิดก็ได้ แต่แทบไม่ fire",
+
+    6:  "⚙️ *2H2L — State machine ต่อจาก S2/S3*\n"
+        "ไม่ใช่ท่าเข้า order — เป็น trailing/re-entry logic\n"
+        "จัดการ position ที่มาจากท่า 2 หรือ 3\n"
+        "รอราคาทำ 2 High หรือ 2 Low → ตั้ง order ฝั่งตรงข้าม\n"
+        "💡 ควรเปิดไว้เสมอถ้าใช้ท่า 2 หรือ 3",
+
+    7:  "⚙️ *2H2L อิสระ (S6i)*\n"
+        "เหมือน S6 แต่ทำงานอิสระ ไม่ต้องรอ S2/S3 fire ก่อน\n"
+        "สแกน swing H/L เองแล้วรอราคาทำ 2H/2L\n"
+        "เมื่อเจอ pattern ฝั่งตรงข้าม → ตั้ง order ใหม่",
+
+    8:  "📐 *กินไส้ Swing*\n"
+        "ใช้ Swing High/Low ที่หาได้จากระบบ\n\n"
+        "SELL: Entry = SwingHigh + 17% range | SL = SwingHigh + 31% range\n"
+        "BUY:  Entry = SwingLow - 17% range  | SL = SwingLow - 31% range\n"
+        "TP = ฝั่งตรงข้าม (SwingLow/SwingHigh)\n\n"
+        "🔹 ตั้ง Limit ล่วงหน้า รอราคาวิ่งเกิน swing แล้วกลับ\n"
+        "🔹 ถ้ามาจาก Limit Sweep ต้องระวัง LL/HH context",
+
+    9:  "📐 *RSI Divergence* — RSI(14) vs pivot ราคา\n\n"
+        "🔵 *Regular Bullish*: price LL + RSI HL → BUY\n"
+        "🔴 *Regular Bearish*: price HH + RSI LH → SELL\n"
+        "🔵 *Hidden Bullish*: price HL + RSI LL → BUY (trend continuation)\n"
+        "🔴 *Hidden Bearish*: price LH + RSI HH → SELL\n\n"
+        "🔹 หา pivot คู่ติดกัน (immediate prev pivot เท่านั้น)\n"
+        "🔹 range ตรวจ: 5–60 แท่ง (pivot left/right = 5)\n"
+        "🔹 entry = LIMIT ที่ midpoint ของแท่ง pivot ปัจจุบัน\n"
+        "🔹 SL = low/high pivot ± buffer | TP = swing / fallback RR 1:1",
+
+    10: "📐 *CRT TBS* — Candle Range Theory + Three Bar Sweep\n\n"
+        "HTF ตรวจ sweep ราคาทะลุ parent H/L แล้วกลับ:\n"
+        "🔹 *2bar*: แท่ง sweep + แท่ง confirm\n"
+        "🔹 *3bar*: setup + sweep + confirm\n\n"
+        "📌 *HTF entry*: Market ทันทีที่ HTF sweep ปิดยืนยัน\n"
+        "📌 *MTF entry* (default): หลัง HTF arm → หา pattern บน LTF\n"
+        "  Phase 1 Failed-push: LTF close ทะลุ parent H/L\n"
+        "  Phase 2 Engulf 2-bar: กลืนกลับยืนยันทิศ\n"
+        "  Model 1 Order Block (แนะนำ) → Model 2 FVG 90%\n\n"
+        "LTF mapping: D1/H12→M15 | H4→M5 | H1/M30/M15→M1\n"
+        "💡 TSO always-4-steps | bypass trend filter ทั้งหมด",
+
+    11: "📐 *Fibo S1* — Hook ต่อจากท่า 1\n"
+        "เมื่อ S1 fire → anchor บนแท่งสีเดียวกับ direction\n"
+        "BUY: 1=High 0=Low | SELL: 1=Low 0=High\n\n"
+        "Trigger → Entry pairs:\n"
+        "🔹 wick แตะ KRH1(1.617) → LIMIT ที่ 50%\n"
+        "🔹 wick แตะ KRH2(3.097) → LIMIT ที่ 50%\n"
+        "🔹 wick แตะ KRH3(5.165) → LIMIT ที่ KRH1(1.617)\n\n"
+        "TP = Run Engulfing (7.044) | SL = XXL (-0.31)\n"
+        "💡 state ไม่ persist — reset ทุก restart",
+
+    12: "📐 *Range Trading* — M5 only\n"
+        "หา pivot Swing H/L → แบ่ง buy zone / sell zone\n"
+        "ตั้ง Limit หลายชั้น (S12_ORDER_COUNT) ใน zone\n\n"
+        "BUY zone: ใกล้ Swing Low\n"
+        "SELL zone: ใกล้ Swing High\n\n"
+        "🔹 zone sticky — ค้างจน pivot ใหม่มายืนยัน\n"
+        "🔹 SL hit → cooldown 30 นาที ไม่เปิด order ใหม่",
+
+    13: "📐 *EzAlgo V5* — Supertrend crossover\n"
+        "BUY: close ตัดขึ้นเหนือ supertrend\n"
+        "SELL: close ตัดลงใต้ supertrend\n\n"
+        "entry = close ของแท่งสัญญาณ\n"
+        "SL BUY: low - ATR×mult | SL SELL: high + ATR×mult\n\n"
+        "📦 4 orders TSO อัตโนมัติ:\n"
+        "ราคา > entry (BUY): 1 Market #3→TP3 + 3 Limit L1/L2/L3\n"
+        "ราคา ≤ entry (BUY): 3 Market #1/#2/#3 + 1 Limit L3\n\n"
+        "💡 standalone — bypass Trail SL/Entry Candle/Trend Filter\n"
+        "🔹 ใช้ Limit Trend Recheck + RSI Fill Recheck",
+
+    14: "📐 *Sweep RSI* — RSI zone + pattern\n"
+        "หา LL/HH zone จาก RSI ย้อนหลัง 50 แท่ง\n\n"
+        "BUY patterns:\n"
+        "🔹 Engulf: Close[0] < LL_zone (ทะลุลงแล้วปิดใต้)\n"
+        "🔹 Sweep: Low[0] < LL_zone แต่ Close กลับเหนือ\n\n"
+        "SELL patterns:\n"
+        "🔹 Engulf: Close[0] > HH_zone\n"
+        "🔹 Sweep: High[0] > HH_zone แต่ Close กลับต่ำกว่า\n\n"
+        "💡 Market order ทันที — ไม่มี pending\n"
+        "🔹 PD Fibo filter: entry ต้องอยู่ Discount(<38.2%) / Premium(>61.8%)\n"
+        "🔹 Flip = ปิด S14 ฝั่งตรงข้าม TF เดียวกันก่อนเปิดใหม่",
+
+    15: "📐 *Volume Profile POC/VAL/VAH*\n"
+        "คำนวณ VP จาก tick volume ย้อนหลัง N bars\n"
+        "POC = ราคาที่ volume สูงสุด (แม่เหล็กราคา)\n"
+        "VAH/VAL = ขอบ Value Area 70%\n\n"
+        "Absorption ที่ POC/VAL/VAH:\n"
+        "🔹 Long wick sweep: ไส้ ≥ 35% range แต่ปิดกลับเข้าโซน\n"
+        "🔹 2-bar reversal: แท่งก่อนสวนสี → แท่งล่าสุดกลับทิศ\n\n"
+        "BUY LIMIT: entry=POC/VAL | SL=low-ATR | TP=VAH/swing\n"
+        "SELL LIMIT: entry=POC/VAH | SL=high+ATR | TP=VAL/swing\n\n"
+        "💡 STRICT_MODE: กรอง setup ไม่ชัด\n"
+        "💡 Trend Filter: เปิด/ปิด EMA50 filter\n"
+        "📊 WR ~52% หลัง fix 04/06 | ดีสุด M1 BUY VAL (+$63)",
+
+    16: "📐 *AMD x iFVG* — Asian Manipulation + Inversion FVG\n\n"
+        "⏰ Asian Range: 08:00–12:00 BKK (คำนวณ H/L)\n"
+        "🎯 Killzone: London 14:00–17:00 | NY 19:00–22:00 BKK\n\n"
+        "Flow:\n"
+        "1️⃣ ราคา sweep ทะลุ Asian Low → เตรียม BUY\n"
+        "   ราคา sweep ทะลุ Asian High → เตรียม SELL\n"
+        "2️⃣ ราคาพุ่งกลับ ปิดผ่าน FVG ฝั่งตรงข้าม\n"
+        "   → FVG นั้นกลายเป็น Inversion FVG (entry zone)\n"
+        "3️⃣ LIMIT รอที่ขอบ (Boundary) หรือ midline ของ iFVG\n\n"
+        "SL: ใต้/เหนือจุด sweep + ATR buffer\n"
+        "TP: ขอบ Asian ฝั่งตรงข้าม / fallback RR 1.5\n\n"
+        "💡 M1 only | One-Shot = 1 ไม้/killzone (ป้องกัน dup)\n"
+        "🔹 Boundary = entry ที่ขอบ iFVG ใกล้ราคา\n"
+        "🔹 Midline = entry ที่กลาง iFVG (conservative)",
+
+    17: "📐 *Sweep Sniper* — 4-Confluence M1\n\n"
+        "เข้าเฉพาะ setup ที่ผ่านครบทุกชั้น:\n"
+        "1️⃣ *Liquidity Sweep*: ไส้ทะลุ L/H ของ 60 แท่งก่อน\n"
+        "   แต่เปิดในกรอบ + ปิดกลับเข้ากรอบ (stop hunt rejected)\n"
+        "2️⃣ *Rejection Wick*: ไส้ฝั่ง sweep ≥ 30% ของ range แท่ง\n"
+        "3️⃣ *RSI Extreme*: RSI ≤ 32 (BUY) หรือ ≥ 68 (SELL)\n"
+        "4️⃣ *PD Fibo Zone*: close อยู่ Discount <38.2% / Premium >61.8%\n"
+        "+ Session: London 14-18 / NY 19-23 BKK เท่านั้น\n\n"
+        "LIMIT retrace 61.8% ของแท่ง sweep\n"
+        "TP = entry ± 0.3×ATR (สั้นมาก by design)\n"
+        "SL = ใต้/เหนือไส้ sweep ± 1.0×ATR\n\n"
+        "📊 backtest M1 60วัน: 248 ไม้ WR 91.1% P/L +$78.90\n"
+        "⚠️ RR ต่ำ ~0.17 — 1 SL กิน TP ≈ 6 ไม้",
+}
+
+
+async def _show_strategy_detail(query, sid: int, answer_text: str = ""):
+    """แสดงหน้า detail ของ strategy แต่ละตัว และ answer query"""
+    name   = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+    is_on  = active_strategies.get(sid, False)
+    status = "🟢 เปิดอยู่" if is_on else "🔴 ปิดอยู่"
+    desc   = _STRATEGY_DESC.get(sid, "")
+    text   = (
+        f"📋 *{name}*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{status}*\n\n"
+        f"{desc}\n\n" if desc else
+        f"📋 *{name}*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{status}*\n\n"
+    ) + "เลือกตัวเลือกด้านล่าง:"
+    try:
+        await query.edit_message_text(text, parse_mode="Markdown",
+                                      reply_markup=build_strategy_detail_keyboard(sid))
+    except Exception:
+        pass
+    await _qanswer(query, answer_text)
 
 
 async def handle_callback(update, ctx):
@@ -65,7 +256,7 @@ async def handle_callback(update, ctx):
             "📋 *เลือก Strategy*\n"
             "━━━━━━━━━━━━━━━━━\n"
             f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-            "กดเพื่อเปิด/ปิด (เลือกพร้อมกันได้):"
+            "กดที่ท่าไหนเพื่อดู option และเปิด/ปิดใช้งาน:"
         )
         try:
             await query.edit_message_text(
@@ -77,6 +268,14 @@ async def handle_callback(update, ctx):
             if "not modified" not in str(e).lower():
                 pass
         await _qanswer(query)
+
+    elif data.startswith("open_strategy_detail_"):
+        try:
+            sid = int(data.replace("open_strategy_detail_", ""))
+        except ValueError:
+            await _qanswer(query)
+            return
+        await _show_strategy_detail(query, sid)
 
     elif data == "reset_config_prompt":
         kb = InlineKeyboardMarkup([[
@@ -432,30 +631,13 @@ async def handle_callback(update, ctx):
         await _qanswer(query,msg_answer)
 
     elif data.startswith("set_s1_zone_mode_"):
-        mode = data.replace("set_s1_zone_mode_", "")   # "zone" หรือ "normal"
+        mode = data.replace("set_s1_zone_mode_", "")
         config.S1_ZONE_MODE = mode
         save_runtime_state()
-        label = "Zone 🔵 (ต้องใกล้ Swing)" if mode == "zone" else "ปกติ ⬜ (ไม่สนใจ Zone)"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        new_text = (
-            "📋 *เลือก Strategy*\n"
-            "━━━━━━━━━━━━━━━━━\n"
-            f"🔄 ที่เปิดอยู่: *{summary}*\n"
-            f"🎯 ท่า 1 Zone: *{label}*\n\n"
-            "กดเพื่อเปิด/ปิด:"
-        )
-        try:
-            await query.edit_message_text(
-                new_text, parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query,f"✅ ท่า 1: {label}")
+        label = "Zone (ต้องใกล้ Swing)" if mode == "zone" else "ปกติ (ไม่สนใจ Zone)"
+        await _show_strategy_detail(query, 1, f"✅ ท่า 1: {label}")
 
     elif data in ("toggle_rsi9_regular", "toggle_rsi9_hidden"):
-        # Toggle bull+bear ของแต่ละแบบพร้อมกัน — ON ก็ต่อเมื่อทั้งคู่ ON, มิฉะนั้น OFF
         if data == "toggle_rsi9_regular":
             currently_on = config.RSI9_PLOT_BULLISH and config.RSI9_PLOT_BEARISH
             new_state = not currently_on
@@ -469,48 +651,38 @@ async def handle_callback(update, ctx):
             config.RSI9_PLOT_HIDDEN_BEARISH = new_state
             label = f"Hidden: {'ON' if new_state else 'OFF'}"
         save_runtime_state()
-        try:
-            await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
-        except Exception:
-            pass
-        await _qanswer(query,f"✅ ท่า 9: {label}")
+        await _show_strategy_detail(query, 9, f"✅ ท่า 9: {label}")
 
     elif data.startswith("set_crt_bar_mode_"):
         mode = data.replace("set_crt_bar_mode_", "")
         if mode in ("2bar", "3bar"):
             config.CRT_BAR_MODE = mode
             save_runtime_state()
-            try:
-                await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
-            except Exception:
-                pass
-            await _qanswer(query,f"✅ ท่า 10: {mode}")
+            await _show_strategy_detail(query, 10, f"✅ ท่า 10: {mode}")
         else:
-            await _qanswer(query,"Mode ไม่ถูกต้อง")
+            await _qanswer(query, "Mode ไม่ถูกต้อง")
 
     elif data.startswith("set_crt_entry_mode_"):
         mode = data.replace("set_crt_entry_mode_", "")
         if mode in ("htf", "mtf"):
             config.CRT_ENTRY_MODE = mode
             save_runtime_state()
-            try:
-                await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
-            except Exception:
-                pass
             label = "HTF entry" if mode == "htf" else "MTF (LTF entry)"
-            await _qanswer(query,f"✅ ท่า 10: {label}")
+            await _show_strategy_detail(query, 10, f"✅ ท่า 10: {label}")
         else:
-            await _qanswer(query,"Entry mode ไม่ถูกต้อง")
+            await _qanswer(query, "Entry mode ไม่ถูกต้อง")
 
     elif data == "toggle_crt_wait_htf_close":
         config.CRT_WAIT_HTF_CLOSE = not getattr(config, "CRT_WAIT_HTF_CLOSE", False)
         save_runtime_state()
-        try:
-            await query.edit_message_reply_markup(reply_markup=build_strategy_keyboard())
-        except Exception:
-            pass
         status = "รอ HTF sweep ปิด" if config.CRT_WAIT_HTF_CLOSE else "ไม่รอ HTF sweep ปิด"
-        await _qanswer(query, f"✅ ท่า 10: {status}")
+        await _show_strategy_detail(query, 10, f"✅ ท่า 10: {status}")
+
+    elif data == "toggle_s10_retry_after_sl":
+        config.S10_RETRY_AFTER_SL = not getattr(config, "S10_RETRY_AFTER_SL", False)
+        save_runtime_state()
+        status = "เปิด" if config.S10_RETRY_AFTER_SL else "ปิด"
+        await _show_strategy_detail(query, 10, f"✅ ท่า 10 Retry SL: {status}")
 
     elif data in ("toggle_fvg_normal", "toggle_fvg_parallel"):
         if data == "toggle_fvg_normal":
@@ -524,80 +696,49 @@ async def handle_callback(update, ctx):
         if config.FVG_PARALLEL:
             parts.append("Parallel")
         label = "+".join(parts) if parts else "(ปิดหมด)"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        new_text = (
-            "📋 *เลือก Strategy*\n"
-            "━━━━━━━━━━━━━━━━━\n"
-            f"🔄 ที่เปิดอยู่: *{summary}*\n"
-            f"📊 ท่า 2 Mode: *{label}*\n\n"
-            "กดเพื่อเปิด/ปิด:"
-        )
-        try:
-            await query.edit_message_text(
-                new_text, parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query,f"✅ ท่า 2: {label}")
+        await _show_strategy_detail(query, 2, f"✅ ท่า 2: {label}")
+
+    elif data == "toggle_s14_sweep_swing":
+        config.S14_SWEEP_SWING = not getattr(config, "S14_SWEEP_SWING", True)
+        save_runtime_state()
+        status = "ON" if config.S14_SWEEP_SWING else "OFF"
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 Sweep Swing: {status}")
+
+    elif data == "toggle_s14_engulf_swing":
+        config.S14_ENGULF_SWING = not getattr(config, "S14_ENGULF_SWING", True)
+        save_runtime_state()
+        status = "ON" if config.S14_ENGULF_SWING else "OFF"
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 Engulf Swing: {status}")
+
+    elif data == "toggle_s14_sweep_return":
+        config.S14_SWEEP_RETURN = not getattr(config, "S14_SWEEP_RETURN", True)
+        save_runtime_state()
+        status = "ON" if config.S14_SWEEP_RETURN else "OFF"
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 Sweep กลับตัว: {status}")
 
     elif data == "toggle_s14_flip":
         config.S14_FLIP_ENABLED = not getattr(config, "S14_FLIP_ENABLED", True)
         save_runtime_state()
         status = "ON" if config.S14_FLIP_ENABLED else "OFF"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 14 Flip: {status}")
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 Flip: {status}")
+
+    elif data == "toggle_s14_engulf_breakeven":
+        config.S14_ENGULF_BREAKEVEN = not getattr(config, "S14_ENGULF_BREAKEVEN", True)
+        save_runtime_state()
+        status = "ON" if config.S14_ENGULF_BREAKEVEN else "OFF"
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 Engulf Breakeven: {status}")
 
     elif data == "toggle_s15_trend_filter":
         config.S15_TREND_FILTER = not getattr(config, "S15_TREND_FILTER", True)
         save_runtime_state()
         status = "ON" if config.S15_TREND_FILTER else "OFF"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 Trend Filter: {status}")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 Trend Filter: {status}")
 
     elif data == "toggle_s15_strict_mode":
         config.S15_STRICT_MODE = not getattr(config, "S15_STRICT_MODE", True)
         save_runtime_state()
         status = "ON" if config.S15_STRICT_MODE else "OFF"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 Strict Mode: {status}")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 Strict Mode: {status}")
 
     elif data.startswith("set_s15_cooldown_"):
         cd_map = {"5": 5, "15": 15, "30": 30}
@@ -607,58 +748,19 @@ async def handle_callback(update, ctx):
             return
         config.S15_LEVEL_COOLDOWN_BARS = cd_map[cd_str]
         save_runtime_state()
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 Cooldown: {config.S15_LEVEL_COOLDOWN_BARS} bars")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 Cooldown: {config.S15_LEVEL_COOLDOWN_BARS} bars")
 
     elif data == "toggle_s15_rsi_filter":
         config.S15_RSI_FILTER = not getattr(config, "S15_RSI_FILTER", True)
         save_runtime_state()
         status = "ON" if config.S15_RSI_FILTER else "OFF"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 RSI Filter: {status}")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 RSI Filter: {status}")
 
     elif data == "toggle_s15_val_vah":
         config.S15_USE_VAL_VAH = not getattr(config, "S15_USE_VAL_VAH", True)
         save_runtime_state()
         status = "ON" if config.S15_USE_VAL_VAH else "OFF"
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 VAL/VAH: {status}")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 VAL/VAH: {status}")
 
     elif data.startswith("set_s15_lookback_"):
         lb_map = {"50": 50, "100": 100, "200": 200}
@@ -668,20 +770,7 @@ async def handle_callback(update, ctx):
             return
         config.S15_LOOKBACK = lb_map[lb_str]
         save_runtime_state()
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 Lookback: {config.S15_LOOKBACK} bars")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 Lookback: {config.S15_LOOKBACK} bars")
 
     elif data.startswith("set_s15_min_rr_"):
         rr_map = {"10": 1.0, "15": 1.5, "20": 2.0}
@@ -691,20 +780,59 @@ async def handle_callback(update, ctx):
             return
         config.S15_MIN_RR = rr_map[rr_str]
         save_runtime_state()
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-        summary = " + ".join(active_list) if active_list else "ไม่มี"
-        try:
-            await query.edit_message_text(
-                f"📋 *เลือก Strategy*\n"
-                f"━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                f"กดเพื่อเปิด/ปิด:",
-                parse_mode="Markdown",
-                reply_markup=build_strategy_keyboard()
-            )
-        except Exception:
-            pass
-        await _qanswer(query, f"✅ ท่า 15 Min R:R: {config.S15_MIN_RR}")
+        await _show_strategy_detail(query, 15, f"✅ ท่า 15 Min R:R: {config.S15_MIN_RR}")
+
+    elif data.startswith("set_s16_entry_mode_"):
+        mode = data.replace("set_s16_entry_mode_", "")
+        if mode not in ("boundary", "midline"):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
+            return
+        config.S16_ENTRY_MODE = mode
+        save_runtime_state()
+        await _show_strategy_detail(query, 16, f"✅ ท่า16 Entry Mode: {mode}")
+
+    elif data == "toggle_s16_kz_one_shot":
+        config.S16_KZ_ONE_SHOT = not getattr(config, "S16_KZ_ONE_SHOT", True)
+        save_runtime_state()
+        status = "ON" if config.S16_KZ_ONE_SHOT else "OFF"
+        await _show_strategy_detail(query, 16, f"✅ ท่า16 KZ One-Shot: {status}")
+
+    elif data.startswith("set_s16_min_rr_"):
+        rr_map = {"10": 1.0, "15": 1.5, "20": 2.0}
+        rr_str = data.replace("set_s16_min_rr_", "")
+        if rr_str not in rr_map:
+            await _qanswer(query, "ค่า R:R ไม่ถูกต้อง")
+            return
+        config.S16_MIN_RR = rr_map[rr_str]
+        save_runtime_state()
+        await _show_strategy_detail(query, 16, f"✅ ท่า16 Min R:R: {config.S16_MIN_RR}")
+
+    elif data == "toggle_s17_session_filter":
+        config.S17_SESSION_FILTER = not getattr(config, "S17_SESSION_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S17_SESSION_FILTER else "OFF"
+        await _show_strategy_detail(query, 17, f"✅ ท่า17 Session Filter: {status}")
+
+    elif data == "toggle_s17_pd_filter":
+        config.S17_PD_FILTER = not getattr(config, "S17_PD_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S17_PD_FILTER else "OFF"
+        await _show_strategy_detail(query, 17, f"✅ ท่า17 PD Filter: {status}")
+
+    elif data == "toggle_s17_trend_filter":
+        config.S17_TREND_FILTER = not getattr(config, "S17_TREND_FILTER", False)
+        save_runtime_state()
+        status = "ON" if config.S17_TREND_FILTER else "OFF"
+        await _show_strategy_detail(query, 17, f"✅ ท่า17 Trend Filter: {status}")
+
+    elif data.startswith("set_s17_entry_mode_"):
+        mode = data.replace("set_s17_entry_mode_", "")
+        if mode not in ("limit_618", "limit_50", "market"):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
+            return
+        config.S17_ENTRY_MODE = mode
+        save_runtime_state()
+        await _show_strategy_detail(query, 17, f"✅ ท่า17 Entry Mode: {mode}")
 
     elif data.startswith("set_trail_engulf_mode_"):
         mode = data.replace("set_trail_engulf_mode_", "")
@@ -928,26 +1056,9 @@ async def handle_callback(update, ctx):
             active_strategies[sid] = not active_strategies[sid]
             config.active_strategies[sid] = active_strategies[sid]
             save_runtime_state()
-            name     = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+            name      = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
             status_th = "เปิด ✅" if active_strategies[sid] else "ปิด ❌"
-            active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
-            summary = " + ".join(active_list) if active_list else "ไม่มี"
-            new_text = (
-                "📋 *เลือก Strategy*\n"
-                "━━━━━━━━━━━━━━━━━\n"
-                f"🔄 ที่เปิดอยู่: *{summary}*\n\n"
-                "กดเพื่อเปิด/ปิด (เลือกพร้อมกันได้):"
-            )
-            try:
-                await query.edit_message_text(
-                    new_text,
-                    parse_mode="Markdown",
-                    reply_markup=build_strategy_keyboard()
-                )
-            except Exception as e:
-                if "not modified" not in str(e).lower():
-                    raise
-            await _qanswer(query,f"{name}: {status_th}")
+            await _show_strategy_detail(query, sid, f"{name}: {status_th}")
 
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด

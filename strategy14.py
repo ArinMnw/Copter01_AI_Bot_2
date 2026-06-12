@@ -388,19 +388,19 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
     - Sweep: rates[-2] is sweep low, rates[-1] is GREEN confirm bar. Enter on next bar open (which is rates[-1]['close']).
     - Engulf: rates[i] is engulf low, rates[i+1], rates[i+2] are GREEN confirm bars, and HTF bar closes RED (or secondary HTF is sweep). Enter on next HTF bar.
     """
-    want_engulf = getattr(config, "S14_ENGULF", True)
-    want_sweep  = getattr(config, "S14_SWEEP",  True)
-    if not want_engulf and not want_sweep:
+    want_swing        = getattr(config, "S14_SWEEP_SWING",  True)
+    want_engulf_swing = getattr(config, "S14_ENGULF_SWING", True)
+    want_sweep        = getattr(config, "S14_SWEEP_RETURN", True)
+    if not want_swing and not want_engulf_swing and not want_sweep:
         return []
 
     if len(rates) < 6:
         return []
 
     results = []
-    
-    def get_ref_low_list(setup_idx):
+
+    def get_ref_low_list(setup_idx, use_hhll=False):
         candidates = []
-        use_hhll = getattr(config, "S14_LL_USE_HHLL", False)
         if not use_hhll:
             local_low_idxs = _find_local_lows(rates)
             if local_low_idxs:
@@ -448,7 +448,9 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
         return active_refs
 
     # ── 2. ตรวจ Sweep (รอ confirm bar เขียวหลัง sweep จบ) ─────────────────────
-    if want_sweep and len(rates) >= 3:
+    # want_swing  = HHLL swing ref  → BSS/SSS
+    # want_sweep  = local_low ref   → BRS/SRS
+    if (want_swing or want_sweep) and len(rates) >= 3:
         confirm_idx = len(rates) - 1
         sweep_idx   = len(rates) - 2
         confirm_bar = rates[confirm_idx]
@@ -456,59 +458,65 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
         co, cc = float(confirm_bar["open"]), float(confirm_bar["close"])
 
         if cc > co:  # confirm bar ต้องเขียว
-            ref_list = get_ref_low_list(sweep_idx)
-            for ref in ref_list:
-                ref_idx = ref["idx"]
-                ref_low = ref["low"]
-                ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)
+            for _use_hhll, _active, _pat, _label, _sub in [
+                (True,  want_swing,  "ท่าที่ 14 Sweep RSI 🟢 BUY — Sweep Swing",    "BUY MARKET (Sweep Swing)",    "swing"),
+                (False, want_sweep,  "ท่าที่ 14 Sweep RSI 🟢 BUY — Sweep กลับตัว", "BUY MARKET (Sweep กลับตัว)", "sweep"),
+            ]:
+                if not _active:
+                    continue
+                ref_list = get_ref_low_list(sweep_idx, use_hhll=_use_hhll)
+                for ref in ref_list:
+                    ref_idx = ref["idx"]
+                    ref_low = ref["low"]
+                    ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)
 
-                if ref_rsi is not None and sweep_idx - ref_idx >= 2:
-                    # ref_low invalidation: ถ้ามีแท่งระหว่าง ref กับ sweep ปิดต่ำกว่า ref → LL broken
-                    if any(float(r["close"]) < ref_low for r in rates[ref_idx + 1:sweep_idx]):
-                        continue
+                    if ref_rsi is not None and sweep_idx - ref_idx >= 2:
+                        # ref_low invalidation: ถ้ามีแท่งระหว่าง ref กับ sweep ปิดต่ำกว่า ref → LL broken
+                        if any(float(r["close"]) < ref_low for r in rates[ref_idx + 1:sweep_idx]):
+                            continue
 
-                    s_low   = float(sweep_bar["low"])
-                    s_open  = float(sweep_bar["open"])
-                    s_close = float(sweep_bar["close"])
+                        s_low   = float(sweep_bar["low"])
+                        s_open  = float(sweep_bar["open"])
+                        s_close = float(sweep_bar["close"])
 
-                    if s_low < ref_low and s_open > ref_low and s_close > ref_low:
-                        s_rsi = _pivot_rsi_buy(rates, rsi_vals, sweep_idx)
-                        _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                        if s_rsi is not None and s_rsi < 50.0 and (s_rsi - ref_rsi) > _rsi_min_diff:
-                            entry = round(cc, 2)
-                            sl    = round(s_low - SL_BUFFER(calc_atr(rates, 14)), 2)
-                            if entry > sl:
-                                tp = _tp_from_window(tp_rates if tp_rates else rates, "BUY", entry, sl)
-                                if tp is not None:
-                                    reason = (
-                                        f"[Sweep] Sweep low + confirm GREEN\n"
-                                        f"ref: `{ref_low:.2f}` ({ref['source']}) | RSI ref: `{ref_rsi:.2f}`\n"
-                                        f"Sweep Bar: L=`{s_low:.2f}` < ref=`{ref_low:.2f}` | C=`{s_close:.2f}` >= ref\n"
-                                        f"Confirm: C=`{cc:.2f}` (GREEN)\n"
-                                        f"RSI Div: reject=`{s_rsi:.2f}` > ref=`{ref_rsi:.2f}` (< 50)\n"
-                                        f"Entry: `{entry:.2f}` | SL: `{sl:.2f}` | TP: `{tp:.2f}`"
-                                    )
-                                    results.append({
-                                        "signal":      "BUY",
-                                        "entry":       entry,
-                                        "sl":          sl,
-                                        "tp":          tp,
-                                        "pattern":     "ท่าที่ 14 Sweep RSI 🟢 BUY — Sweep กลับตัว",
-                                        "reason":      reason,
-                                        "order_mode":  "market",
-                                        "entry_label": "BUY MARKET (Sweep กลับตัว)",
-                                        "sub_pattern": "sweep",
-                                        "ref_low":     ref_low,
-                                        "ref_time":    ref["time"],
-                                        "ref_source":  ref["source"],
-                                        "rsi_at_ref":  round(ref_rsi, 2),
-                                        "rsi_at_rej":  round(s_rsi, 2),
-                                        "sweep_bar_time":  int(sweep_bar["time"]),
-                                        "sweep_bar_price": s_low,
-                                    })
+                        if s_low < ref_low and s_open > ref_low and s_close > ref_low:
+                            s_rsi = _pivot_rsi_buy(rates, rsi_vals, sweep_idx)
+                            _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                            if s_rsi is not None and s_rsi < 50.0 and (s_rsi - ref_rsi) > _rsi_min_diff:
+                                entry = round(cc, 2)
+                                sl    = round(s_low - SL_BUFFER(calc_atr(rates, 14)), 2)
+                                if entry > sl:
+                                    tp = _tp_from_window(tp_rates if tp_rates else rates, "BUY", entry, sl)
+                                    if tp is not None:
+                                        reason = (
+                                            f"[Sweep] Sweep low + confirm GREEN\n"
+                                            f"ref: `{ref_low:.2f}` ({ref['source']}) | RSI ref: `{ref_rsi:.2f}`\n"
+                                            f"Sweep Bar: L=`{s_low:.2f}` < ref=`{ref_low:.2f}` | C=`{s_close:.2f}` >= ref\n"
+                                            f"Confirm: C=`{cc:.2f}` (GREEN)\n"
+                                            f"RSI Div: reject=`{s_rsi:.2f}` > ref=`{ref_rsi:.2f}` (< 50)\n"
+                                            f"Entry: `{entry:.2f}` | SL: `{sl:.2f}` | TP: `{tp:.2f}`"
+                                        )
+                                        results.append({
+                                            "signal":      "BUY",
+                                            "entry":       entry,
+                                            "sl":          sl,
+                                            "tp":          tp,
+                                            "pattern":     _pat,
+                                            "reason":      reason,
+                                            "order_mode":  "market",
+                                            "entry_label": _label,
+                                            "sub_pattern": _sub,
+                                            "ref_low":     ref_low,
+                                            "ref_time":    ref["time"],
+                                            "ref_source":  ref["source"],
+                                            "rsi_at_ref":  round(ref_rsi, 2),
+                                            "rsi_at_rej":  round(s_rsi, 2),
+                                            "sweep_bar_time":  int(sweep_bar["time"]),
+                                            "sweep_bar_price": s_low,
+                                        })
 
     # ── 3. ตรวจ Engulf (2 confirmation bars + HTF closes RED) ───────
-    if want_engulf:
+    if want_engulf_swing:
         tf_secs = TF_SECONDS.get(tf, 60)
         htf = _get_s14_htf(tf)
         htf_secs = TF_SECONDS.get(htf, 300)
@@ -535,12 +543,12 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                         c1_bar = rates[i+1]
                         c2_bar = rates[i+2]
                         
-                        ref_list = get_ref_low_list(i)
+                        ref_list = get_ref_low_list(i, use_hhll=True)
                         for ref in ref_list:
                             ref_idx = ref["idx"]
                             ref_low = ref["low"]
                             ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)
-                            
+
                             if ref_rsi is not None and i - ref_idx >= 2:
                                 # ref_low invalidation: ถ้ามีแท่งระหว่าง ref กับ engulf ปิดต่ำกว่า ref → LL broken
                                 if any(float(r["close"]) < ref_low for r in rates[ref_idx + 1:i]):
@@ -564,8 +572,7 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                                                 passed_htf_check = True
                                                 sub_pat_suffix = ""
                                             else:
-                                                sec_htf_enabled = getattr(config, "S14_SEC_HTF_ENABLED", True)
-                                                if sec_htf_enabled and _is_sec_htf_currently_sweep(rates, tf, sec_htf, ref_low, is_buy=True):
+                                                if _is_sec_htf_currently_sweep(rates, tf, sec_htf, ref_low, is_buy=True):
                                                     passed_htf_check = True
                                                     is_sec_htf_triggered = True
                                                     sub_pat_suffix = f"_{sec_htf}"
@@ -595,10 +602,10 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                                                             "entry":       entry,
                                                             "sl":          sl,
                                                             "tp":          tp,
-                                                            "pattern":     f"ท่าที่ 14 Sweep RSI 🟢 BUY — Sweep Swing{f' ({sec_htf})' if is_sec_htf_triggered else ''}",
+                                                            "pattern":     f"ท่าที่ 14 Sweep RSI 🟢 BUY — Engulf Swing ({sec_htf if is_sec_htf_triggered else htf})",
                                                             "reason":      reason,
                                                             "order_mode":  "market",
-                                                            "entry_label": f"BUY MARKET (Sweep Swing{f' {sec_htf}' if is_sec_htf_triggered else ''})",
+                                                            "entry_label": f"BUY MARKET (Engulf Swing {sec_htf if is_sec_htf_triggered else htf})",
                                                             "sub_pattern": sub_pattern,
                                                             "ref_low":     ref_low,
                                                             "ref_time":    ref["time"],
@@ -620,10 +627,9 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                                                         break
 
                 # --- รูปแบบที่ 2: Direct Engulf (ไม่มี confirm bars, เข้าออเดอร์ทันทีเมื่อจบ HTF) ---
-                sec_htf_enabled = getattr(config, "S14_SEC_HTF_ENABLED", True)
-                if sec_htf_enabled:
+                if want_engulf_swing:
                     e_bar = rates[-1]
-                    ref_list_direct = get_ref_low_list(len(rates) - 1)
+                    ref_list_direct = get_ref_low_list(len(rates) - 1, use_hhll=True)
                     for ref in ref_list_direct:
                         ref_idx = ref["idx"]
                         ref_low = ref["low"]
@@ -664,10 +670,10 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                                                         "entry":       entry,
                                                         "sl":          sl,
                                                         "tp":          tp,
-                                                        "pattern":     f"ท่าที่ 14 Sweep RSI 🟢 BUY — Sweep Swing ({sec_htf})",
+                                                        "pattern":     f"ท่าที่ 14 Sweep RSI 🟢 BUY — Engulf Swing ({sec_htf})",
                                                         "reason":      reason,
                                                         "order_mode":  "market",
-                                                        "entry_label": f"BUY MARKET (Sweep Swing {sec_htf})",
+                                                        "entry_label": f"BUY MARKET (Engulf Swing {sec_htf})",
                                                         "sub_pattern": sub_pattern,
                                                         "ref_low":     ref_low,
                                                         "ref_time":    ref["time"],
@@ -699,9 +705,10 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
     - Sweep: rates[-2] is sweep high, rates[-1] is RED confirm bar. Enter on next bar open.
     - Engulf: rates[i] is engulf high, rates[i+1], rates[i+2] are RED confirm bars, and HTF bar closes GREEN (or secondary HTF is sweep). Enter on next HTF bar.
     """
-    want_engulf = getattr(config, "S14_ENGULF", True)
-    want_sweep  = getattr(config, "S14_SWEEP",  True)
-    if not want_engulf and not want_sweep:
+    want_swing        = getattr(config, "S14_SWEEP_SWING",  True)
+    want_engulf_swing = getattr(config, "S14_ENGULF_SWING", True)
+    want_sweep        = getattr(config, "S14_SWEEP_RETURN", True)
+    if not want_swing and not want_engulf_swing and not want_sweep:
         return []
 
     if len(rates) < 6:
@@ -709,9 +716,8 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
 
     results = []
 
-    def get_ref_high_list(setup_idx):
+    def get_ref_high_list(setup_idx, use_hhll=False):
         candidates = []
-        use_hhll = getattr(config, "S14_LL_USE_HHLL", False)
         if not use_hhll:
             local_high_idxs = _find_local_highs(rates)
             if local_high_idxs:
@@ -759,7 +765,9 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
         return active_refs
 
     # ── 2. ตรวจ Sweep (รอ confirm bar แดงหลัง sweep จบ) ─────────────────────
-    if want_sweep and len(rates) >= 3:
+    # want_swing  = HHLL swing ref  → SSS/BSS
+    # want_sweep  = local_high ref  → SRS/BRS
+    if (want_swing or want_sweep) and len(rates) >= 3:
         confirm_idx = len(rates) - 1
         sweep_idx   = len(rates) - 2
         confirm_bar = rates[confirm_idx]
@@ -767,59 +775,65 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
         co, cc = float(confirm_bar["open"]), float(confirm_bar["close"])
 
         if cc < co:  # confirm bar ต้องแดง
-            ref_list = get_ref_high_list(sweep_idx)
-            for ref in ref_list:
-                ref_idx  = ref["idx"]
-                ref_high = ref["high"]
-                ref_rsi  = _pivot_rsi_sell(rates, rsi_vals, ref_idx)
+            for _use_hhll, _active, _pat, _label, _sub in [
+                (True,  want_swing,  "ท่าที่ 14 Sweep RSI 🔴 SELL — Sweep Swing",    "SELL MARKET (Sweep Swing)",    "swing"),
+                (False, want_sweep,  "ท่าที่ 14 Sweep RSI 🔴 SELL — Sweep กลับตัว", "SELL MARKET (Sweep กลับตัว)", "sweep"),
+            ]:
+                if not _active:
+                    continue
+                ref_list = get_ref_high_list(sweep_idx, use_hhll=_use_hhll)
+                for ref in ref_list:
+                    ref_idx  = ref["idx"]
+                    ref_high = ref["high"]
+                    ref_rsi  = _pivot_rsi_sell(rates, rsi_vals, ref_idx)
 
-                if ref_rsi is not None and sweep_idx - ref_idx >= 2:
-                    # ref_high invalidation: ถ้ามีแท่งระหว่าง ref กับ sweep ปิดสูงกว่า ref → LH broken
-                    if any(float(r["close"]) > ref_high for r in rates[ref_idx + 1:sweep_idx]):
-                        continue
+                    if ref_rsi is not None and sweep_idx - ref_idx >= 2:
+                        # ref_high invalidation: ถ้ามีแท่งระหว่าง ref กับ sweep ปิดสูงกว่า ref → LH broken
+                        if any(float(r["close"]) > ref_high for r in rates[ref_idx + 1:sweep_idx]):
+                            continue
 
-                    s_high  = float(sweep_bar["high"])
-                    s_open  = float(sweep_bar["open"])
-                    s_close = float(sweep_bar["close"])
+                        s_high  = float(sweep_bar["high"])
+                        s_open  = float(sweep_bar["open"])
+                        s_close = float(sweep_bar["close"])
 
-                    if s_high > ref_high and s_open < ref_high and s_close < ref_high:
-                        s_rsi = _pivot_rsi_sell(rates, rsi_vals, sweep_idx)
-                        _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                        if s_rsi is not None and s_rsi > 50.0 and (ref_rsi - s_rsi) > _rsi_min_diff:
-                            entry = round(cc, 2)
-                            sl    = round(s_high + SL_BUFFER(calc_atr(rates, 14)), 2)
-                            if entry < sl:
-                                tp = _tp_from_window(tp_rates if tp_rates else rates, "SELL", entry, sl)
-                                if tp is not None:
-                                    reason = (
-                                        f"[Sweep] Sweep high + confirm RED\n"
-                                        f"ref: `{ref_high:.2f}` ({ref['source']}) | RSI ref: `{ref_rsi:.2f}`\n"
-                                        f"Sweep Bar: H=`{s_high:.2f}` > ref=`{ref_high:.2f}` | C=`{s_close:.2f}` <= ref\n"
-                                        f"Confirm: C=`{cc:.2f}` (RED)\n"
-                                        f"RSI Div: reject=`{s_rsi:.2f}` < ref=`{ref_rsi:.2f}` (> 50)\n"
-                                        f"Entry: `{entry:.2f}` | SL: `{sl:.2f}` | TP: `{tp:.2f}`"
-                                    )
-                                    results.append({
-                                        "signal":      "SELL",
-                                        "entry":       entry,
-                                        "sl":          sl,
-                                        "tp":          tp,
-                                        "pattern":     "ท่าที่ 14 Sweep RSI 🔴 SELL — Sweep กลับตัว",
-                                        "reason":      reason,
-                                        "order_mode":  "market",
-                                        "entry_label": "SELL MARKET (Sweep กลับตัว)",
-                                        "sub_pattern": "sweep",
-                                        "ref_high":    ref_high,
-                                        "ref_time":    ref["time"],
-                                        "ref_source":  ref["source"],
-                                        "rsi_at_ref":  round(ref_rsi, 2),
-                                        "rsi_at_rej":  round(s_rsi, 2),
-                                        "sweep_bar_time":  int(sweep_bar["time"]),
-                                        "sweep_bar_price": s_high,
-                                    })
+                        if s_high > ref_high and s_open < ref_high and s_close < ref_high:
+                            s_rsi = _pivot_rsi_sell(rates, rsi_vals, sweep_idx)
+                            _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                            if s_rsi is not None and s_rsi > 50.0 and (ref_rsi - s_rsi) > _rsi_min_diff:
+                                entry = round(cc, 2)
+                                sl    = round(s_high + SL_BUFFER(calc_atr(rates, 14)), 2)
+                                if entry < sl:
+                                    tp = _tp_from_window(tp_rates if tp_rates else rates, "SELL", entry, sl)
+                                    if tp is not None:
+                                        reason = (
+                                            f"[Sweep] Sweep high + confirm RED\n"
+                                            f"ref: `{ref_high:.2f}` ({ref['source']}) | RSI ref: `{ref_rsi:.2f}`\n"
+                                            f"Sweep Bar: H=`{s_high:.2f}` > ref=`{ref_high:.2f}` | C=`{s_close:.2f}` <= ref\n"
+                                            f"Confirm: C=`{cc:.2f}` (RED)\n"
+                                            f"RSI Div: reject=`{s_rsi:.2f}` < ref=`{ref_rsi:.2f}` (> 50)\n"
+                                            f"Entry: `{entry:.2f}` | SL: `{sl:.2f}` | TP: `{tp:.2f}`"
+                                        )
+                                        results.append({
+                                            "signal":      "SELL",
+                                            "entry":       entry,
+                                            "sl":          sl,
+                                            "tp":          tp,
+                                            "pattern":     _pat,
+                                            "reason":      reason,
+                                            "order_mode":  "market",
+                                            "entry_label": _label,
+                                            "sub_pattern": _sub,
+                                            "ref_high":    ref_high,
+                                            "ref_time":    ref["time"],
+                                            "ref_source":  ref["source"],
+                                            "rsi_at_ref":  round(ref_rsi, 2),
+                                            "rsi_at_rej":  round(s_rsi, 2),
+                                            "sweep_bar_time":  int(sweep_bar["time"]),
+                                            "sweep_bar_price": s_high,
+                                        })
 
     # ── 3. ตรวจ Engulf (2 confirmation bars + HTF closes GREEN) ──────
-    if want_engulf:
+    if want_engulf_swing:
         tf_secs = TF_SECONDS.get(tf, 60)
         htf = _get_s14_htf(tf)
         htf_secs = TF_SECONDS.get(htf, 300)
@@ -845,7 +859,7 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                         if c2_time < htf_bar_time or c2_time >= next_bar_time:
                             continue
 
-                        ref_list = get_ref_high_list(i)
+                        ref_list = get_ref_high_list(i, use_hhll=True)
                         for ref in ref_list:
                             ref_idx = ref["idx"]
                             ref_high = ref["high"]
@@ -874,8 +888,7 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                                                 passed_htf_check = True
                                                 sub_pat_suffix = ""
                                             else:
-                                                sec_htf_enabled = getattr(config, "S14_SEC_HTF_ENABLED", True)
-                                                if sec_htf_enabled and _is_sec_htf_currently_sweep(rates, tf, sec_htf, ref_high, is_buy=False):
+                                                if _is_sec_htf_currently_sweep(rates, tf, sec_htf, ref_high, is_buy=False):
                                                     passed_htf_check = True
                                                     is_sec_htf_triggered = True
                                                     sub_pat_suffix = f"_{sec_htf}"
@@ -905,10 +918,10 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                                                             "entry":       entry,
                                                             "sl":          sl,
                                                             "tp":          tp,
-                                                            "pattern":     f"ท่าที่ 14 Sweep RSI 🔴 SELL — Sweep Swing{f' ({sec_htf})' if is_sec_htf_triggered else ''}",
+                                                            "pattern":     f"ท่าที่ 14 Sweep RSI 🔴 SELL — Engulf Swing ({sec_htf if is_sec_htf_triggered else htf})",
                                                             "reason":      reason,
                                                             "order_mode":  "market",
-                                                            "entry_label": f"SELL MARKET (Sweep Swing{f' {sec_htf}' if is_sec_htf_triggered else ''})",
+                                                            "entry_label": f"SELL MARKET (Engulf Swing {sec_htf if is_sec_htf_triggered else htf})",
                                                             "sub_pattern": sub_pattern,
                                                             "ref_high":    ref_high,
                                                             "ref_time":    ref["time"],
@@ -930,10 +943,9 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                                                         break
 
                 # --- รูปแบบที่ 2: Direct Engulf (ไม่มี confirm bars, เข้าออเดอร์ทันทีเมื่อจบ HTF) ---
-                sec_htf_enabled = getattr(config, "S14_SEC_HTF_ENABLED", True)
-                if sec_htf_enabled:
+                if want_engulf_swing:
                     e_bar = rates[-1]
-                    ref_list_direct = get_ref_high_list(len(rates) - 1)
+                    ref_list_direct = get_ref_high_list(len(rates) - 1, use_hhll=True)
                     for ref in ref_list_direct:
                         ref_idx = ref["idx"]
                         ref_high = ref["high"]
@@ -974,10 +986,10 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                                                         "entry":       entry,
                                                         "sl":          sl,
                                                         "tp":          tp,
-                                                        "pattern":     f"ท่าที่ 14 Sweep RSI 🔴 SELL — Sweep Swing ({sec_htf})",
+                                                        "pattern":     f"ท่าที่ 14 Sweep RSI 🔴 SELL — Engulf Swing ({sec_htf})",
                                                         "reason":      reason,
                                                         "order_mode":  "market",
-                                                        "entry_label": f"SELL MARKET (Sweep Swing {sec_htf})",
+                                                        "entry_label": f"SELL MARKET (Engulf Swing {sec_htf})",
                                                         "sub_pattern": sub_pattern,
                                                         "ref_high":    ref_high,
                                                         "ref_time":    ref["time"],

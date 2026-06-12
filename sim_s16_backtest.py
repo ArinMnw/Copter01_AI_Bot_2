@@ -158,7 +158,10 @@ def _strategy_16_at(rates: list[dict], tf_name: str, dt_bkk: datetime, asian: di
     kz_high_idx = next(idx for idx in kz_indices if float(rates[idx]["high"]) == kz_high_price)
 
     atr = calc_atr(rates, 14) or 1.0
-    sl_buf = config.SL_BUFFER(atr)
+    # mirror runtime strategy16.py: SL buffer ของ S16 เอง + risk cap (11/06/2026)
+    _slb = getattr(config, "S16_SL_ATR_BUFFER", None)
+    sl_buf = (atr * float(_slb)) if _slb is not None else config.SL_BUFFER(atr)
+    max_risk = atr * float(getattr(config, "S16_MAX_RISK_ATR_MULT", 0) or 0)
     min_rr = float(getattr(config, "S16_MIN_RR", 1.5))
     entry_mode = getattr(config, "S16_ENTRY_MODE", "boundary")
 
@@ -183,7 +186,7 @@ def _strategy_16_at(rates: list[dict], tf_name: str, dt_bkk: datetime, asian: di
             sl = kz_low_price - sl_buf
             tp = a_high
             risk = entry - sl
-            if risk > 0 and float(rates[-1]["close"]) > entry:
+            if risk > 0 and (max_risk <= 0 or risk <= max_risk) and float(rates[-1]["close"]) > entry:
                 if (tp - entry) / risk < min_rr:
                     tp = entry + (risk * min_rr)
                 return {
@@ -199,6 +202,7 @@ def _strategy_16_at(rates: list[dict], tf_name: str, dt_bkk: datetime, asian: di
                     "asian_low": a_low,
                     "sweep_price": kz_low_price,
                     "ifvg_time": target["time"],
+                    "kz_start_ts": kz_start_ts,
                 }
 
     if kz_high_price > a_high:
@@ -222,7 +226,7 @@ def _strategy_16_at(rates: list[dict], tf_name: str, dt_bkk: datetime, asian: di
             sl = kz_high_price + sl_buf
             tp = a_low
             risk = sl - entry
-            if risk > 0 and float(rates[-1]["close"]) < entry:
+            if risk > 0 and (max_risk <= 0 or risk <= max_risk) and float(rates[-1]["close"]) < entry:
                 if (entry - tp) / risk < min_rr:
                     tp = entry - (risk * min_rr)
                 return {
@@ -238,6 +242,7 @@ def _strategy_16_at(rates: list[dict], tf_name: str, dt_bkk: datetime, asian: di
                     "asian_low": a_low,
                     "sweep_price": kz_high_price,
                     "ifvg_time": target["time"],
+                    "kz_start_ts": kz_start_ts,
                 }
 
     return {"signal": "WAIT", "reason": "S16: ยังไม่พบ sweep+iFVG"}
@@ -341,12 +346,17 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
         day = bt.strftime("%Y-%m-%d")
         result = _strategy_16_at(bars[:i + 1], tf_name, bt, asian_by_date.get(day))
         if result.get("signal") in ("BUY", "SELL") and result.get("order_mode") == "limit":
-            key = (
-                day,
-                result.get("signal"),
-                round(float(result.get("entry", 0.0) or 0.0), 2),
-                result.get("ifvg_time"),
-            )
+            # mirror runtime one-shot dedup: 1 order ต่อ (side, killzone window)
+            # (เดิม key ละเอียดระดับ iFVG → live เกิด pending สะสม fill พร้อมกัน 13 ไม้ 09/06/2026)
+            if bool(getattr(config, "S16_KZ_ONE_SHOT", True)):
+                key = (result.get("signal"), int(result.get("kz_start_ts", 0) or 0))
+            else:
+                key = (
+                    day,
+                    result.get("signal"),
+                    round(float(result.get("entry", 0.0) or 0.0), 2),
+                    result.get("ifvg_time"),
+                )
             if key not in fired_keys:
                 fired_keys.add(key)
                 pending.append(_pending_from_order(result, tf_name, bar))

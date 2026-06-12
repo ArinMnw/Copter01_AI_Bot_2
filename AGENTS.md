@@ -130,7 +130,7 @@ Keep the answer short and make the fix directly.
 | config, symbol, strategy toggle | `config.py` |
 | scan signal, create order, order message | `scanner.py` |
 | trailing, state machine, post-fill lifecycle | `trailing.py` |
-| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py`, `strategy14.py`, `strategy15.py` |
+| logic ของแต่ละท่า | `strategy1.py` ถึง `strategy5.py`, `strategy8.py`, `strategy9.py`, `strategy10.py`, `strategy11.py`, `strategy12.py`, `strategy13.py`, `strategy14.py`, `strategy15.py`, `strategy16.py`, `strategy17.py` |
 | swing helper | `strategy4.py` |
 | HHLL swing structure, trend from structure | `hhll_swing.py` |
 | คำนวณ entry / TP / SL | `entry_calculator.py` |
@@ -633,6 +633,20 @@ mode ที่รองรับ:
 - default `active_strategies[15] = False`
 - config: `S15_LOOKBACK`, `S15_ZONE_ATR_MULT`, `S15_VAL_VAH_PCT`, `S15_ABSORPTION_WICK_PCT`, `S15_USE_VAL_VAH`, `S15_MIN_RR`
 - Telegram toggle: `📋 เลือก Strategy` → ท่า 15: VAL/VAH zones, Lookback (50/100/200), Min RR (1/1.5/2)
+
+### S17 Sweep Sniper
+
+- ไฟล์: `strategy17.py` — standalone mean reversion **เฉพาะ M1** (`S17_ALLOWED_TFS`)
+- ⚠️ win rate สูง (91-92% backtest) มาจาก **TP สั้น 0.3×ATR + SL กว้าง** (RR ~0.17) — 1 SL กิน TP ~6 ไม้ ต้องคุม lot
+- 4 ชั้น confluence: liquidity sweep กรอบ 60 แท่ง (เปิด+ปิดกลับในกรอบ) + wick ≥30% + RSI ≤32/≥68 + PD fib 38.2/61.8 + Killzones London/NY (BKK 14-18, 19-23)
+- Entry **LIMIT retrace 61.8%** ของแท่ง sweep (`S17_ENTRY_MODE`), ไม่ fill ใน 5 แท่ง → cancel (`cancel_bars` กลาง)
+- detection แยกเป็น `detect_s17()` (pure — backtest เรียกตรง) + `strategy_17()` wrapper (TF gate + dedup)
+- **Standalone bypass/skip เหมือน S14/S15/S16**: trend filter, sweep filter, fill trend recheck, RSI recheck, PD Fibo Plus (fill+pending), entry candle, trail SL, opposite order, limit guard — **คงไว้ SL Guard**
+- **ไม่เข้า TSO** (`_scale_out_resolve_volume` skip sid 13, 17) — ออก lot คงที่ `AUTO_VOLUME` ต่อไม้ ตามที่ backtest validate (TP สั้นเกินกว่าจะแบ่ง 4 step)
+- backtest: `sim_s17_backtest.py` (M1 60 วัน: n=248 WR 91.1% +$78.90/0.01lot, แพ้ติดสูงสุด 2; M5+ ขาดทุน → gate M1)
+- comment: `M1_S17_SNB` / `M1_S17_SNS`
+- dedup state in-memory ไม่ persist — restart กลาง bar อาจ re-fire ได้ 1 ครั้ง
+- config: `S17_*` ใน `config.py` (default จูนจาก backtest 06/2026)
 
 ### S13 EzAlgo V5
 
