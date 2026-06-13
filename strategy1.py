@@ -40,7 +40,7 @@ def _get_s1_structure(rates, tf=""):
 
 def _attach_s1_zone_meta(payload: dict, use_zone: bool, signal: str, zone_price: float, swing_price: float, zone_ok: bool):
     payload["s1_zone_meta"] = {
-        "enabled": bool(use_zone),
+        "enabled": (S1_ZONE_MODE in ("zone", "swing")),
         "signal": str(signal or ""),
         "zone_price": round(float(zone_price), 2),
         "swing_price": round(float(swing_price), 2),

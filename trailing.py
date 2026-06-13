@@ -1824,10 +1824,13 @@ def _evaluate_s1_forward_confirm(rates, signal: str, detect_bar_time: int, tf_se
 
 
 async def check_s1_zone_rules(app):
-    if getattr(config, "S1_ZONE_MODE", "") != "zone":
+    _mode = getattr(config, "S1_ZONE_MODE", "")
+    if _mode not in ("zone", "swing"):
         return
 
     from strategy1 import evaluate_s1_zone_status
+    from datetime import datetime, timezone, timedelta
+    BKK = timezone(timedelta(hours=7))
 
     now = now_bkk().strftime("%H:%M:%S")
     orders = mt5.orders_get(symbol=SYMBOL) or []
@@ -1839,7 +1842,7 @@ async def check_s1_zone_rules(app):
         if t not in open_order_tickets and t not in open_pos_tickets:
             position_zone_meta.pop(t, None)
 
-    # Pending S1: if still outside zone -> cancel limit, otherwise keep it.
+    # Pending S1: check zone or swing rule
     for order in orders:
         ticket = int(order.ticket)
         info = pending_order_tf.get(ticket)
@@ -1858,22 +1861,75 @@ async def check_s1_zone_rules(app):
         if rates is None or len(rates) < 5:
             continue
 
-        # รอ 7 แท่งหลัง detect ก่อน — zone อาจยังไม่ก่อตัว
-        _fwd_meta = info.get("s1_forward_meta") or {}
-        _detect_bar_time = int(_fwd_meta.get("detect_bar_time", 0) or 0)
-        if _detect_bar_time > 0:
-            _candles_passed = sum(1 for r in rates if int(r["time"]) > _detect_bar_time)
-            if _candles_passed < 7:
-                continue  # ยังไม่ถึง 7 แท่ง ข้ามไปก่อน
+        if _mode == "zone":
+            # รอ 7 แท่งหลัง detect ก่อน — zone อาจยังไม่ก่อตัว
+            _fwd_meta = info.get("s1_forward_meta") or {}
+            _detect_bar_time = int(_fwd_meta.get("detect_bar_time", 0) or 0)
+            if _detect_bar_time > 0:
+                _candles_passed = sum(1 for r in rates if int(r["time"]) > _detect_bar_time)
+                if _candles_passed < 7:
+                    continue  # ยังไม่ถึง 7 แท่ง ข้ามไปก่อน
 
-        zone_state = evaluate_s1_zone_status(
-            rates,
-            str(zone_meta.get("signal") or info.get("signal") or ""),
-            float(zone_meta.get("zone_price", 0.0) or 0.0),
-            tf=tf,
-        )
-        if zone_state.get("in_zone", True):
-            continue
+            zone_state = evaluate_s1_zone_status(
+                rates,
+                str(zone_meta.get("signal") or info.get("signal") or ""),
+                float(zone_meta.get("zone_price", 0.0) or 0.0),
+                tf=tf,
+            )
+            if zone_state.get("in_zone", True):
+                continue
+
+            zone_side = "Low Zone" if str(zone_meta.get("signal") or info.get("signal") or "") == "BUY" else "High Zone"
+            reason = (
+                f"S1 Zone Cancel [{tf}]: pending still outside {zone_side} | "
+                f"zone_price:{float(zone_state.get('zone_price', 0.0)):.2f} | "
+                f"boundary:{float(zone_state.get('boundary_price', 0.0)):.2f} | "
+                f"swing:{float(zone_state.get('swing_price', 0.0)):.2f}"
+            )
+        else: # _mode == "swing"
+            _fwd_meta = info.get("s1_forward_meta") or {}
+            t_detect = int(_fwd_meta.get("detect_bar_time", 0) or 0)
+            if t_detect <= 0:
+                continue
+
+            t_last_closed = int(rates[-1]["time"])
+            tf_secs = TF_SECONDS_MAP.get(tf, 60)
+
+            import hhll_swing
+            hhll_swing.fetch_hhll(tf)
+            d = hhll_swing.get_hhll_data(tf) or {}
+
+            sig = str(zone_meta.get("signal") or info.get("signal") or "").upper()
+            pts = []
+            if sig == "BUY":
+                hl = d.get("hl")
+                ll = d.get("ll")
+                pts = [p for p in (hl, ll) if p and p.get("time")]
+            elif sig == "SELL":
+                hh = d.get("hh")
+                lh = d.get("lh")
+                pts = [p for p in (hh, lh) if p and p.get("time")]
+
+            hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+            pattern_candle_times = {t_detect, t_detect - tf_secs, t_detect - 2 * tf_secs, t_detect - 3 * tf_secs}
+            has_valid_swing = False
+            for pt in pts:
+                t_swing = int(pt["time"])
+                if t_swing in pattern_candle_times:
+                    t_confirm = t_swing + hhll_right * tf_secs
+                    if t_detect <= t_confirm <= t_detect + 5 * tf_secs:
+                        has_valid_swing = True
+                        break
+
+            if has_valid_swing:
+                continue
+
+            if t_last_closed > t_detect + 4 * tf_secs:
+                detect_str = datetime.fromtimestamp(t_detect, tz=BKK).strftime("%H:%M")
+                deadline_str = datetime.fromtimestamp(t_detect + 4 * tf_secs, tz=BKK).strftime("%H:%M")
+                reason = f"S1 Swing Cancel [{tf}]: no swing {sig} confirmed in 4 bars | detect:{detect_str} | deadline:{deadline_str}"
+            else:
+                continue
 
         r = mt5.order_send({
             "action": mt5.TRADE_ACTION_REMOVE,
@@ -1883,13 +1939,6 @@ async def check_s1_zone_rules(app):
             pending_order_tf.pop(ticket, None)
             sig = str(zone_meta.get("signal") or info.get("signal") or "")
             side_icon = "🟢" if sig == "BUY" else "🔴"
-            zone_side = "Low Zone" if sig == "BUY" else "High Zone"
-            reason = (
-                f"S1 Zone Cancel [{tf}]: pending still outside {zone_side} | "
-                f"zone_price:{float(zone_state.get('zone_price', 0.0)):.2f} | "
-                f"boundary:{float(zone_state.get('boundary_price', 0.0)):.2f} | "
-                f"swing:{float(zone_state.get('swing_price', 0.0)):.2f}"
-            )
             log_event(
                 "ORDER_CANCELED",
                 reason,
@@ -1904,14 +1953,14 @@ async def check_s1_zone_rules(app):
                 flow_id=info.get("flow_id", ""),
             )
             await tg(app, (
-                f"🗑️ *S1 Zone Cancel*\n"
+                f"🗑️ *S1 {'Swing' if _mode == 'swing' else 'Zone'} Cancel*\n"
                 f"{side_icon} [{tf}] Ticket:`{ticket}`\n"
                 f"Entry:`{float(info.get('entry', 0.0)):.2f}`\n"
                 f"เหตุผล: {reason}"
             ))
-            print(f"🗑️ [{now}] S1 zone cancel {ticket} [{tf}]: {reason}")
+            print(f"🗑️ [{now}] S1 {_mode} cancel {ticket} [{tf}]: {reason}")
 
-    # Filled S1: if outside zone and losing -> close. If in profit, keep it.
+    # Filled S1: if outside zone/swing rule -> close.
     for pos in positions:
         ticket = int(pos.ticket)
         if position_sid.get(ticket) != 1:
@@ -1930,35 +1979,81 @@ async def check_s1_zone_rules(app):
             continue
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
-        zone_state = evaluate_s1_zone_status(
-            rates,
-            str(zone_meta.get("signal") or pos_type or ""),
-            float(zone_meta.get("zone_price", 0.0) or 0.0),
-            tf=tf,
-        )
-        if zone_state.get("in_zone", True) or float(pos.profit) >= 0.0:
-            continue
 
-        zone_side = "Low Zone" if pos_type == "BUY" else "High Zone"
-        reason = (
-            f"S1 Zone Loss Exit [{tf}]: outside {zone_side} with loss | "
-            f"profit:{float(pos.profit):.2f} | "
-            f"zone_price:{float(zone_state.get('zone_price', 0.0)):.2f} | "
-            f"boundary:{float(zone_state.get('boundary_price', 0.0)):.2f} | "
-            f"swing:{float(zone_state.get('swing_price', 0.0)):.2f}"
-        )
-        ok_close, close_price = _close_position(pos, pos_type, f"s1 zone loss exit [{tf}]")
+        if _mode == "zone":
+            zone_state = evaluate_s1_zone_status(
+                rates,
+                str(zone_meta.get("signal") or pos_type or ""),
+                float(zone_meta.get("zone_price", 0.0) or 0.0),
+                tf=tf,
+            )
+            if zone_state.get("in_zone", True) or float(pos.profit) >= 0.0:
+                continue
+
+            zone_side = "Low Zone" if pos_type == "BUY" else "High Zone"
+            reason = (
+                f"S1 Zone Loss Exit [{tf}]: outside {zone_side} with loss | "
+                f"profit:{float(pos.profit):.2f} | "
+                f"zone_price:{float(zone_state.get('zone_price', 0.0)):.2f} | "
+                f"boundary:{float(zone_state.get('boundary_price', 0.0)):.2f} | "
+                f"swing:{float(zone_state.get('swing_price', 0.0)):.2f}"
+            )
+        else: # _mode == "swing"
+            forward_meta = position_forward_meta.get(ticket) or {}
+            t_detect = int(forward_meta.get("detect_bar_time", 0) or 0)
+            if t_detect <= 0:
+                continue
+
+            t_last_closed = int(rates[-1]["time"])
+            tf_secs = TF_SECONDS_MAP.get(tf, 60)
+
+            import hhll_swing
+            hhll_swing.fetch_hhll(tf)
+            d = hhll_swing.get_hhll_data(tf) or {}
+
+            pts = []
+            if pos_type == "BUY":
+                hl = d.get("hl")
+                ll = d.get("ll")
+                pts = [p for p in (hl, ll) if p and p.get("time")]
+            elif pos_type == "SELL":
+                hh = d.get("hh")
+                lh = d.get("lh")
+                pts = [p for p in (hh, lh) if p and p.get("time")]
+
+            hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+            pattern_candle_times = {t_detect, t_detect - tf_secs, t_detect - 2 * tf_secs, t_detect - 3 * tf_secs}
+            has_valid_swing = False
+            for pt in pts:
+                t_swing = int(pt["time"])
+                if t_swing in pattern_candle_times:
+                    t_confirm = t_swing + hhll_right * tf_secs
+                    if t_detect <= t_confirm <= t_detect + 5 * tf_secs:
+                        has_valid_swing = True
+                        break
+
+            if has_valid_swing:
+                continue
+
+            if t_last_closed > t_detect + 4 * tf_secs:
+                detect_str = datetime.fromtimestamp(t_detect, tz=BKK).strftime("%H:%M")
+                deadline_str = datetime.fromtimestamp(t_detect + 4 * tf_secs, tz=BKK).strftime("%H:%M")
+                reason = f"S1 Swing Exit [{tf}]: no swing {pos_type} confirmed in 4 bars | detect:{detect_str} | deadline:{deadline_str}"
+            else:
+                continue
+
+        ok_close, close_price = _close_position(pos, pos_type, f"s1 {_mode} exit [{tf}]")
         if ok_close:
             sig_e = "🟢" if pos_type == "BUY" else "🔴"
             await tg(app, (
-                f"⚠️ *S1 Zone Loss Exit*\n"
+                f"⚠️ *S1 {'Swing' if _mode == 'swing' else 'Zone'} Exit*\n"
                 f"{sig_e} Ticket:`{ticket}` [{pos_type}] [{tf}]\n"
                 f"Profit:`{float(pos.profit):.2f}`\n"
                 f"ปิดที่:`{close_price:.2f}`\n"
                 f"เหตุผล: {reason}"
             ))
-            print(f"⚠️ [{now}] S1 zone loss exit {ticket} [{tf}] close={close_price:.2f} | {reason}")
-            await _close_linked_s11_for_tf(app, tf, f"S1 closed by zone loss exit [{tf}]")
+            print(f"⚠️ [{now}] S1 {_mode} exit {ticket} [{tf}] close={close_price:.2f} | {reason}")
+            await _close_linked_s11_for_tf(app, tf, f"S1 closed by {_mode} exit [{tf}]")
 
 
 async def check_s1_forward_confirm_rules(app):

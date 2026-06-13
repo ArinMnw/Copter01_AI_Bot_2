@@ -109,13 +109,17 @@ if not orders:
     print("ไม่พบ order ในช่วงเวลานี้")
     sys.exit(0)
 
-# ── Connect MT5 ──────────────────────────────────────────────────────
-print("\nConnecting MT5...")
 import MetaTrader5 as mt5
-
-os.environ.setdefault("MT5_PATH", "C:/Program Files/MetaTrader 5 IC Markets (SC)/terminal64.exe")
-if not mt5.initialize():
+import config as _cfg
+path_mt5 = "C:/Program Files/MetaTrader 5/terminal64.exe"
+if not os.path.exists(path_mt5):
+    path_mt5 = "C:/Program Files/IUX Markets MT5 Terminal/terminal64.exe"
+if not mt5.initialize(path=path_mt5):
     print("MT5 init failed:", mt5.last_error())
+    sys.exit(1)
+
+if not mt5.login(login=_cfg.MT5_LOGIN, password=_cfg.MT5_PASSWORD, server=_cfg.MT5_SERVER):
+    print("MT5 login failed:", mt5.last_error())
     sys.exit(1)
 
 from config import TF_OPTIONS, SYMBOL
@@ -177,6 +181,10 @@ def get_hhll_at(tf: str, end: datetime):
         "hl": buckets["HL"],
         "lh": buckets["LH"],
         "ll": buckets["LL"],
+        "prev_hh": prev_buckets["HH"],
+        "prev_hl": prev_buckets["HL"],
+        "prev_lh": prev_buckets["LH"],
+        "prev_ll": prev_buckets["LL"],
         "last_label": structure[-1] if structure else "",
     }
 
@@ -198,103 +206,141 @@ def sim_sweep_at(tf: str, signal: str, oc_ts: datetime) -> str | None:
     return sweep_filter.check_sweep_at_time(raw_tf, oc_ts, d)
 
 
-# ── Simulate ──────────────────────────────────────────────────────────
-print("\nRunning simulation...")
-print("=" * 70)
+def run_simulation(rsi_div_enabled: bool):
+    # Override configuration in config and sweep_filter module
+    _cfg.SWEEP_FILTER_RSI_DIV_ENABLED = rsi_div_enabled
+    if sweep_filter._cfg_mod:
+        sweep_filter._cfg_mod.SWEEP_FILTER_RSI_DIV_ENABLED = rsi_div_enabled
 
-results = []
-actual_total   = 0.0
-sim_total      = 0.0
-blocked_orders = []
-unblocked_orders = []
+    results = []
+    actual_total   = 0.0
+    sim_total      = 0.0
+    blocked_orders = []
+    unblocked_orders = []
 
-for tk, o in sorted(orders.items(), key=lambda x: x[1]["created_ts"]):
-    cl = closed_info.get(tk)
-    if not cl:
-        continue   # ยังไม่ปิด/ไม่พบ POSITION_CLOSED
+    for tk, o in sorted(orders.items(), key=lambda x: x[1]["created_ts"]):
+        cl = closed_info.get(tk)
+        if not cl:
+            continue   # ยังไม่ปิด/ไม่พบ POSITION_CLOSED
 
-    profit    = cl["profit"]
-    actual_total += profit
-    signal    = o["signal"]
-    tf        = o["tf"]
-    oc_ts     = o["created_ts"]
+        profit    = cl["profit"]
+        actual_total += profit
+        signal    = o["signal"]
+        tf        = o["tf"]
+        oc_ts     = o["created_ts"]
 
-    # ตรวจ sweep state ณ เวลาสร้าง order
-    try:
-        sw_state = sim_sweep_at(tf, signal, oc_ts)
-    except Exception as e:
-        sw_state = None
+        # ตรวจ sweep state ณ เวลาสร้าง order
+        try:
+            sw_state = sim_sweep_at(tf, signal, oc_ts)
+        except Exception as e:
+            sw_state = None
 
-    # Determine action
-    blocked   = False
-    unblocked = False
-    reason_sw = ""
+        # Determine action
+        blocked   = False
+        unblocked = False
+        reason_sw = ""
 
-    if sw_state == "SWEEP_LOW":
-        if signal == "SELL":
-            blocked   = True
-            reason_sw = "SWEEP_LOW block SELL"
-        elif signal == "BUY":
-            unblocked = True
-            reason_sw = "SWEEP_LOW unblock BUY"
-    elif sw_state == "SWEEP_HIGH":
-        if signal == "BUY":
-            blocked   = True
-            reason_sw = "SWEEP_HIGH block BUY"
-        elif signal == "SELL":
-            unblocked = True
-            reason_sw = "SWEEP_HIGH unblock SELL"
+        if sw_state == "SWEEP_LOW":
+            if signal == "SELL":
+                blocked   = True
+                reason_sw = "SWEEP_LOW block SELL"
+            elif signal == "BUY":
+                unblocked = True
+                reason_sw = "SWEEP_LOW unblock BUY"
+        elif sw_state == "SWEEP_HIGH":
+            if signal == "BUY":
+                blocked   = True
+                reason_sw = "SWEEP_HIGH block BUY"
+            elif signal == "SELL":
+                unblocked = True
+                reason_sw = "SWEEP_HIGH unblock SELL"
 
-    # sim P&L:
-    # - blocked → order ไม่เกิด → P&L = 0 (หลีกเลี่ยง loss หรือเสีย profit)
-    # - not blocked → เหมือน actual
-    sim_profit = 0.0 if blocked else profit
-    sim_total += sim_profit
+        # sim P&L:
+        # - blocked → order ไม่เกิด → P&L = 0
+        # - not blocked → เหมือน actual
+        sim_profit = 0.0 if blocked else profit
+        sim_total += sim_profit
 
-    icon = ""
-    if blocked:
-        icon = "🚫" if profit < 0 else "⚠️"
-        blocked_orders.append({
-            "ticket": tk, "tf": tf, "signal": signal,
-            "profit": profit, "sim_profit": 0.0,
-            "reason": reason_sw, "close_reason": cl["reason"],
-        })
-    elif unblocked:
-        icon = "🟢"
-        unblocked_orders.append({
-            "ticket": tk, "tf": tf, "signal": signal,
-            "profit": profit, "reason": reason_sw,
-        })
+        icon = ""
+        if blocked:
+            icon = "🚫" if profit < 0 else "⚠️"
+            blocked_orders.append({
+                "ticket": tk, "tf": tf, "signal": signal,
+                "profit": profit, "sim_profit": 0.0,
+                "reason": reason_sw, "close_reason": cl["reason"],
+            })
+        elif unblocked:
+            icon = "🟢"
+            unblocked_orders.append({
+                "ticket": tk, "tf": tf, "signal": signal,
+                "profit": profit, "reason": reason_sw,
+            })
 
-    if blocked or unblocked:
-        diff = sim_profit - profit
-        results.append((oc_ts, tk, tf, signal, profit, sim_profit, reason_sw, icon))
-        print(
-            f"{icon} [{oc_ts.strftime('%d-%m %H:%M')}] #{tk} {tf} {signal:4s} | "
-            f"actual={profit:+.2f} sim={sim_profit:+.2f} diff={diff:+.2f} | {reason_sw}"
-        )
+        if blocked or unblocked:
+            diff = sim_profit - profit
+            results.append((oc_ts, tk, tf, signal, profit, sim_profit, reason_sw, icon))
 
-# ── Summary ───────────────────────────────────────────────────────────
+    diff_total = sim_total - actual_total
+    blocked_loss_saved = sum(o["profit"] for o in blocked_orders if o["profit"] < 0)
+    blocked_profit_lost = sum(o["profit"] for o in blocked_orders if o["profit"] > 0)
+
+    return {
+        "actual_total": actual_total,
+        "sim_total": sim_total,
+        "diff_total": diff_total,
+        "blocked_count": len(blocked_orders),
+        "unblocked_count": len(unblocked_orders),
+        "loss_saved": abs(blocked_loss_saved),
+        "profit_lost": blocked_profit_lost,
+        "blocked_orders": blocked_orders,
+        "unblocked_orders": unblocked_orders,
+        "affected_results": results
+    }
+
+# Run both simulations
+print("\n--- Running Sim 1: RSI Divergence DISABLED (Price Action only) ---")
+res_disabled = run_simulation(False)
+
+print("\n--- Running Sim 2: RSI Divergence ENABLED (S14 Style) ---")
+res_enabled = run_simulation(True)
+
+# Print Detailed comparisons
 print("\n" + "=" * 70)
-diff_total = sim_total - actual_total
-
-print(f"\n📊 Simulation Summary ({START_STR} → {end_dt.strftime('%d-%m-%Y')})")
+print(f"📊 COMPARATIVE SUMMARY ({START_STR} → {end_dt.strftime('%d-%m-%Y')})")
+print("=" * 70)
 print(f"   Total orders (closed):  {len(closed_info)}")
-print(f"   Orders affected:        {len(results)}")
-print(f"   Blocked:                {len(blocked_orders)}")
-print(f"   Unblocked:              {len(unblocked_orders)}")
-print(f"\n   Actual P&L:  ${actual_total:+.2f}")
-print(f"   Sim P&L:     ${sim_total:+.2f}")
-print(f"   Difference:  ${diff_total:+.2f}  {'↑ ดีขึ้น' if diff_total > 0 else '↓ แย่ลง' if diff_total < 0 else '─ เท่าเดิม'}")
 
-print("\n🚫 Blocked orders (sweep filter would block):")
-blocked_loss_saved = sum(o["profit"] for o in blocked_orders if o["profit"] < 0)
-blocked_profit_lost = sum(o["profit"] for o in blocked_orders if o["profit"] > 0)
-print(f"   Loss avoided:  ${abs(blocked_loss_saved):.2f}")
-print(f"   Profit missed: ${blocked_profit_lost:.2f}")
-for bo in blocked_orders:
-    flag = "💰SAVE" if bo["profit"] < 0 else "❌MISS"
+print("\n[Sweep Filter: RSI Divergence DISABLED]")
+print(f"   Blocked:                {res_disabled['blocked_count']}")
+print(f"   Unblocked:              {res_disabled['unblocked_count']}")
+print(f"   Loss Avoided (Saved):   ${res_disabled['loss_saved']:.2f}")
+print(f"   Profit Missed:          ${res_disabled['profit_lost']:.2f}")
+print(f"   Actual Total P&L:       ${res_disabled['actual_total']:+.2f}")
+print(f"   Simulated Total P&L:    ${res_disabled['sim_total']:+.2f}")
+print(f"   Difference:             ${res_disabled['diff_total']:+.2f}")
+for bo in res_disabled["blocked_orders"]:
+    flag = "💰SAVE" if bo["profit"] < 0 else "⚠️MISS"
     print(f"   {flag} #{bo['ticket']} {bo['tf']} {bo['signal']:4s} {bo['profit']:+.2f} | {bo['reason']}")
+
+print("\n[Sweep Filter: RSI Divergence ENABLED (S14 Style)]")
+print(f"   Blocked:                {res_enabled['blocked_count']}")
+print(f"   Unblocked:              {res_enabled['unblocked_count']}")
+print(f"   Loss Avoided (Saved):   ${res_enabled['loss_saved']:.2f}")
+print(f"   Profit Missed:          ${res_enabled['profit_lost']:.2f}")
+print(f"   Actual Total P&L:       ${res_enabled['actual_total']:+.2f}")
+print(f"   Simulated Total P&L:    ${res_enabled['sim_total']:+.2f}")
+print(f"   Difference:             ${res_enabled['diff_total']:+.2f}")
+for bo in res_enabled["blocked_orders"]:
+    flag = "💰SAVE" if bo["profit"] < 0 else "⚠️MISS"
+    print(f"   {flag} #{bo['ticket']} {bo['tf']} {bo['signal']:4s} {bo['profit']:+.2f} | {bo['reason']}")
+
+print("\n" + "=" * 70)
+print("🔍 P&L COMPARISON DETAIL")
+print(f"   RSI Div DISABLED Sim P&L: ${res_disabled['sim_total']:+.2f}")
+print(f"   RSI Div ENABLED Sim P&L:  ${res_enabled['sim_total']:+.2f}")
+pnl_diff = res_enabled['sim_total'] - res_disabled['sim_total']
+print(f"   Net Effect of enabling RSI Div on Sweep Filter: ${pnl_diff:+.2f} ({'RSI Div ENABLED ดีกว่า' if pnl_diff > 0 else 'RSI Div DISABLED ดีกว่า' if pnl_diff < 0 else 'เท่ากัน'})")
+print("=" * 70)
 
 mt5.shutdown()
 print("\nDone.")

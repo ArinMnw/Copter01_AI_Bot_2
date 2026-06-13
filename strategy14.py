@@ -470,7 +470,7 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                     ref_low = ref["low"]
                     ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)
 
-                    if ref_rsi is not None and sweep_idx - ref_idx >= 2:
+                    if (ref_rsi is not None or not getattr(config, "S14_RSI_DIV_ENABLED", True)) and sweep_idx - ref_idx >= 2:
                         # ref_low invalidation: ถ้ามีแท่งระหว่าง ref กับ sweep ปิดต่ำกว่า ref → LL broken
                         if any(float(r["close"]) < ref_low for r in rates[ref_idx + 1:sweep_idx]):
                             continue
@@ -480,9 +480,13 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                         s_close = float(sweep_bar["close"])
 
                         if s_low < ref_low and s_open > ref_low and s_close > ref_low:
+                            passed_rsi = True
                             s_rsi = _pivot_rsi_buy(rates, rsi_vals, sweep_idx)
-                            _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                            if s_rsi is not None and s_rsi < 50.0 and (s_rsi - ref_rsi) > _rsi_min_diff:
+                            if getattr(config, "S14_RSI_DIV_ENABLED", True):
+                                _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                                if s_rsi is None or s_rsi >= 50.0 or (s_rsi - ref_rsi) <= _rsi_min_diff:
+                                    passed_rsi = False
+                            if passed_rsi:
                                 entry = round(cc, 2)
                                 sl    = round(s_low - SL_BUFFER(calc_atr(rates, 14)), 2)
                                 if entry > sl:
@@ -549,7 +553,7 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                             ref_low = ref["low"]
                             ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)
 
-                            if ref_rsi is not None and i - ref_idx >= 2:
+                            if (ref_rsi is not None or not getattr(config, "S14_RSI_DIV_ENABLED", True)) and i - ref_idx >= 2:
                                 # ref_low invalidation: ถ้ามีแท่งระหว่าง ref กับ engulf ปิดต่ำกว่า ref → LL broken
                                 if any(float(r["close"]) < ref_low for r in rates[ref_idx + 1:i]):
                                     continue
@@ -561,9 +565,13 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                                     c1_open, c1_close = float(c1_bar["open"]), float(c1_bar["close"])
                                     c2_open, c2_close = float(c2_bar["open"]), float(c2_bar["close"])
                                     if c1_close > c1_open and c2_close > c2_open:
+                                        passed_rsi = True
                                         e_rsi = _pivot_rsi_buy(rates, rsi_vals, i)
-                                        _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                                        if e_rsi is not None and e_rsi < 50.0 and (e_rsi - ref_rsi) > _rsi_min_diff:
+                                        if getattr(config, "S14_RSI_DIV_ENABLED", True):
+                                            _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                                            if e_rsi is None or e_rsi >= 50.0 or (e_rsi - ref_rsi) <= _rsi_min_diff:
+                                                passed_rsi = False
+                                        if passed_rsi:
                                             
                                             is_sec_htf_triggered = False
                                             sec_htf = _get_next_std_tf(htf)
@@ -635,7 +643,7 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                         ref_low = ref["low"]
                         ref_rsi = _pivot_rsi_buy(rates, rsi_vals, ref_idx)
                         
-                        if ref_rsi is not None and (len(rates) - 1) - ref_idx >= 2:
+                        if (ref_rsi is not None or not getattr(config, "S14_RSI_DIV_ENABLED", True)) and (len(rates) - 1) - ref_idx >= 2:
                             # ref_low invalidation: ถ้ามีแท่งระหว่าง ref กับ engulf direct ปิดต่ำกว่า ref → LL broken
                             if any(float(r["close"]) < ref_low for r in rates[ref_idx + 1:len(rates) - 1]):
                                 continue
@@ -644,9 +652,13 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
                             e_close = float(e_bar["close"])
 
                             if e_low < ref_low and e_close < ref_low:
+                                passed_rsi = True
                                 e_rsi = _pivot_rsi_buy(rates, rsi_vals, len(rates) - 1)
-                                _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                                if e_rsi is not None and e_rsi < 50.0 and (e_rsi - ref_rsi) > _rsi_min_diff:
+                                if getattr(config, "S14_RSI_DIV_ENABLED", True):
+                                    _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                                    if e_rsi is None or e_rsi >= 50.0 or (e_rsi - ref_rsi) <= _rsi_min_diff:
+                                        passed_rsi = False
+                                if passed_rsi:
                                     
                                     sec_htf = _get_next_std_tf(htf)
                                     if hc < ho and hc < ref_low:
@@ -787,7 +799,7 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                     ref_high = ref["high"]
                     ref_rsi  = _pivot_rsi_sell(rates, rsi_vals, ref_idx)
 
-                    if ref_rsi is not None and sweep_idx - ref_idx >= 2:
+                    if (ref_rsi is not None or not getattr(config, "S14_RSI_DIV_ENABLED", True)) and sweep_idx - ref_idx >= 2:
                         # ref_high invalidation: ถ้ามีแท่งระหว่าง ref กับ sweep ปิดสูงกว่า ref → LH broken
                         if any(float(r["close"]) > ref_high for r in rates[ref_idx + 1:sweep_idx]):
                             continue
@@ -797,9 +809,13 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                         s_close = float(sweep_bar["close"])
 
                         if s_high > ref_high and s_open < ref_high and s_close < ref_high:
+                            passed_rsi = True
                             s_rsi = _pivot_rsi_sell(rates, rsi_vals, sweep_idx)
-                            _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                            if s_rsi is not None and s_rsi > 50.0 and (ref_rsi - s_rsi) > _rsi_min_diff:
+                            if getattr(config, "S14_RSI_DIV_ENABLED", True):
+                                _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                                if s_rsi is None or s_rsi <= 50.0 or (ref_rsi - s_rsi) <= _rsi_min_diff:
+                                    passed_rsi = False
+                            if passed_rsi:
                                 entry = round(cc, 2)
                                 sl    = round(s_high + SL_BUFFER(calc_atr(rates, 14)), 2)
                                 if entry < sl:
@@ -865,7 +881,7 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                             ref_high = ref["high"]
                             ref_rsi = _pivot_rsi_sell(rates, rsi_vals, ref_idx)
 
-                            if ref_rsi is not None and i - ref_idx >= 2:
+                            if (ref_rsi is not None or not getattr(config, "S14_RSI_DIV_ENABLED", True)) and i - ref_idx >= 2:
                                 # ref_high invalidation: ถ้ามีแท่งระหว่าง ref กับ engulf ปิดสูงกว่า ref → LH broken
                                 if any(float(r["close"]) > ref_high for r in rates[ref_idx + 1:i]):
                                     continue
@@ -877,9 +893,13 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                                     c1_open, c1_close = float(c1_bar["open"]), float(c1_bar["close"])
                                     c2_open, c2_close = float(c2_bar["open"]), float(c2_bar["close"])
                                     if c1_close < c1_open and c2_close < c2_open:
+                                        passed_rsi = True
                                         e_rsi = _pivot_rsi_sell(rates, rsi_vals, i)
-                                        _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                                        if e_rsi is not None and e_rsi > 50.0 and (ref_rsi - e_rsi) > _rsi_min_diff:
+                                        if getattr(config, "S14_RSI_DIV_ENABLED", True):
+                                            _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                                            if e_rsi is None or e_rsi <= 50.0 or (ref_rsi - e_rsi) <= _rsi_min_diff:
+                                                passed_rsi = False
+                                        if passed_rsi:
                                             
                                             is_sec_htf_triggered = False
                                             sec_htf = _get_next_std_tf(htf)
@@ -951,7 +971,7 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                         ref_high = ref["high"]
                         ref_rsi = _pivot_rsi_sell(rates, rsi_vals, ref_idx)
                         
-                        if ref_rsi is not None and (len(rates) - 1) - ref_idx >= 2:
+                        if (ref_rsi is not None or not getattr(config, "S14_RSI_DIV_ENABLED", True)) and (len(rates) - 1) - ref_idx >= 2:
                             # ref_high invalidation: ถ้ามีแท่งระหว่าง ref กับ engulf direct ปิดสูงกว่า ref → LH broken
                             if any(float(r["close"]) > ref_high for r in rates[ref_idx + 1:len(rates) - 1]):
                                 continue
@@ -960,9 +980,13 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
                             e_close = float(e_bar["close"])
 
                             if e_high > ref_high and e_close > ref_high:
+                                passed_rsi = True
                                 e_rsi = _pivot_rsi_sell(rates, rsi_vals, len(rates) - 1)
-                                _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
-                                if e_rsi is not None and e_rsi > 50.0 and (ref_rsi - e_rsi) > _rsi_min_diff:
+                                if getattr(config, "S14_RSI_DIV_ENABLED", True):
+                                    _rsi_min_diff = float(getattr(config, "S14_RSI_MIN_DIFF", 1.0))
+                                    if e_rsi is None or e_rsi <= 50.0 or (ref_rsi - e_rsi) <= _rsi_min_diff:
+                                        passed_rsi = False
+                                if passed_rsi:
                                     
                                     sec_htf = _get_next_std_tf(htf)
                                     if hc > ho and hc > ref_high:
