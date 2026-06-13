@@ -410,8 +410,8 @@ def main():
                 + f"🕒 Time Mode: `MT5->BKK +{mt5_to_bkk_hours}`\n"
                 + f"🕒 MT5 Server: `UTC+{MT5_SERVER_TZ}`\n"
                 + f"🕒 Display: `BKK`\n"
-                + f"📋 Strategy: {", ".join(STRATEGY_NAMES[k] for k,v in active_strategies.items() if v)}\n"
-                + f"🕐 TF: {", ".join(tf for tf,on in TF_ACTIVE.items() if on) or 'ยังไม่ได้เลือก'}"
+                + f"📋 Strategy: {', '.join(STRATEGY_NAMES[k] for k,v in active_strategies.items() if v)}\n"
+                + f"🕐 TF: {', '.join(tf for tf,on in TF_ACTIVE.items() if on) or 'ยังไม่ได้เลือก'}"
             )
 
             if restore_info.get("restored"):
