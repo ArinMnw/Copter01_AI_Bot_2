@@ -200,6 +200,16 @@ _STRATEGY_DESC = {
         "5️⃣ *Killzone*: London 14-18 / NY 19-23 BKK เท่านั้น\n\n"
         "🎯 LIMIT ที่โซน | SL หลังไส้ sweep | TP ที่ liquidity ตรงข้าม\n"
         "⚠️ ค่า default ตั้งต้นก่อน backtest — ควรรัน sim_s18_backtest ก่อนใช้จริง",
+
+    19: "🔫 *ICT Advanced — Silver Bullet* — Standalone\n\n"
+        "ต่อยอด S18 ด้วยเทคนิค ICT ขั้นสูง:\n"
+        "1️⃣ *Silver Bullet*: window แคบ London 13-15 / NY 21-23 BKK\n"
+        "2️⃣ *HTF Bias + Sweep + MSS*: เหมือน S18\n"
+        "3️⃣ *Power of 3*: sweep ต้องอยู่ใน SB session เดียวกัน\n"
+        "4️⃣ *Entry Zone*: Breaker Block → BPR → FVG ใน OTE (62–79%)\n"
+        "5️⃣ *TP*: New Day Opening Gap (ถ้าในทิศ) หรือ liquidity ตรงข้าม\n\n"
+        "🎯 LIMIT ที่โซน | SL หลังไส้ sweep\n"
+        "⚠️ ค่า default ตั้งต้นก่อน backtest — ควรรัน sim_s19_backtest ก่อนใช้จริง",
 }
 
 
