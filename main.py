@@ -103,6 +103,7 @@ def main():
     async def run_scan():
         try:
             await auto_scan(app)
+            config.last_scan_ts = _time.time()   # heartbeat สำหรับ watchdog
         except Exception as e:
             await _tg_error(app, "run_scan", e)
 
@@ -314,6 +315,70 @@ def main():
             skipped=len(summary.get("skipped") or []),
         )
 
+    async def daily_summary_job():
+        """ส่งสรุปผลประจำวันไป Telegram ตามเวลา BKK (DAILY_SUMMARY_HOUR:MINUTE)"""
+        if not config.DAILY_SUMMARY_ENABLED:
+            return
+        try:
+            from mt5_utils import connect_mt5
+            connect_mt5()
+            text = config.build_daily_summary_text()
+            await tg(app, text)
+            log_event("DAILY_SUMMARY", "sent",
+                      realized=config.daily_stats.get("realized", 0.0),
+                      count=config.daily_stats.get("count", 0))
+        except Exception as e:
+            await _tg_error(app, "daily_summary_job", e)
+
+    async def run_watchdog():
+        """Health check เบาๆ ทุก 1 นาที — เขียน heartbeat + เช็ก MT5/scan ค้าง
+        แจ้ง Telegram เมื่อผิดปกติและเมื่อกลับมาปกติ (กันแจ้งซ้ำด้วย flag ใน config)"""
+        if not config.WATCHDOG_ENABLED:
+            return
+        from mt5_utils import connect_mt5
+        mt5_ok = False
+        try:
+            mt5_ok = bool(connect_mt5())
+        except Exception:
+            mt5_ok = False
+
+        # heartbeat file (ให้ external supervisor เช็กได้ว่า process ยังมีชีวิต)
+        try:
+            hb = (
+                f"ts={int(_time.time())}\n"
+                f"bkk={now_bkk().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"mt5_ok={int(mt5_ok)}\n"
+                f"auto={int(config.auto_active)}\n"
+                f"last_scan={int(config.last_scan_ts)}\n"
+            )
+            with open(config.HEARTBEAT_FILE, "w", encoding="utf-8") as f:
+                f.write(hb)
+        except Exception:
+            pass
+
+        # MT5 connection transition alerts
+        if not mt5_ok and config._watchdog_mt5_ok:
+            config._watchdog_mt5_ok = False
+            log_event("WATCHDOG_MT5_DOWN", "MT5 connection lost")
+            await tg(app, "🚨 *Watchdog: MT5 หลุดการเชื่อมต่อ*\nบอทจะลองเชื่อมต่อใหม่อัตโนมัติ")
+        elif mt5_ok and not config._watchdog_mt5_ok:
+            config._watchdog_mt5_ok = True
+            log_event("WATCHDOG_MT5_UP", "MT5 connection restored")
+            await tg(app, "✅ *Watchdog: MT5 กลับมาเชื่อมต่อแล้ว*")
+
+        # scan stall alert (เฉพาะตอน auto ON และเคย scan มาแล้ว)
+        if config.auto_active and config.last_scan_ts > 0:
+            stale = (_time.time() - config.last_scan_ts) > config.WATCHDOG_STALE_SEC
+            if stale and config._watchdog_scan_ok:
+                config._watchdog_scan_ok = False
+                gap = int(_time.time() - config.last_scan_ts)
+                log_event("WATCHDOG_SCAN_STALL", f"no scan for {gap}s")
+                await tg(app, f"🚨 *Watchdog: Scan ค้าง*\nไม่มี scan สำเร็จมา `{gap}` วินาที — ตรวจสอบ MT5/บอท")
+            elif not stale and not config._watchdog_scan_ok:
+                config._watchdog_scan_ok = True
+                log_event("WATCHDOG_SCAN_OK", "scan resumed")
+                await tg(app, "✅ *Watchdog: Scan กลับมาทำงานปกติ*")
+
     from datetime import timezone as _tz2
 
     # ตรวจสลับ symbol ทุก 1 นาที
@@ -381,6 +446,29 @@ def main():
         id="log_cleanup_job",
         max_instances=1,
         coalesce=True,
+    )
+
+    # สรุปผลประจำวัน — ส่ง Telegram ตามเวลา BKK ที่ตั้งไว้
+    scheduler.add_job(
+        daily_summary_job,
+        'cron',
+        hour=config.DAILY_SUMMARY_HOUR,
+        minute=config.DAILY_SUMMARY_MINUTE,
+        timezone='Asia/Bangkok',
+        id="daily_summary_job",
+        max_instances=1,
+        coalesce=True,
+    )
+
+    # Watchdog / Health check — ทุก 1 นาที
+    scheduler.add_job(
+        run_watchdog,
+        'interval',
+        minutes=1,
+        id="watchdog_job",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(_tz.utc)
     )
 
     async def post_init(application):
