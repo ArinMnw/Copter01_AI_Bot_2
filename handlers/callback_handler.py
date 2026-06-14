@@ -634,7 +634,12 @@ async def handle_callback(update, ctx):
         mode = data.replace("set_s1_zone_mode_", "")
         config.S1_ZONE_MODE = mode
         save_runtime_state()
-        label = "Zone (ต้องใกล้ Swing)" if mode == "zone" else "ปกติ (ไม่สนใจ Zone)"
+        if mode == "zone":
+            label = "Zone (ต้องใกล้ Swing)"
+        elif mode == "swing":
+            label = "Swing (ภายใน 4 แท่ง)"
+        else:
+            label = "ปกติ (ไม่สนใจ Zone)"
         await _show_strategy_detail(query, 1, f"✅ ท่า 1: {label}")
 
     elif data in ("toggle_rsi9_regular", "toggle_rsi9_hidden"):

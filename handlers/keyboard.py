@@ -841,6 +841,12 @@ def build_strategy_detail_keyboard(sid: int):
                 f"{'✅' if zone_mode == 'zone' else '⬜'} Zone (ต้องใกล้ Swing)",
                 callback_data="set_s1_zone_mode_zone"
             ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if zone_mode == 'swing' else '⬜'} Swing (ภายใน 4 แท่ง)",
+                callback_data="set_s1_zone_mode_swing"
+            ),
             InlineKeyboardButton(
                 f"{'✅' if zone_mode == 'normal' else '⬜'} ปกติ (ไม่สนใจ Zone)",
                 callback_data="set_s1_zone_mode_normal"
