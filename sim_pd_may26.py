@@ -36,12 +36,8 @@ def is_multitf(tf_str):
     return any(s in str(tf_str) for s in ["_", "+", ",", "["])
 
 def log_files():
-    log_dir = 'logs'
-    r = []
-    for n in ['old_logs/bot-2026-05.log', 'old_logs/bot-2026-06.log', 'bot.log']:
-        p = os.path.join(log_dir, n)
-        if os.path.exists(p): r.append(p)
-    return r
+    from log_sources import bot_log_files
+    return bot_log_files()
 
 def fld(line, key):
     m = re.search(rf'{key}=([^|\s]+)', line)

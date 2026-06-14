@@ -13,10 +13,8 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-log_files = [
-    'logs/old_logs/bot-2026-06.log',
-    'logs/bot.log',
-]
+from log_sources import bot_log_files
+log_files = bot_log_files()
 
 def fld(line, key):
     m = re.search(rf'{key}=([^|\s]+)', line)

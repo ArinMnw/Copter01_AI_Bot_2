@@ -41,13 +41,8 @@ TIMEOUT_MIN       = 45
 
 # ── Log files ─────────────────────────────────────────────────────────
 def _log_files():
-    log_dir = os.path.join(ROOT, "logs")
-    result = []
-    for name in ["old_logs/bot-2026-05.log", "old_logs/bot-2026-06.log", "bot.log"]:
-        p = os.path.join(log_dir, name)
-        if os.path.exists(p):
-            result.append(p)
-    return result
+    from log_sources import bot_log_files
+    return bot_log_files(ROOT)
 
 _TS = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
 

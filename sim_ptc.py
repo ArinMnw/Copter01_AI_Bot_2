@@ -40,12 +40,9 @@ end_dt   = _parse_dt(END_STR) if END_STR else datetime.now(_BKK)
 print(f"Sim period: {start_dt.strftime('%d-%m-%Y')} → {end_dt.strftime('%d-%m-%Y')}")
 
 # ── Log files ─────────────────────────────────────────────────────────
-LOG_FILES = [
-    BASE / "logs" / "old_logs" / "bot-2026-05.log",
-    BASE / "logs" / "old_logs" / "bot-2026-06.log",
-    BASE / "logs" / "bot.log",
-]
-LOG_FILES = [f for f in LOG_FILES if f.exists()]
+from pathlib import Path as _Path
+from log_sources import bot_log_files
+LOG_FILES = [_Path(p) for p in bot_log_files(str(BASE))]
 print(f"Reading {len(LOG_FILES)} log files: {[f.name for f in LOG_FILES]}")
 
 # ── Helpers ───────────────────────────────────────────────────────────

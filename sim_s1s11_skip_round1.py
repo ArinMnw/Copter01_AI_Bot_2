@@ -15,15 +15,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 log_dir = os.path.join(ROOT, 'logs')
 
 def log_files():
-    r = []
-    for n in ['old_logs/bot-2026-05.log', 'old_logs/bot-2026-06.log', 'bot.log']:
-        p = os.path.join(log_dir, n)
-        if os.path.exists(p):
-            r.append(p)
-    for p in sorted(glob.glob(os.path.join(log_dir, 'old_logs', 'bot-2026-06.log.bak-*'))):
-        if p not in r:
-            r.append(p)
-    return r
+    from log_sources import bot_log_files
+    return bot_log_files()
 
 def fld(line, key):
     m = re.search(rf'{key}=([^|\s]+)', line)

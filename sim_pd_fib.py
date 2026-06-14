@@ -10,13 +10,8 @@ DATE_FROM = datetime(2026, 5, 26, 0, 0, 0)
 
 # ──────────────────────────────────────────────
 def log_files():
-    log_dir = 'logs'
-    candidates = [
-        'old_logs/bot-2026-05.log',
-        'old_logs/bot-2026-06.log',
-        'bot.log',
-    ]
-    return [os.path.join(log_dir, n) for n in candidates if os.path.exists(os.path.join(log_dir, n))]
+    from log_sources import bot_log_files
+    return bot_log_files()
 
 def fld(line, key):
     m = re.search(rf'(?<![a-zA-Z_]){key}=([^|\s]+)', line)

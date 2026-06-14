@@ -35,17 +35,8 @@ BYPASS_BLOCK_SIDS = {9, 10, 14}
 # Log file reader
 # ─────────────────────────────────────────────────────────────────────
 def _log_files():
-    log_dir = os.path.join(ROOT, "logs")
-    result = []
-    for name in ["old_logs/bot-2026-05.log", "old_logs/bot-2026-06.log",
-                 "bot.log"]:
-        p = os.path.join(log_dir, name)
-        if os.path.exists(p):
-            result.append(p)
-    for p in sorted(glob.glob(os.path.join(log_dir, "old_logs", "bot-2026-06.log.bak-*"))):
-        if p not in result:
-            result.append(p)
-    return result
+    from log_sources import bot_log_files
+    return bot_log_files(ROOT)
 
 _TS = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
 def fld(line, key):
