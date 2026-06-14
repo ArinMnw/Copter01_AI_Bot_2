@@ -90,6 +90,14 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         f"🟢ON | ×{config.SCALE_OUT_MULTIPLIER} ({config.scale_out_total_volume()})"
         if config.SCALE_OUT_ENABLED else "🔴OFF"
     )
+    _rh_parts = []
+    if config.DAILY_LOSS_LIMIT_ENABLED:
+        _rh_parts.append(f"Loss${config.DAILY_LOSS_LIMIT_USD:.0f}")
+    if config.RISK_PERCENT_ENABLED:
+        _rh_parts.append(f"Risk{config.RISK_PERCENT:.1f}%")
+    if config.WATCHDOG_ENABLED:
+        _rh_parts.append("WD")
+    risk_health_suffix = f"🟢 {' + '.join(_rh_parts)}" if _rh_parts else "🔴OFF"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 เลือก Strategy", callback_data="open_strategy_menu")],
         [InlineKeyboardButton(f"📐 Trail SL: {trail_suffix}", callback_data="open_trail_menu")],
@@ -108,6 +116,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         [InlineKeyboardButton("🕐 เลือก Timeframe", callback_data="open_tf_menu")],
         [InlineKeyboardButton(f"📦 Lot Size Auto: {config.AUTO_VOLUME}", callback_data="open_lot_menu")],
         [InlineKeyboardButton(f"📈 Scale-Out {config.SCALE_OUT_MULTIPLIER}X: {scale_out_suffix}", callback_data="toggle_scale_out")],
+        [InlineKeyboardButton(f"🛟 Risk & Health: {risk_health_suffix}", callback_data="open_risk_health_menu")],
         [InlineKeyboardButton("♻️ Reset Config", callback_data="reset_config_prompt")],
         [InlineKeyboardButton("🔙 กลับ", callback_data="close_settings")],
     ])
@@ -141,6 +150,65 @@ async def show_main_settings_menu(update_or_query, is_query=False):
             pass
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+async def show_risk_health_menu(update_or_query, is_query=False):
+    """เมนู Risk & Health — Daily Loss Limit, Daily Summary, Dynamic Lot, Watchdog"""
+    dll_suffix = f"🟢ON | ${config.DAILY_LOSS_LIMIT_USD:.0f}" if config.DAILY_LOSS_LIMIT_ENABLED else "🔴OFF"
+    sum_suffix = (
+        f"🟢ON | {config.DAILY_SUMMARY_HOUR:02d}:{config.DAILY_SUMMARY_MINUTE:02d}"
+        if config.DAILY_SUMMARY_ENABLED else "🔴OFF"
+    )
+    risk_suffix = (
+        f"🟢ON | {config.RISK_PERCENT:.1f}% (max {config.RISK_MAX_LOT})"
+        if config.RISK_PERCENT_ENABLED else "🔴OFF"
+    )
+    wd_suffix = "🟢ON" if config.WATCHDOG_ENABLED else "🔴OFF"
+
+    dll_amount_row = [
+        InlineKeyboardButton(f"{'🔵' if abs(config.DAILY_LOSS_LIMIT_USD - amt) < 0.01 else '⬜'} ${amt:.0f}",
+                             callback_data=f"set_dll_usd_{int(amt)}")
+        for amt in (20, 50, 100, 200)
+    ]
+    risk_pct_row = [
+        InlineKeyboardButton(f"{'🔵' if abs(config.RISK_PERCENT - pct) < 0.001 else '⬜'} {pct}%",
+                             callback_data=f"set_risk_pct_{pct}")
+        for pct in (0.25, 0.5, 1.0, 2.0)
+    ]
+    daily = config.daily_stats
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🛑 Daily Loss Limit: {dll_suffix}", callback_data="toggle_daily_loss_limit")],
+        dll_amount_row,
+        [InlineKeyboardButton(f"📊 Daily Summary: {sum_suffix}", callback_data="toggle_daily_summary")],
+        [InlineKeyboardButton("📤 ส่งสรุปวันนี้เลย", callback_data="send_daily_summary_now")],
+        [InlineKeyboardButton(f"📦 Dynamic Lot (% Risk): {risk_suffix}", callback_data="toggle_risk_percent")],
+        risk_pct_row,
+        [InlineKeyboardButton(f"🛟 Watchdog: {wd_suffix}", callback_data="toggle_watchdog")],
+        [InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")],
+    ])
+    text = (
+        f"🛟 *Risk & Health*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"🛑 Daily Loss Limit: *{dll_suffix}*\n"
+        f"   _ปิดทุกออเดอร์+หยุด Auto เมื่อขาดทุนสะสมเกินเพดาน_\n"
+        f"📊 Daily Summary: *{sum_suffix}*\n"
+        f"📦 Dynamic Lot: *{risk_suffix}*\n"
+        f"   _คำนวณ lot จาก % ของ equity ÷ ระยะ SL_\n"
+        f"🛟 Watchdog: *{wd_suffix}*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"📈 วันนี้ ({daily.get('date','-')}): "
+        f"P/L `{daily.get('realized',0.0):.2f}` | "
+        f"ไม้ `{daily.get('count',0)}` (✅{daily.get('wins',0)}/❌{daily.get('losses',0)})"
+        f"{'  🛑KILLED' if config.daily_loss_tripped else ''}"
+    )
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
 
 def build_lot_keyboard():
     """ปุ่มเลือก Lot Size สำหรับ Auto Trade"""

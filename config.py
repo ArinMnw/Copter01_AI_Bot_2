@@ -742,6 +742,117 @@ SL_GUARD_GROUP_GROUPS: list = [
 # → ถ้าไม่มี limit ใกล้ LL/HH → ตั้ง S8 ที่ LL/HH
 LIMIT_SWEEP = False
 
+# ── Daily Loss Limit / Kill Switch ───────────────────────────
+# เมื่อ realized P/L สะสมของวัน (BKK) ติดลบเกิน threshold → ปิดทุก position,
+# ยกเลิก pending ทั้งหมด, ปิด auto_active และแจ้ง Telegram (กัน strategy พังกินพอร์ต)
+# - daily_stats: accumulator ของวัน (persist ลง bot_state.json) — roll อัตโนมัติเมื่อข้ามวัน
+# - daily_loss_tripped: True หลัง trip แล้ว (กัน re-trigger ซ้ำในวันเดียวกัน)
+DAILY_LOSS_LIMIT_ENABLED = False
+DAILY_LOSS_LIMIT_USD     = 50.0   # ขาดทุนสะสมเกิน $N → kill switch
+daily_stats = {"date": "", "realized": 0.0, "wins": 0, "losses": 0,
+               "count": 0, "gross_win": 0.0, "gross_loss": 0.0}
+daily_loss_tripped = False
+
+# ── Daily Summary (Telegram) ─────────────────────────────────
+# ส่งสรุปผลของวันอัตโนมัติทุกวันตามเวลา BKK ที่กำหนด
+DAILY_SUMMARY_ENABLED = True
+DAILY_SUMMARY_HOUR    = 23
+DAILY_SUMMARY_MINUTE  = 0
+
+# ── Dynamic Lot Sizing (% Risk per Trade) ────────────────────
+# เมื่อเปิด: base lot ของแต่ละ order คำนวณจาก RISK_PERCENT × equity / ระยะ SL
+# (ใช้ tick_value/tick_size ของ symbol ปัจจุบัน) แทน AUTO_VOLUME คงที่
+# - clamp ไม่เกิน RISK_MAX_LOT และไม่ต่ำกว่า volume_min ของ broker
+# - default OFF — ถ้า OFF พฤติกรรมเดิมไม่เปลี่ยน
+RISK_PERCENT_ENABLED = False
+RISK_PERCENT         = 0.5    # % ของ equity ที่ยอมเสียต่อ 1 ไม้ (ก่อน TSO scale)
+RISK_MAX_LOT         = 0.20   # เพดาน lot ต่อไม้ (หลังคำนวณ risk, ก่อน TSO)
+
+# ── Watchdog / Health Check ──────────────────────────────────
+# job เบาทุก 1 นาที: เขียน heartbeat file + เช็ก MT5 connection + เช็ก scan ค้าง
+# แจ้ง Telegram เมื่อ MT5 หลุด / scan ค้าง และเมื่อกลับมาปกติ (dedup กัน spam)
+WATCHDOG_ENABLED   = True
+WATCHDOG_STALE_SEC = 120          # ไม่มี scan สำเร็จเกิน N วิ (ขณะ auto ON) → แจ้งเตือน
+HEARTBEAT_FILE     = "bot_heartbeat.txt"
+last_scan_ts       = 0.0          # epoch ของ scan สำเร็จล่าสุด (set โดย main.run_scan)
+_watchdog_mt5_ok   = True         # สถานะ MT5 ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
+_watchdog_scan_ok  = True         # สถานะ scan ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
+
+
+def _today_bkk() -> str:
+    """วันที่ปัจจุบันแบบ BKK (UTC+7) เป็น 'YYYY-MM-DD'"""
+    return now_bkk().strftime("%Y-%m-%d")
+
+
+def _roll_daily_stats():
+    """reset accumulator ถ้าข้ามวัน (เทียบ date ปัจจุบัน BKK)"""
+    global daily_loss_tripped
+    today = _today_bkk()
+    if daily_stats.get("date") != today:
+        daily_stats.update({"date": today, "realized": 0.0, "wins": 0,
+                            "losses": 0, "count": 0, "gross_win": 0.0,
+                            "gross_loss": 0.0})
+        daily_loss_tripped = False
+
+
+def record_daily_close(profit: float) -> dict:
+    """บันทึก realized P/L ของ position ที่เพิ่งปิด ลง daily accumulator
+    คืน dict ของ daily_stats หลังอัปเดต (roll วันอัตโนมัติ)"""
+    _roll_daily_stats()
+    try:
+        p = float(profit)
+    except Exception:
+        p = 0.0
+    daily_stats["realized"] = round(daily_stats.get("realized", 0.0) + p, 2)
+    daily_stats["count"] = daily_stats.get("count", 0) + 1
+    if p >= 0:
+        daily_stats["wins"] = daily_stats.get("wins", 0) + 1
+        daily_stats["gross_win"] = round(daily_stats.get("gross_win", 0.0) + p, 2)
+    else:
+        daily_stats["losses"] = daily_stats.get("losses", 0) + 1
+        daily_stats["gross_loss"] = round(daily_stats.get("gross_loss", 0.0) + p, 2)
+    return daily_stats
+
+
+def daily_loss_should_trip() -> bool:
+    """True ถ้า realized ของวันติดลบเกิน threshold และยังไม่เคย trip วันนี้"""
+    if not DAILY_LOSS_LIMIT_ENABLED or daily_loss_tripped:
+        return False
+    _roll_daily_stats()
+    return daily_stats.get("realized", 0.0) <= -abs(float(DAILY_LOSS_LIMIT_USD))
+
+
+def build_daily_summary_text() -> str:
+    """สร้างข้อความสรุปผลของวัน (BKK) จาก daily_stats + account info"""
+    _roll_daily_stats()
+    s = daily_stats
+    cnt = s.get("count", 0)
+    wins = s.get("wins", 0)
+    losses = s.get("losses", 0)
+    realized = s.get("realized", 0.0)
+    wr = (wins / cnt * 100.0) if cnt else 0.0
+    pnl_e = "💰" if realized >= 0 else "💸"
+    acc_line = ""
+    try:
+        info = mt5.account_info()
+        if info:
+            acc_line = f"💼 Balance: `{info.balance:.2f}` | Equity: `{info.equity:.2f}`\n"
+    except Exception:
+        pass
+    halt_line = "🛑 *Kill switch ทำงานวันนี้*\n" if daily_loss_tripped else ""
+    return (
+        f"📊 *สรุปผลประจำวัน — {s.get('date','-')}*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"{acc_line}"
+        f"{pnl_e} Realized P/L: `{realized:.2f}` USD\n"
+        f"🔢 จำนวนไม้: `{cnt}` (✅{wins} / ❌{losses})\n"
+        f"🎯 Win Rate: `{wr:.1f}%`\n"
+        f"📈 รวมกำไร: `{s.get('gross_win',0.0):.2f}` | 📉 รวมขาดทุน: `{s.get('gross_loss',0.0):.2f}`\n"
+        f"{halt_line}"
+        f"⚙️ Auto: {'🟢ON' if auto_active else '🔴OFF'}"
+    )
+
+
 # ── Delay SL ────────────────────────────────────────────────
 # "off"   = ตั้ง SL ทันทีตอนส่ง order (ยกเว้น S8 ที่รอ breakout เสมอ)
 # "time"  = ส่ง order SL=0 แล้วตั้ง SL ใน 10% สุดท้ายของ TF (M1=6วิ, M5=30วิ, …)
@@ -1336,6 +1447,15 @@ def save_runtime_state():
             "entry_candle_enabled": ENTRY_CANDLE_ENABLED,
             "opposite_order_enabled": OPPOSITE_ORDER_ENABLED,
             "limit_sweep": LIMIT_SWEEP,
+            "daily_loss_limit_enabled": DAILY_LOSS_LIMIT_ENABLED,
+            "daily_loss_limit_usd": DAILY_LOSS_LIMIT_USD,
+            "daily_stats": daily_stats,
+            "daily_loss_tripped": daily_loss_tripped,
+            "daily_summary_enabled": DAILY_SUMMARY_ENABLED,
+            "risk_percent_enabled": RISK_PERCENT_ENABLED,
+            "risk_percent": RISK_PERCENT,
+            "risk_max_lot": RISK_MAX_LOT,
+            "watchdog_enabled": WATCHDOG_ENABLED,
             "delay_sl_mode": DELAY_SL_MODE,
             "fvg_normal": FVG_NORMAL,
             "fvg_parallel": FVG_PARALLEL,
@@ -1639,6 +1759,30 @@ def restore_runtime_state():
         ENTRY_CANDLE_ENABLED = bool(state.get("entry_candle_enabled", ENTRY_CANDLE_ENABLED))
         OPPOSITE_ORDER_ENABLED = bool(state.get("opposite_order_enabled", OPPOSITE_ORDER_ENABLED))
         LIMIT_SWEEP = bool(state.get("limit_sweep", LIMIT_SWEEP))
+        # ── Daily Loss Limit / Summary / Risk Lot / Watchdog ──
+        global DAILY_LOSS_LIMIT_ENABLED, DAILY_LOSS_LIMIT_USD, daily_loss_tripped
+        global DAILY_SUMMARY_ENABLED, RISK_PERCENT_ENABLED, RISK_PERCENT, RISK_MAX_LOT
+        global WATCHDOG_ENABLED
+        DAILY_LOSS_LIMIT_ENABLED = bool(state.get("daily_loss_limit_enabled", DAILY_LOSS_LIMIT_ENABLED))
+        saved_dll_usd = state.get("daily_loss_limit_usd")
+        if isinstance(saved_dll_usd, (int, float)) and saved_dll_usd > 0:
+            DAILY_LOSS_LIMIT_USD = float(saved_dll_usd)
+        DAILY_SUMMARY_ENABLED = bool(state.get("daily_summary_enabled", DAILY_SUMMARY_ENABLED))
+        RISK_PERCENT_ENABLED = bool(state.get("risk_percent_enabled", RISK_PERCENT_ENABLED))
+        saved_risk_pct = state.get("risk_percent")
+        if isinstance(saved_risk_pct, (int, float)) and saved_risk_pct > 0:
+            RISK_PERCENT = float(saved_risk_pct)
+        saved_risk_max = state.get("risk_max_lot")
+        if isinstance(saved_risk_max, (int, float)) and saved_risk_max > 0:
+            RISK_MAX_LOT = float(saved_risk_max)
+        WATCHDOG_ENABLED = bool(state.get("watchdog_enabled", WATCHDOG_ENABLED))
+        # daily_stats — restore เฉพาะถ้ายังเป็นวันเดียวกัน (BKK) มิฉะนั้น roll ใหม่
+        saved_daily = state.get("daily_stats")
+        if isinstance(saved_daily, dict) and saved_daily.get("date") == _today_bkk():
+            daily_stats.update(saved_daily)
+            daily_loss_tripped = bool(state.get("daily_loss_tripped", False))
+        else:
+            _roll_daily_stats()
         global SCALE_OUT_ENABLED
         SCALE_OUT_ENABLED = bool(state.get("scale_out_enabled", SCALE_OUT_ENABLED))
         # Restore TSO state (เฉพาะ ticket ที่ยังมีจริงใน MT5)

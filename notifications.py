@@ -69,6 +69,61 @@ def _get_tracked_meta(ticket: int, p_info: dict, deals) -> tuple[str, int | None
 
     return tf_label, sid_label, pat_label, trend_filter
 
+async def _trigger_daily_kill_switch(app):
+    """Daily Loss Limit ถึงเกณฑ์ → ปิดทุก position, ยกเลิก pending ทั้งหมด,
+    ปิด auto_active และแจ้ง Telegram (ทำครั้งเดียวต่อวันผ่าน daily_loss_tripped)"""
+    _config.daily_loss_tripped = True
+    _config.auto_active = False
+
+    closed, canceled = [], []
+    try:
+        positions = mt5.positions_get(symbol=SYMBOL) or []
+        for p in positions:
+            tick = mt5.symbol_info_tick(p.symbol)
+            if not tick:
+                continue
+            price = tick.bid if p.type == mt5.ORDER_TYPE_BUY else tick.ask
+            ct    = mt5.ORDER_TYPE_SELL if p.type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY
+            r = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol,
+                "volume": p.volume, "type": ct, "position": p.ticket,
+                "price": price, "deviation": 50, "magic": 234001,
+                "comment": "DailyLossKill", "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                closed.append(int(p.ticket))
+
+        orders = mt5.orders_get(symbol=SYMBOL) or []
+        for o in orders:
+            r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": o.ticket})
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                canceled.append(int(o.ticket))
+    except Exception as e:
+        log_event("DAILY_LOSS_KILL_ERROR", str(e))
+
+    realized = _config.daily_stats.get("realized", 0.0)
+    log_event(
+        "DAILY_LOSS_KILL",
+        f"realized={realized:.2f} threshold={_config.DAILY_LOSS_LIMIT_USD:.2f}",
+        realized=round(realized, 2),
+        closed=len(closed),
+        canceled=len(canceled),
+    )
+    msg = (
+        f"🛑 *Daily Loss Limit — Kill Switch*\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"💸 ขาดทุนสะสมวันนี้: `{realized:.2f}` USD\n"
+        f"📉 เกินเพดาน: `{_config.DAILY_LOSS_LIMIT_USD:.2f}` USD\n"
+        f"🚫 ปิด position: `{len(closed)}` | ยกเลิก pending: `{len(canceled)}`\n"
+        f"⏸️ ปิด Auto Trade แล้ว — ตรวจสอบก่อนเปิดใหม่"
+    )
+    try:
+        await app.bot.send_message(chat_id=MY_USER_ID, text=msg, parse_mode="Markdown")
+    except Exception:
+        pass
+
+
 async def check_sl_tp_hits(app):
     """
     ตรวจสอบว่ามี Position ที่โดน SL หรือ TP แล้วหรือยัง
@@ -321,6 +376,8 @@ async def check_sl_tp_hits(app):
                 reason=close_reason,
                 close_time=close_time,
             )
+            # บันทึก realized P/L ลง daily accumulator (สำหรับ Daily Loss Limit + Summary)
+            _config.record_daily_close(profit)
         else:
             sig_e = "🟢" if p_info.get("type") == "BUY" else "🔴"
             result_msg = (
@@ -365,6 +422,10 @@ async def check_sl_tp_hits(app):
             pass
 
         _config.tracked_positions.pop(ticket, None)
+
+    # Daily Loss Limit — ถ้า realized ของวันติดลบเกินเกณฑ์ → kill switch (ครั้งเดียว/วัน)
+    if _config.daily_loss_should_trip():
+        await _trigger_daily_kill_switch(app)
 
     # อัพเดท tracked_positions ด้วย positions ใหม่ + sync SL/TP ที่เปลี่ยนไป
     if current_positions:
