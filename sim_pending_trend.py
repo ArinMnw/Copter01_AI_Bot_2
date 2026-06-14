@@ -20,25 +20,13 @@ Logic:
 
 import sys, re, os
 from datetime import datetime
+from log_sources import bot_log_files
 sys.stdout.reconfigure(encoding='utf-8')
 
 SIM_FROM = datetime(2026, 5, 26)
 
 # รวม log จากทุกไฟล์ที่มี (เก่า → ใหม่)
-LOG_FILES = [
-    os.path.join('logs', 'old_logs', 'bot-2026-05.log'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260603-202043'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260603-122512'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260603-070725'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260602-230309'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260602-142345'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260602-134743'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260602-130152'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260602-091506'),
-    os.path.join('logs', 'old_logs', 'bot-2026-06.log.bak-20260602-085617'),
-    os.path.join('logs', 'bot.log'),
-]
+LOG_FILES = bot_log_files()
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 _RE_TS   = re.compile(r'^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]')

@@ -246,12 +246,8 @@ def load_state_symbol() -> str:
 
 
 def default_log_files() -> list[str]:
-    paths = [
-        os.path.join("logs", "old_logs", "bot-2026-05.log"),
-        os.path.join("logs", "old_logs", "bot-2026-06.log"),
-        os.path.join("logs", "bot.log"),
-    ]
-    return [p for p in paths if os.path.exists(p)]
+    from log_sources import bot_log_files
+    return bot_log_files()
 
 
 def default_compare_report_base(

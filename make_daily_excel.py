@@ -8,9 +8,8 @@ from openpyxl.utils import get_column_letter
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # ── 1. Read logs ─────────────────────────────────────────────────
-log_files = ['logs/old_logs/bot-2026-05.log',
-             'logs/old_logs/bot-2026-06.log',
-             'logs/bot.log']
+from log_sources import bot_log_files
+log_files = bot_log_files()
 fills = {}; closes = {}; seen_close = set()
 
 def fld(line, key):

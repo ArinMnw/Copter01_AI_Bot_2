@@ -44,10 +44,8 @@ if mt5:
 
 # ─── Log files ────────────────────────────────────────────────────────────────
 def _log_files():
-    log_dir = os.path.join(ROOT, "logs", "old_logs")
-    files = sorted(glob.glob(os.path.join(log_dir, "bot-2026-0*.log*")))
-    files += [os.path.join(ROOT, "logs", "bot.log")]
-    return [f for f in files if os.path.exists(f)]
+    from log_sources import bot_log_files
+    return bot_log_files(ROOT)
 
 # ─── Parse ────────────────────────────────────────────────────────────────────
 _TS = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
