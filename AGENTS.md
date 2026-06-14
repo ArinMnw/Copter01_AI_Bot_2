@@ -648,6 +648,37 @@ mode ที่รองรับ:
 - dedup state in-memory ไม่ persist — restart กลาง bar อาจ re-fire ได้ 1 ครั้ง
 - config: `S17_*` ใน `config.py` (default จูนจาก backtest 06/2026)
 
+### S18 TJR / ICT Full-Confluence
+
+- ไฟล์: `strategy18.py` — standalone, นำ concept TJR (ICT-based) ครบทุกชั้น
+- 7 ชั้น confluence: Killzone → HTF Bias → Liquidity Sweep → MSS/CHOCH → FVG/OB ใน OTE (62–79%) → RSI confirm → SL/TP/Guard
+- Entry zone: FVG หรือ Order Block ใน OTE; LIMIT รอ retrace (`S18_LIMIT_CANCEL_BARS` แท่ง → cancel)
+- detection แยกเป็น `detect_s18()` (pure — backtest เรียกตรง) + `strategy_18()` wrapper (TF gate + dedup)
+- **Standalone bypass/skip เหมือน S17**: trend filter, RSI recheck, PD Fibo Plus, entry candle, trail SL, limit guard, PD-zone pending cancel — **คงไว้ SL Guard**
+- backtest: `sim_s18_backtest.py`
+- comment: `<TF>_S18_TJB` / `<TF>_S18_TJS`
+- dedup: `_s18_last_fire` (per tf+sig) + `_s18_level_fired` (per tf+sig+level ปัด 1 ตำแหน่ง) in-memory
+- config: `S18_*` ใน `config.py` (default ตั้งต้นก่อน backtest); `active_strategies[18] = False` default
+
+### S19 ICT Advanced (Silver Bullet + Breaker Block + BPR)
+
+- ไฟล์: `strategy19.py` — standalone, ต่อยอด S18 ด้วยเทคนิค ICT ขั้นสูง
+- **เทคนิคใหม่ที่เพิ่มจาก S18**:
+  - *Silver Bullet*: window แคบ 1–2 ชม. (London 13–15 / NY AM 21–23 BKK) แทน Killzone กว้าง
+  - *Breaker Block*: OB ที่ราคา **close** ทะลุผ่านแล้ว → flip เป็น support/resistance ใหม่
+  - *BPR (Balanced Price Range)*: Bull FVG + Bear FVG overlap = โซนแรงดึงดูดสูง
+  - *Power of 3*: sweep bar ต้องอยู่ใน Silver Bullet session เดียวกัน (manipulation phase)
+  - *NDOG (New Day Opening Gap)*: ใช้เป็น TP target ถ้าอยู่ในทิศ
+- 7 ชั้น confluence: Silver Bullet → HTF Bias → Sweep → MSS/CHOCH → P3 phase → Breaker/BPR/FVG ใน OTE (62–79%) → NDOG/liq TP + Guard
+- zone priority: Breaker → BPR → FVG (fallback) ตาม `S19_ZONE_PREFER`
+- Entry: LIMIT รอ retrace (`S19_LIMIT_CANCEL_BARS` แท่ง → cancel)
+- detection แยกเป็น `detect_s19()` (pure — backtest เรียกตรง) + `strategy_19()` wrapper (TF gate + dedup)
+- **Standalone bypass/skip ครบ 8 จุดเหมือน S18** (trailing.py): RSI recheck, fill trend recheck, approach trend recheck, PD Fibo Plus, entry candle, trail SL, limit guard, PD-zone pending cancel — **คงไว้ SL Guard**
+- backtest: `sim_s19_backtest.py`
+- comment: `<TF>_S19_SBB` / `<TF>_S19_SBS`
+- dedup: `_s19_last_fire` + `_s19_level_fired` in-memory (ไม่ persist ข้าม restart)
+- config: `S19_*` ใน `config.py` (default ตั้งต้นก่อน backtest); `active_strategies[19] = False` default
+
 ### S13 EzAlgo V5
 
 - strategy ใหม่แบบ standalone
