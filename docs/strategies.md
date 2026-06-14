@@ -908,4 +908,37 @@ SWEEP_HIGH — สมมาตร: `bar.open < ref_price` + `bar.high > ref_pric
   - กัน sweep เก่าค้าง override trend นานเกิน (เช่น order #537988219 sweep valid 03:30 แต่ยัง unblock ที่ 07:40)
   - `_sweep_ts[tf]` เก็บ unix ของ trigger bar → `get_sweep_state()` + `check_and_update()` เช็ค `_is_expired()` ก่อนคืนค่า
   - `SWEEP_FILTER_EXPIRY_MIN = 0` → ปิด expiry (persist จนกว่า trend/label เปลี่ยน — behavior เดิม)
-- bypass: S9/S10/S13/S14/S15/S16 ไม่ผ่าน sweep filter (standalone)
+- bypass: S9/S10/S13/S14/S15/S16/S17/S18/S19 ไม่ผ่าน sweep filter (standalone)
+
+---
+
+## Strategy 18: TJR / ICT Full-Confluence (Standalone)
+
+ไฟล์หลัก: `strategy18.py`
+
+นำ concept การเทรดของ TJR (ICT-based) มารวมเป็น 1 ท่า แบบ "ครบทุกชั้นจึงเข้า" เป็น Standalone strategy ไม่เช็คเทรนด์รวมหรือ PD Fibo ตรงกลาง
+
+**ลำดับ Confluence (ต้องผ่านครบ):**
+1. **Killzone**: เทรดเฉพาะช่วง London/NY (`S18_SESSIONS` default: 14:00-18:00, 19:00-23:00 BKK)
+2. **HTF Bias**: เทรดตามทิศ HTF (`S18_HTF_MAP`)
+3. **Liquidity Sweep**: ไส้กวาด swing low (BUY) / swing high (SELL) แล้วถูกปฏิเสธ (ทิ้งไส้)
+4. **MSS (Market Structure Shift)**: หลัง sweep ราคา *close* ทะลุ internal structure ในทิศเดียวกับ bias
+5. **Entry Zone**: ราคาอยู่ใน FVG หรือ Order Block ที่อยู่ในแถบ OTE (Optimal Trade Entry 62–79%)
+6. **RSI Confirm**: (Optional) เช็คค่า RSI ประกอบ (`S18_RSI_FILTER`)
+7. **Target & Risk**: RR เป้าหมายที่ `S18_MIN_RR` และ SL หลังไส้ sweep
+
+---
+
+## Strategy 19: ICT Advanced (Silver Bullet + Breaker + BPR) (Standalone)
+
+ไฟล์หลัก: `strategy19.py`
+
+ต่อยอดจาก S18 ด้วยเทคนิค ICT ขั้นสูง เป็น Standalone strategy ไม่เช็คเทรนด์รวมหรือ PD Fibo ตรงกลาง
+
+**ลำดับ Confluence (ต้องผ่านครบ):**
+1. **Silver Bullet Window**: เทรดเฉพาะหน้าต่างเวลาสั้นๆ (`S19_SILVER_BULLET_SESSIONS` default: 13:00-15:00, 21:00-23:00 BKK)
+2. **HTF Bias**: เทรดตามทิศ HTF (`S19_HTF_MAP`)
+3. **Power of 3 (AMD)**: ไส้ sweep ต้องเกิดภายใน Session เดียวกัน (Manipulation phase)
+4. **Liquidity Sweep & MSS**: กวาดสภาพคล่องแล้วเบรกโครงสร้างเหมือน S18
+5. **Advanced Entry Zone**: เลือกหา **Breaker Block**, **BPR (Balanced Price Range)**, หรือ **FVG** ที่ทับซ้อนในโซน OTE
+6. **Dynamic Target (NDOG/Liq)**: ใช้ **NDOG (New Day Opening Gap)** หรือ Liquidity levels เป็นจุด TP แรก
