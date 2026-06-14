@@ -3,6 +3,61 @@ import config
 from config import *
 
 
+def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: float) -> float:
+    """Dynamic Lot Sizing — คืน base lot ที่คำนวณจาก RISK_PERCENT × equity / ระยะ SL
+    (ก่อน TSO scale). ถ้า RISK_PERCENT_ENABLED=False หรือข้อมูลไม่พอ → คืน base_volume เดิม
+
+    สูตร:
+      risk_money   = equity × RISK_PERCENT%
+      loss_per_lot = (|entry - sl| / tick_size) × tick_value   (ขาดทุนต่อ 1 lot เมื่อชน SL)
+      lot          = risk_money / loss_per_lot
+    clamp: [volume_min, min(RISK_MAX_LOT, volume_max)] และ snap ตาม volume_step
+    """
+    try:
+        if not getattr(config, "RISK_PERCENT_ENABLED", False):
+            return float(base_volume)
+        if not entry or not sl or entry <= 0 or sl <= 0:
+            return float(base_volume)
+        sl_dist = abs(float(entry) - float(sl))
+        if sl_dist <= 0:
+            return float(base_volume)
+
+        info = mt5.symbol_info(SYMBOL)
+        acc  = mt5.account_info()
+        if not info or not acc:
+            return float(base_volume)
+
+        tick_size  = float(getattr(info, "trade_tick_size", 0.0) or getattr(info, "point", 0.0) or 0.0)
+        tick_value = float(getattr(info, "trade_tick_value", 0.0) or 0.0)
+        if tick_size <= 0 or tick_value <= 0:
+            return float(base_volume)
+
+        equity     = float(getattr(acc, "equity", 0.0) or getattr(acc, "balance", 0.0) or 0.0)
+        risk_money = equity * (float(config.RISK_PERCENT) / 100.0)
+        if risk_money <= 0:
+            return float(base_volume)
+
+        loss_per_lot = (sl_dist / tick_size) * tick_value
+        if loss_per_lot <= 0:
+            return float(base_volume)
+
+        lot = risk_money / loss_per_lot
+
+        # clamp ตาม broker + เพดาน RISK_MAX_LOT
+        vol_min  = float(getattr(info, "volume_min", 0.01) or 0.01)
+        vol_max  = float(getattr(info, "volume_max", 100.0) or 100.0)
+        vol_step = float(getattr(info, "volume_step", 0.01) or 0.01)
+        cap      = min(float(getattr(config, "RISK_MAX_LOT", vol_max)), vol_max)
+        lot = max(vol_min, min(lot, cap))
+        # snap ลงเป็นจำนวนเท่าของ step
+        if vol_step > 0:
+            lot = round((lot // vol_step) * vol_step, 2)
+        lot = max(vol_min, lot)
+        return round(lot, 2)
+    except Exception:
+        return float(base_volume)
+
+
 def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
                               entry: float = 0.0, tp: float = 0.0) -> tuple:
     """
@@ -149,7 +204,12 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
             # 2) volume-cap (เช็คเฉพาะเมื่อ price ผ่านแล้ว เพื่อให้ reason แรกชัดเจน)
             if reason is None:
                 try:
-                    max_vol = round(float(config.get_volume()) * 4.0, 2) + 1e-9
+                    # cap ปกติ = base symbol × 4 (TSO). ถ้าเปิด Dynamic Lot → ใช้ RISK_MAX_LOT
+                    # เป็นเพดาน base แทน (risk sizing สร้าง base ใหญ่กว่า get_volume() ได้)
+                    cap_base = float(config.get_volume())
+                    if getattr(config, "RISK_PERCENT_ENABLED", False):
+                        cap_base = max(cap_base, float(getattr(config, "RISK_MAX_LOT", cap_base)))
+                    max_vol = round(cap_base * 4.0, 2) + 1e-9
                     if float(send_volume) > max_vol:
                         reason = (f"volume-symbol mismatch: send_volume={send_volume} > cap "
                                   f"{max_vol - 1e-9:.2f} ของ {SYMBOL} (base={config.get_volume()}) "
@@ -659,8 +719,9 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
             }
         ot = mt5.ORDER_TYPE_SELL_STOP
 
+    # ── Dynamic Lot Sizing: ปรับ base lot ตาม % risk ก่อน TSO (no-op ถ้า OFF) ──
+    base_volume = _resolve_risk_volume(float(volume), signal, price, sl)
     # ── Triple Scale-Out: ขยาย volume ตาม TP เดิม (skip S13) ──
-    base_volume = float(volume)
     send_volume, effective_steps = _scale_out_resolve_volume(
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
     )
@@ -750,8 +811,9 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             }
         ot = mt5.ORDER_TYPE_SELL_LIMIT
 
+    # ── Dynamic Lot Sizing: ปรับ base lot ตาม % risk ก่อน TSO (no-op ถ้า OFF) ──
+    base_volume = _resolve_risk_volume(float(volume), signal, price, sl)
     # ── Triple Scale-Out: ขยาย volume ตาม TP เดิม (dynamic steps) ──
-    base_volume = float(volume)
     send_volume, effective_steps = _scale_out_resolve_volume(
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
     )
@@ -834,8 +896,9 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     price = tick.ask if signal == "BUY" else tick.bid
     ot    = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
 
+    # ── Dynamic Lot Sizing: ปรับ base lot ตาม % risk ก่อน TSO (no-op ถ้า OFF) ──
+    base_volume = _resolve_risk_volume(float(volume), signal, price, sl)
     # ── Triple Scale-Out: ขยาย volume (skip S13 — มี logic แยก) ──
-    base_volume = float(volume)
     send_volume, effective_steps = _scale_out_resolve_volume(
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
     )

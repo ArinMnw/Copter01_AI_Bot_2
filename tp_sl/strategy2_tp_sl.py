@@ -1,4 +1,4 @@
-from config import SYMBOL, SL_BUFFER()
+from config import SYMBOL, SL_BUFFER
 from mt5_utils import find_swing_tp
 
 

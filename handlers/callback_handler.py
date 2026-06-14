@@ -14,7 +14,8 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     show_trail_focus_menu, show_entry_focus_menu,
     show_trend_filter_menu,
     show_sl_guard_menu, show_sl_guard_per_tf_menu,
-    show_sl_guard_combined_menu, show_sl_guard_group_menu)
+    show_sl_guard_combined_menu, show_sl_guard_group_menu,
+    show_risk_health_menu)
 
 
 async def _qanswer(query, text=""):
@@ -1188,6 +1189,60 @@ async def handle_callback(update, ctx):
         await show_main_settings_menu(query, is_query=True)
         status_label = "ON" if new_state else "OFF"
         await _qanswer(query,f"Scale-Out 4X: {status_label}{cleanup_msg}")
+
+    elif data == "open_risk_health_menu":
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query)
+
+    elif data == "toggle_daily_loss_limit":
+        config.DAILY_LOSS_LIMIT_ENABLED = not config.DAILY_LOSS_LIMIT_ENABLED
+        save_runtime_state()
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query, f"Daily Loss Limit: {'ON' if config.DAILY_LOSS_LIMIT_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_dll_usd_"):
+        try:
+            config.DAILY_LOSS_LIMIT_USD = float(int(data.replace("set_dll_usd_", "")))
+            save_runtime_state()
+        except Exception:
+            pass
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query, f"เพดานขาดทุน: ${config.DAILY_LOSS_LIMIT_USD:.0f}")
+
+    elif data == "toggle_daily_summary":
+        config.DAILY_SUMMARY_ENABLED = not config.DAILY_SUMMARY_ENABLED
+        save_runtime_state()
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query, f"Daily Summary: {'ON' if config.DAILY_SUMMARY_ENABLED else 'OFF'}")
+
+    elif data == "send_daily_summary_now":
+        connect_mt5()
+        try:
+            await query.message.reply_text(config.build_daily_summary_text(), parse_mode="Markdown")
+        except Exception:
+            pass
+        await _qanswer(query, "ส่งสรุปแล้ว")
+
+    elif data == "toggle_risk_percent":
+        config.RISK_PERCENT_ENABLED = not config.RISK_PERCENT_ENABLED
+        save_runtime_state()
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query, f"Dynamic Lot: {'ON' if config.RISK_PERCENT_ENABLED else 'OFF'}")
+
+    elif data.startswith("set_risk_pct_"):
+        try:
+            config.RISK_PERCENT = float(data.replace("set_risk_pct_", ""))
+            save_runtime_state()
+        except Exception:
+            pass
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query, f"Risk: {config.RISK_PERCENT}%")
+
+    elif data == "toggle_watchdog":
+        config.WATCHDOG_ENABLED = not config.WATCHDOG_ENABLED
+        save_runtime_state()
+        await show_risk_health_menu(query, is_query=True)
+        await _qanswer(query, f"Watchdog: {'ON' if config.WATCHDOG_ENABLED else 'OFF'}")
 
     elif data == "cycle_delay_sl":
         cycle = {"off": "time", "time": "price", "price": "off"}
