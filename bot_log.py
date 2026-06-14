@@ -13,6 +13,7 @@ SYSTEM_LOG_DIR  = os.path.join(LOG_DIR, "system")
 SYSTEM_LOG_FILE = os.path.join(SYSTEM_LOG_DIR, "system.log")
 DEBUG_LOG_DIR   = os.path.join(LOG_DIR, "debug")
 LOG_RETENTION_DAYS = 7
+_MAX_BOT_LOG_BYTES = 100 * 1024 * 1024  # 100 MB
 
 _TS_LINE_RE          = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
 _MONTHLY_LOG_RE      = re.compile(r"^bot-\d{4}-\d{2}\.log$")
@@ -116,6 +117,23 @@ def _rotate_bot_log_if_needed(now_dt: datetime) -> None:
     # เดือนเปลี่ยน
     _rotate_bot_log(*_last_bot_log_month)
     _last_bot_log_month = cur
+
+
+def _rotate_bot_log_by_size(now_dt: datetime) -> None:
+    """ถ้า bot.log > 100 MB → rotate เป็น bot-YYYY-MM-DD-NN.log ใน old_logs/"""
+    try:
+        if not os.path.exists(BOT_LOG_FILE):
+            return
+        if os.path.getsize(BOT_LOG_FILE) < _MAX_BOT_LOG_BYTES:
+            return
+        date_str = now_dt.strftime("%Y-%m-%d")
+        for seq in range(100):
+            archive = os.path.join(OLD_LOG_DIR, f"bot-{date_str}-{seq:02d}.log")
+            if not os.path.exists(archive):
+                os.rename(BOT_LOG_FILE, archive)
+                return
+    except OSError:
+        pass
 
 
 def _safe_move_to_old(src: str, dst: str) -> None:
@@ -331,6 +349,7 @@ def log_event(kind: str, message: str = "", **fields) -> None:
         if flat_fields:
             line += " | " + " | ".join(flat_fields)
         _rotate_bot_log_if_needed(now_dt)
+        _rotate_bot_log_by_size(now_dt)
         with open(BOT_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception:
@@ -359,7 +378,7 @@ def cleanup_old_logs(retention_days: int = LOG_RETENTION_DAYS) -> dict:
     cutoff = _now_bkk().replace(tzinfo=None) - timedelta(days=retention_days)
     summary: dict = {"trimmed": [], "deleted": [], "skipped": [], "retention_days": retention_days}
 
-    _IS_ARCHIVED = re.compile(r"^(bot|error|system)-\d{4}-\d{2}\.log$")
+    _IS_ARCHIVED = re.compile(r"^(bot|error|system)-\d{4}-\d{2}(-\d{2}-\d{2})?\.log$")
 
     try:
         entries = os.listdir(OLD_LOG_DIR)
