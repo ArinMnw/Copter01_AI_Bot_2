@@ -201,3 +201,50 @@ section header: `━ Premium/Discount Zone ━`
 - `_safe_reply_md(message, text, **kwargs)` — ลอง `parse_mode="Markdown"` ก่อน
   - ถ้า `BadRequest` (`can't parse entities`) → **fallback เป็น plain text**
 - ใช้ใน `_handle_ticket_lookup` เพื่อกัน silent fail เมื่อ comment/pattern มีตัวอักษรพิเศษ
+
+## Observable Mode (โหมดดูอย่างเดียว)
+
+อยู่ในหน้า Settings (ปุ่ม `⚙️ Settings`)
+
+ปุ่ม toggle:
+- ON: `🟢 Observable Mode: ON (ไม่ยิง order จริง)`
+- OFF: `🔴 Observable Mode: OFF`
+
+- callback: `toggle_observable_mode`
+- config: `OBSERVABLE_MODE` (default `False`, ไม่ persist ข้าม restart)
+
+**พฤติกรรมเมื่อ ON:**
+- ระบบจะทำงานตามปกติ (scan, trail, check news, ML) แต่จะ **ไม่ส่งคำสั่งไปยัง MT5**
+- ใช้สำหรับทดสอบหรือสังเกตการณ์ระบบ โดยบอทจะพิมพ์ log หรือแจ้งเตือนแทนการเปิด/ปิด position จริง
+
+## News Filter (ระบบกรองข่าว)
+
+อยู่ในหน้า Settings (ปุ่ม `⚙️ Settings`) ใต้หมวด News Filter
+
+ปุ่ม toggle:
+- ON: `🟢 News Filter: ON`
+- OFF: `🔴 News Filter: OFF`
+
+- callback: `toggle_news_filter`
+- config: `NEWS_FILTER_ENABLED` (default `True`, persist ใน `bot_state.json`)
+
+**พฤติกรรม:**
+- ระบบจะโหลดข่าวจาก ForexFactory (เฉพาะ Red/Orange) ล่วงหน้า
+- สแกนจะหยุดทำงานก่อนและหลังข่าวออก (เช่น ก่อน 15 นาที หลัง 15 นาที) ตามค่าที่ตั้งไว้
+- ระบบจะยกเลิก pending orders ที่อาจได้รับผลกระทบจากข่าว
+
+## ML Scoring (ระบบ AI ให้คะแนน)
+
+อยู่ในหน้า Settings (ปุ่ม `⚙️ Settings`) ใต้หมวด ML Scoring
+
+ปุ่ม toggle:
+- ON: `🟢 ML Scoring: ON`
+- OFF: `🔴 ML Scoring: OFF`
+
+- callback: `toggle_ml_scoring`
+- config: `ML_SCORING_ENABLED` (default `False`, persist ใน `bot_state.json`)
+
+**พฤติกรรม:**
+- ระบบจะใช้โมเดล AI (RandomForest) ประเมินความน่าจะเป็น (Probability) ของ Signal ว่าจะชนะหรือไม่
+- ถ้าเปิดใช้ ระบบจะบล็อก Signal ที่มีคะแนนต่ำกว่า `ML_PROB_THRESHOLD`
+- การเรียนรู้/สอนโมเดล (Train) ทำงานแยกต่างหากผ่าน `run_optimize.bat` (Walk-Forward Optimization)

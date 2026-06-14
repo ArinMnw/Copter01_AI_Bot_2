@@ -783,6 +783,30 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     # ถ้าไม่มีให้ใช้ราคาปัจจุบัน
     price = entry_price if entry_price else current
 
+    try:
+        import config
+        if getattr(config, "ML_SCORING_ENABLED", False):
+            import ml_scoring
+            from datetime import datetime, timezone, timedelta
+            time_bkk = datetime.now(timezone(timedelta(hours=7)))
+            features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
+            prob = ml_scoring.predict_success_probability(features)
+            
+            # If probability is too low (e.g. < 45%), reject the trade
+            threshold = getattr(config, "ML_PROB_THRESHOLD", 0.45)
+            if prob < threshold:
+                observable = getattr(config, "OBSERVABLE_MODE", False)
+                from bot_log import log_event
+                log_event("ML_FILTER", f"ML Score too low ({prob:.2f} < {threshold}) {'[OBSERVABLE]' if observable else ''}", tf=tf, sid=sid, signal=signal)
+                
+                if observable:
+                    print(f"[{time_bkk.strftime('%H:%M:%S')}] 👀 [OBSERVABLE] ML Score too low ({prob:.2f} < {threshold}). Would have blocked {signal}.")
+                else:
+                    print(f"[{time_bkk.strftime('%H:%M:%S')}] 🤖 [ML Filter] Blocked {signal} (Prob: {prob:.2f} < {threshold})")
+                    return {"success": False, "skipped": True, "error": f"ML Prob too low: {prob:.2f}"}
+    except Exception as e:
+        print(f"⚠️ [ML Filter] Error evaluating {signal}: {e}")
+
     # ใช้เฉพาะ BUY LIMIT และ SELL LIMIT เท่านั้น
     # tolerance ตรงนี้ใช้แค่กันกรณี entry ชิดราคาปัจจุบันมากจน broker มองว่า
     # เป็นคำสั่งที่ "ผ่านจุดเข้าไปแล้ว" เท่านั้น จึงควรเล็กมาก
@@ -892,6 +916,32 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     tick = mt5.symbol_info_tick(SYMBOL)
     if not tick:
         return {"success": False, "error": "ดึงราคาไม่ได้"}
+        
+    current = tick.ask if signal == "BUY" else tick.bid
+    
+    try:
+        import config
+        if getattr(config, "ML_SCORING_ENABLED", False):
+            import ml_scoring
+            from datetime import datetime, timezone, timedelta
+            time_bkk = datetime.now(timezone(timedelta(hours=7)))
+            features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
+            prob = ml_scoring.predict_success_probability(features)
+            
+            # If probability is too low (e.g. < 45%), reject the trade
+            threshold = getattr(config, "ML_PROB_THRESHOLD", 0.45)
+            if prob < threshold:
+                observable = getattr(config, "OBSERVABLE_MODE", False)
+                from bot_log import log_event
+                log_event("ML_FILTER", f"ML Score too low ({prob:.2f} < {threshold}) {'[OBSERVABLE]' if observable else ''}", tf=tf, sid=sid, signal=signal)
+                
+                if observable:
+                    print(f"[{time_bkk.strftime('%H:%M:%S')}] 👀 [OBSERVABLE] ML Score too low ({prob:.2f} < {threshold}). Would have blocked {signal} Market Order.")
+                else:
+                    print(f"[{time_bkk.strftime('%H:%M:%S')}] 🤖 [ML Filter] Blocked {signal} Market Order (Prob: {prob:.2f} < {threshold})")
+                    return {"success": False, "skipped": True, "error": f"ML Prob too low: {prob:.2f}"}
+    except Exception as e:
+        print(f"⚠️ [ML Filter] Error evaluating {signal}: {e}")
 
     price = tick.ask if signal == "BUY" else tick.bid
     ot    = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL

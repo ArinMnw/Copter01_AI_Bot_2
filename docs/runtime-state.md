@@ -94,6 +94,9 @@ dict ที่สรุปสถานะ S12 รอบปัจจุบัน 
 - `PDFIBOPLUS_ENABLED`: gate ของ PD Fibo Plus (Fibonacci 38.2/61.8 zone; เดิม PD Zone Recheck) (default `True`), persist ด้วย key `pdfiboplus_enabled`
 - `SL_GUARD_LOSS_ENABLED`: gate ของ SL Guard Loss (default `False`), persist ด้วย key `sl_guard_loss_enabled`
 - `SL_GUARD_LOSS_THRESHOLD`: threshold ขาดทุนที่นับเป็น SL hit (default `5.0`), persist ด้วย key `sl_guard_loss_threshold`
+- `OBSERVABLE_MODE`: gate โหมดดูอย่างเดียว ไม่ส่งคำสั่งเข้า MT5 จริง (default `False`, ไม่ persist)
+- `NEWS_FILTER_ENABLED`: gate ของระบบกรองข่าว ForexFactory (default `True`), persist ด้วย key `news_filter_enabled`
+- `ML_SCORING_ENABLED`: gate ของระบบ AI Scoring ตัด order ที่ความน่าจะเป็นต่ำ (default `False`), persist ด้วย key `ml_scoring_enabled`
 
 State อื่น ๆ ที่ persist:
 

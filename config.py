@@ -210,6 +210,18 @@ def SL_BUFFER(atr=None):
 # "swing"  = ต้องมี swing เกิดขึ้นฝั่งเดียวกันภายใน 4 แท่งหลังเกิด setup
 S1_ZONE_MODE = "swing"
 
+# ── News Filter API ───────────────────────────────
+NEWS_FILTER_ENABLED = True
+NEWS_EMBARGO_BEFORE_MINS = 15
+NEWS_EMBARGO_AFTER_MINS = 15
+news_pause_active = False
+
+# ── ML Scoring ───────────────────────────────
+ML_SCORING_ENABLED = True
+ML_PROB_THRESHOLD = 0.45
+
+# ── Observable Mode (Ghost Mode) ────────────────
+OBSERVABLE_MODE = True
 # ============================================================
 #  กฎ Pattern ทั้งหมด:
 #
@@ -1198,6 +1210,10 @@ _RUNTIME_DEFAULTS = {
     "ENTRY_CLOSE_REVERSE_LIMIT": ENTRY_CLOSE_REVERSE_LIMIT,
     "ENTRY_CANDLE_UPDATE_TP": ENTRY_CANDLE_UPDATE_TP,
     "OPPOSITE_ORDER_MODE": OPPOSITE_ORDER_MODE,
+    "NEWS_FILTER_ENABLED": NEWS_FILTER_ENABLED,
+    "ML_SCORING_ENABLED": True,
+    "ML_PROB_THRESHOLD": ML_PROB_THRESHOLD,
+    "OBSERVABLE_MODE": True,
     "LIMIT_GUARD": LIMIT_GUARD,
     "LIMIT_GUARD_POINTS": LIMIT_GUARD_POINTS,
     "LIMIT_GUARD_TF_MODE": LIMIT_GUARD_TF_MODE,
@@ -1380,6 +1396,16 @@ def reset_runtime_config_to_defaults(save_state: bool = True):
             globals()[key] = copy.deepcopy(default)
 
     _sync_runtime_exports()
+    
+    # ── ล้างค่าจากการจูน Walk-Forward ด้วย (ถ้ามี) ──
+    import os
+    if os.path.exists("optimized_params.json"):
+        try:
+            os.remove("optimized_params.json")
+            print("🗑️ Deleted optimized_params.json during config reset")
+        except Exception as e:
+            print(f"⚠️ Failed to delete optimized_params.json: {e}")
+            
     if save_state:
         save_runtime_state()
 
@@ -2408,3 +2434,20 @@ async def alert_intruder(update):
         text=f"🚨 *มีคนพยายามใช้ Bot!*\n👤 {name} | {un}\n🆔 `{user.id}`",
         parse_mode='Markdown'
     )
+
+# ============================================================
+#  Walk-Forward Optimization Loader
+# ============================================================
+import os
+import json
+OPTIMIZED_PARAMS_FILE = "optimized_params.json"
+if os.path.exists(OPTIMIZED_PARAMS_FILE):
+    try:
+        with open(OPTIMIZED_PARAMS_FILE, "r", encoding="utf-8") as _f:
+            _opt = json.load(_f)
+            for _k, _v in _opt.items():
+                if _k in globals():
+                    globals()[_k] = _v
+        print(f"✅ Loaded optimized parameters from {OPTIMIZED_PARAMS_FILE}")
+    except Exception as _e:
+        print(f"⚠️ Error loading optimized parameters: {_e}")

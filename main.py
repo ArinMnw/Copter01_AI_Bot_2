@@ -102,6 +102,47 @@ def main():
 
     async def run_scan():
         try:
+            import news_filter
+            import config
+            import time as _time
+            from mt5_utils import connect_mt5
+
+            is_active, reason = news_filter.is_news_embargo_active()
+            
+            if is_active:
+                observable = getattr(config, "OBSERVABLE_MODE", False)
+                if not getattr(config, "news_pause_active", False):
+                    config.news_pause_active = True
+                    if observable:
+                        await tg(app, f"👀 *[OBSERVABLE] News Embargo Active*\n{reason}\n(โหมดสังเกตการณ์: ไม่ได้ระงับจริง)")
+                        print(f"[{now_bkk().strftime('%H:%M:%S')}] 👀 [OBSERVABLE] News Embargo Active: {reason} - Would have canceled orders.")
+                    else:
+                        await tg(app, f"⚠️ *News Embargo Active*\n{reason}\n⛔ ระงับการเปิดไม้ใหม่และยกเลิก Pending")
+                        print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 News Embargo Active: {reason}")
+                        
+                        if connect_mt5():
+                            import MetaTrader5 as mt5
+                            orders = mt5.orders_get(symbol=config.SYMBOL)
+                            if orders:
+                                for o in orders:
+                                    req = {"action": mt5.TRADE_ACTION_REMOVE, "order": o.ticket}
+                                    mt5.order_send(req)
+                                print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 Canceled {len(orders)} pending orders due to news.")
+                
+                # ถ้าไม่ใช้ observable mode ให้หยุดการสแกนไปเลย
+                if not observable:
+                    return # Skip auto_scan
+                
+            if getattr(config, "news_pause_active", False) and not is_active:
+                config.news_pause_active = False
+                observable = getattr(config, "OBSERVABLE_MODE", False)
+                if observable:
+                    await tg(app, "👀 *[OBSERVABLE] News Embargo Lifted*")
+                    print(f"[{now_bkk().strftime('%H:%M:%S')}] 👀 [OBSERVABLE] News Embargo Lifted")
+                else:
+                    await tg(app, "✅ *News Embargo Lifted*\nบอทกลับมาสแกนตามปกติ")
+                    print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 News Embargo Lifted")
+
             await auto_scan(app)
             config.last_scan_ts = _time.time()   # heartbeat สำหรับ watchdog
         except Exception as e:
@@ -475,6 +516,10 @@ def main():
         wrap_bot(application)   # ← เพิ่มเวลานำหน้าทุก Telegram message
         application.bot_data["scheduler"] = scheduler
         application.bot_data["check_symbol_switch"] = check_symbol_switch
+
+        import news_filter
+        import asyncio
+        asyncio.create_task(news_filter.fetch_news_loop(application))
 
         # แจ้ง MT5 connection status ตอน start
         from mt5_utils import connect_mt5

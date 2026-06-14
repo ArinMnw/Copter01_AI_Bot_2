@@ -1291,6 +1291,27 @@ async def handle_callback(update, ctx):
         await show_risk_health_menu(query, is_query=True)
         await _qanswer(query)
 
+    elif data == "toggle_news_filter":
+        new_val = not getattr(config, "NEWS_FILTER_ENABLED", False)
+        setattr(config, "NEWS_FILTER_ENABLED", new_val)
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await _qanswer(query, f"News Filter: {'ON' if new_val else 'OFF'}")
+
+    elif data == "toggle_ml_scoring":
+        new_val = not getattr(config, "ML_SCORING_ENABLED", False)
+        setattr(config, "ML_SCORING_ENABLED", new_val)
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await _qanswer(query, f"ML Scoring: {'ON' if new_val else 'OFF'}")
+
+    elif data == "toggle_observable_mode":
+        new_val = not getattr(config, "OBSERVABLE_MODE", False)
+        setattr(config, "OBSERVABLE_MODE", new_val)
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await _qanswer(query, f"Observable Mode: {'ON' if new_val else 'OFF'}")
+
     elif data == "toggle_daily_loss_limit":
         config.DAILY_LOSS_LIMIT_ENABLED = not config.DAILY_LOSS_LIMIT_ENABLED
         save_runtime_state()

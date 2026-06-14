@@ -121,6 +121,10 @@ Keep the answer short and make the fix directly.
 - `handlers/keyboard.py`: ข้อความเมนูและ summary ใน Telegram
 - `handlers/callback_handler.py`: callback action ของปุ่มต่าง ๆ
 - `bot_log.py`: การเขียน log
+- `news_filter.py`: ระบบกรองข่าว ForexFactory แดง/ส้ม
+- `ml_scoring.py`: AI Model สำหรับให้คะแนนความน่าจะเป็นของ Signal (RandomForest)
+- `dashboard.py`: Streamlit Dashboard หรูหราสำหรับดูสถิติและ Leaderboard
+- `walk_forward.py`: ระบบจำลอง/จูนพารามิเตอร์แบบ Walk-Forward Optimization พร้อม Auto-retrain ML
 
 ## แผนที่ไฟล์แบบเร็ว
 
