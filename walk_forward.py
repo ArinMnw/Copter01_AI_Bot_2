@@ -21,8 +21,9 @@ def run_optimization():
         
     print("\n[2/2] Running Parameter Optimization...")
     # Define parameter grid
+    # Define parameter grid
     param_grid = {
-        "SL_BUFFER": [100, 200, 300],
+        "SL_ATR_MULT": [1, 2, 3],
         "S1_ZONE_MODE": ["normal", "zone", "swing"],
         "NEWS_FILTER_ENABLED": [True, False],
         "ML_PROB_THRESHOLD": [0.40, 0.45, 0.50]
@@ -44,7 +45,7 @@ def run_optimization():
         # Mock logic: "swing" is usually better, smaller SL might hit often but we'll mock it
         mock_profit = 1000 
         if params["S1_ZONE_MODE"] == "swing": mock_profit += 500
-        if params["SL_BUFFER"] == 200: mock_profit += 200
+        if params["SL_ATR_MULT"] == 2: mock_profit += 200
         if params["NEWS_FILTER_ENABLED"]: mock_profit += 300
         
         # print(f"[{i+1}/{len(combinations)}] Tested {params} -> Profit: ${mock_profit:.2f}")
