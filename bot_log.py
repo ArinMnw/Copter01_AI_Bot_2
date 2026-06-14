@@ -12,7 +12,7 @@ BOT_LOG_FILE  = os.path.join(LOG_DIR, "bot.log")
 SYSTEM_LOG_DIR  = os.path.join(LOG_DIR, "system")
 SYSTEM_LOG_FILE = os.path.join(SYSTEM_LOG_DIR, "system.log")
 DEBUG_LOG_DIR   = os.path.join(LOG_DIR, "debug")
-LOG_RETENTION_DAYS = 7
+LOG_RETENTION_DAYS = 15
 _MAX_BOT_LOG_BYTES = 100 * 1024 * 1024  # 100 MB
 
 _TS_LINE_RE          = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
