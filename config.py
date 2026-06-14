@@ -452,6 +452,7 @@ active_strategies = {
     16: True,  # ท่าที่ 16: AMD x iFVG
     17: True,  # ท่าที่ 17: Sweep Sniper (Triple-Confluence — TP สั้น เน้น win rate สูง)
     18: False, # ท่าที่ 18: TJR/ICT Full-Confluence (standalone) — เริ่มปิดไว้ก่อน backtest
+    19: False, # ท่าที่ 19: ICT Advanced (Silver Bullet/Breaker/BPR) — เริ่มปิดไว้ก่อน backtest
 }
 
 STRATEGY_NAMES = {
@@ -473,6 +474,7 @@ STRATEGY_NAMES = {
     16: "ท่าที่ 16: AMD iFVG",
     17: "ท่าที่ 17: Sweep Sniper",
     18: "ท่าที่ 18: TJR ICT",
+    19: "ท่าที่ 19: ICT Silver Bullet",
 }
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
@@ -617,6 +619,38 @@ S18_LIMIT_CANCEL_BARS   = 8      # limit ไม่ fill ภายใน N แท
 S18_SESSION_FILTER      = True   # เทรดเฉพาะ Killzones London/NY
 S18_SESSIONS            = [("14:00", "18:00"), ("19:00", "23:00")]  # BKK
 S18_LEVEL_COOLDOWN_BARS = 20     # กันยิงซ้ำ level เดิมภายใน N แท่ง
+
+# ── Strategy 19: ICT Advanced (Silver Bullet + Breaker + BPR) (Standalone) ──
+# ต่อยอด S18: Silver Bullet window แคบ + Breaker Block + BPR + Power of 3 + NDOG
+# ⚠️ ค่าด้านล่างเป็น default ตั้งต้นก่อน backtest — ปรับจูนหลังรัน sim_s19_backtest.py
+S19_ALLOWED_TFS          = ["M1", "M5"]  # entry TF (bias มาจาก HTF map)
+S19_LOOKBACK             = 60     # bars กรอบหา sweep + structure + zone
+S19_HTF_MAP              = {"M1": "M15", "M5": "H1", "M15": "H1",
+                            "M30": "H4", "H1": "H4", "H4": "D1"}
+S19_REQUIRE_HTF_BIAS     = True   # บังคับเทรดตามทิศ HTF
+S19_SESSION_FILTER       = True   # เทรดเฉพาะ Silver Bullet windows
+S19_SILVER_BULLET_SESSIONS = [("13:00", "15:00"), ("21:00", "23:00")]  # BKK (London/NY AM)
+S19_P3_SESSION_SWEEP     = True   # Power of 3: sweep ต้องอยู่ใน SB session เดียวกัน
+S19_WICK_MIN_PCT         = 0.30   # rejection wick ขั้นต่ำ (สำรองไว้สำหรับจูน)
+S19_USE_BREAKER          = True   # เปิด Breaker Block detector
+S19_USE_BPR              = True   # เปิด Balanced Price Range detector
+S19_USE_FVG_FALLBACK     = True   # fallback FVG ถ้าไม่มี Breaker/BPR
+S19_USE_NDOG             = True   # ใช้ New Day Opening Gap เป็น TP target (ถ้าในทิศ)
+S19_ZONE_PREFER          = "breaker"  # ลำดับเลือกโซน: breaker → bpr → fvg
+S19_BPR_MIN_SIZE         = 0.01   # BPR overlap แคบกว่านี้ → ข้าม
+S19_RSI_FILTER           = False  # SB ใช้เวลา/โครงสร้างเป็นหลัก (ไม่บังคับ RSI)
+S19_RSI_PERIOD           = 14
+S19_RSI_BUY_MAX          = 50     # ใช้เมื่อ S19_RSI_FILTER = True
+S19_RSI_SELL_MIN         = 50
+S19_OTE_LO               = 0.62   # OTE band 62–79% ของ leg (sweep→MSS)
+S19_OTE_HI               = 0.79
+S19_ENTRY_MODE           = "zone_edge"  # "zone_edge" (ขอบใกล้ราคา) | "zone_mid"
+S19_SL_ATR_BUFFER        = 1.0    # SL = ไส้ sweep ∓ ATR × นี้
+S19_RR_TARGET            = 2.0    # เป้า RR เมื่อ fallback หา TP
+S19_MIN_RR               = 1.5    # RR ขั้นต่ำที่ยอมเข้า
+S19_MAX_RISK_ATR_MULT    = 6.0    # skip ถ้า risk > ATR × นี้
+S19_LIMIT_CANCEL_BARS    = 8      # limit ไม่ fill ภายใน N แท่ง → ยกเลิก
+S19_LEVEL_COOLDOWN_BARS  = 20     # กันยิงซ้ำ level เดิมภายใน N แท่ง
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
