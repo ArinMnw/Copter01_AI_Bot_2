@@ -1306,6 +1306,18 @@ _RUNTIME_DEFAULTS = {
     "S17_MAX_RISK_ATR_MULT":   S17_MAX_RISK_ATR_MULT,
     "S17_LEVEL_COOLDOWN_BARS": S17_LEVEL_COOLDOWN_BARS,
     "S17_LIMIT_CANCEL_BARS":   S17_LIMIT_CANCEL_BARS,
+    # S18 TJR / ICT Full-Confluence (runtime-resettable)
+    "S18_SESSION_FILTER":    S18_SESSION_FILTER,
+    "S18_RSI_FILTER":        S18_RSI_FILTER,
+    "S18_ZONE_PREFER":       S18_ZONE_PREFER,
+    "S18_ENTRY_MODE":        S18_ENTRY_MODE,
+    "S18_MIN_RR":            S18_MIN_RR,
+    # S19 ICT Advanced — Silver Bullet (runtime-resettable)
+    "S19_SESSION_FILTER":    S19_SESSION_FILTER,
+    "S19_P3_SESSION_SWEEP":  S19_P3_SESSION_SWEEP,
+    "S19_USE_NDOG":          S19_USE_NDOG,
+    "S19_ZONE_PREFER":       S19_ZONE_PREFER,
+    "S19_MIN_RR":            S19_MIN_RR,
 }
 
 fvg_pending       = {}   # {key: {tf, signal, entry, sl, tp, gap_top, gap_bot, candle_key}}

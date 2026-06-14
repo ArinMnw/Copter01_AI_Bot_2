@@ -860,6 +860,83 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await _show_strategy_detail(query, 17, f"✅ ท่า17 Entry Mode: {mode}")
 
+    elif data == "toggle_s18_session_filter":
+        config.S18_SESSION_FILTER = not getattr(config, "S18_SESSION_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S18_SESSION_FILTER else "OFF"
+        await _show_strategy_detail(query, 18, f"✅ ท่า18 Killzone Filter: {status}")
+
+    elif data == "toggle_s18_rsi_filter":
+        config.S18_RSI_FILTER = not getattr(config, "S18_RSI_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S18_RSI_FILTER else "OFF"
+        await _show_strategy_detail(query, 18, f"✅ ท่า18 RSI Filter: {status}")
+
+    elif data.startswith("set_s18_zone_prefer_"):
+        zp = data.replace("set_s18_zone_prefer_", "")
+        if zp not in ("fvg", "ob"):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
+            return
+        config.S18_ZONE_PREFER = zp
+        save_runtime_state()
+        await _show_strategy_detail(query, 18, f"✅ ท่า18 Zone Prefer: {zp.upper()}")
+
+    elif data.startswith("set_s18_entry_mode_"):
+        mode = data.replace("set_s18_entry_mode_", "")
+        if mode not in ("zone_edge", "zone_mid"):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
+            return
+        config.S18_ENTRY_MODE = mode
+        save_runtime_state()
+        await _show_strategy_detail(query, 18, f"✅ ท่า18 Entry Mode: {mode}")
+
+    elif data.startswith("set_s18_min_rr_"):
+        rr_map = {"10": 1.0, "15": 1.5, "20": 2.0}
+        rr_str = data.replace("set_s18_min_rr_", "")
+        if rr_str not in rr_map:
+            await _qanswer(query, "ค่า R:R ไม่ถูกต้อง")
+            return
+        config.S18_MIN_RR = rr_map[rr_str]
+        save_runtime_state()
+        await _show_strategy_detail(query, 18, f"✅ ท่า18 Min R:R: {config.S18_MIN_RR}")
+
+    elif data == "toggle_s19_session_filter":
+        config.S19_SESSION_FILTER = not getattr(config, "S19_SESSION_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S19_SESSION_FILTER else "OFF"
+        await _show_strategy_detail(query, 19, f"✅ ท่า19 Silver Bullet: {status}")
+
+    elif data == "toggle_s19_p3":
+        config.S19_P3_SESSION_SWEEP = not getattr(config, "S19_P3_SESSION_SWEEP", True)
+        save_runtime_state()
+        status = "ON" if config.S19_P3_SESSION_SWEEP else "OFF"
+        await _show_strategy_detail(query, 19, f"✅ ท่า19 Power of 3: {status}")
+
+    elif data == "toggle_s19_ndog":
+        config.S19_USE_NDOG = not getattr(config, "S19_USE_NDOG", True)
+        save_runtime_state()
+        status = "ON" if config.S19_USE_NDOG else "OFF"
+        await _show_strategy_detail(query, 19, f"✅ ท่า19 NDOG TP: {status}")
+
+    elif data.startswith("set_s19_zone_prefer_"):
+        zp = data.replace("set_s19_zone_prefer_", "")
+        if zp not in ("breaker", "bpr", "fvg"):
+            await _qanswer(query, "ค่าไม่ถูกต้อง")
+            return
+        config.S19_ZONE_PREFER = zp
+        save_runtime_state()
+        await _show_strategy_detail(query, 19, f"✅ ท่า19 Zone Prefer: {zp.upper()}")
+
+    elif data.startswith("set_s19_min_rr_"):
+        rr_map = {"10": 1.0, "15": 1.5, "20": 2.0}
+        rr_str = data.replace("set_s19_min_rr_", "")
+        if rr_str not in rr_map:
+            await _qanswer(query, "ค่า R:R ไม่ถูกต้อง")
+            return
+        config.S19_MIN_RR = rr_map[rr_str]
+        save_runtime_state()
+        await _show_strategy_detail(query, 19, f"✅ ท่า19 Min R:R: {config.S19_MIN_RR}")
+
     elif data.startswith("set_trail_engulf_mode_"):
         mode = data.replace("set_trail_engulf_mode_", "")
         if mode not in ("combined", "separate"):

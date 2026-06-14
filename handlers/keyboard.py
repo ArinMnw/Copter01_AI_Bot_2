@@ -1161,6 +1161,108 @@ def build_strategy_detail_keyboard(sid: int):
             ),
         ])
 
+    elif sid == 18:
+        sess_on    = getattr(config, "S18_SESSION_FILTER", True)
+        rsi_on     = getattr(config, "S18_RSI_FILTER", True)
+        zone_pref  = str(getattr(config, "S18_ZONE_PREFER", "fvg")).lower()
+        entry_mode = str(getattr(config, "S18_ENTRY_MODE", "zone_edge")).lower()
+        rr         = float(getattr(config, "S18_MIN_RR", 1.5))
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if sess_on else '⬜'} Killzone Filter",
+                callback_data="toggle_s18_session_filter"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if rsi_on else '⬜'} RSI Filter",
+                callback_data="toggle_s18_rsi_filter"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if zone_pref == 'fvg' else '⬜'} Zone FVG",
+                callback_data="set_s18_zone_prefer_fvg"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if zone_pref == 'ob' else '⬜'} Zone OB",
+                callback_data="set_s18_zone_prefer_ob"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'zone_edge' else '⬜'} Entry Edge",
+                callback_data="set_s18_entry_mode_zone_edge"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if entry_mode == 'zone_mid' else '⬜'} Entry Mid",
+                callback_data="set_s18_entry_mode_zone_mid"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.0 else '⬜'} RR 1:1",
+                callback_data="set_s18_min_rr_10"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.5 else '⬜'} RR 1.5",
+                callback_data="set_s18_min_rr_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 2.0 else '⬜'} RR 2:1",
+                callback_data="set_s18_min_rr_20"
+            ),
+        ])
+
+    elif sid == 19:
+        sess_on   = getattr(config, "S19_SESSION_FILTER", True)
+        p3_on     = getattr(config, "S19_P3_SESSION_SWEEP", True)
+        ndog_on   = getattr(config, "S19_USE_NDOG", True)
+        zone_pref = str(getattr(config, "S19_ZONE_PREFER", "breaker")).lower()
+        rr        = float(getattr(config, "S19_MIN_RR", 1.5))
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if sess_on else '⬜'} Silver Bullet",
+                callback_data="toggle_s19_session_filter"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if p3_on else '⬜'} Power of 3",
+                callback_data="toggle_s19_p3"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if ndog_on else '⬜'} NDOG TP",
+                callback_data="toggle_s19_ndog"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if zone_pref == 'breaker' else '⬜'} Breaker",
+                callback_data="set_s19_zone_prefer_breaker"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if zone_pref == 'bpr' else '⬜'} BPR",
+                callback_data="set_s19_zone_prefer_bpr"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if zone_pref == 'fvg' else '⬜'} FVG",
+                callback_data="set_s19_zone_prefer_fvg"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.0 else '⬜'} RR 1:1",
+                callback_data="set_s19_min_rr_10"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 1.5 else '⬜'} RR 1.5",
+                callback_data="set_s19_min_rr_15"
+            ),
+            InlineKeyboardButton(
+                f"{'✅' if rr == 2.0 else '⬜'} RR 2:1",
+                callback_data="set_s19_min_rr_20"
+            ),
+        ])
+
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
     return InlineKeyboardMarkup(rows)
 

@@ -659,6 +659,7 @@ mode ที่รองรับ:
 - comment: `<TF>_S18_TJB` / `<TF>_S18_TJS`
 - dedup: `_s18_last_fire` (per tf+sig) + `_s18_level_fired` (per tf+sig+level ปัด 1 ตำแหน่ง) in-memory
 - config: `S18_*` ใน `config.py` (default ตั้งต้นก่อน backtest); `active_strategies[18] = False` default
+- Telegram toggle: `📋 เลือก Strategy` → ท่า 18: Killzone Filter, RSI Filter, Zone Prefer (FVG/OB), Entry Mode (Edge/Mid), Min RR (1/1.5/2) — persist ผ่าน `_RUNTIME_DEFAULTS`
 
 ### S19 ICT Advanced (Silver Bullet + Breaker Block + BPR)
 
@@ -678,6 +679,7 @@ mode ที่รองรับ:
 - comment: `<TF>_S19_SBB` / `<TF>_S19_SBS`
 - dedup: `_s19_last_fire` + `_s19_level_fired` in-memory (ไม่ persist ข้าม restart)
 - config: `S19_*` ใน `config.py` (default ตั้งต้นก่อน backtest); `active_strategies[19] = False` default
+- Telegram toggle: `📋 เลือก Strategy` → ท่า 19: Silver Bullet, Power of 3, NDOG TP, Zone Prefer (Breaker/BPR/FVG), Min RR (1/1.5/2) — persist ผ่าน `_RUNTIME_DEFAULTS`
 
 ### S13 EzAlgo V5
 
