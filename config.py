@@ -451,8 +451,8 @@ active_strategies = {
     15: True,  # ท่าที่ 15: Volume Profile POC + Absorption (Win Rate 85-90%)
     16: True,  # ท่าที่ 16: AMD x iFVG
     17: True,  # ท่าที่ 17: Sweep Sniper (Triple-Confluence — TP สั้น เน้น win rate สูง)
-    18: False, # ท่าที่ 18: TJR/ICT Full-Confluence (standalone) — เริ่มปิดไว้ก่อน backtest
-    19: False, # ท่าที่ 19: ICT Advanced (Silver Bullet/Breaker/BPR) — เริ่มปิดไว้ก่อน backtest
+    18: True,  # ท่าที่ 18: TJR/ICT Full-Confluence (standalone)
+    19: True,  # ท่าที่ 19: ICT Advanced (Silver Bullet/Breaker/BPR)
 }
 
 STRATEGY_NAMES = {
