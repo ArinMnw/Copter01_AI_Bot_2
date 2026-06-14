@@ -190,6 +190,16 @@ _STRATEGY_DESC = {
         "SL = ใต้/เหนือไส้ sweep ± 1.0×ATR\n\n"
         "📊 backtest M1 60วัน: 248 ไม้ WR 91.1% P/L +$78.90\n"
         "⚠️ RR ต่ำ ~0.17 — 1 SL กิน TP ≈ 6 ไม้",
+
+    18: "📐 *TJR / ICT Full-Confluence* — Standalone\n\n"
+        "เข้าเฉพาะเมื่อครบทุกชั้น:\n"
+        "1️⃣ *HTF Bias*: เทรดตามทิศ M15/H1 (โครงสร้าง HHLL)\n"
+        "2️⃣ *Liquidity Sweep*: ไส้กวาด swing high/low แล้วปฏิเสธ\n"
+        "3️⃣ *MSS/CHOCH*: close ทะลุ internal structure ยืนยันกลับตัว\n"
+        "4️⃣ *Entry Zone*: FVG หรือ Order Block ใน OTE (62–79%)\n"
+        "5️⃣ *Killzone*: London 14-18 / NY 19-23 BKK เท่านั้น\n\n"
+        "🎯 LIMIT ที่โซน | SL หลังไส้ sweep | TP ที่ liquidity ตรงข้าม\n"
+        "⚠️ ค่า default ตั้งต้นก่อน backtest — ควรรัน sim_s18_backtest ก่อนใช้จริง",
 }
 
 

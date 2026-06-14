@@ -3083,8 +3083,8 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15, 16, 17):
-            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design) — skip RSI Recheck
+        if sid in (1, 9, 11, 14, 15, 16, 17, 18):
+            continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design), S18 (TJR standalone) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e = "🟢" if pos_type == "BUY" else "🔴"
@@ -3300,8 +3300,8 @@ async def check_fill_trend_recheck(app):
     for pos in positions:
         ticket = pos.ticket
         sid = position_sid.get(ticket)
-        # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design)
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17):
+        # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone)
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -3658,8 +3658,8 @@ async def check_pending_trend_approach(app):
             if isinstance(_pend, dict):
                 sid = _pend.get("sid")
 
-        # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck)
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17):
+        # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck), S18 standalone
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18):
             continue
 
         # Resolve TF
@@ -3928,8 +3928,8 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 2, 3, 9, 10, 11, 13, 14, 15, 16, 17):
-            continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17 skip
+        if sid in (1, 2, 3, 9, 10, 11, 13, 14, 15, 16, 17, 18):
+            continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17/S18 skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
@@ -4242,8 +4242,8 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17):
-            continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง)
+        if sid in (10, 12, 13, 15, 16, 17, 18):
+            continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง; S18 = TJR)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
         if _trade_debug_enabled():
@@ -5312,8 +5312,8 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17):
-            continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL)
+        if sid in (10, 12, 13, 15, 16, 17, 18):
+            continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL; S18 = TJR)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
         order_tf = position_tf.get(ticket, "M1")
@@ -7199,7 +7199,7 @@ async def check_cancel_pending_orders(app):
 
         # Limit Guard: cancel limits whose entry is too far from an existing open position
         # S15 (VP) วาง limit ที่ POC/VAL/VAH ซึ่งอาจไกลจาก position โดยตั้งใจ (รอราคาย้อนมา) → skip
-        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15, 16, 17):
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15, 16, 17, 18):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"
@@ -7539,8 +7539,8 @@ async def check_cancel_pending_orders(app):
                                       f" setup ล้มเหลว")
 
         # Premium/Discount zone recheck
-        # Skip: S9 (RSI Divergence), S10 (CRT), S13/S14/S16/S17 standalone, S15 (VP)
-        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 10, 13, 14, 15, 16, 17):
+        # Skip: S9 (RSI Divergence), S10 (CRT), S13/S14/S16/S17/S18 standalone, S15 (VP)
+        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 10, 13, 14, 15, 16, 17, 18):
             _is_combined = _triple_check_all_enabled()
             pd_status, pd_msgs = _pdfiboplus_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
