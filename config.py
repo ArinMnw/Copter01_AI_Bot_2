@@ -463,8 +463,9 @@ active_strategies = {
     15: True,  # ท่าที่ 15: Volume Profile POC + Absorption (Win Rate 85-90%)
     16: True,  # ท่าที่ 16: AMD x iFVG
     17: True,  # ท่าที่ 17: Sweep Sniper (Triple-Confluence — TP สั้น เน้น win rate สูง)
-    18: True,  # ท่าที่ 18: TJR/ICT Full-Confluence (standalone)
+    18: True,  # ท่าที่ 18: TJR ICT
     19: True,  # ท่าที่ 19: ICT Advanced (Silver Bullet/Breaker/BPR)
+    20: True,  # ท่าที่ 20: All in 4s (Reversal & Retracement)
 }
 
 STRATEGY_NAMES = {
@@ -487,7 +488,16 @@ STRATEGY_NAMES = {
     17: "ท่าที่ 17: Sweep Sniper",
     18: "ท่าที่ 18: TJR ICT",
     19: "ท่าที่ 19: ICT Silver Bullet",
+    20: "ท่าที่ 20: All in 4s",
 }
+
+# ── Strategy 20: All in 4s (Reversal & Retracement) ─────────
+# "เนื้อคลุมเนื้อ" reversal + 50% retracement entry (หรือปลายไส้)
+# Cancel limit ถ้ารอเกิน S20_CANCEL_BARS, TP อัตโนมัติที่ Fibo 161.8%
+S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1"]
+S20_CANCEL_BARS       = 5
+S20_FIBO_TP_LEVEL     = 1.618
+S20_SL_BUFFER         = 1.0  # SL = ไส้ extreme ∓ ATR × นี้
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
 # default ตาม indicator ในรูป: RSI 14 / close / pivot 5-5 / range 5-60

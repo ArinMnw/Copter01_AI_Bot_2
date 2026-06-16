@@ -25,6 +25,7 @@ from strategy16 import strategy_16
 from strategy17 import strategy_17
 from strategy18 import strategy_18
 from strategy19 import strategy_19
+from strategy20 import strategy_20
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -57,7 +58,7 @@ def clear_symbol_caches():
 
 
 _SCAN_TF_ICONS = {"M1": "🟨", "M5": "🟩", "M15": "🟦", "M30": "🟪", "H1": "🟧", "H4": "🟥", "H12": "🟫", "D1": "⬛"}
-_SCAN_STRATEGY_ICONS = {"[ท่า1]": "🟡", "[ท่า2]": "🔵", "[ท่า3]": "🟣", "[ท่า4]": "🟢", "[ท่า6]": "🟠", "[ท่า6i]": "🟤", "[ท่า8]": "🩵", "[ท่า9]": "🟥", "[ท่า13]": "🩷", "[ท่า14]": "🟦"}
+_SCAN_STRATEGY_ICONS = {"[ท่า1]": "🟡", "[ท่า2]": "🔵", "[ท่า3]": "🟣", "[ท่า4]": "🟢", "[ท่า6]": "🟠", "[ท่า6i]": "🟤", "[ท่า8]": "🩵", "[ท่า9]": "🟥", "[ท่า13]": "🩷", "[ท่า14]": "🟦", "[ท่า20]": "💡"}
 
 
 def _print_skip_once(tf_name: str, message: str) -> None:
@@ -2710,6 +2711,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r19 = strategy_19(rates, tf=tf_name) if active_strategies.get(19, False) else {"signal": "WAIT", "reason": "S19 ปิด"}
     if r19.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 19, r19["signal"], last_candle_time, r19)
+
+    r20 = strategy_20(rates, tf=tf_name) if active_strategies.get(20, False) else {"signal": "WAIT", "reason": "S20 ปิด"}
+    if r20.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20, r20["signal"], last_candle_time, r20)
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
