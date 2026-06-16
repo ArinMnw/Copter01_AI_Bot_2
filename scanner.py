@@ -526,14 +526,14 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
                     flow_id=flow_id,
                 )
             elif order.get("skipped"):
-                _print_skip_once(tf_name, f"?? [{now}] {tf_label(tf_name)} ???13: Entry {signal} ?????????? | Entry:{entry}")
+                _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า13: Entry {signal} ถูกข้าม | Entry:{entry}")
                 if not market_tickets:
                     return False
                 break
             else:
                 err = order.get("error", "")
                 if '10027' in str(err):
-                    err = "?? AutoTrading ????????? MT5 ?? Ctrl+E ?????????? AutoTrading ??????????????"
+                    err = "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E หรือกดปุ่ม AutoTrading ให้เป็นสีเขียว"
                 log_event("ORDER_FAILED", err, tf=tf_name, sid=13, signal=signal, entry=entry, sl=sl, tp=tp, flow_id=flow_id)
                 await tg(app, f"❌ [{tf_name}] ท่า13 TP{idx} ไม่สำเร็จ: `{err}`")
 
@@ -584,11 +584,11 @@ async def _place_s13_split_orders(app, tf_name: str, result: dict, last_candle_t
                     flow_id=limit_flow_id,
                 )
             elif limit_order.get("skipped"):
-                _print_skip_once(tf_name, f"?? [{now}] {tf_label(tf_name)} ???13: TP{idx} LIMIT ?????????? | Entry:{entry}")
+                _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า13: TP{idx} LIMIT ถูกข้าม | Entry:{entry}")
             else:
                 err = limit_order.get("error", "")
                 if '10027' in str(err):
-                    err = "?? AutoTrading ????????? MT5 ?? Ctrl+E ?????????? AutoTrading ??????????????"
+                    err = "⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E หรือกดปุ่ม AutoTrading ให้เป็นสีเขียว"
                 log_event("ORDER_FAILED", err, tf=tf_name, sid=13, signal=signal, entry=entry, sl=sl, tp=tp, flow_id=limit_flow_id)
                 await tg(app, f"❌ [{tf_name}] ท่า13 TP{idx} LIMIT ไม่สำเร็จ: `{err}`")
 
@@ -3285,7 +3285,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 continue
         # ── Sweep Filter Block — independent of TREND_FILTER_SCAN_BLOCK ──────
         # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15/S16 bypass)
-        if sid not in (9, 10, 13, 14, 15, 16, 17):
+        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19):
             try:
                 import sweep_filter as _sf_blk
                 if _sf_blk.is_enabled():
@@ -3312,7 +3312,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             except Exception:
                 pass
         # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption, S16 AMD iFVG, S17 Sweep Sniper — reversal/standalone → bypass trend filter
-        if sid not in (9, 10, 13, 14, 15, 16, 17) and config.TREND_FILTER_SCAN_BLOCK:
+        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(

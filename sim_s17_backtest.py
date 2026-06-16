@@ -18,12 +18,16 @@ sim_s17_backtest.py — Backtest S17 Sweep Sniper จากข้อมูล MT
 import argparse
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import MetaTrader5 as mt5
 
 import config
 from strategy17 import detect_s17
+
+SYMBOL = config.SYMBOL
+SINCE = datetime(2026, 5, 24, 0, 0, 0, tzinfo=timezone.utc)
+DEFAULT_SPREAD = 0.20
 
 TF_MAP = {
     "M1":  (mt5.TIMEFRAME_M1, 1440),
@@ -36,6 +40,53 @@ TF_MAP = {
 TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600}
 
 
+def s17_runtime_feature_coverage() -> list[dict]:
+    return [
+        {
+            "name": "S17 Sweep Sniper detect",
+            "config_on": bool(config.active_strategies.get(17, False)),
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "Replay calls pure strategy17.detect_s17() with historical BKK signal time",
+        },
+        {
+            "name": "Session / PD / RSI gates",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "apply",
+            "note": "Detector reads S17_* config values restored from bot_state/config",
+        },
+        {
+            "name": "Limit lifecycle",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Replay models cancel_bars fill, fixed SL/TP, time stop, and conservative same-bar SL-before-TP",
+        },
+        {
+            "name": "Standalone recheck bypass",
+            "config_on": True,
+            "runtime": "skip_s17",
+            "replay": "skip_s17",
+            "note": "Runtime skips PD/trend/RSI fill recheck, entry candle, trail SL, and limit guard for S17",
+        },
+        {
+            "name": "SL Guard",
+            "config_on": getattr(config, "SL_GUARD_ENABLED", False) or getattr(config, "SL_GUARD_GROUP_ENABLED", False),
+            "runtime": "apply",
+            "replay": "gap",
+            "note": "S17 keeps SL Guard, but central replay does not overlay guard context yet",
+        },
+    ]
+
+
+def s17_unreplayed_active_features() -> list[dict]:
+    return [
+        item for item in s17_runtime_feature_coverage()
+        if item["config_on"] and item["replay"] == "gap"
+    ]
+
+
 def fetch_bars(symbol, tf_name, days):
     tf_val, per_day = TF_MAP[tf_name]
     count = days * per_day + 300
@@ -43,6 +94,61 @@ def fetch_bars(symbol, tf_name, days):
     if rates is None or len(rates) == 0:
         return None
     return rates
+
+
+def _days_from_since(default: int = 30) -> int:
+    try:
+        now = datetime.now(timezone.utc)
+        since = SINCE if SINCE.tzinfo is not None else SINCE.replace(tzinfo=timezone.utc)
+        return max(default, int((now - since).days) + 3)
+    except Exception:
+        return default
+
+
+def _parse_bkk_text(value: str) -> datetime:
+    return datetime.strptime(value, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+
+
+def _central_trade(row: dict, tf_name: str) -> dict:
+    outcome = str(row.get("outcome", "OPEN") or "OPEN")
+    if outcome == "TP":
+        close_price = float(row.get("tp"))
+    elif outcome == "TS" and row.get("exit_price") is not None:
+        close_price = float(row.get("exit_price"))
+    else:
+        close_price = float(row.get("sl"))
+    return {
+        "sid": 17,
+        "tf": tf_name,
+        "signal": row.get("signal", ""),
+        "side": row.get("signal", ""),
+        "pattern": "S17 Sweep Sniper",
+        "entry_time": _parse_bkk_text(str(row["entry_time"])),
+        "close_time": _parse_bkk_text(str(row["exit_time"])),
+        "close_type": outcome,
+        "entry": round(float(row["entry"]), 2),
+        "tp": round(float(row["tp"]), 2),
+        "sl": round(float(row["sl"]), 2),
+        "close_price": round(close_price, 2),
+        "pnl": round(float(row.get("pnl_usd_001lot", 0.0) or 0.0), 2),
+        "profit": round(float(row.get("pnl_usd_001lot", 0.0) or 0.0), 2),
+        "reason": outcome,
+        "rsi": row.get("rsi", 0),
+    }
+
+
+def backtest_tf(tf_name: str, tf_val: int | tuple) -> list[dict]:
+    days = _days_from_since()
+    bars = fetch_bars(SYMBOL, tf_name, days)
+    if bars is None:
+        return []
+    rows = replay_tf(bars, tf_name, DEFAULT_SPREAD)
+    since_bkk = config.mt5_ts_to_bkk(int(SINCE.timestamp())) if SINCE else None
+    trades = [_central_trade(row, tf_name) for row in rows]
+    if since_bkk:
+        since_cmp = since_bkk.replace(tzinfo=timezone.utc)
+        trades = [t for t in trades if t["entry_time"] >= since_cmp]
+    return trades
 
 
 def replay_tf(bars, tf_name, spread):
@@ -137,6 +243,7 @@ def replay_tf(bars, tf_name, spread):
             "entry_time": config.mt5_ts_to_bkk(int(entry_bar["time"])).strftime("%Y-%m-%d %H:%M"),
             "exit_time": config.mt5_ts_to_bkk(exit_time).strftime("%Y-%m-%d %H:%M"),
             "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2),
+            "exit_price": round(exit_price, 2),
             "pnl_usd_001lot": round(pnl, 2),
             "rsi": res.get("rsi_at_signal", 0),
         })

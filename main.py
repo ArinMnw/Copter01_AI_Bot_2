@@ -433,25 +433,29 @@ def main():
         next_run_time=datetime.now(_tz2.utc)
     )
 
-    # Pattern scan ทุก 5 วินาที — guard ใน scanner กัน scan ซ้ำแท่งเดิม
+    # Pattern scan ทุก 5 วินาที — max_instances=1 กัน scan วิ่งซ้อน
+    # (race: _scan_results.clear ทับกัน + ออเดอร์ซ้ำเพราะ dedup อยู่นอก lock)
+    # coalesce=True → ถ้ารอบก่อนยังไม่จบ ให้รวบรอบที่ค้างเป็นรอบเดียว
     scheduler.add_job(
         run_scan,
         'interval',
         seconds=5,
         id="auto_scan_job",
-        max_instances=3,
+        max_instances=1,
+        coalesce=True,
         misfire_grace_time=5,
         next_run_time=datetime.now(_tz2.utc)
     )
 
-    # Trail SL ทุก 5 วินาที — รันได้เลย ไม่ต้องรอ
+    # Trail SL ทุก 5 วินาที — max_instances=1 กันแก้ SL ของ position เดียวซ้อนกัน
     from datetime import timezone as _tz
     scheduler.add_job(
         run_trail_sl,
         'interval',
         seconds=5,
         id="trail_sl_job",
-        max_instances=3,
+        max_instances=1,
+        coalesce=True,
         misfire_grace_time=10,
         next_run_time=datetime.now(_tz.utc)
     )

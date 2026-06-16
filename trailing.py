@@ -2001,7 +2001,7 @@ async def check_s1_zone_rules(app):
         else: # _mode == "swing"
             forward_meta = position_forward_meta.get(ticket) or {}
             t_detect = int(forward_meta.get("detect_bar_time", 0) or 0)
-            if t_detect <= 0:
+            if t_detect <= 0 or forward_meta.get("confirmed"):
                 continue
 
             t_last_closed = int(rates[-1]["time"])
@@ -2022,7 +2022,7 @@ async def check_s1_zone_rules(app):
                 pts = [p for p in (hh, lh) if p and p.get("time")]
 
             hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
-            pattern_candle_times = {t_detect, t_detect - tf_secs, t_detect - 2 * tf_secs, t_detect - 3 * tf_secs}
+            pattern_candle_times = {t_detect, t_detect - tf_secs, t_detect - 2 * tf_secs}
             has_valid_swing = False
             for pt in pts:
                 t_swing = int(pt["time"])
@@ -2033,6 +2033,9 @@ async def check_s1_zone_rules(app):
                         break
 
             if has_valid_swing:
+                forward_meta["confirmed"] = True
+                position_forward_meta[ticket] = forward_meta
+                save_runtime_state()
                 continue
 
             if t_last_closed > t_detect + 4 * tf_secs:
@@ -4397,6 +4400,12 @@ async def check_entry_candle_quality(app):
             if ticket not in position_forward_meta and matched_pending_info.get("s1_forward_meta"):
                 position_forward_meta[ticket] = dict(matched_pending_info.get("s1_forward_meta") or {})
             await _cancel_s10_sibling_orders(app, ticket, matched_pending_info, matched_pending_ticket)
+
+        if fvg_info:
+            if ticket not in position_zone_meta and fvg_info.get("s1_zone_meta"):
+                position_zone_meta[ticket] = dict(fvg_info.get("s1_zone_meta") or {})
+            if ticket not in position_forward_meta and fvg_info.get("s1_forward_meta"):
+                position_forward_meta[ticket] = dict(fvg_info.get("s1_forward_meta") or {})
 
         debug_tf = fvg_info.get("tf", "M1") if fvg_info else position_tf.get(ticket, pos_tf or "?")
         debug_sid = position_sid.get(ticket)
@@ -6880,31 +6889,33 @@ async def check_cancel_pending_orders(app):
             info = pending_order_tf.pop(t, None)
             # ถ้า fill กลายเป็น position → คง position_tf/sid/pattern ไว้ให้ notify_limit_fills ใช้
             if t not in _open_pos_tickets:
+                # หายจาก order list และไม่ใช่ position → ถูก cancel จริง
                 position_tf.pop(t, None)
                 position_sid.pop(t, None)
                 position_pattern.pop(t, None)
+                if isinstance(info, dict):
+                    log_event(
+                        "ORDER_CANCELED",
+                        "Pending disappeared from MT5 order list",
+                        tf=info.get("tf", ""),
+                        sid=info.get("sid", ""),
+                        signal=info.get("signal", ""),
+                        ticket=t,
+                        entry=info.get("entry"),
+                        sl=info.get("sl"),
+                        tp=info.get("tp"),
+                        flow_id=info.get("flow_id", ""),
+                        parent_flow_id=info.get("parent_flow_id", ""),
+                    )
             elif isinstance(info, dict):
-                # order fill แล้ว → ถ้า position_tf/pattern ยังไม่มี ให้ restore จาก pending info
+                # order fill แล้ว (กลายเป็น position) → ไม่ใช่ cancel จริง ห้าม log ORDER_CANCELED
+                # ถ้า position_tf/pattern ยังไม่มี ให้ restore จาก pending info
                 if t not in position_tf and info.get("tf"):
                     position_tf[t] = info["tf"]
                 if t not in position_pattern and info.get("pattern"):
                     position_pattern[t] = info["pattern"]
                 if t not in position_sid and info.get("sid") is not None:
                     position_sid[t] = info["sid"]
-            if isinstance(info, dict):
-                log_event(
-                    "ORDER_CANCELED",
-                    "Pending disappeared from MT5 order list",
-                    tf=info.get("tf", ""),
-                    sid=info.get("sid", ""),
-                    signal=info.get("signal", ""),
-                    ticket=t,
-                    entry=info.get("entry"),
-                    sl=info.get("sl"),
-                    tp=info.get("tp"),
-                    flow_id=info.get("flow_id", ""),
-                    parent_flow_id=info.get("parent_flow_id", ""),
-                )
 
     for order in orders:
         ticket = order.ticket

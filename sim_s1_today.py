@@ -5,14 +5,13 @@ from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
 
 import config
+from mt5_utils import TF_SECONDS_MAP
 from sim_lifecycle import fill_pdfiboplus_round1, pd_cancel_event, pending_pdfiboplus_round1
-import strategy11
 from strategy1 import strategy_1
-from strategy11 import record_s1_pattern, reset_state, strategy_11
 
 
 SYMBOL = config.SYMBOL
-SINCE = datetime(2026, 5, 24, 0, 0, 0, tzinfo=timezone.utc)
+SINCE = datetime(2026, 6, 14, 22, 0, 0, tzinfo=timezone.utc)
 VOLUME = 0.01
 PRICE_TO_USD = 100 * VOLUME
 
@@ -49,28 +48,35 @@ def profit(price_diff: float) -> float:
     return round(float(price_diff) * PRICE_TO_USD, 2)
 
 
-def s11_runtime_feature_coverage() -> list[dict]:
+def s1_runtime_feature_coverage() -> list[dict]:
     return [
         {
-            "name": "S1 anchor hook",
-            "config_on": bool(config.active_strategies.get(11, False)),
+            "name": "S1 pattern detect",
+            "config_on": bool(config.active_strategies.get(1, False)),
             "runtime": "apply",
             "replay": "apply",
-            "note": "Replay calls strategy1.strategy_1() and strategy11.record_s1_pattern()",
+            "note": "Replay calls shared strategy1.strategy_1()",
         },
         {
-            "name": "S11 Fibo state/cascade",
-            "config_on": bool(config.active_strategies.get(11, False)),
-            "runtime": "apply",
-            "replay": "apply",
-            "note": "Replay calls shared strategy11.strategy_11()",
-        },
-        {
-            "name": "Pending limit lifecycle",
+            "name": "S1 pending limit lifecycle",
             "config_on": True,
             "runtime": "apply",
             "replay": "partial",
-            "note": "Replay models pending fill and fixed SL/TP with bar high/low",
+            "note": "Replay models pending limit fill, cancel_bars, and fixed SL/TP",
+        },
+        {
+            "name": "S1 zone mode",
+            "config_on": getattr(config, "S1_ZONE_MODE", "zone") == "zone",
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Initial zone filter is inside strategy_1(); post-create zone cancel/loss-exit is not replayed yet",
+        },
+        {
+            "name": "S1 forward confirm",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "gap",
+            "note": "Runtime cancels/closes if no S2/S3 same-side confirm within 5 bars",
         },
         {
             "name": "PD Fibo Plus",
@@ -80,46 +86,25 @@ def s11_runtime_feature_coverage() -> list[dict]:
             "note": "Replay applies pending and fill round1 gates; round2 is not included yet",
         },
         {
-            "name": "Limit Trend / RSI Recheck",
+            "name": "Trend/RSI recheck",
             "config_on": getattr(config, "LIMIT_TREND_RECHECK", False) or getattr(config, "PENDING_RSI_RECHECK_ENABLED", False),
-            "runtime": "skip_s11",
-            "replay": "skip_s11",
-            "note": "Runtime skips S11 in pending trend and RSI fill recheck",
-        },
-        {
-            "name": "Strong Trend Block",
-            "config_on": getattr(config, "STRONG_TREND_BLOCK_ENABLED", False),
             "runtime": "apply",
             "replay": "gap",
-            "note": "Runtime can scan-block S11 when strong trend block is enabled",
-        },
-        {
-            "name": "Duplicate/adjacent guards",
-            "config_on": True,
-            "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime avoids duplicate pending setups and adjacent same-SID bars",
-        },
-        {
-            "name": "S1 linked cleanup",
-            "config_on": True,
-            "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime can cancel/close linked S11 when S1 forward lifecycle invalidates",
+            "note": "Runtime can apply trend recheck and RSI fill recheck to S1",
         },
         {
             "name": "Trail/Opposite/Limit Guard",
             "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False) or getattr(config, "LIMIT_GUARD", False),
             "runtime": "apply",
             "replay": "gap",
-            "note": "Shared lifecycle features are not included in S11 baseline yet",
+            "note": "Shared lifecycle features are not included in S1 baseline yet",
         },
     ]
 
 
-def s11_unreplayed_active_features() -> list[dict]:
+def s1_unreplayed_active_features() -> list[dict]:
     return [
-        item for item in s11_runtime_feature_coverage()
+        item for item in s1_runtime_feature_coverage()
         if item["config_on"] and item["replay"] == "gap"
     ]
 
@@ -148,19 +133,19 @@ def _close_row(trade: dict, reason: str, price: float, close_time: datetime) -> 
 
 
 def _pending_from_result(result: dict, tf_name: str, detect_bar: dict) -> dict:
-    signal = result["signal"]
     return {
-        "sid": 11,
+        "sid": 1,
         "tf": tf_name,
-        "signal": signal,
-        "side": signal,
-        "pattern": result.get("pattern", "S11 Fibo S1"),
+        "signal": result["signal"],
+        "side": result["signal"],
+        "pattern": result.get("pattern", "S1"),
         "entry": round(float(result["entry"]), 2),
         "sl": round(float(result["sl"]), 2),
         "tp": round(float(result["tp"]), 2),
         "detect_time": to_bkk(detect_bar["time"]),
         "detect_time_raw": int(detect_bar["time"]),
-        "order_mode": result.get("order_mode", "limit"),
+        "cancel_bars": int(result.get("cancel_bars", 0) or 0),
+        "s1_zone_meta": result.get("s1_zone_meta") or {},
     }
 
 
@@ -179,10 +164,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
         return []
     bars = _as_records(rates)
     since_ts = int(SINCE.timestamp())
-    start_idx = max(80, next((i for i, r in enumerate(bars) if int(r["time"]) >= since_ts), 80))
-    strategy_window = max(40, int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20) + 6)
+    start_idx = max(60, next((i for i, r in enumerate(bars) if int(r["time"]) >= since_ts), 60))
 
-    reset_state(tf_name)
     trades: list[dict] = []
     pending: list[dict] = []
     open_trades: list[dict] = []
@@ -196,6 +179,21 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
 
         still_pending = []
         for order in pending:
+            age_bars = (int(bar["time"]) - int(order["detect_time_raw"])) // max(1, int(TF_SECONDS_MAP.get(tf_name, 60)))
+            cancel_bars = int(order.get("cancel_bars", 0) or 0)
+            if cancel_bars and age_bars > cancel_bars:
+                trades.append({
+                    **order,
+                    "entry_time": order["detect_time"],
+                    "entry_time_raw": order["detect_time_raw"],
+                    "close_time": bt,
+                    "close_price": None,
+                    "close_type": "CANCEL",
+                    "pnl": 0.0,
+                    "profit": 0.0,
+                    "reason": "cancel_bars",
+                })
+                continue
             if order["signal"] == "BUY" and l <= float(order["entry"]):
                 trade = _fill_trade(order, bar)
                 pd = fill_pdfiboplus_round1(trade, bars[:i + 1])
@@ -233,18 +231,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
             still_open.append(trade)
         open_trades = still_open
 
-        scan_rates = bars[max(0, i - strategy_window + 1):i + 1]
-        s1 = strategy_1(scan_rates, tf=tf_name)
-        if s1.get("signal") in ("BUY", "SELL"):
-            record_s1_pattern(
-                tf_name,
-                s1.get("signal"),
-                s1.get("candles") or [],
-                int(bar["time"]),
-                s1.get("pattern", ""),
-            )
-
-        result = strategy_11(scan_rates, tf_name)
+        result = strategy_1(bars[:i + 1], tf=tf_name)
         if result.get("signal") not in ("BUY", "SELL"):
             continue
         key = (
@@ -252,7 +239,6 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
             result.get("signal"),
             round(float(result.get("entry", 0.0) or 0.0), 2),
             round(float(result.get("sl", 0.0) or 0.0), 2),
-            round(float(result.get("tp", 0.0) or 0.0), 2),
             str(result.get("pattern", "")),
         )
         if key in fired:
@@ -285,5 +271,4 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
             "pnl": 0.0,
             "profit": 0.0,
         })
-    strategy11.reset_state(tf_name)
     return trades

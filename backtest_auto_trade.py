@@ -18,6 +18,7 @@ import sim_s2_backtest
 import sim_s3_backtest
 import sim_s4_backtest
 import sim_s5_backtest
+import sim_s458_backtest
 import sim_s8_backtest
 import sim_s9_backtest
 import sim_s10_backtest
@@ -27,6 +28,10 @@ import sim_s13_backtest
 import sim_s14_backtest
 import sim_s15_backtest
 import sim_s16_backtest
+import sim_s17_backtest
+import sim_s18_backtest
+import sim_s19_backtest
+import sim_lifecycle
 from sim_s10_backtest import (
     TF_MAP as S10_TF_MAP,
     backtest_tf as backtest_s10_tf,
@@ -113,6 +118,24 @@ from sim_s16_backtest import (
     s16_runtime_feature_coverage,
     s16_unreplayed_active_features,
 )
+from sim_s17_backtest import (
+    TF_MAP as S17_TF_MAP,
+    backtest_tf as backtest_s17_tf,
+    s17_runtime_feature_coverage,
+    s17_unreplayed_active_features,
+)
+from sim_s18_backtest import (
+    TF_MAP as S18_TF_MAP,
+    backtest_tf as backtest_s18_tf,
+    s18_runtime_feature_coverage,
+    s18_unreplayed_active_features,
+)
+from sim_s19_backtest import (
+    TF_MAP as S19_TF_MAP,
+    backtest_tf as backtest_s19_tf,
+    s19_runtime_feature_coverage,
+    s19_unreplayed_active_features,
+)
 
 
 HTF_TO_LTF = {
@@ -124,8 +147,8 @@ HTF_TO_LTF = {
     "M15": "M1",
 }
 
-SUPPORTED_STRATEGIES = {1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-ALL_STRATEGIES = set(range(1, 17))
+SUPPORTED_STRATEGIES = {1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}
+ALL_STRATEGIES = set(range(1, 20))
 RUN_STARTED_AT = time.perf_counter()
 COMPARE_REPORT_DIR = os.path.join("excel_reports", "backtest_compare")
 SCALE_OUT_COLUMNS = 4
@@ -393,6 +416,27 @@ def resolve_run_tfs_for_strategy(strategy_id: int, tf_arg: str | None) -> list[s
         if target in S16_TF_MAP:
             return [target]
         raise ValueError(f"Unsupported timeframe for S16 replay: {tf_arg}")
+    if strategy_id == 17:
+        if not tf_arg:
+            return list(S17_TF_MAP.keys())
+        target = tf_arg.upper()
+        if target in S17_TF_MAP:
+            return [target]
+        raise ValueError(f"Unsupported timeframe for S17 replay: {tf_arg}")
+    if strategy_id == 18:
+        if not tf_arg:
+            return list(S18_TF_MAP.keys())
+        target = tf_arg.upper()
+        if target in S18_TF_MAP:
+            return [target]
+        raise ValueError(f"Unsupported timeframe for S18 replay: {tf_arg}")
+    if strategy_id == 19:
+        if not tf_arg:
+            return list(S19_TF_MAP.keys())
+        target = tf_arg.upper()
+        if target in S19_TF_MAP:
+            return [target]
+        raise ValueError(f"Unsupported timeframe for S19 replay: {tf_arg}")
     raise ValueError(f"Strategy S{strategy_id} is not implemented in this replay engine yet")
 
 
@@ -407,6 +451,62 @@ def resolve_s14_context_tfs(tf_arg: str | None) -> list[str]:
         if wanted in group:
             context.update(tf for tf in group if tf in S14_TF_MAP)
     return [tf for tf in S14_TF_MAP.keys() if tf in context]
+
+
+def resolve_s8_context_tfs(tf_arg: str | None) -> list[str]:
+    base = resolve_run_tfs_for_strategy(8, tf_arg)
+    if not tf_arg or not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return base
+
+    wanted = tf_arg.upper()
+    context = set(base)
+    for group in getattr(config, "SL_GUARD_GROUP_GROUPS", []) or []:
+        if wanted in group:
+            context.update(tf for tf in group if tf in S8_TF_MAP)
+    return [tf for tf in S8_TF_MAP.keys() if tf in context]
+
+
+def resolve_s458_context_tfs(tf_arg: str | None, strategies: set[int] | None = None) -> tuple[list[str], list[str]]:
+    common_tfs = set(S4_TF_MAP) & set(S5_TF_MAP) & set(S8_TF_MAP)
+    if tf_arg:
+        target = tf_arg.upper()
+        if target not in common_tfs:
+            raise ValueError(f"Unsupported S1-S5/S8 unified timeframe: {tf_arg}")
+        requested = [target]
+    else:
+        requested = [tf for tf in S8_TF_MAP.keys() if tf in common_tfs]
+
+    context = set(requested)
+    include_guard_context = bool(strategies and 8 in strategies)
+    if tf_arg and include_guard_context and getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        wanted = tf_arg.upper()
+        for group in getattr(config, "SL_GUARD_GROUP_GROUPS", []) or []:
+            if wanted in group:
+                context.update(tf for tf in group if tf in common_tfs)
+
+    run_tfs = [tf for tf in S8_TF_MAP.keys() if tf in context]
+    return requested, run_tfs
+
+
+def _s458_tf_history_overlaps_window(tf_name: str, window_start_utc: datetime, window_end_utc: datetime) -> bool:
+    tf_val = S8_TF_MAP.get(tf_name)
+    if tf_val is None:
+        return False
+    real_start_utc = window_start_utc - timedelta(hours=getattr(config, "TZ_OFFSET", 7))
+    real_end_utc = window_end_utc - timedelta(hours=getattr(config, "TZ_OFFSET", 7))
+    rates = mt5.copy_rates_range(config.SYMBOL, tf_val, real_start_utc, real_end_utc)
+    if rates is None or len(rates) == 0:
+        return False
+    oldest = int(min(r["time"] for r in rates))
+    newest = int(max(r["time"] for r in rates))
+    window_start_ts = int(real_start_utc.timestamp())
+    window_end_ts = int(real_end_utc.timestamp())
+    return oldest <= window_end_ts and newest >= window_start_ts
+
+
+def _replay_range_end_utc(window_end_utc: datetime, extra_days: int) -> datetime:
+    real_end_utc = window_end_utc - timedelta(hours=getattr(config, "TZ_OFFSET", 7))
+    return real_end_utc + timedelta(days=max(0, int(extra_days or 0)))
 
 
 def load_live_filled_orders(log_files: list[str], start_bkk: datetime, end_bkk: datetime, symbol: str, strategies: set[int]) -> list[dict]:
@@ -1777,6 +1877,8 @@ def print_s1_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready" if item["config_on"] else "off ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -1798,6 +1900,8 @@ def print_s2_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready" if item["config_on"] else "off ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -1819,6 +1923,8 @@ def print_s3_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready" if item["config_on"] else "off ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -1840,6 +1946,8 @@ def print_s4_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready" if item["config_on"] else "off ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -1861,6 +1969,8 @@ def print_s5_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready" if item["config_on"] else "off ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -1882,6 +1992,8 @@ def print_s8_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready" if item["config_on"] else "off ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2083,6 +2195,78 @@ def print_s16_coverage() -> None:
             print(f"  - {item['name']}: {item['note']}")
 
 
+def print_s17_coverage() -> None:
+    print("\nS17 Runtime Coverage:")
+    for item in s17_runtime_feature_coverage():
+        runtime = item["runtime"]
+        replay = item["replay"]
+        if runtime == "skip_s17":
+            status = "runtime skip"
+        elif replay == "apply":
+            status = "replayed"
+        elif replay == "partial":
+            status = "partial"
+        elif item["config_on"]:
+            status = "ACTIVE GAP"
+        else:
+            status = "off gap"
+        print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
+
+    gaps = s17_unreplayed_active_features()
+    if gaps:
+        print("\nWARNING: Active S17 runtime features not replayed yet:")
+        for item in gaps:
+            print(f"  - {item['name']}: {item['note']}")
+
+
+def print_s18_coverage() -> None:
+    print("\nS18 Runtime Coverage:")
+    for item in s18_runtime_feature_coverage():
+        runtime = item["runtime"]
+        replay = item["replay"]
+        if runtime == "skip_s18":
+            status = "runtime skip"
+        elif replay == "apply":
+            status = "replayed"
+        elif replay == "partial":
+            status = "partial"
+        elif item["config_on"]:
+            status = "ACTIVE GAP"
+        else:
+            status = "off gap"
+        print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
+
+    gaps = s18_unreplayed_active_features()
+    if gaps:
+        print("\nWARNING: Active S18 runtime features not replayed yet:")
+        for item in gaps:
+            print(f"  - {item['name']}: {item['note']}")
+
+
+def print_s19_coverage() -> None:
+    print("\nS19 Runtime Coverage:")
+    for item in s19_runtime_feature_coverage():
+        runtime = item["runtime"]
+        replay = item["replay"]
+        if runtime == "skip_s19":
+            status = "runtime skip"
+        elif replay == "apply":
+            status = "replayed"
+        elif replay == "partial":
+            status = "partial"
+        elif item["config_on"]:
+            status = "ACTIVE GAP"
+        else:
+            status = "off gap"
+        print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
+
+    gaps = s19_unreplayed_active_features()
+    if gaps:
+        print("\nWARNING: Active S19 runtime features not replayed yet:")
+        for item in gaps:
+            print(f"  - {item['name']}: {item['note']}")
+
+
 def format_trade(tf_display: str, idx: int, t: dict) -> None:
     et = t["entry_time"].strftime("%Y-%m-%d %H:%M")
     ct = t["close_time"].strftime("%Y-%m-%d %H:%M") if t["close_type"] not in ("OPEN", "OPEN_PENDING") else "OPEN"
@@ -2148,9 +2332,10 @@ def run_s10(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
 
 def run_s1(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     for tf_name in resolve_run_tfs_for_strategy(1, args.tf):
         progress(f"Running S1 replay on {tf_name}...")
-        trades = backtest_s1_tf(tf_name, S1_TF_MAP[tf_name])
+        trades = backtest_s1_tf(tf_name, S1_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S1 replay on {tf_name} produced {len(trades)} raw event(s).")
         filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
         if args.exclude_cancelled:
@@ -2168,9 +2353,10 @@ def run_s1(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
 
 def run_s2(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     for tf_name in resolve_run_tfs_for_strategy(2, args.tf):
         progress(f"Running S2 replay on {tf_name}...")
-        trades = backtest_s2_tf(tf_name, S2_TF_MAP[tf_name])
+        trades = backtest_s2_tf(tf_name, S2_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S2 replay on {tf_name} produced {len(trades)} raw event(s).")
         filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
         if args.exclude_cancelled:
@@ -2188,9 +2374,10 @@ def run_s2(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
 
 def run_s3(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     for tf_name in resolve_run_tfs_for_strategy(3, args.tf):
         progress(f"Running S3 replay on {tf_name}...")
-        trades = backtest_s3_tf(tf_name, S3_TF_MAP[tf_name])
+        trades = backtest_s3_tf(tf_name, S3_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S3 replay on {tf_name} produced {len(trades)} raw event(s).")
         filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
         if args.exclude_cancelled:
@@ -2208,9 +2395,10 @@ def run_s3(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
 
 def run_s4(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     for tf_name in resolve_run_tfs_for_strategy(4, args.tf):
         progress(f"Running S4 replay on {tf_name}...")
-        trades = backtest_s4_tf(tf_name, S4_TF_MAP[tf_name])
+        trades = backtest_s4_tf(tf_name, S4_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S4 replay on {tf_name} produced {len(trades)} raw event(s).")
         filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
         if args.exclude_cancelled:
@@ -2228,9 +2416,10 @@ def run_s4(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
 
 def run_s5(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     for tf_name in resolve_run_tfs_for_strategy(5, args.tf):
         progress(f"Running S5 replay on {tf_name}...")
-        trades = backtest_s5_tf(tf_name, S5_TF_MAP[tf_name])
+        trades = backtest_s5_tf(tf_name, S5_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S5 replay on {tf_name} produced {len(trades)} raw event(s).")
         filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
         if args.exclude_cancelled:
@@ -2248,21 +2437,86 @@ def run_s5(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
 
 def run_s8(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(8, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(8, args.tf))
+    run_tfs = resolve_s8_context_tfs(args.tf)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S8 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+
+    raw_tf_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
+    for tf_name in run_tfs:
         progress(f"Running S8 replay on {tf_name}...")
-        trades = backtest_s8_tf(tf_name, S8_TF_MAP[tf_name])
+        trades = backtest_s8_tf(tf_name, S8_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S8 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 8)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if len(run_tfs) > 1:
+        progress("Applying S8 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 8)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S8 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S8 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+    return all_trades
+
+
+def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime, strategies: set[int]) -> list[tuple[str, dict]]:
+    all_trades = []
+    requested_tfs, run_tfs = resolve_s458_context_tfs(args.tf, strategies)
+    requested_set = set(requested_tfs)
+    if len(run_tfs) > len(requested_tfs):
+        kept_tfs = []
+        for tf_name in run_tfs:
+            if tf_name in requested_set or _s458_tf_history_overlaps_window(tf_name, window_start_utc, window_end_utc):
+                kept_tfs.append(tf_name)
+            else:
+                progress(f"Skipping unified S4/S5/S8 context TF {tf_name}: fetched history does not overlap the requested window.")
+        run_tfs = kept_tfs
+    if set(run_tfs) != requested_set:
+        progress(f"Unified S1-S5/S8 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+
+    raw_tf_trades = []
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
+    for tf_name in run_tfs:
+        progress(f"Running unified S1-S5/S8 replay on {tf_name}...")
+        trades = sim_s458_backtest.backtest_tf(tf_name, S8_TF_MAP[tf_name], strategies, range_end_utc=range_end_utc)
+        progress(f"Unified S1-S5/S8 replay on {tf_name} produced {len(trades)} raw event(s).")
+        for t in trades:
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if len(run_tfs) > 1:
+        progress("Applying unified S1-S5/S8 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_set and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
+        if args.exclude_cancelled:
+            filtered = [
+                t for t in filtered
+                if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
+            ]
+        all_trades.extend((tf_name, t) for t in filtered)
+        if tf_name in requested_set:
+            progress(f"Unified S1-S5/S8 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
@@ -2429,6 +2683,338 @@ def run_s16(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
     return all_trades
 
 
+def run_s17(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
+    all_trades = []
+    for tf_name in resolve_run_tfs_for_strategy(17, args.tf):
+        progress(f"Running S17 replay on {tf_name}...")
+        trades = backtest_s17_tf(tf_name, S17_TF_MAP[tf_name])
+        progress(f"S17 replay on {tf_name} produced {len(trades)} raw event(s).")
+        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        if args.exclude_cancelled:
+            filtered = [
+                t for t in filtered
+                if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
+            ]
+        for t in filtered:
+            t.setdefault("sid", 17)
+            t.setdefault("tf", tf_name)
+        all_trades.extend((tf_name, t) for t in filtered)
+        progress(f"S17 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+    return all_trades
+
+
+def run_s18(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
+    all_trades = []
+    for tf_name in resolve_run_tfs_for_strategy(18, args.tf):
+        progress(f"Running S18 replay on {tf_name}...")
+        trades = backtest_s18_tf(tf_name, S18_TF_MAP[tf_name])
+        progress(f"S18 replay on {tf_name} produced {len(trades)} raw event(s).")
+        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        if args.exclude_cancelled:
+            filtered = [
+                t for t in filtered
+                if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
+            ]
+        for t in filtered:
+            t.setdefault("sid", 18)
+            t.setdefault("tf", tf_name)
+        all_trades.extend((tf_name, t) for t in filtered)
+        progress(f"S18 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+    return all_trades
+
+
+def run_s19(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
+    all_trades = []
+    for tf_name in resolve_run_tfs_for_strategy(19, args.tf):
+        progress(f"Running S19 replay on {tf_name}...")
+        trades = backtest_s19_tf(tf_name, S19_TF_MAP[tf_name])
+        progress(f"S19 replay on {tf_name} produced {len(trades)} raw event(s).")
+        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        if args.exclude_cancelled:
+            filtered = [
+                t for t in filtered
+                if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
+            ]
+        for t in filtered:
+            t.setdefault("sid", 19)
+            t.setdefault("tf", tf_name)
+        all_trades.extend((tf_name, t) for t in filtered)
+        progress(f"S19 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+    return all_trades
+
+
+def apply_system_sl_guard_group_overlay(
+    trades: list[tuple[str, dict]],
+    strategies: set[int],
+) -> list[tuple[str, dict]]:
+    if len(strategies) <= 1:
+        return trades
+    if not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return trades
+    if not getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        return trades
+    progress("Applying system-level SL Guard Group overlay across selected strategies...")
+    before = {
+        id(trade)
+        for _, trade in trades
+        if str(trade.get("close_type", "")) == "SL_GUARD_GROUP"
+        and trade.get("sl_guard_trigger_tf")
+    }
+    result = sim_s14_backtest.apply_sl_guard_group_overlay(trades)
+    changed = sum(
+        1 for _, trade in result
+        if str(trade.get("close_type", "")) == "SL_GUARD_GROUP"
+        and trade.get("sl_guard_trigger_tf")
+        and id(trade) not in before
+    )
+    if changed:
+        progress(f"System SL Guard Group overlay closed {changed} trade(s).")
+    else:
+        progress("System SL Guard Group overlay made no additional closes.")
+    return result
+
+
+def _system_overlay_pnl(trade: dict, close_price: float) -> float:
+    volume = float(trade.get("volume", getattr(config, "VOLUME", 0.01)) or 0.01)
+    multiplier = 100.0 * volume
+    if str(trade.get("signal") or trade.get("side") or "").upper() == "BUY":
+        pnl = (float(close_price) - float(trade.get("entry", 0.0) or 0.0)) * multiplier
+    else:
+        pnl = (float(trade.get("entry", 0.0) or 0.0) - float(close_price)) * multiplier
+    return round(float(trade.get("realized_pnl", 0.0) or 0.0) + pnl, 2)
+
+
+def apply_system_opposite_order_overlay(
+    trades: list[tuple[str, dict]],
+    strategies: set[int],
+) -> list[tuple[str, dict]]:
+    if len(strategies) <= 1:
+        return trades
+    if not getattr(config, "OPPOSITE_ORDER_ENABLED", True):
+        return trades
+
+    mode = str(getattr(config, "OPPOSITE_ORDER_MODE", "sl_protect") or "sl_protect")
+    if mode not in ("sl_protect", "tp_close"):
+        return trades
+
+    rows = []
+    skip_sids = set(getattr(sim_lifecycle, "OPPOSITE_ORDER_SKIP_SIDS", set()))
+    for idx, (tf_name, trade) in enumerate(trades):
+        side = str(trade.get("signal") or trade.get("side") or "").upper()
+        entry_time = trade.get("entry_time")
+        close_time = trade.get("close_time")
+        if side not in ("BUY", "SELL") or not entry_time or not close_time:
+            rows.append({"idx": idx, "tf": tf_name, "trade": trade, "eligible": False})
+            continue
+        if int(trade.get("sid", 0) or 0) in skip_sids:
+            rows.append({"idx": idx, "tf": tf_name, "trade": trade, "eligible": False})
+            continue
+        trade.setdefault("tf", tf_name)
+        rows.append({"idx": idx, "tf": tf_name, "trade": trade, "eligible": True})
+
+    changed = 0
+    progress("Applying system-level Opposite Order overlay across selected strategies...")
+    for current in sorted([r for r in rows if r["eligible"]], key=lambda r: r["trade"]["entry_time"]):
+        cur_trade = current["trade"]
+        cur_side = str(cur_trade.get("signal") or cur_trade.get("side") or "").upper()
+        cur_tf = str(cur_trade.get("tf") or current["tf"] or "")
+        cur_entry_time = cur_trade.get("entry_time")
+        cur_entry_price = float(cur_trade.get("entry", 0.0) or 0.0)
+        if not cur_tf or cur_entry_price <= 0:
+            continue
+
+        for prior in rows:
+            if not prior["eligible"] or prior is current:
+                continue
+            old = prior["trade"]
+            old_side = str(old.get("signal") or old.get("side") or "").upper()
+            if old_side == cur_side:
+                continue
+            if old.get("system_opposite_overlay"):
+                continue
+            if str(old.get("tf") or prior["tf"] or "") != cur_tf:
+                continue
+            if not (old.get("entry_time") < cur_entry_time < old.get("close_time")):
+                continue
+
+            if mode == "tp_close":
+                old["close_type"] = "OPPOSITE_CLOSE"
+                old["close_price"] = round(cur_entry_price, 2)
+                old["close_time"] = cur_entry_time
+                old["pnl"] = _system_overlay_pnl(old, cur_entry_price)
+                old["profit"] = old["pnl"]
+                old["reason"] = "System Opposite Order overlay"
+                old["system_opposite_overlay"] = "tp_close"
+                changed += 1
+                continue
+
+            close_type = str(old.get("close_type", ""))
+            if close_type not in ("SL", "SL_GUARD_CLOSE", "SL_GUARD_GROUP"):
+                continue
+            spread = 0.0
+            protected_sl = float(old.get("entry", 0.0) or 0.0)
+            if old_side == "BUY":
+                should_protect = float(old.get("close_price", 0.0) or 0.0) < protected_sl
+            else:
+                should_protect = float(old.get("close_price", 0.0) or 0.0) > protected_sl
+            if not should_protect:
+                continue
+            old["close_type"] = "OPPOSITE_SL_PROTECT"
+            old["close_price"] = round(protected_sl + spread if old_side == "BUY" else protected_sl - spread, 2)
+            old["pnl"] = _system_overlay_pnl(old, old["close_price"])
+            old["profit"] = old["pnl"]
+            old["reason"] = "System Opposite Order SL protect overlay"
+            old["system_opposite_overlay"] = "sl_protect"
+            changed += 1
+
+    if changed:
+        progress(f"System Opposite Order overlay adjusted {changed} trade(s).")
+    else:
+        progress("System Opposite Order overlay made no additional adjustments.")
+    return [(row["tf"], row["trade"]) for row in sorted(rows, key=lambda r: r["idx"])]
+
+
+def apply_system_limit_guard_overlay(
+    trades: list[tuple[str, dict]],
+    strategies: set[int],
+    *,
+    exclude_cancelled: bool = False,
+) -> list[tuple[str, dict]]:
+    if len(strategies) <= 1:
+        return trades
+    if not getattr(config, "LIMIT_GUARD", False):
+        return trades
+
+    symbol_info = mt5.symbol_info(config.SYMBOL)
+    point = float(getattr(symbol_info, "point", 0.01) or 0.01)
+    guard_dist = float(getattr(config, "LIMIT_GUARD_POINTS", 200) or 200) * point * config.points_scale()
+    tf_separate = str(getattr(config, "LIMIT_GUARD_TF_MODE", "separate")) == "separate"
+    skip_sids = set(getattr(sim_lifecycle, "LIMIT_GUARD_SKIP_SIDS", set()))
+
+    rows = []
+    for idx, (tf_name, trade) in enumerate(trades):
+        side = str(trade.get("signal") or trade.get("side") or "").upper()
+        entry_time = trade.get("entry_time")
+        close_time = trade.get("close_time")
+        if side not in ("BUY", "SELL") or not entry_time:
+            rows.append({"idx": idx, "tf": tf_name, "trade": trade, "eligible": False})
+            continue
+        if int(trade.get("sid", 0) or 0) in skip_sids:
+            rows.append({"idx": idx, "tf": tf_name, "trade": trade, "eligible": False})
+            continue
+        trade.setdefault("tf", tf_name)
+        rows.append({"idx": idx, "tf": tf_name, "trade": trade, "eligible": bool(close_time)})
+
+    changed = 0
+    progress("Applying system-level Limit Guard overlay across selected strategies...")
+    active_rows: list[dict] = []
+    for row in sorted([r for r in rows if r["eligible"]], key=lambda r: r["trade"]["entry_time"]):
+        trade = row["trade"]
+        side = str(trade.get("signal") or trade.get("side") or "").upper()
+        tf_name = str(trade.get("tf") or row["tf"] or "")
+        entry = float(trade.get("entry", 0.0) or 0.0)
+        entry_time = trade.get("entry_time")
+        blocked_reason = ""
+
+        for prior in active_rows:
+            old = prior["trade"]
+            if str(old.get("signal") or old.get("side") or "").upper() != side:
+                continue
+            if tf_separate and str(old.get("tf") or prior["tf"] or "") != tf_name:
+                continue
+            if not (old.get("entry_time") < entry_time < old.get("close_time")):
+                continue
+            pos_entry = float(old.get("entry", 0.0) or 0.0)
+            if side == "BUY" and entry > pos_entry and entry > pos_entry + guard_dist:
+                blocked_reason = (
+                    f"System Limit Guard [{tf_name}->{old.get('tf', '?')}]: BUY LIMIT {entry:.2f} > "
+                    f"BUY pos {pos_entry:.2f} & price {entry:.2f} > {pos_entry + guard_dist:.2f}"
+                )
+                break
+            if side == "SELL" and entry < pos_entry and entry < pos_entry - guard_dist:
+                blocked_reason = (
+                    f"System Limit Guard [{tf_name}->{old.get('tf', '?')}]: SELL LIMIT {entry:.2f} < "
+                    f"SELL pos {pos_entry:.2f} & price {entry:.2f} < {pos_entry - guard_dist:.2f}"
+                )
+                break
+
+        if blocked_reason:
+            trade["close_type"] = "CANCEL"
+            trade["close_price"] = None
+            trade["close_time"] = entry_time
+            trade["pnl"] = 0.0
+            trade["profit"] = 0.0
+            trade["reason"] = blocked_reason
+            trade["cancel_reason"] = blocked_reason
+            trade["system_limit_guard_overlay"] = True
+            changed += 1
+            continue
+
+        active_rows.append(row)
+
+    if changed:
+        progress(f"System Limit Guard overlay cancelled {changed} trade(s).")
+    else:
+        progress("System Limit Guard overlay made no additional cancels.")
+
+    result = [(row["tf"], row["trade"]) for row in sorted(rows, key=lambda r: r["idx"])]
+    if exclude_cancelled:
+        result = [
+            (tf_name, trade) for tf_name, trade in result
+            if not trade.get("system_limit_guard_overlay")
+        ]
+    return result
+
+
+def apply_system_same_bar_duplicate_overlay(
+    trades: list[tuple[str, dict]],
+    strategies: set[int],
+) -> list[tuple[str, dict]]:
+    target_sids = {4, 5, 8}
+    if not (set(strategies) & target_sids):
+        return trades
+
+    progress("Applying system-level same-bar duplicate overlay across selected strategies...")
+    seen: set[tuple] = set()
+    drop_ids: set[int] = set()
+    ordered = sorted(
+        enumerate(trades),
+        key=lambda item: (
+            item[1][1].get("entry_time") or item[1][1].get("detect_time") or datetime.max.replace(tzinfo=timezone.utc),
+            int(item[1][1].get("sid", 999) or 999),
+            item[0],
+        ),
+    )
+    for idx, (tf_name, trade) in ordered:
+        sid = int(trade.get("sid", 0) or 0)
+        if sid not in target_sids:
+            continue
+        side = str(trade.get("signal") or trade.get("side") or "").upper()
+        if side not in ("BUY", "SELL"):
+            continue
+        entry_time_raw = int(
+            trade.get("entry_time_raw")
+            or trade.get("detect_time_raw")
+            or 0
+        )
+        entry = round(float(trade.get("entry", 0.0) or 0.0), 2)
+        if not entry_time_raw or entry <= 0:
+            continue
+        key = (str(trade.get("tf") or tf_name or ""), sid, side, entry_time_raw, entry)
+        if key in seen:
+            trade["system_duplicate_overlay"] = True
+            trade["cancel_reason"] = "System same-bar duplicate setup overlay"
+            drop_ids.add(idx)
+            continue
+        seen.add(key)
+
+    if drop_ids:
+        progress(f"System same-bar duplicate overlay removed {len(drop_ids)} duplicate event(s).")
+    else:
+        progress("System same-bar duplicate overlay made no removals.")
+    return [row for idx, row in enumerate(trades) if idx not in drop_ids]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Backtest auto-trade flow using bot_state/config where implemented.")
     parser.add_argument("--start", required=True, help="Bangkok start time, e.g. 2026-06-01 00:00")
@@ -2467,6 +3053,7 @@ def main() -> None:
         sim_s3_backtest.SINCE = since_utc
         sim_s4_backtest.SINCE = since_utc
         sim_s5_backtest.SINCE = since_utc
+        sim_s458_backtest.SINCE = since_utc
         sim_s8_backtest.SINCE = since_utc
         sim_s9_backtest.SINCE = since_utc
         sim_s10_backtest.SINCE = since_utc
@@ -2476,6 +3063,9 @@ def main() -> None:
         sim_s14_backtest.SINCE = since_utc
         sim_s15_backtest.SINCE = since_utc
         sim_s16_backtest.SINCE = since_utc
+        sim_s17_backtest.SINCE = since_utc
+        sim_s18_backtest.SINCE = since_utc
+        sim_s19_backtest.SINCE = since_utc
 
     progress("Initializing MT5...")
     if not mt5.initialize():
@@ -2491,6 +3081,7 @@ def main() -> None:
     sim_s3_backtest.SYMBOL = selected_symbol
     sim_s4_backtest.SYMBOL = selected_symbol
     sim_s5_backtest.SYMBOL = selected_symbol
+    sim_s458_backtest.SYMBOL = selected_symbol
     sim_s8_backtest.SYMBOL = selected_symbol
     sim_s9_backtest.SYMBOL = selected_symbol
     sim_s10_backtest.SYMBOL = selected_symbol
@@ -2500,6 +3091,9 @@ def main() -> None:
     sim_s14_backtest.SYMBOL = selected_symbol
     sim_s15_backtest.SYMBOL = selected_symbol
     sim_s16_backtest.SYMBOL = selected_symbol
+    sim_s17_backtest.SYMBOL = selected_symbol
+    sim_s18_backtest.SYMBOL = selected_symbol
+    sim_s19_backtest.SYMBOL = selected_symbol
     sync_strategy10_runtime_config()
 
     strategies = parse_strategy_list(args.strategies)
@@ -2538,36 +3132,51 @@ def main() -> None:
         print_s15_coverage()
     if 16 in strategies:
         print_s16_coverage()
+    if 17 in strategies:
+        print_s17_coverage()
+    if 18 in strategies:
+        print_s18_coverage()
+    if 19 in strategies:
+        print_s19_coverage()
     if unsupported:
         print(f"\nNot implemented in this replay engine yet: {unsupported}")
     print("=" * 72)
 
     all_trades = []
-    if 1 in strategies:
+    strategy_set = set(strategies)
+    unified_s458 = len(strategy_set) > 1 and strategy_set.issubset({1, 2, 3, 4, 5, 8})
+
+    if unified_s458:
+        for sid in sorted(strategy_set):
+            if not config.active_strategies.get(sid, False):
+                progress(f"S{sid} selected but OFF in restored config; replay still runs for requested strategy audit.")
+        all_trades.extend(run_s458_unified(args, window_start_utc, window_end_utc, strategy_set))
+
+    if not unified_s458 and 1 in strategies:
         if not config.active_strategies.get(1, False):
             progress("S1 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s1(args, window_start_utc, window_end_utc))
-    if 2 in strategies:
+    if not unified_s458 and 2 in strategies:
         if not config.active_strategies.get(2, False):
             progress("S2 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s2(args, window_start_utc, window_end_utc))
-    if 3 in strategies:
+    if not unified_s458 and 3 in strategies:
         if not config.active_strategies.get(3, False):
             progress("S3 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s3(args, window_start_utc, window_end_utc))
-    if 4 in strategies:
+    if not unified_s458 and 4 in strategies:
         if not config.active_strategies.get(4, False):
             progress("S4 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s4(args, window_start_utc, window_end_utc))
-    if 5 in strategies:
+    if not unified_s458 and 5 in strategies:
         if not config.active_strategies.get(5, False):
             progress("S5 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s5(args, window_start_utc, window_end_utc))
-    if 8 in strategies:
+    if not unified_s458 and 8 in strategies:
         if not config.active_strategies.get(8, False):
             progress("S8 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s8(args, window_start_utc, window_end_utc))
-    if 9 in strategies:
+    if not unified_s458 and 9 in strategies:
         if not config.active_strategies.get(9, False):
             progress("S9 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s9(args, window_start_utc, window_end_utc))
@@ -2599,6 +3208,33 @@ def main() -> None:
         if not config.active_strategies.get(16, False):
             progress("S16 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s16(args, window_start_utc, window_end_utc))
+    if 17 in strategies:
+        if not config.active_strategies.get(17, False):
+            progress("S17 selected but OFF in restored config; replay still runs for requested strategy audit.")
+        all_trades.extend(run_s17(args, window_start_utc, window_end_utc))
+    if 18 in strategies:
+        if not config.active_strategies.get(18, False):
+            progress("S18 selected but OFF in restored config; replay still runs for requested strategy audit.")
+        all_trades.extend(run_s18(args, window_start_utc, window_end_utc))
+    if 19 in strategies:
+        if not config.active_strategies.get(19, False):
+            progress("S19 selected but OFF in restored config; replay still runs for requested strategy audit.")
+        all_trades.extend(run_s19(args, window_start_utc, window_end_utc))
+
+    all_trades = apply_system_limit_guard_overlay(all_trades, set(strategies), exclude_cancelled=args.exclude_cancelled)
+    all_trades = apply_system_same_bar_duplicate_overlay(all_trades, set(strategies))
+    all_trades = apply_system_opposite_order_overlay(all_trades, set(strategies))
+    all_trades = apply_system_sl_guard_group_overlay(all_trades, set(strategies))
+    all_trades = sorted(
+        all_trades,
+        key=lambda row: (
+            row[1].get("entry_time") or datetime.max.replace(tzinfo=timezone.utc),
+            row[0],
+            int(row[1].get("sid", 0) or 0),
+            str(row[1].get("signal", "")),
+            float(row[1].get("entry", 0.0) or 0.0),
+        ),
+    )
 
     groups = defaultdict(list)
     for htf, trade in all_trades:

@@ -44,7 +44,7 @@
 ### การรัน Auto Trade Backtest + เทียบ Order จริง
 *   **ไฟล์สคริปต์:** `backtest_auto_trade.py`
 *   **ใช้ทำอะไร:** backtest ระบบ auto trade ตาม `bot_state.json`/config จริงเท่าที่ engine รองรับ และสามารถเทียบผลกับ order จริงจาก log หรือ MT5 history ได้
-*   **Strategy ที่รองรับใน engine กลางตอนนี้:** S1, S2, S3, S4, S5, S8, S9, S10, S11, S12, S13, S14, S15 และ S16
+*   **Strategy ที่รองรับใน engine กลางตอนนี้:** S1, S2, S3, S4, S5, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18 และ S19
 *   **หมายเหตุ S6/S6i:** S6 (`6`) และ S6i (`7`) ไม่ใช่ standalone order strategy ใน runtime ปัจจุบัน แต่เป็น lifecycle/trailing state ผ่าน `check_s6_trail()` จึงยังไม่มีคำสั่ง `--strategies 6` หรือ `--strategies 7` แยก ต้องรวมเป็น overlay ของ S2/S3/position lifecycle ใน step ถัดไป
 *   **ตัวอย่างรัน S1 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
@@ -105,13 +105,27 @@
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --tf M1 --strategies 16 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
-*   **ตัวอย่างรัน S17 Sweep Sniper backtest (standalone sim — เรียก `detect_s17()` ตรง):**
+*   **ตัวอย่างรัน S17 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+    ```bash
+    python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 17 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
+    ```
+*   **ตัวอย่างรัน S17 Sweep Sniper standalone sim สำหรับจูนพารามิเตอร์ — เรียก `detect_s17()` ตรง:**
     ```bash
     python sim_s17_backtest.py --days 60 --tf M1 --csv
     python sim_s17_backtest.py --days 30 --tf M1,M5 --sweep4   # จูน entry mode/TP/SLbuf/RSI
     ```
     *   `--mode/--tp/--slb/--rsib/--rsis/--wick` override config รายตัวได้, `--spread` ปรับ spread ต่อไม้ (default $0.20)
     *   CSV ออกที่ `excel_reports/backtest_compare/s17/`
+*   **ตัวอย่างรัน S18 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+    ```bash
+    python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 18 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
+    python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M5 --strategies 18 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
+    ```
+*   **ตัวอย่างรัน S19 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+    ```bash
+    python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 19 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
+    python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M5 --strategies 19 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
+    ```
 *   **ตัวอย่างรัน S10 และ S14 พร้อมกัน:**
     ```bash
     python backtest_auto_trade.py --start "2026-06-05 08:00" --end "2026-06-05 10:00" --strategies 10,14 --exclude-cancelled --symbol XAUUSD.iux --compare-csv --compare-xlsx
@@ -125,7 +139,7 @@
     *   `--start` (required): เวลาเริ่มต้นของช่วง backtest ในรูปแบบ Bangkok UTC+7 เช่น `"2026-06-05 08:00"`
     *   `--end` (required): เวลาสิ้นสุดของช่วง backtest ในรูปแบบ Bangkok UTC+7 เช่น `"2026-06-05 10:00"`
     *   `--tf` (optional): timeframe ที่ต้องการทดสอบ เช่น `H1`; สำหรับ S10 ถ้าใส่ HTF เช่น `H1` ระบบจะ map ไป replay LTF ที่เกี่ยวข้อง เช่น `H1 -> M1`; สำหรับ S14 ต้องเป็น TF ที่ `sim_s14_backtest.TF_MAP` รองรับ เช่น `M1`, `M5`, `M15`, `M30`, `H1`, `H4`, `D1`
-    *   `--strategies` (optional): strategy ที่ต้องการทดสอบ เช่น `10`, `14`, `10,14`, `all`, หรือ `active` ค่า default คือ `active`; ตอนนี้ engine กลางรันจริงได้เฉพาะ S10/S14 ถ้าเลือกท่าอื่นจะแจ้ง `Not implemented in this replay engine yet`
+    *   `--strategies` (optional): strategy ที่ต้องการทดสอบ เช่น `10`, `14`, `10,14`, `17`, `18`, `19`, `all`, หรือ `active` ค่า default คือ `active`; ถ้าเลือก strategy ที่ยังไม่ได้ต่อเข้า engine กลางจะแจ้ง `Not implemented in this replay engine yet`
     *   `--symbol` (optional): symbol ที่ต้องการทดสอบ เช่น `XAUUSD.iux`; ถ้าไม่ใส่ จะใช้ symbol จาก `bot_state.json` แล้ว fallback เป็น `config.SYMBOL`
     *   `--since` (optional): เวลาเริ่มโหลด/จำลองข้อมูลย้อนหลังในรูปแบบ Bangkok UTC+7 ใช้เมื่ออยากให้ engine เริ่ม replay ก่อน `--start` นานขึ้น
     *   `--exclude-cancelled` / `--only-filled` (optional): ซ่อน event ที่ยังไม่ fill หรือถูก cancel ก่อน fill เช่น `CANCEL`, `OPEN_PENDING`, `BLOCK`
@@ -142,6 +156,7 @@
     *   `--mt5-close-search-days` (optional): จำนวนวันหลัง `--end` ที่ใช้ค้นหา deal ปิด position จาก MT5 history default `14`
 *   **TF filter ตอน compare:** ถ้าระบุ `--tf` สคริปต์จะกรอง live rows จาก log/MT5 history ให้ตรง TF ก่อนเทียบ เช่น `--tf M15 --strategies 14` จะไม่นำ `M1_S14` หรือ `M5_S14` มาเป็น live-only; สำหรับ S10 ถ้าระบุ HTF เช่น `H1` จะใช้ comment/meta ที่เป็น `H1 -> M1`
     *   S10 exact HTF filter: `--tf H1 --strategies 10` จะรับเฉพาะ live comment/meta ที่เป็น `[H1_M1]_S10...` ไม่รวม `[M15_M1]_S10...` หรือ `[M30_M1]_S10...` แม้ LTF จะเป็น `M1` เหมือนกัน
+*   **S1-S5/S8 range-based replay:** S1, S2, S3, S4, S5, S8 เดี่ยว และ runner กลาง S1-S5/S8 ใช้ range-based MT5 fetch เพื่อดึงข้อมูลย้อนหลังให้ถึง window จริง; ถ้าเลือกหลาย strategy ในกลุ่ม `1,2,3,4,5,8` เช่น `--tf M15 --strategies 1,2,3,4,5` หรือ `--strategies 4,5,8` สคริปต์จะใช้ runner กลางที่ process pending/open state ร่วมกันทีละแท่งแล้ว filter report กลับมาเฉพาะ TF ที่ระบุ; S8/unified ที่มี S8 จะดึง TF ต่ำอย่าง `M1/M5` เพื่อ apply SL Guard Group context ด้วย ถ้า context TF ไม่มี history overlap จะ skip พร้อม log เช่น `Skipping unified S4/S5/S8 context TF M1...`
 *   **S14 context replay:** ถ้า `SL_GUARD_GROUP_ENABLED=True` และรัน S14 แบบระบุ `--tf` สคริปต์จะ replay TF ใน SL Guard Group เดียวกันเป็น context ด้วย เช่น `--tf M15` จะ include `M1`, `M5`, `M15`, `M30`, `H1` เพื่อให้ lifecycle ข้าม TF ใกล้ auto trade จริงขึ้น แต่ report/compare output จะยัง filter กลับมาเฉพาะ TF ที่ระบุ
 *   **S14 de-duplicate:** `strategy14.py` จะตัด order ซ้ำใน scan เดียวกันเมื่อ `signal + order_mode + entry + tp` เหมือนกัน เพื่อกัน S14 market order ซ้ำจาก engulf/ref หลายชุดที่ให้ entry/TP เดียวกัน
 *   **Nearest columns:** สำหรับ row ที่เป็น `LIVE_ONLY` จะมี `nearest_bt_*` เพื่อดู backtest order ฝั่งเดียวกันที่ใกล้ที่สุด; สำหรับ `BACKTEST_ONLY` จะมี `nearest_live_*` เพื่อดู live order ฝั่งเดียวกันที่ใกล้ที่สุด ช่วยไล่ว่า gap เกิดจากเวลาเกิน tolerance หรือ entry ต่างกันมาก
@@ -150,6 +165,11 @@
 *   **Close timestamp/price columns:** compare report มี `live_close_ts`, `live_close_price`, `bt_close_ts`, `bt_close_price`, `close_price_diff` เพื่อดูว่า order เปิดตรงกันแต่ปิดคนละเวลา/คนละราคา/คนละ lifecycle หรือไม่
 *   **Trail diagnostics columns:** report จะอ่าน `SL_CHANGED` จาก log แล้วเติม `live_trail_count`, `live_last_trail_ts`, `live_last_trail_sl`, `live_last_trail_source`, `live_trail_path`, `live_close_vs_trail_sl_diff`; ฝั่ง replay มี `bt_trail_count`, `bt_last_trail_ts`, `bt_last_trail_sl`, `bt_last_trail_source`, `bt_trail_path` เพื่อเทียบว่า P/L ต่างเพราะ trail SL ตาม live ไม่ทันหรือไม่ โดย `*_trail_path` จะแสดงลำดับ trail ล่าสุด เช่น `05-29 13:35 M1 4520.30 -> ...`
 *   **SL Guard diagnostics columns:** report จะอ่าน `SL_GUARD_GROUP_ACTIVATE`, `POSITION_CLOSE_REQUEST`, `SL_GUARD_CLOSE` จาก log แล้วเติม `live_sl_guard_*` เช่น activation time, group, trigger TF, trigger candidates, request price/spread; `live_sl_guard_trigger_candidates` คือ SL-hit tickets ใกล้ activation ที่อยู่ใน group เดียวกัน ช่วยชี้ว่า BT ขาด context strategy ไหน; ฝั่ง replay มี `bt_sl_guard_group`, `bt_sl_guard_trigger_tf` เมื่อ order ถูก overlay ปิดด้วย SL Guard Group จริง
+*   **System SL Guard Group overlay:** ถ้ารันหลาย strategy พร้อมกัน เช่น `--strategies 4,5,8` หรือ `--strategies all` สคริปต์จะ apply SL Guard Group close-on-activate หลังรวบ trade ทุกท่าที่เลือก เพื่อจำลองการปิด position ข้าม strategy ในระบบจริง; ถ้ารัน strategy เดี่ยว overlay นี้จะไม่เปลี่ยนผล
+*   **System Opposite Order overlay:** ถ้ารันหลาย strategy พร้อมกันและเปิด `OPPOSITE_ORDER_ENABLED` สคริปต์จะ apply Opposite Order หลัง merge ทุก strategy; mode `sl_protect` จะปรับ SL protect baseline ของ position ที่เปิดซ้อนข้าม strategy/TF เดียวกัน ส่วน mode `tp_close` จะปิดตัวเก่าที่โดน order ฝั่งตรงข้ามตาม baseline
+*   **System Limit Guard overlay:** ถ้ารันหลาย strategy พร้อมกันและเปิด `LIMIT_GUARD` สคริปต์จะ apply Limit Guard หลัง merge ก่อน Opposite/SL Guard overlays; ถ้า filled row ใดควรถูก pending guard จาก position ของ strategy อื่นบล็อกก่อน fill จะถูก mark เป็น cancel และถูกตัดออกเมื่อใช้ `--exclude-cancelled`
+*   **PD close type ใน replay:** `PD_FAIL` หมายถึง pending/pre-create cancel และจะถูกตัดออกเมื่อใช้ `--exclude-cancelled`; `PD_FILL_FAIL` หมายถึง position fill แล้วโดน PD Fibo Plus ปิด จึงถือเป็น filled trade มี PnL และยังอยู่ใน compare เหมือน order จริงใน MT5 history
+*   **S4 historical PD drift:** PD pre-create block สำหรับ S4/S1/S2/S3/S11 ถูกย้ายมาอยู่ก่อน `PATTERN_FOUND` ใน `scanner.py` commit `d867a202` วันที่ `2026-06-12 23:59 +0700`; ถ้าเทียบ MT5 history ก่อนเวลานี้ order เก่าอาจมี live fill แต่ replay ด้วย config ปัจจุบันจะ block ตั้งแต่ pre-create เป็น expected drift
 *   **MT5 history time:** เวลา deal/order จาก MT5 history แปลงด้วย `config.mt5_ts_to_bkk()` ให้ตรงกับ bot log และ replay engine ห้ามใช้ `datetime.fromtimestamp(..., tz=BKK)` ตรง ๆ เพราะจะคลาดกับ server offset ได้
 *   **Parameters สำหรับไฟล์รายงาน:**
     *   `--compare-csv` (optional): สร้าง CSV report ถ้าไม่ใส่ path จะใช้ชื่อ auto ใน folder strategy เช่น `excel_reports/backtest_compare/s14/`; ถ้าใส่แค่ชื่อไฟล์ เช่น `my_compare.csv` ก็จะไปอยู่ใน folder strategy เช่นกัน; ถ้าใส่ path เต็ม สคริปต์จะใช้ path นั้น และจะสร้างไฟล์ `*_summary.csv` คู่กันเพื่อสรุป `gap_reason` / reason / PnL ตามกลุ่ม รวมถึง `mismatch_gap` เช่น `TRAIL_SL_DIFF_SOURCE`, `CLOSE_LIFECYCLE_SL_GUARD`, `LIVE_CLOSE_TREND_RECHECK` และ `trail_source_gap` เช่น `M1 -> M5`
@@ -163,17 +183,22 @@
 *   **S14 family diagnostic:** `--prefer-same-s14-family` จะให้ matcher prefer S14 family เดียวกันก่อน (`BUY_SWEEP`, `BUY_ENGULF`, `SELL_SWEEP`, `SELL_ENGULF`) ใช้สำหรับไล่ subtype drift เท่านั้น; ถ้าใช้ชื่อไฟล์อัตโนมัติ report จะลงท้าย `_s14_family`; baseline ปกติไม่ควรเปิดทันที เพราะข้อมูลเก่าบางช่วง label family กับ replay drift แต่เวลา/entry ยังเป็นคู่เทียบที่มีประโยชน์
 *   **Compare summary เพิ่มเติม:** ไฟล์ `*_summary.csv` จะสรุปทั้ง `gap_reason`, `trail_source_gap`, `live_entry_comment` / `mismatch_entry_comment`, `live_s14_family` / `bt_s14_family` / `mismatch_s14_family`, และ `s14_family_mismatch` เพื่อช่วยดูว่ากลุ่ม gap กระจุกอยู่ที่ S14 family ไหน เช่น `BUY_SWEEP`, `BUY_ENGULF`, `SELL_SWEEP`, `SELL_ENGULF` แม้ comment คนละยุค (`M15_S14_BE`, `M15_S14_BS`, `M15_S14_BSSH4`)
 *   **Progress log:** ระหว่างรันสคริปต์จะพิมพ์เวลา elapsed เช่น `[00:47] Running S10 replay on M1...` หรือ `[00:12] Running S14 replay on M15...` เพื่อให้รู้ว่ายังทำงานอยู่ ไม่ได้ค้าง
-*   **S1 baseline replay:** S1 replay ใช้ `strategy1.strategy_1()` จริง, จำลอง pending limit fill, `cancel_bars`, fixed SL/TP และเก็บ `s1_zone_meta`; gap ที่ยังเหลือคือ S1 forward confirm, zone post-check, PD Fibo Plus, Trend/RSI recheck, Trail SL, Opposite และ Limit Guard lifecycle
-*   **S2 baseline replay:** S2 replay ใช้ `strategy2.strategy_2()` จริง, จำลอง normal confirm lookback, swing fallback, pending limit fill, `cancel_bars`, fixed SL/TP; gap ที่ยังเหลือคือ FVG parallel intersection ข้าม TF, PD Fibo Plus entry adjust, Trend/RSI recheck, Limit TP/SL Break Cancel, Trail SL, Opposite และ Limit Guard lifecycle
-*   **S3 baseline replay:** S3 replay ใช้ `strategy3.strategy_3()` จริง, จำลอง normal confirm lookback, swing fallback, Marubozu/No Engulf pending ยืนยันแท่งถัดไป, pending limit fill และ fixed SL/TP; gap ที่ยังเหลือคือ PD Fibo Plus, Trend/RSI recheck, sweep/trend scan block, adjacent same-sid block, Trail SL, Opposite และ Limit Guard lifecycle
-*   **S4 baseline replay:** S4 replay ใช้ `strategy4.strategy_4()` จริง, จำลอง significant FVG swing helper, pending limit fill และ fixed SL/TP; gap ที่ยังเหลือคือ PD Fibo Plus, Trend/RSI recheck, Trail SL, Opposite และ Limit Guard lifecycle
+*   **S1 baseline replay:** S1 replay ใช้ range-based fetch + `strategy1.strategy_1()` จริง, จำลอง pending limit fill, `cancel_bars`, fixed SL/TP, เก็บ `s1_zone_meta` และใช้ PD Fibo Plus pending/fill round1 gate; gap ที่ยังเหลือคือ S1 forward confirm, zone post-check, PD round2, Trend/RSI recheck, Trail SL, Opposite และ Limit Guard lifecycle
+*   **S2 baseline replay:** S2 replay ใช้ range-based fetch + `strategy2.strategy_2()` จริง, จำลอง normal confirm lookback, swing fallback, pending limit fill, `cancel_bars`, fixed SL/TP และใช้ PD Fibo Plus pending/fill round1 gate พร้อม S2 EQ/50% entry adjustment; gap ที่ยังเหลือคือ FVG parallel intersection ข้าม TF, PD round2, Trend/RSI recheck, Limit TP/SL Break Cancel, Trail SL, Opposite และ Limit Guard lifecycle
+*   **S3 baseline replay:** S3 replay ใช้ range-based fetch + `strategy3.strategy_3()` จริง, จำลอง normal confirm lookback, swing fallback, Marubozu/No Engulf pending ยืนยันแท่งถัดไป, pending limit fill, fixed SL/TP และใช้ PD Fibo Plus pending/fill round1 gate; gap ที่ยังเหลือคือ PD round2, Trend/RSI recheck, sweep/trend scan block, adjacent same-sid block, Trail SL, Opposite และ Limit Guard lifecycle
+*   **S4 baseline replay:** S4 replay ใช้ range-based fetch + `strategy4.strategy_4(..., tf=tf_name)` จริงพร้อม inject historical HHLL cache ต่อแท่งให้ detect swing เหมือน live scanner, จำลอง pending limit fill, fixed SL/TP, PD Fibo Plus pending/fill round1+round2 gate, Pending Trend Check/Fill Trend Recheck round1+round2, RSI Fill Recheck mode1/mode2/mode3 เมื่อเปิด config, Limit Guard, Opposite Order, engulf/reversal/Focus/trend-override Trail SL baseline, SL Guard/Group retry/unblock baseline, Limit Sweep follow-up S8 เมื่อเปิด config และ system-level Limit Guard/same-bar duplicate/Opposite/SL Guard Group overlays เมื่อรันหลาย strategy; gap ที่ยังเหลือคือ full shared pending/open state และ TF ที่มี live S4 rows
+*   **S5 baseline replay:** S5 replay ใช้ range-based fetch + `strategy5.strategy_5()` จริงพร้อมส่ง historical signal time และ inject historical HHLL cache สำหรับ no-trade-hour/zone filters, จำลอง pending limit fill, fixed SL/TP, PD Fibo Plus pending/fill round1+round2 gate, Pending Trend Check/Fill Trend Recheck round1+round2, RSI Fill Recheck mode1/mode2/mode3 เมื่อเปิด config, Limit Guard, Opposite Order, engulf/reversal/Focus/trend-override Trail SL baseline, SL Guard/Group retry/unblock baseline, Limit Sweep follow-up S8 เมื่อเปิด config และ system-level Limit Guard/same-bar duplicate/Opposite/SL Guard Group overlays เมื่อรันหลาย strategy; gap ที่ยังเหลือคือ full shared pending/open state และ TF ที่มี live S5 rows
+*   **S8 baseline replay:** S8 replay ใช้ `strategy8.strategy_8(..., tf=tf_name)` จริงพร้อม inject historical HHLL cache, จำลอง dual-side pending, delayed SL baseline, swing-change cancel, PD Fibo Plus pending/fill round1+round2 gate, Pending Trend Check/Fill Trend Recheck round1+round2, RSI Fill Recheck mode1/mode2/mode3 เมื่อเปิด config, Limit Guard, Opposite Order, same-bar duplicate setup overlay, engulf/reversal/Focus/trend-override Trail SL baseline, SL Guard/Group retry/unblock baseline, Limit Sweep follow-up S8 เมื่อเปิด config, S8 runner-level group context overlay และ system-level Limit Guard/same-bar duplicate/Opposite/SL Guard Group overlays เมื่อรันหลาย strategy; gap ที่ยังเหลือคือ full shared cross-TF/cross-strategy pending/open state
 *   **S9 baseline replay:** S9 replay ใช้ `strategy9.strategy_9()` จริง, จำลอง RSI divergence setup, pivot `setup_sig` dedup, passed-entry invalidation, pending limit fill และ fixed SL/TP; runtime skip PD/Trend/RSI recheck สำหรับ S9 แล้ว gap ที่ยังเหลือคือ Trail SL, Opposite และ Limit Guard lifecycle
-*   **S11 baseline replay:** S11 replay ใช้ `strategy1.strategy_1()` เพื่อ hook S1 anchor แล้วเรียก `strategy11.strategy_11()` จริง, ใช้ rolling `TF_LOOKBACK + 6` เหมือน scanner แทน full-history slice เพื่อกัน timeout, จำลอง pending limit fill และ fixed SL/TP; gap ที่ยังเหลือคือ PD Fibo Plus, duplicate/adjacent guards, S1 linked cleanup, Trail SL, Opposite และ Limit Guard lifecycle
+*   **S11 baseline replay:** S11 replay ใช้ `strategy1.strategy_1()` เพื่อ hook S1 anchor แล้วเรียก `strategy11.strategy_11()` จริง, ใช้ rolling `TF_LOOKBACK + 6` เหมือน scanner แทน full-history slice เพื่อกัน timeout, จำลอง pending limit fill, fixed SL/TP และใช้ PD Fibo Plus pending/fill round1 gate; gap ที่ยังเหลือคือ PD round2, duplicate/adjacent guards, S1 linked cleanup, Trail SL, Opposite และ Limit Guard lifecycle
 *   **S12 baseline replay:** S12 replay ใช้ `strategy12` zone helper จริงบน M5, จำลอง market entry ด้วยราคา close ของ M5, order count/side state, momentum block, TP จาก M15, breakout/flip close-all; gap ที่ยังเหลือคือ bid/ask tick fidelity และ SL cooldown หลังโดน SL
 *   **S13 baseline replay:** S13 replay ใช้ `strategy13.strategy_13()` จริง, จำลอง split TP เป็น market rows, close ฝั่งตรงข้ามเมื่อมี opposite signal และ skip PD/Trail/Opposite Order ตาม runtime; gap ที่ยังเหลือคือ Fill Trend Recheck และ market-vs-limit split จาก tick จริง
 *   **S15 baseline replay:** S15 replay ใช้ `strategy15.strategy_15()` จริง, ปิด global cooldown แบบ wall-time เฉพาะใน replay แล้วใช้ level cooldown ตาม bar time, จำลอง pending limit fill + fixed SL/TP และ skip PD/Trend/RSI/Trail/Opposite/Limit Guard ตาม runtime
 *   **S16 baseline replay:** S16 replay จำลองเวลา BKK และ Asian range จากข้อมูลย้อนหลังเอง ไม่ใช้ `config.now_bkk()` ของ runtime, จำลอง AMD x iFVG pending limit fill + fixed SL/TP และ skip PD/Trend/Trail/Opposite ตาม runtime
-*   **หมายเหตุ:** ตอนนี้ engine กลางรองรับ replay จริงเฉพาะ S1/S2/S3/S4/S9/S10/S11/S12/S13/S14/S15/S16 ก่อน ถ้าเลือก strategy อื่น สคริปต์จะแจ้งว่า `Not implemented in this replay engine yet`
+*   **S17 baseline replay:** S17 replay ใช้ `strategy17.detect_s17()` จริงพร้อมเวลา BKK ย้อนหลัง, จำลอง Sweep Sniper limit fill/cancel, fixed SL/TP, optional time stop และ skip PD/Trend/RSI/Trail/Opposite/Limit Guard ตาม runtime standalone
+*   **S18 baseline replay:** S18 replay ใช้ `strategy18.detect_s18()` จริงพร้อม HTF bias slice ย้อนหลัง, จำลอง TJR/ICT limit fill/cancel และ fixed SL/TP; gap หลักคือ SL Guard/SL Guard Group overlay
+*   **S19 baseline replay:** S19 replay ใช้ `strategy19.detect_s19()` จริงพร้อมเวลา BKK ย้อนหลัง, จำลอง Silver Bullet/PO3/Breaker-BPR-FVG/NDOG limit fill/cancel และ fixed SL/TP; gap หลักคือ SL Guard/SL Guard Group overlay
+*   **หมายเหตุ:** ตอนนี้ engine กลางรองรับ replay จริงเฉพาะ S1/S2/S3/S4/S5/S8/S9/S10/S11/S12/S13/S14/S15/S16/S17/S18/S19 ก่อน ถ้าเลือก strategy อื่น สคริปต์จะแจ้งว่า `Not implemented in this replay engine yet`
 
 ---
 
@@ -313,3 +338,34 @@ python -c "import MetaTrader5 as mt5, config; mt5.initialize(); rates = mt5.copy
     ```bash
     python verify_repo.py
     ```
+
+### การรัน Backtest แบบครบทุก Strategy (OLD vs NEW)
+ถ้าต้องการรัน Backtest แบบสมบูรณ์เพื่อเปรียบเทียบผลลัพธ์ระหว่าง OLD (อิงจาก Log MT5 ของจริง) กับ NEW (อิงจากโค้ดใหม่) สามารถใช้คำสั่งนี้:
+
+```bash
+python backtest_auto_trade.py --start "YYYY-MM-DD HH:MM" --end "YYYY-MM-DD HH:MM" --strategies all --compare-live --compare-xlsx <ชื่อไฟล์>
+```
+- `--strategies all` : รันตั้งแต่ S1 ถึง S19
+- `--compare-live` : เอาผลจากโค้ดใหม่ไปเทียบกับ History Order ที่เทรดจริง
+- `--compare-xlsx` : ส่งออกผลลัพธ์เป็นไฟล์ Excel ที่โฟลเดอร์ `excel_reports/backtest_compare/` (แบ่ง Sheet แบบ Summary, All Compare, Matches, Mismatches)
+
+### สร้างไฟล์ Compare ทุก Strategy จาก Log จริง (OLD vs NEW swing dir check)
+สร้างไฟล์ Excel เปรียบเทียบผลจริง (OLD) กับผลที่จะเกิดถ้าเพิ่ม swing direction check (NEW)
+แยก sheet ตามแต่ละท่า + sheet `All_Compare` รวมทุกท่า + sheet `Summary` สรุปสถิติ
+(โครงสร้างเหมือน `s14_compare_old_new` / `compare_all_jun10_12`)
+
+```bash
+# วันที่ 15 ถึงปัจจุบัน
+python make_strategy_compare.py --start 2026-06-15
+
+# กำหนดช่วงเอง
+python make_strategy_compare.py --start 2026-06-10 --end 2026-06-12
+
+# กำหนดชื่อไฟล์ output เอง
+python make_strategy_compare.py --start 2026-06-15 --out excel_reports/my_report.xlsx
+```
+- `--start` (บังคับ) : วันเริ่ม `YYYY-MM-DD`
+- `--end`   : วันสิ้นสุด (default = วันนี้)
+- `--out`   : path output (default = `excel_reports/compare_all_<start>_<end>.xlsx`)
+- `--logs`  : glob pattern ของ log เอง (default = auto-glob `logs/old_logs/bot-*.log*` รวมไฟล์ rotate `.bak`)
+- ⚠️ ดึงจาก `logs/` — ข้อมูลย้อนหลังจำกัดตามที่ log ยัง retain อยู่ (log rotate แล้วข้อมูลเก่าจะหาย)

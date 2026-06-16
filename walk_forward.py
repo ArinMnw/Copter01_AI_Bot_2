@@ -11,22 +11,28 @@ OPTIMIZED_PARAMS_FILE = "optimized_params.json"
 def run_optimization():
     print("Starting Walk-Forward Optimization...")
     
-    # ── Auto-Retrain ML Model ──
-    print("\n[1/2] Auto-Retraining ML Model from MT5 History...")
+    # ── 1. Auto-Retrain ML Model ──
+    # อ่านจาก MT5 History ย้อนหลัง 30 วันตายตัว
+    print("\n[1/2] Auto-Retraining ML Model from MT5 History (Fixed 30 Days)...")
     try:
         import ml_scoring
         ml_scoring.train_from_mt5_history(days=30)
     except ImportError:
         print("ml_scoring.py not found or not configured.")
         
-    print("\n[2/2] Running Parameter Optimization...")
-    # Define parameter grid
+    # ── 2. Walk-Forward Parameter Optimization ──
+    # ใช้ OHLC ย้อนหลัง 30 วันตายตัว
+    now = datetime.now()
+    start_dt = now - __import__('datetime').timedelta(days=30)
+    start_str = start_dt.strftime("%Y-%m-%d %H:%M")
+    end_str = now.strftime("%Y-%m-%d %H:%M")
+
+    print(f"\n[2/2] Running Parameter Optimization ({start_str} to {end_str})...")
+    
     # Define parameter grid
     param_grid = {
-        "SL_ATR_MULT": [1, 2, 3],
-        "S1_ZONE_MODE": ["normal", "zone", "swing"],
-        "NEWS_FILTER_ENABLED": [True, False],
-        "ML_PROB_THRESHOLD": [0.40, 0.45, 0.50]
+        "SL_ATR_MULT": [1, 2],
+        "ML_PROB_THRESHOLD": [0.45, 0.50]
     }
     
     keys, values = zip(*param_grid.items())
@@ -37,27 +43,53 @@ def run_optimization():
     
     print(f"Testing {len(combinations)} parameter combinations...")
     
+    import subprocess
+    import re
+    
     for i, params in enumerate(combinations):
-        # In a real scenario, you would pass these params to your backtest module:
-        # result = sim_s1_backtest.run_backtest(params)
-        # For demonstration, we simulate a profit result based on random/mock logic
+        # 1. Temporarily write params to let config.py pick it up
+        with open(OPTIMIZED_PARAMS_FILE, "w", encoding="utf-8") as f:
+            json.dump(params, f, indent=4)
+            
+        # 2. Run backtest engine (Using S14 for speed in optimization, or 'all')
+        print(f"[{i+1}/{len(combinations)}] Testing {params}... ", end="", flush=True)
         
-        # Mock logic: "swing" is usually better, smaller SL might hit often but we'll mock it
-        mock_profit = 1000 
-        if params["S1_ZONE_MODE"] == "swing": mock_profit += 500
-        if params["SL_ATR_MULT"] == 2: mock_profit += 200
-        if params["NEWS_FILTER_ENABLED"]: mock_profit += 300
+        cmd = [
+            "python", "backtest_auto_trade.py",
+            "--start", start_str,
+            "--end", end_str,
+            "--strategies", "14"  # Defaulting to 14 for reasonable optimization time
+        ]
         
-        # print(f"[{i+1}/{len(combinations)}] Tested {params} -> Profit: ${mock_profit:.2f}")
-        
-        if mock_profit > best_profit:
-            best_profit = mock_profit
-            best_params = params
+        try:
+            # We set PYTHONIOENCODING just in case
+            env = os.environ.copy()
+            env["PYTHONIOENCODING"] = "utf-8"
+            
+            proc = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            
+            # Parse output for "GRAND TOTAL: X USD"
+            match = re.search(r"GRAND TOTAL:\s*([-\d\.]+)\s*USD", proc.stdout)
+            if match:
+                profit = float(match.group(1))
+            else:
+                profit = -float('inf')
+                
+            print(f"Profit: ${profit:.2f}")
+            
+            if profit > best_profit:
+                best_profit = profit
+                best_params = params
+        except Exception as e:
+            print(f"Error: {e}")
             
     print("\nOptimization Complete!")
     print(f"Best Profit: ${best_profit:.2f}")
-    print(f"Best Parameters: {best_params}")
-    
+    if best_params:
+        print(f"Best Parameters: {best_params}")
+    else:
+        best_params = combinations[0]
+        
     best_params["last_optimized"] = datetime.now().isoformat()
     
     with open(OPTIMIZED_PARAMS_FILE, "w", encoding="utf-8") as f:

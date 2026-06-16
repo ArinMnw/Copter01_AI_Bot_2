@@ -109,6 +109,19 @@ def load_bot_state():
             return json.load(f)
     return {}
 
+@st.cache_data(ttl=60)
+def load_news_status():
+    import news_filter
+    import asyncio
+    
+    # Try to safely get upcoming news and embargo status without running the async loop
+    try:
+        is_active, reason = news_filter.is_news_embargo_active()
+        upcoming = news_filter.get_upcoming_news()
+        return is_active, reason, upcoming
+    except Exception:
+        return False, "", []
+
 @st.cache_data(ttl=300)
 def load_mt5_history(days=30):
     if not mt5.initialize():
@@ -131,9 +144,10 @@ def load_mt5_history(days=30):
 
 state = load_bot_state()
 df_history = load_mt5_history()
+news_active, news_reason, upcoming_news = load_news_status()
 
 # Layout
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     st.metric("Auto Trade Active", "✅ YES" if state.get("auto_active", False) else "❌ NO")
@@ -145,6 +159,18 @@ with col4:
     if not df_history.empty:
         total_profit = df_history['profit'].sum()
         st.metric("30-Day Profit", f"${total_profit:.2f}")
+with col5:
+    if news_active:
+        st.metric("News Filter", "⛔ PAUSED")
+    else:
+        st.metric("News Filter", "✅ CLEAR")
+
+if news_active:
+    st.error(f"**News Embargo is Active:** {news_reason}")
+elif len(upcoming_news) > 0:
+    next_news = upcoming_news[0]
+    next_time = next_news['time'].astimezone(timezone(timedelta(hours=7))).strftime('%H:%M BKK')
+    st.info(f"**Next High-Impact News:** {next_news['title']} at {next_time}")
 
 if not df_history.empty:
     st.divider()
@@ -179,10 +205,16 @@ if not df_history.empty:
         st.bar_chart(profit_by_symbol)
         
     with col_chart2:
-        st.subheader("🕒 Trade Count by Hour")
+        st.subheader("🕒 Win Rate by Hour of Day (%)")
         df_history['hour'] = df_history['time'].dt.hour
-        trades_by_hour = df_history.groupby('hour').size()
-        st.bar_chart(trades_by_hour)
+        
+        # Calculate win rate per hour
+        hourly_stats = df_history.groupby('hour').apply(
+            lambda x: pd.Series({
+                'win_rate': (len(x[x['profit'] > 0]) / len(x)) * 100 if len(x) > 0 else 0
+            })
+        )
+        st.bar_chart(hourly_stats['win_rate'])
 
     st.divider()
     st.subheader("🏆 Strategy Leaderboard (Profit by SID)")

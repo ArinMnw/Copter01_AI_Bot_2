@@ -25,15 +25,48 @@ def _load_model():
 def extract_features(symbol, tf, signal, current_price, time_bkk):
     """
     Extract basic features for ML model.
-    In a real scenario, you would fetch RSI, ATR, distance to EMA, etc.
+    Fetches real RSI, ATR, and EMA distance from MT5.
     """
+    import MetaTrader5 as mt5
+    import pandas as pd
+    import numpy as np
+    
+    rsi_val, atr_val, ema_dist = 50.0, 20.0, 0.0
+    
+    if mt5.terminal_info() is not None:
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 60)
+        if rates is not None and len(rates) > 50:
+            df = pd.DataFrame(list(rates), columns=rates[0]._asdict().keys())
+            
+            delta = df['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            rsi_series = 100 - (100 / (1 + rs))
+            
+            high_low = df['high'] - df['low']
+            high_close = np.abs(df['high'] - df['close'].shift())
+            low_close = np.abs(df['low'] - df['close'].shift())
+            true_range = np.max(pd.concat([high_low, high_close, low_close], axis=1), axis=1)
+            atr_series = true_range.rolling(14).mean()
+            
+            ema_series = df['close'].ewm(span=50, adjust=False).mean()
+            
+            rsi_val = float(rsi_series.iloc[-1])
+            atr_val = float(atr_series.iloc[-1])
+            ema_dist = float(df['close'].iloc[-1] - ema_series.iloc[-1])
+            
+            if np.isnan(rsi_val): rsi_val = 50.0
+            if np.isnan(atr_val): atr_val = 20.0
+            if np.isnan(ema_dist): ema_dist = 0.0
+
     return {
         "hour_of_day": time_bkk.hour,
         "is_buy": 1 if signal.upper() == "BUY" else 0,
         "is_sell": 1 if signal.upper() == "SELL" else 0,
-        # Mock features that would normally be fetched from indicators
-        "rsi_approx": random.uniform(30, 70),
-        "atr_approx": random.uniform(10, 50)
+        "rsi_approx": rsi_val,
+        "atr_approx": atr_val,
+        "ema_dist": ema_dist
     }
 
 def predict_success_probability(features: dict) -> float:
@@ -42,27 +75,25 @@ def predict_success_probability(features: dict) -> float:
     """
     global _model
     if not ML_AVAILABLE:
-        # Fallback to random probability if sklearn is not installed
+        import random
         return random.uniform(0.4, 0.9)
         
     if _model is None:
         _load_model()
         
     if _model is None:
-        # Model not trained yet, return a neutral/optimistic probability
         return 0.55
         
     try:
-        # Convert features to 2D array
         feature_values = [
             features.get("hour_of_day", 12),
             features.get("is_buy", 0),
             features.get("is_sell", 0),
             features.get("rsi_approx", 50),
-            features.get("atr_approx", 20)
+            features.get("atr_approx", 20),
+            features.get("ema_dist", 0)
         ]
         
-        # predict_proba returns [[prob_0, prob_1]]
         prob = _model.predict_proba([feature_values])[0][1]
         return float(prob)
     except Exception as e:
@@ -118,6 +149,8 @@ def train_from_mt5_history(days=30):
     try:
         import MetaTrader5 as mt5
         import pandas as pd
+        import numpy as np
+        import config
         from datetime import timezone, timedelta
         
         if not mt5.initialize():
@@ -133,7 +166,35 @@ def train_from_mt5_history(days=30):
             print("[ML Scoring] No history deals found to train.")
             return False
             
-        print(f"[ML Scoring] Found {len(history_deals)} deals. Processing data...")
+        print(f"[ML Scoring] Found {len(history_deals)} deals. Fetching historical rates for features...")
+        
+        # Fetch OHLC data for the period + extra 5 days for indicators window
+        rates_start = start_time - timedelta(days=5)
+        rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M15, rates_start, end_time)
+        df_rates = pd.DataFrame()
+        if rates is not None and len(rates) > 0:
+            df_rates = pd.DataFrame(list(rates), columns=rates[0]._asdict().keys())
+            df_rates['time'] = pd.to_datetime(df_rates['time'], unit='s')
+            df_rates.set_index('time', inplace=True)
+            
+            # Calculate Indicators
+            delta = df_rates['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            df_rates['rsi'] = 100 - (100 / (1 + rs))
+            
+            high_low = df_rates['high'] - df_rates['low']
+            high_close = np.abs(df_rates['high'] - df_rates['close'].shift())
+            low_close = np.abs(df_rates['low'] - df_rates['close'].shift())
+            true_range = np.max(pd.concat([high_low, high_close, low_close], axis=1), axis=1)
+            df_rates['atr'] = true_range.rolling(14).mean()
+            
+            df_rates['ema50'] = df_rates['close'].ewm(span=50, adjust=False).mean()
+            
+            # Fill NaNs
+            df_rates.bfill(inplace=True)
+
         df = pd.DataFrame(list(history_deals), columns=history_deals[0]._asdict().keys())
         df['time'] = pd.to_datetime(df['time'], unit='s')
         
@@ -149,23 +210,23 @@ def train_from_mt5_history(days=30):
         
         for _, row in df_out.iterrows():
             hour = row['time'].hour
-            # In MT5, DEAL_TYPE_BUY (0) closing means it was a SELL position.
-            # But let's simplify and use the deal type to infer direction.
-            # Usually, we want the direction of the original trade.
-            # A cleaner way is to just assume:
-            # If the closing deal is SELL, the position was BUY.
             is_buy = 1 if row['type'] == mt5.DEAL_TYPE_SELL else 0
             is_sell = 1 if row['type'] == mt5.DEAL_TYPE_BUY else 0
             
-            # Target variable: 1 if profit > 0 else 0
             success = 1 if row['profit'] > 0 else 0
             
-            # Using random for RSI/ATR since we can't reconstruct historical indicators easily.
-            # In a production system, these should be saved to a database at execution time.
-            rsi = random.uniform(30, 70) 
-            atr = random.uniform(10, 50)
+            rsi_val, atr_val, ema_dist = 50.0, 20.0, 0.0
             
-            X.append([hour, is_buy, is_sell, rsi, atr])
+            # Lookup historical indicators
+            if not df_rates.empty:
+                # Find closest index
+                idx = df_rates.index.get_indexer([row['time']], method='pad')[0]
+                if idx >= 0:
+                    rsi_val = float(df_rates.iloc[idx]['rsi'])
+                    atr_val = float(df_rates.iloc[idx]['atr'])
+                    ema_dist = float(df_rates.iloc[idx]['close'] - df_rates.iloc[idx]['ema50'])
+            
+            X.append([hour, is_buy, is_sell, rsi_val, atr_val, ema_dist])
             y.append(success)
             
         print(f"[ML Scoring] Training RandomForest on {len(X)} historical trades...")

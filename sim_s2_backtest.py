@@ -7,6 +7,7 @@ import MetaTrader5 as mt5
 import config
 from mt5_utils import TF_SECONDS_MAP, find_swing_tp
 from scanner import _find_recent_signal_confirmation, _has_swing_in_lookback
+from sim_lifecycle import fill_pdfiboplus_round1, pd_cancel_event, pending_pdfiboplus_round1
 from strategy2 import strategy_2
 
 
@@ -38,6 +39,15 @@ TF_EXTRA_BARS = {
     "H4": 120,
     "D1": 80,
 }
+TF_SECONDS = {
+    "M1": 60,
+    "M5": 300,
+    "M15": 900,
+    "M30": 1800,
+    "H1": 3600,
+    "H4": 14400,
+    "D1": 86400,
+}
 
 
 def to_bkk(ts: int) -> datetime:
@@ -55,7 +65,7 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "config_on": bool(config.active_strategies.get(2, False)),
             "runtime": "apply",
             "replay": "apply",
-            "note": "Replay calls shared strategy2.strategy_2()",
+            "note": "Replay uses range-based MT5 fetch and calls shared strategy2.strategy_2()",
         },
         {
             "name": "S2 normal confirm lookback",
@@ -82,8 +92,8 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "name": "PD Fibo Plus",
             "config_on": getattr(config, "PDFIBOPLUS_ENABLED", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime has S2 gap-aware PD pass and can adjust entry to EQ/50%",
+            "replay": "partial",
+            "note": "Replay applies pending/fill round1 gates and S2 EQ/50% entry adjustment; round2 is not included yet",
         },
         {
             "name": "Limit Trend/Fill Trend Recheck",
@@ -128,6 +138,19 @@ def _as_records(rates) -> list[dict]:
         [{name: r[name] for name in rates.dtype.names} for r in rates],
         key=lambda r: int(r["time"]),
     )
+
+
+def _fetch_rates(tf_name: str, tf_val: int, range_end_utc: datetime | None = None):
+    total = TF_EXTRA_BARS.get(tf_name, 500) + 8000
+    if range_end_utc is None:
+        return mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
+
+    pad_bars = max(
+        120,
+        int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20) + 20,
+    )
+    start_utc = SINCE - timedelta(seconds=TF_SECONDS.get(tf_name, 60) * pad_bars)
+    return mt5.copy_rates_range(SYMBOL, tf_val, start_utc, range_end_utc)
 
 
 def _close_row(trade: dict, reason: str, price: float, close_time: datetime) -> dict:
@@ -207,8 +230,8 @@ def _s2_confirm_ok(rates: list[dict], signal: str, tf_name: str, tf_secs: int, l
     return False
 
 
-def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, TF_EXTRA_BARS.get(tf_name, 500) + 8000)
+def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None) -> list[dict]:
+    rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
     if rates is None or len(rates) < 120:
         return []
     bars = _as_records(rates)
@@ -227,6 +250,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
         bt = to_bkk(bar["time"])
         h = float(bar["high"])
         l = float(bar["low"])
+        full_rates = bars[:i + 1]
 
         still_pending = []
         for order in pending:
@@ -246,9 +270,19 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
                 })
                 continue
             if order["signal"] == "BUY" and l <= float(order["entry"]):
-                open_trades.append(_fill_trade(order, bar))
+                trade = _fill_trade(order, bar)
+                pd = fill_pdfiboplus_round1(trade, full_rates)
+                if pd.get("status") == "fail":
+                    trades.append(_close_row(trade, "PD_FAIL", float(bar["close"]), bt))
+                else:
+                    open_trades.append(trade)
             elif order["signal"] == "SELL" and h >= float(order["entry"]):
-                open_trades.append(_fill_trade(order, bar))
+                trade = _fill_trade(order, bar)
+                pd = fill_pdfiboplus_round1(trade, full_rates)
+                if pd.get("status") == "fail":
+                    trades.append(_close_row(trade, "PD_FAIL", float(bar["close"]), bt))
+                else:
+                    open_trades.append(trade)
             else:
                 still_pending.append(order)
         pending = still_pending
@@ -272,17 +306,17 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
             still_open.append(trade)
         open_trades = still_open
 
-        result = strategy_2(bars[:i + 1], tf=tf_name)
+        result = strategy_2(full_rates, tf=tf_name)
         if result.get("signal") != "FVG_DETECTED":
             continue
         fvg = result.get("fvg") or {}
         signal = fvg.get("signal")
         if signal not in ("BUY", "SELL"):
             continue
-        if not _s2_confirm_ok(bars[:i + 1], signal, tf_name, tf_secs, int(bar["time"]), fallback_start):
+        if not _s2_confirm_ok(full_rates, signal, tf_name, tf_secs, int(bar["time"]), fallback_start):
             continue
 
-        tp = _calc_tp(bars[:i + 1], signal, float(fvg["entry"]), float(fvg["sl"]), tf_name)
+        tp = _calc_tp(full_rates, signal, float(fvg["entry"]), float(fvg["sl"]), tf_name)
         key = (
             int(bar["time"]),
             signal,
@@ -294,7 +328,12 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
         if key in fired:
             continue
         fired.add(key)
-        pending.append(_pending_from_fvg(fvg, tf_name, bar, tp))
+        order = _pending_from_fvg(fvg, tf_name, bar, tp)
+        pd = pending_pdfiboplus_round1(order, full_rates)
+        if pd.get("status") == "fail":
+            trades.append(pd_cancel_event(order, order["detect_time"]))
+            continue
+        pending.append(order)
 
     for order in pending:
         trades.append({
