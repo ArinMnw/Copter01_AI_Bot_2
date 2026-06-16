@@ -310,16 +310,18 @@ def strategy_20(rates, tf=None, dt_bkk=None):
         atr_val = calc_atr(rates[:-1], 14)
 
     # Fibo for TP: 161.8% extension ของ swing กลับตัว
+    setup_bars = rates[-3:] if sub_pattern == "S20.2" else rates[-2:]
+    
     if signal == "BUY":
-        sl_raw = min(ref_bar['low'], entry_bar['low'])
-        high_pt = max(ref_bar['high'], entry_bar['high'])
+        sl_raw = min([b['low'] for b in setup_bars])
+        high_pt = max([b['high'] for b in setup_bars])
         fibo_range = high_pt - sl_raw
         tp_raw = sl_raw + (fibo_range * getattr(config, 'S20_FIBO_TP_LEVEL', 1.618))
         sl_buffer = config.SL_BUFFER(atr_val) * getattr(config, 'S20_SL_BUFFER', 1.0)
         sl = sl_raw - sl_buffer
     else:
-        sl_raw = max(ref_bar['high'], entry_bar['high'])
-        low_pt = min(ref_bar['low'], entry_bar['low'])
+        sl_raw = max([b['high'] for b in setup_bars])
+        low_pt = min([b['low'] for b in setup_bars])
         fibo_range = sl_raw - low_pt
         tp_raw = sl_raw - (fibo_range * getattr(config, 'S20_FIBO_TP_LEVEL', 1.618))
         sl_buffer = config.SL_BUFFER(atr_val) * getattr(config, 'S20_SL_BUFFER', 1.0)

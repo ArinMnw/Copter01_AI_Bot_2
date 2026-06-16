@@ -62,10 +62,8 @@ def replay_tf(bars, tf_name, spread):
     # rates_slice เอาถึงแค่ j
     for j in range(5, n - 1):
         entry_bar = bars[j]
-        # rates สำหรับให้ strategy_20 มองเห็น ต้องดึง 0..j มา
-        # ให้ j เป็นแท่งที่เพิ่งปิด 
-        # (คือ j=bar2, j-1=bar1 ตาม logic strategy_20 ที่มอง rates[-1] คือปิดล่าสุด)
-        rates_slice = bars[max(0, j - 10):j + 1]
+        # rates สำหรับให้ strategy_20 มองเห็น ต้องดึงมาให้พอสำหรับคำนวณ ATR (16+) และ Trap (13+)
+        rates_slice = bars[max(0, j - 20):j + 1]
         
         # แปลง bar time เป็น BKK สำหรับ session filter
         bar_dt_bkk = config.mt5_ts_to_bkk(int(entry_bar["time"]))
@@ -206,14 +204,12 @@ def main():
     symbol = config.SYMBOL
     print(f"Symbol: {symbol} | days={args.days} | spread=${args.spread:.2f}/trade | lot=0.01")
 
-    # ── Fetch H1 HHLL swing data สำหรับ S20.3 (HTF Fibo Alignment) ──
-    if hhll_swing.fetch_hhll("H1"):
-        h1_swing = hhll_swing.get_swing_hl_pts("H1")
-        h_pt = f"{h1_swing[0]['price']:.2f}" if h1_swing[0] else "?"
-        l_pt = f"{h1_swing[1]['price']:.2f}" if h1_swing[1] else "?"
-        print(f"  H1 HHLL: H={h_pt} L={l_pt} (for S20.3 HTF Fibo)")
-    else:
-        print("  ⚠️ H1 HHLL fetch failed — S20.3 จะไม่ trigger")
+    # ── Prevent Look-ahead Bias in Backtest ──
+    # S20_TREND_FILTER and S20.3 (HTF Fibo) rely on live H1 data.
+    # In backtest, we disable Trend Filter to prevent applying today's trend to historical trades.
+    config.S20_TREND_FILTER = False
+    print("  ⚠️ S20_TREND_FILTER ถูกตั้งเป็น False สำหรับการทำ Backtest (ป้องกัน Look-ahead Bias)")
+    print("  ⚠️ ท่า S20.3 (HTF Fibo) จะไม่ทำงานใน Backtest นี้ เนื่องจากไม่สามารถดึงข้อมูลสวิง H1 ย้อนหลังแบบ Dynamic ได้")
 
     tf_list = [t.strip() for t in args.tf.split(",") if t.strip() in TF_MAP]
     bars_by_tf = {}
