@@ -852,6 +852,35 @@ _watchdog_mt5_ok   = True         # สถานะ MT5 ล่าสุดที
 _watchdog_scan_ok  = True         # สถานะ scan ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
 
 
+def write_heartbeat(mt5_ok: bool | None = None) -> None:
+    """เขียน heartbeat file แบบ atomic — stamp `ts` ล่าสุดให้ external supervisor
+
+    ใช้โดย heartbeat_job (ทุก 15s) และ run_watchdog (ทุก 60s) ใน main.py
+    external supervisor (run_supervised.ps1) อ่าน `ts` เพื่อ detect event-loop hang:
+    ถ้า ts ค้างเกิน threshold = loop แข็ง (เช่น MT5 blocking call ค้าง) → kill+restart
+    *ไม่เรียก MT5* เพื่อไม่ให้ตัว heartbeat เองไปบล็อก/ค้างตาม loop
+    mt5_ok=None → ใช้ค่า cached (_watchdog_mt5_ok); write temp+os.replace กัน partial read
+    """
+    import time
+    if mt5_ok is None:
+        mt5_ok = _watchdog_mt5_ok
+    try:
+        hb = (
+            f"ts={int(time.time())}\n"
+            f"bkk={now_bkk().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"mt5_ok={int(bool(mt5_ok))}\n"
+            f"auto={int(bool(auto_active))}\n"
+            f"last_scan={int(last_scan_ts)}\n"
+            f"pid={os.getpid()}\n"
+        )
+        tmp = HEARTBEAT_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(hb)
+        os.replace(tmp, HEARTBEAT_FILE)   # atomic บน Windows/POSIX
+    except Exception:
+        pass
+
+
 def _today_bkk() -> str:
     """วันที่ปัจจุบันแบบ BKK (UTC+7) เป็น 'YYYY-MM-DD'"""
     return now_bkk().strftime("%Y-%m-%d")

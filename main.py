@@ -384,18 +384,8 @@ def main():
             mt5_ok = False
 
         # heartbeat file (ให้ external supervisor เช็กได้ว่า process ยังมีชีวิต)
-        try:
-            hb = (
-                f"ts={int(_time.time())}\n"
-                f"bkk={now_bkk().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"mt5_ok={int(mt5_ok)}\n"
-                f"auto={int(config.auto_active)}\n"
-                f"last_scan={int(config.last_scan_ts)}\n"
-            )
-            with open(config.HEARTBEAT_FILE, "w", encoding="utf-8") as f:
-                f.write(hb)
-        except Exception:
-            pass
+        # เขียนพร้อม mt5_ok สด — ส่วน heartbeat_job (15s) เขียน stamp ถี่กว่าด้วยค่า cached
+        config.write_heartbeat(mt5_ok=mt5_ok)
 
         # MT5 connection transition alerts
         if not mt5_ok and config._watchdog_mt5_ok:
@@ -419,6 +409,12 @@ def main():
                 config._watchdog_scan_ok = True
                 log_event("WATCHDOG_SCAN_OK", "scan resumed")
                 await tg(app, "✅ *Watchdog: Scan กลับมาทำงานปกติ*")
+
+    async def write_heartbeat_job():
+        """เขียน heartbeat ถี่ (ทุก 15s) ให้ external supervisor detect loop hang ได้ไว
+        ไม่เรียก MT5 — แค่ stamp ts; ถ้า event loop แข็ง (mt5 blocking call ค้าง)
+        ts จะ freeze ทันที → supervisor เห็น ts เก่าเกิน threshold → kill+restart"""
+        config.write_heartbeat()
 
     from datetime import timezone as _tz2
 
@@ -511,6 +507,17 @@ def main():
         'interval',
         minutes=1,
         id="watchdog_job",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(_tz.utc)
+    )
+
+    # Heartbeat ถี่ — ทุก 15 วินาที (ให้ external supervisor detect loop hang ได้ไว)
+    scheduler.add_job(
+        write_heartbeat_job,
+        'interval',
+        seconds=15,
+        id="heartbeat_job",
         max_instances=1,
         coalesce=True,
         next_run_time=datetime.now(_tz.utc)

@@ -94,6 +94,16 @@ python main.py
 run.bat
 ```
 
+**Production (แนะนำ) — มี auto-restart กัน event-loop hang:**
+
+```bash
+run_supervised.bat
+```
+
+- `run_supervised.bat` → เรียก `run_supervised.ps1` (external supervisor รันแยก process)
+- supervisor อ่าน `bot_heartbeat.txt` — ถ้า `ts` ค้างเกิน threshold (loop แข็งจาก MT5 blocking call) → kill + restart; process ตายเองก็ restart
+- ดู §External Supervisor / Event-Loop Stall
+
 ## วิธีเริ่มงาน
 
 - ถ้างานยังไม่ชัด ให้เปิด `AGENTS.md` ก่อน
@@ -191,9 +201,23 @@ Keep the answer short and make the fix directly.
 ดูใน `main.py`
 
 - symbol switch: ทุก 1 นาที
-- pattern scan: ทุก 5 วินาที
-- trailing และ position checks: ทุก 5 วินาที
+- pattern scan: ทุก 5 วินาที (`max_instances=1, coalesce=True` — กัน scan วิ่งซ้อน)
+- trailing และ position checks: ทุก 5 วินาที (trail ก็ `max_instances=1`)
 - save state: ทุก 15 วินาที
+- heartbeat: ทุก 15 วินาที (`heartbeat_job` → `config.write_heartbeat()` เขียน `bot_heartbeat.txt`)
+- watchdog: ทุก 1 นาที (เช็ก MT5/scan ค้าง + เขียน heartbeat พร้อม `mt5_ok` สด)
+
+> ⚠️ scan/trail/position/save/watchdog/heartbeat job ตั้ง `max_instances=1` ทั้งหมด — อย่าเปลี่ยนเป็น >1 เพราะ shared state (`_scan_results`, dedup, SL modify) จะ race ถ้า job วิ่งซ้อน (dedup หลายจุดอยู่นอก `_get_lock()`)
+
+## External Supervisor / Event-Loop Stall
+
+บอทรันทุก job บน asyncio event loop เดียว และ `MetaTrader5` API เป็น blocking C-call → ถ้า MT5 terminal ค้าง (IPC hang) **loop แข็งทั้งตัว** รวมถึง in-process watchdog เอง (เขียน heartbeat/แจ้งเตือนไม่ได้) — กู้ตัวเองไม่ได้
+
+- `config.write_heartbeat(mt5_ok=None)`: atomic write (temp + `os.replace`) `ts/bkk/mt5_ok/auto/last_scan/pid` ลง `HEARTBEAT_FILE` (`bot_heartbeat.txt`) — **ไม่เรียก MT5** เพื่อไม่ค้างตาม loop; `mt5_ok=None` → ใช้ค่า cached `_watchdog_mt5_ok`
+- `heartbeat_job` (15s) stamp `ts` ถี่ → ถ้า loop แข็ง `ts` freeze ทันที
+- `run_supervised.ps1` (รันแยก process): เช็คทุก 30s — `ts` เก่าเกิน `$StaleSec` (default 180s, มี grace 90s หลัง start) → kill+restart; process ตายเอง → restart; log ลง `logs/supervisor.log`
+  - ⚠️ ไฟล์ `.ps1` ต้องมี **UTF-8 BOM** ไม่งั้น Windows PowerShell 5.1 อ่าน Thai comment เป็น cp874 แล้ว parse error
+- `bot_heartbeat.txt`, `bot_heartbeat.txt.tmp`, `logs/supervisor.log` ถูก gitignore แล้ว
 
 ## Runtime State
 
