@@ -498,6 +498,11 @@ S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1"]
 S20_CANCEL_BARS       = 5
 S20_FIBO_TP_LEVEL     = 1.618
 S20_SL_BUFFER         = 1.0  # SL = ไส้ extreme ∓ ATR × นี้
+# ── S20 WR Improvement Filters ──────────────────────────────
+S20_MIN_BODY_ATR_PCT  = 0.3  # engulf body ต้อง ≥ 30% ของ ATR (กรอง noise)
+S20_SESSION_FILTER    = False # เทรดเฉพาะ Killzones (London/NY)
+S20_SESSIONS          = [("14:00", "18:00"), ("19:00", "23:00")]  # BKK
+S20_TREND_FILTER      = False # block signal ที่สวน strong trend (HHLL)
 
 # ── Strategy 9: RSI Divergence ──────────────────────────────
 # default ตาม indicator ในรูป: RSI 14 / close / pivot 5-5 / range 5-60

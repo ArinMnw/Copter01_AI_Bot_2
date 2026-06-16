@@ -2712,7 +2712,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r19.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 19, r19["signal"], last_candle_time, r19)
 
-    r20 = strategy_20(rates, tf=tf_name) if active_strategies.get(20, False) else {"signal": "WAIT", "reason": "S20 ปิด"}
+    r20 = strategy_20(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20, False) else {"signal": "WAIT", "reason": "S20 ปิด"}
     if r20.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20, r20["signal"], last_candle_time, r20)
 
