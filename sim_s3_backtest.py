@@ -82,6 +82,27 @@ def s3_runtime_feature_coverage() -> list[dict]:
             "note": "Replay waits one closed bar and places limit only when color confirms",
         },
         {
+            "name": "Adjacent same-sid scan block",
+            "config_on": True,
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Unified S1-S5/S8 path blocks adjacent same-sid orders when an active same-sid trade remains",
+        },
+        {
+            "name": "Sweep Filter scan block",
+            "config_on": getattr(config, "SWEEP_FILTER_ENABLED", False),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Unified S1-S5/S8 path uses historical sweep detection to block counter-sweep scan signals",
+        },
+        {
+            "name": "Trend Filter scan block",
+            "config_on": getattr(config, "TREND_FILTER_SCAN_BLOCK", False),
+            "runtime": "apply",
+            "replay": "ready",
+            "note": "Config is currently OFF in tested state; full breakout-mode scan block is a ready/off layer",
+        },
+        {
             "name": "Pending limit lifecycle",
             "config_on": True,
             "runtime": "apply",
@@ -91,16 +112,16 @@ def s3_runtime_feature_coverage() -> list[dict]:
         {
             "name": "PD Fibo Plus",
             "config_on": getattr(config, "PDFIBOPLUS_ENABLED", False),
-            "runtime": "apply",
-            "replay": "partial",
-            "note": "Replay applies pending and fill round1 gates; round2 is not included yet",
+            "runtime": "skip_s3",
+            "replay": "skip_s3",
+            "note": "Runtime skips S3 PD Fibo Plus",
         },
         {
             "name": "Limit Trend/Fill Trend Recheck",
             "config_on": getattr(config, "LIMIT_TREND_RECHECK", False),
-            "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime applies trend recheck to S3 pending/fill",
+            "runtime": "skip_s3",
+            "replay": "skip_s3",
+            "note": "Runtime skips S3 pending/fill trend recheck",
         },
         {
             "name": "RSI Fill Recheck",
@@ -113,8 +134,8 @@ def s3_runtime_feature_coverage() -> list[dict]:
             "name": "Trail/Opposite/Limit Guard",
             "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False) or getattr(config, "LIMIT_GUARD", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Shared lifecycle features are not included in S3 baseline yet",
+            "replay": "partial",
+            "note": "Unified S1-S5/S8 path applies Limit Guard, Opposite Order, Trail SL, and SL Guard/Group baseline; SL Guard counts only losing SL/loss-guard closes like runtime",
         },
     ]
 

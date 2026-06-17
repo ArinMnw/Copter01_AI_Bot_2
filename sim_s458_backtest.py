@@ -32,6 +32,10 @@ from sim_lifecycle import (
     pending_pdfiboplus_round2,
     pending_trend_check_round1,
     pending_trend_check_round2,
+    s1_fill_rule_check,
+    s1_pending_rule_check,
+    s1_prepare_order,
+    s1_rule_close_type,
     SimSLGuard,
     trail_sl_apply,
     trend_cancel_event,
@@ -125,6 +129,18 @@ def _call_with_hhll(tf_name: str, hist_data: dict, func, *args, **kwargs) -> dic
             hhll_swing._hhll_data[tf_name] = old_data
 
 
+def _sweep_htf_name(tf_name: str) -> str:
+    mapping = {
+        "M1": "M5",
+        "M5": "M15",
+        "M15": "H1",
+        "M30": "H4",
+        "H1": "H4",
+        "H4": "D1",
+    }
+    return mapping.get(tf_name, "M5")
+
+
 def _entry_already_passed(result: dict, signal_bar: dict) -> bool:
     entry = float(result.get("entry", 0.0) or 0.0)
     close = float(signal_bar["close"])
@@ -174,6 +190,7 @@ def _pending_from_result(result: dict, tf_name: str, detect_bar: dict, sid: int)
             "cancel_bars": int(result.get("cancel_bars", 0) or 0),
             "s1_zone_meta": result.get("s1_zone_meta") or {},
         })
+        s1_prepare_order(row)
     if sid == 2:
         row.update({
             "gap_bot": round(float(result.get("gap_bot", 0.0) or 0.0), 2),
@@ -181,6 +198,7 @@ def _pending_from_result(result: dict, tf_name: str, detect_bar: dict, sid: int)
             "final_gap_bot": round(float(result.get("gap_bot", 0.0) or 0.0), 2),
             "final_gap_top": round(float(result.get("gap_top", 0.0) or 0.0), 2),
             "c3_type": result.get("c3_type", ""),
+            "_s2_confirm_ok": bool(result.get("_s2_confirm_ok", False)),
             "cancel_bars": 1 if result.get("c3_type") == "ปฏิเสธราคา" else 0,
         })
     if sid == 3 and result.get("source_candle_time"):
@@ -229,6 +247,185 @@ def _duplicate_pending(pending: list[dict], order: dict) -> bool:
     return False
 
 
+def _has_active_sid_tf(pending: list[dict], open_trades: list[dict], tf_name: str, sid: int) -> bool:
+    for row in pending + open_trades:
+        if str(row.get("tf") or "") == tf_name and int(row.get("sid", 0) or 0) == int(sid):
+            return True
+    return False
+
+
+def _pattern_allows_adjacent_order(sid: int, pattern: str) -> bool:
+    if int(sid or 0) != 1:
+        return False
+    pattern = str(pattern or "")
+    return ("Pattern กลืนกิน 2 แดง" in pattern) or ("Pattern กลืนกิน 2 เขียว" in pattern)
+
+
+def _adjacent_sid_blocked_sim(
+    last_sid_tf: dict,
+    pending: list[dict],
+    open_trades: list[dict],
+    tf_name: str,
+    sid: int,
+    candle_time: int,
+    tf_secs: int,
+) -> bool:
+    prev = (last_sid_tf.get(tf_name) or {}).get(int(sid))
+    if not prev or tf_secs <= 0 or (int(candle_time) - int(prev)) != int(tf_secs):
+        return False
+    if _has_active_sid_tf(pending, open_trades, tf_name, sid):
+        return True
+    tf_map = last_sid_tf.get(tf_name)
+    if isinstance(tf_map, dict) and tf_map.get(int(sid)) == prev:
+        tf_map.pop(int(sid), None)
+        if not tf_map:
+            last_sid_tf.pop(tf_name, None)
+    return False
+
+
+def _sweep_scan_state(
+    tf_name: str,
+    hist_data: dict,
+    full_rates: list[dict],
+    htf_rates: list[dict] | None = None,
+) -> str | None:
+    try:
+        import sweep_filter
+        if not sweep_filter.is_enabled():
+            return None
+        state = None
+        if hist_data:
+            sweep_rates = list(full_rates[-150:])
+            state = sweep_filter._detect_both(tf_name, hist_data, sweep_rates, htf_rates, htf_rates)
+        if not state:
+            state = sweep_filter.get_sweep_state(tf_name)
+        return state
+    except Exception:
+        return None
+
+
+def _sweep_scan_blocked(sweep_state: str | None, sid: int, signal: str) -> bool:
+    if int(sid or 0) in (9, 10, 13, 14, 15, 16, 17, 18, 19):
+        return False
+    return (sweep_state == "SWEEP_LOW" and signal == "SELL") or (sweep_state == "SWEEP_HIGH" and signal == "BUY")
+
+
+def _tf_sort_key(tf_name: str) -> int:
+    return int(TF_SECONDS.get(tf_name, 999999))
+
+
+def _s2_group_candidates(tf_name: str, active_tfs: set[str]) -> list[list[str]]:
+    groups = []
+    for group in getattr(config, "FVG_PARALLEL_GROUPS", []) or []:
+        if tf_name not in group:
+            continue
+        if not all(tf in active_tfs for tf in group):
+            continue
+        if any(tf != tf_name for tf in group):
+            groups.append(list(group))
+    return groups
+
+
+def _s2_parallel_prepare(
+    order: dict,
+    pending: list[dict],
+    trades: list[dict],
+    bt: datetime,
+    *,
+    active_tfs: set[str],
+) -> dict | None:
+    if int(order.get("sid", 0) or 0) != 2:
+        return order
+
+    normal_confirm_ok = bool(order.pop("_s2_confirm_ok", False))
+    if not getattr(config, "FVG_NORMAL", False) and not getattr(config, "FVG_PARALLEL", False):
+        return None
+
+    tf_name = str(order.get("tf") or "")
+    signal = str(order.get("signal") or "")
+    gap_bot = float(order.get("gap_bot", 0.0) or 0.0)
+    gap_top = float(order.get("gap_top", 0.0) or 0.0)
+    parallel_tfs = [tf_name]
+    parallel_patterns = [str(order.get("pattern", ""))]
+    cancel_ids: set[int] = set()
+    int_bot = None
+    int_top = None
+
+    if getattr(config, "FVG_PARALLEL", False):
+        groups = _s2_group_candidates(tf_name, active_tfs)
+        gaps = [{"tf": tf_name, "bot": gap_bot, "top": gap_top, "pattern": str(order.get("pattern", "")), "order": None}]
+        for old in pending:
+            if int(old.get("sid", 0) or 0) != 2:
+                continue
+            if old.get("signal") != signal:
+                continue
+            old_tf = str(old.get("tf") or "")
+            if old_tf == tf_name:
+                continue
+            if not any(old_tf in group and tf_name in group for group in groups):
+                continue
+            old_bot = float(old.get("gap_bot", old.get("entry", 0.0)) or 0.0)
+            old_top = float(old.get("gap_top", old.get("entry", 0.0)) or 0.0)
+            if gap_top < old_bot or gap_bot > old_top:
+                continue
+            gaps.append({
+                "tf": old_tf,
+                "bot": old_bot,
+                "top": old_top,
+                "pattern": str(old.get("pattern", "")),
+                "order": old,
+            })
+
+        if len(gaps) > 1:
+            candidate_bot = max(g["bot"] for g in gaps)
+            candidate_top = min(g["top"] for g in gaps)
+            if candidate_top > candidate_bot and candidate_top - candidate_bot >= 0.5:
+                int_bot = candidate_bot
+                int_top = candidate_top
+                gaps.sort(key=lambda g: _tf_sort_key(str(g["tf"])))
+                seen = set()
+                parallel_tfs = []
+                parallel_patterns = []
+                for gap in gaps:
+                    gap_tf = str(gap["tf"])
+                    if gap_tf in seen:
+                        continue
+                    seen.add(gap_tf)
+                    parallel_tfs.append(gap_tf)
+                    parallel_patterns.append(str(gap.get("pattern", "")))
+                    old_order = gap.get("order")
+                    if old_order is not None:
+                        cancel_ids.add(id(old_order))
+
+    if int_bot is None or int_top is None:
+        if getattr(config, "FVG_PARALLEL", False) and not getattr(config, "FVG_NORMAL", False):
+            return None
+        if not normal_confirm_ok:
+            return None
+        return order
+
+    gap_size = int_top - int_bot
+    if signal == "BUY":
+        order["entry"] = round(int_bot + gap_size * 0.98, 2)
+    else:
+        order["entry"] = round(int_top - gap_size * 0.98, 2)
+    order["final_gap_bot"] = round(float(int_bot), 2)
+    order["final_gap_top"] = round(float(int_top), 2)
+    order["parallel_tfs"] = list(parallel_tfs)
+    order["parallel_patterns"] = list(parallel_patterns)
+    order["pattern"] = f"{order.get('pattern', 'S2 FVG')} [{'+'.join(parallel_tfs)}]"
+
+    if cancel_ids:
+        kept = []
+        for old in pending:
+            if id(old) in cancel_ids:
+                trades.append(trend_cancel_event(old, bt, "S2 FVG Parallel replaced by intersection"))
+            else:
+                kept.append(old)
+        pending[:] = kept
+    return order
+
+
 def _scan_signals(
     strategies: set[int],
     scan_rates: list[dict],
@@ -251,9 +448,10 @@ def _scan_signals(
         if r2.get("signal") == "FVG_DETECTED":
             fvg = r2.get("fvg") or {}
             signal = fvg.get("signal")
-            if signal in ("BUY", "SELL") and sim_s2_backtest._s2_confirm_ok(
-                full_rates, signal, tf_name, tf_secs, int(bar["time"]), fallback_start
-            ):
+            if signal in ("BUY", "SELL"):
+                s2_confirm_ok = sim_s2_backtest._s2_confirm_ok(
+                    full_rates, signal, tf_name, tf_secs, int(bar["time"]), fallback_start
+                )
                 tp = sim_s2_backtest._calc_tp(full_rates, signal, float(fvg["entry"]), float(fvg["sl"]), tf_name)
                 signals.append((2, {
                     "signal": signal,
@@ -264,6 +462,7 @@ def _scan_signals(
                     "gap_bot": fvg.get("gap_bot", 0.0),
                     "gap_top": fvg.get("gap_top", 0.0),
                     "c3_type": fvg.get("c3_type", ""),
+                    "_s2_confirm_ok": s2_confirm_ok,
                 }))
     if 3 in strategies:
         for key, mp in list(maru_pending.items()):
@@ -304,6 +503,11 @@ def _scan_signals(
 
 
 def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: datetime | None = None) -> list[dict]:
+    try:
+        import sweep_filter
+        sweep_filter.reset_all()
+    except Exception:
+        pass
     rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
     if rates is None or len(rates) < 120:
         return []
@@ -320,6 +524,13 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
         raw_trail = _fetch_rates(trail_tf, trail_val, range_end_utc=range_end_utc)
         if raw_trail is not None:
             trail_rates_by_tf[trail_tf] = _as_records(raw_trail)
+    sweep_htf_rates = None
+    sweep_htf = _sweep_htf_name(tf_name)
+    sweep_htf_val = TF_MAP.get(sweep_htf)
+    if sweep_htf_val is not None:
+        raw_sweep_htf = _fetch_rates(sweep_htf, sweep_htf_val, range_end_utc=range_end_utc)
+        if raw_sweep_htf is not None:
+            sweep_htf_rates = _as_records(raw_sweep_htf)
 
     since_ts = int(SINCE.timestamp())
     start_idx = max(80, next((i for i, r in enumerate(bars) if int(r["time"]) >= since_ts), 80))
@@ -334,6 +545,7 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
     fired: set[tuple] = set()
     sl_guard = SimSLGuard(point)
     trail_focus_state: dict = {}
+    last_sid_tf: dict = {}
     fallback_start: dict = {}
     maru_pending: dict = {}
     tf_secs = TF_SECONDS.get(tf_name, 60)
@@ -390,6 +602,10 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             if sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
                 trades.append(trend_cancel_event(order, bt, "SL Guard active near entry"))
                 continue
+            s1_rule = s1_pending_rule_check(order, full_rates)
+            if s1_rule.get("status") == "fail":
+                trades.append(trend_cancel_event(order, bt, s1_rule.get("reason", "S1 rule cancel")))
+                continue
             lg = limit_guard_cancel(order, open_trades, bar, point)
             if lg.get("status") == "fail":
                 trades.append(trend_cancel_event(order, bt, lg.get("reason", "Limit Guard cancel")))
@@ -441,6 +657,13 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             sid = int(trade.get("sid", 0) or 0)
             if id(trade) in opposite_close_ids:
                 trades.append(_close_row(trade, "OPPOSITE_CLOSE", float(bar["close"]), bt))
+                continue
+            s1_rule = s1_fill_rule_check(trade, full_rates, float(bar["close"]))
+            if s1_rule.get("status") == "fail":
+                row = _close_row(trade, s1_rule_close_type(s1_rule), float(bar["close"]), bt)
+                trades.append(row)
+                if sl_guard.record_close(tf_name, trade["signal"], row["close_type"], row["pnl"], full_rates):
+                    guard_activated_sides.append(trade["signal"])
                 continue
             sweep = limit_sweep_followup_s8(trade, full_rates, pending, bar, bars[i - 1] if i > 0 else None, tf_name)
             if sweep.get("status") == "close":
@@ -516,10 +739,15 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             if not _duplicate_pending(pending, retry_order):
                 pending.append(retry_order)
 
-        for sid, result in _scan_signals(
+        scan_results = _scan_signals(
             strategies, scan_rates, full_rates, hist_data, tf_name, bt, bar, tf_secs, fallback_start, maru_pending
-        ):
+        )
+        sweep_state = _sweep_scan_state(tf_name, hist_data, full_rates, sweep_htf_rates) if scan_results else None
+        for sid, result in scan_results:
             order = _pending_from_result(result, tf_name, bar, sid)
+            order = _s2_parallel_prepare(order, pending, trades, bt, active_tfs={tf_name})
+            if order is None:
+                continue
             if _entry_already_passed(order, bar):
                 continue
             key = (
@@ -536,6 +764,13 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             fired.add(key)
             if _duplicate_pending(pending, order):
                 continue
+            if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
+                trades.append(trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block"))
+                continue
+            if sid != 8 and not _pattern_allows_adjacent_order(sid, str(order.get("pattern", ""))):
+                if _adjacent_sid_blocked_sim(last_sid_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs):
+                    trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
+                    continue
             if sl_guard.is_blocked(tf_name, order["signal"], full_rates):
                 sl_guard.record_blocked_order(tf_name, order, int(bar["time"]))
                 trades.append(trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT"))
@@ -548,6 +783,295 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
                 trades.append(pd_cancel_event(order, order["detect_time"]))
                 continue
             pending.append(order)
+            last_sid_tf.setdefault(tf_name, {})[sid] = int(bar["time"])
+
+    for order in pending:
+        trades.append({
+            **order,
+            "entry_time": order["detect_time"],
+            "entry_time_raw": order["detect_time_raw"],
+            "close_time": None,
+            "close_price": None,
+            "close_type": "OPEN_PENDING",
+            "pnl": 0.0,
+            "profit": 0.0,
+        })
+    for trade in open_trades:
+        trades.append({
+            **trade,
+            "close_time": None,
+            "close_price": None,
+            "close_type": "OPEN",
+            "pnl": 0.0,
+            "profit": 0.0,
+        })
+    return trades
+
+
+def backtest_multi_tf(
+    tf_map: dict[str, int],
+    strategies: set[int],
+    range_end_utc: datetime | None = None,
+) -> list[dict]:
+    if not tf_map:
+        return []
+    try:
+        import sweep_filter
+        sweep_filter.reset_all()
+    except Exception:
+        pass
+
+    symbol_info = mt5.symbol_info(SYMBOL)
+    point = float(getattr(symbol_info, "point", 0.01) or 0.01)
+    spread = float(getattr(symbol_info, "spread", 0) or 0) * point
+
+    states: dict[str, dict] = {}
+    events: list[tuple[int, int, str]] = []
+    since_ts = int(SINCE.timestamp())
+    for tf_name, tf_val in tf_map.items():
+        rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
+        if rates is None or len(rates) < 120:
+            continue
+        bars = _as_records(rates)
+        start_idx = max(80, next((i for i, r in enumerate(bars) if int(r["time"]) >= since_ts), 80))
+        strategy_window = max(
+            80,
+            int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20) + 6,
+        )
+        states[tf_name] = {
+            "bars": bars,
+            "start_idx": start_idx,
+            "strategy_window": strategy_window,
+            "tf_secs": TF_SECONDS.get(tf_name, 60),
+            "fallback_start": {},
+            "maru_pending": {},
+            "sweep_htf_rates": None,
+        }
+        sweep_htf = _sweep_htf_name(tf_name)
+        sweep_htf_val = TF_MAP.get(sweep_htf)
+        if sweep_htf_val is not None:
+            raw_sweep_htf = _fetch_rates(sweep_htf, sweep_htf_val, range_end_utc=range_end_utc)
+            if raw_sweep_htf is not None:
+                states[tf_name]["sweep_htf_rates"] = _as_records(raw_sweep_htf)
+        for idx in range(start_idx, len(bars)):
+            events.append((int(bars[idx]["time"]), _tf_sort_key(tf_name), tf_name))
+
+    if not states:
+        return []
+
+    events.sort()
+    active_tfs = set(states)
+    trail_rates_by_tf = {tf_name: state["bars"] for tf_name, state in states.items()}
+    trades: list[dict] = []
+    pending: list[dict] = []
+    open_trades: list[dict] = []
+    fired: set[tuple] = set()
+    sl_guard = SimSLGuard(point)
+    trail_focus_state: dict = {}
+    last_sid_tf: dict = {}
+
+    for event_time, _, tf_name in events:
+        state = states[tf_name]
+        bars = state["bars"]
+        idx = next((j for j, r in enumerate(bars) if int(r["time"]) == event_time), None)
+        if idx is None:
+            continue
+        bar = bars[idx]
+        bt = to_bkk(bar["time"])
+        h = float(bar["high"])
+        l = float(bar["low"])
+        full_rates = bars[:idx + 1]
+        hist_data = _build_historical_hhll_data(full_rates)
+        scan_rates = bars[max(0, idx - int(state["strategy_window"]) + 1):idx + 1]
+        tf_secs = int(state["tf_secs"])
+        s8_scan = {"signal": "WAIT"}
+
+        still_pending = []
+        for order in pending:
+            order_tf = str(order.get("tf") or tf_name)
+            if order_tf != tf_name:
+                still_pending.append(order)
+                continue
+            sid = int(order.get("sid", 0) or 0)
+            age_bars = (int(bar["time"]) - int(order.get("detect_time_raw", bar["time"]))) // max(1, int(tf_secs))
+            cancel_bars = int(order.get("cancel_bars", 0) or 0)
+            cancel_expired = (
+                cancel_bars
+                and ((sid == 1 and age_bars > cancel_bars) or (sid != 1 and age_bars >= cancel_bars))
+            )
+            if cancel_expired:
+                trades.append({
+                    **order,
+                    "entry_time": order["detect_time"],
+                    "entry_time_raw": order["detect_time_raw"],
+                    "close_time": bt,
+                    "close_price": None,
+                    "close_type": "CANCEL",
+                    "pnl": 0.0,
+                    "profit": 0.0,
+                    "reason": "cancel_bars",
+                })
+                continue
+            if sid == 8 and sim_s8_backtest._cancelled_by_swing_change(order, s8_scan):
+                trades.append({
+                    **order,
+                    "entry_time": order["detect_time"],
+                    "entry_time_raw": order["detect_time_raw"],
+                    "close_time": bt,
+                    "close_price": None,
+                    "close_type": "CANCEL",
+                    "pnl": 0.0,
+                    "profit": 0.0,
+                    "reason": "S8 swing changed",
+                    "cancel_reason": "S8 swing changed",
+                })
+                continue
+            if sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
+                trades.append(trend_cancel_event(order, bt, "SL Guard active near entry"))
+                continue
+            lg = limit_guard_cancel(order, open_trades, bar, point)
+            if lg.get("status") == "fail":
+                trades.append(trend_cancel_event(order, bt, lg.get("reason", "Limit Guard cancel")))
+                continue
+
+            filled = (
+                (order["signal"] == "BUY" and l <= float(order["entry"]))
+                or (order["signal"] == "SELL" and h >= float(order["entry"]))
+            )
+            if not filled:
+                still_pending.append(order)
+                continue
+
+            trade = _fill_trade(order, bar)
+            rsi = fill_rsi_recheck(trade, full_rates)
+            if rsi.get("status") == "fail":
+                trades.append(_close_row(trade, "RSI_FAIL", float(bar["close"]), bt))
+                continue
+            open_trades.append(trade)
+        pending = still_pending
+
+        opposite_closes = opposite_order_apply(open_trades, pending, bar, spread)
+        opposite_close_ids = {id(trade) for trade, _ in opposite_closes}
+        guard_activated_sides = []
+        still_open = []
+        for trade in open_trades:
+            trade_tf = str(trade.get("tf") or tf_name)
+            if trade_tf != tf_name:
+                still_open.append(trade)
+                continue
+            sid = int(trade.get("sid", 0) or 0)
+            if id(trade) in opposite_close_ids:
+                trades.append(_close_row(trade, "OPPOSITE_CLOSE", float(bar["close"]), bt))
+                continue
+            trail_sl_apply(
+                trade, trail_rates_by_tf, int(bar["time"]), tf_name,
+                open_trades=open_trades, pending=pending, bar=bar,
+                point=point, spread=spread, focus_state=trail_focus_state,
+            )
+            sl_active = bool(trade.get("sl_armed", True)) if sid == 8 else True
+            if trade["signal"] == "BUY":
+                if sl_active and l <= float(trade["sl"]):
+                    row = _close_row(trade, "SL", trade["sl"], bt)
+                    trades.append(row)
+                    if sl_guard.record_close(tf_name, trade["signal"], row["close_type"], row["pnl"], full_rates):
+                        guard_activated_sides.append(trade["signal"])
+                    continue
+                if h >= float(trade["tp"]):
+                    row = _close_row(trade, "TP", trade["tp"], bt)
+                    trades.append(row)
+                    sl_guard.record_close(tf_name, trade["signal"], row["close_type"], row["pnl"], full_rates)
+                    continue
+            else:
+                if sl_active and h >= float(trade["sl"]):
+                    row = _close_row(trade, "SL", trade["sl"], bt)
+                    trades.append(row)
+                    if sl_guard.record_close(tf_name, trade["signal"], row["close_type"], row["pnl"], full_rates):
+                        guard_activated_sides.append(trade["signal"])
+                    continue
+                if l <= float(trade["tp"]):
+                    row = _close_row(trade, "TP", trade["tp"], bt)
+                    trades.append(row)
+                    sl_guard.record_close(tf_name, trade["signal"], row["close_type"], row["pnl"], full_rates)
+                    continue
+            still_open.append(trade)
+
+        if guard_activated_sides and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+            active_sides = set(guard_activated_sides)
+            kept_open = []
+            for trade in still_open:
+                if trade["signal"] in active_sides:
+                    trades.append(_close_row(trade, "SL_GUARD_CLOSE", float(bar["close"]), bt))
+                else:
+                    kept_open.append(trade)
+            still_open = kept_open
+            kept_pending = []
+            for order in pending:
+                if order["signal"] in active_sides:
+                    trades.append(trend_cancel_event(order, bt, "SL Guard activated"))
+                else:
+                    kept_pending.append(order)
+            pending = kept_pending
+        open_trades = still_open
+
+        for retry_order in sl_guard.pop_retry_orders(tf_name, full_rates, bar):
+            retry_order["detect_time"] = to_bkk(retry_order["detect_time_raw"])
+            if not _duplicate_pending(pending, retry_order):
+                pending.append(retry_order)
+
+        scan_results = _scan_signals(
+            strategies,
+            scan_rates,
+            full_rates,
+            hist_data,
+            tf_name,
+            bt,
+            bar,
+            tf_secs,
+            state["fallback_start"],
+            state["maru_pending"],
+        )
+        sweep_state = (
+            _sweep_scan_state(tf_name, hist_data, full_rates, state.get("sweep_htf_rates"))
+            if scan_results and bool(strategies & {2, 3}) else None
+        )
+        for sid, result in scan_results:
+            order = _pending_from_result(result, tf_name, bar, sid)
+            order = _s2_parallel_prepare(order, pending, trades, bt, active_tfs=active_tfs)
+            if order is None:
+                continue
+            if _entry_already_passed(order, bar):
+                continue
+            key = (
+                int(bar["time"]),
+                sid,
+                order.get("signal"),
+                round(float(order.get("entry", 0.0) or 0.0), 2),
+                round(float(order.get("sl", 0.0) or 0.0), 2),
+                round(float(order.get("tp", 0.0) or 0.0), 2),
+                str(order.get("pattern", "")),
+            )
+            if key in fired:
+                continue
+            fired.add(key)
+            if _duplicate_pending(pending, order):
+                continue
+            if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
+                trades.append(trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block"))
+                continue
+            if sid != 8 and not _pattern_allows_adjacent_order(sid, str(order.get("pattern", ""))):
+                if _adjacent_sid_blocked_sim(last_sid_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs):
+                    trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
+                    continue
+            if sl_guard.is_blocked(tf_name, order["signal"], full_rates):
+                sl_guard.record_blocked_order(tf_name, order, int(bar["time"]))
+                trades.append(trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT"))
+                continue
+            pd = pending_pdfiboplus_round1(order, full_rates)
+            if pd.get("status") == "fail":
+                trades.append(pd_cancel_event(order, order["detect_time"]))
+                continue
+            pending.append(order)
+            last_sid_tf.setdefault(tf_name, {})[sid] = int(bar["time"])
 
     for order in pending:
         trades.append({

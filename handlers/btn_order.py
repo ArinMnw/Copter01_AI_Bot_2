@@ -10,18 +10,32 @@ BOT_LOG_FILE  = os.path.join("logs", "bot.log")
 BOT_LOG_DIR   = os.path.join("logs", "old_logs")   # archived bot-YYYY-MM.log
 
 def _all_bot_log_files() -> list[str]:
-    """คืน list ของ log files เรียงจากใหม่→เก่า: bot.log, bot-2026-06.log, bot-2026-05.log, ..."""
+    """คืน list ของ log files ทั้งหมด (เก่า→ใหม่ = chronological)
+
+    ใช้ helper กลาง `log_sources.bot_log_files()` ซึ่งครอบไฟล์ทุกแบบ:
+    - logs/bot.log
+    - logs/old_logs/bot-YYYY-MM.log         (monthly)
+    - logs/old_logs/bot-YYYY-MM-DD-NN.log   (size-split >100MB)
+    - logs/old_logs/bot-*.log.bak-*         (re-archive backup)
+
+    เดิมใช้ glob `bot-YYYY-MM.log` อย่างเดียว → พลาด size-split/.bak
+    ทำให้ ticket ที่ log ตกไปอยู่ไฟล์เหล่านั้นขึ้น "ไม่พบ log"
+    """
+    try:
+        from log_sources import bot_log_files
+        files = bot_log_files()
+        if files:
+            return files
+    except Exception:
+        pass
+    # fallback: logic เดิม (เผื่อ import ไม่ได้)
     import glob
-    files: list[str] = []
+    files = []
+    if os.path.isdir(BOT_LOG_DIR):
+        files += sorted(glob.glob(os.path.join(BOT_LOG_DIR, "bot-2[0-9][0-9][0-9]-[0-9][0-9]*.log")))
+        files += sorted(glob.glob(os.path.join(BOT_LOG_DIR, "bot-2[0-9][0-9][0-9]-[0-9][0-9]*.log.bak-*")))
     if os.path.exists(BOT_LOG_FILE):
         files.append(BOT_LOG_FILE)
-    if os.path.isdir(BOT_LOG_DIR):
-        archived = sorted(
-            [f for f in glob.glob(os.path.join(BOT_LOG_DIR, "bot-2[0-9][0-9][0-9]-[0-9][0-9].log"))
-             if os.path.isfile(f)],
-            reverse=True,
-        )
-        files.extend(archived)
     return files
 
 # events ที่ต้องการดึงมาแสดง
@@ -114,11 +128,13 @@ def _grep_ticket_lines(ticket: int) -> list[str]:
     """
     tk_str = str(ticket)
     matched: list[str] = []
+    seen: set = set()   # dedup บรรทัดซ้ำเป๊ะ — ไฟล์ .bak มัก overlap กับ archive ปัจจุบัน
     for path in _all_bot_log_files():
         try:
             with open(path, encoding='utf-8', errors='replace') as f:
                 for line in f:
-                    if tk_str in line:
+                    if tk_str in line and line not in seen:
+                        seen.add(line)
                         matched.append(line)
         except Exception:
             pass

@@ -284,7 +284,8 @@ def strategy_20(rates, tf=None, dt_bkk=None):
     # If we have H1 swing data
     h1_swing = hhll_swing.get_swing_hl_pts("H1")
     if h1_swing and h1_swing[0] is not None and h1_swing[1] is not None:
-        htf_high, htf_low = h1_swing[0], h1_swing[1]
+        htf_high = float(h1_swing[0]["price"])
+        htf_low  = float(h1_swing[1]["price"])
         fibo_range = htf_high - htf_low
         if fibo_range > 0:
             ret_50  = htf_low + (fibo_range * 0.5)      # 50% retracement level

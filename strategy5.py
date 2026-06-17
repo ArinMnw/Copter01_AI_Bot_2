@@ -64,7 +64,7 @@ def _check_filters(rates, signal, entry, atr, ms, now_h, tf=""):
 
     return True, ""
 
-def strategy_5(rates, tf=""):
+def strategy_5(rates, tf="", signal_time=None):
     """
     ท่าที่ 5 — Scalping (M1/M5/M15)
     Filters: Time / ATR / Trend(EMA20) / Zone(Swing H/L)
@@ -92,7 +92,7 @@ def strategy_5(rates, tf=""):
         rng = h-l
         return abs(cl-o)/rng if rng > 0 else 0
 
-    now_h = (datetime.now(timezone.utc) + timedelta(hours=7)).hour
+    now_h = signal_time.hour if signal_time is not None else (datetime.now(timezone.utc) + timedelta(hours=7)).hour
 
     candles = [
         {"open":o2,"high":h2,"low":l2,"close":cl2},

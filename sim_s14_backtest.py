@@ -644,7 +644,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
             htf_secs_s14 = TF_SECONDS.get(htf_name_s14, 300)
             entry_time_raw = in_trade['entry_time_raw']
             entry_htf_start = (entry_time_raw // htf_secs_s14) * htf_secs_s14
-            exit_bar_start = entry_htf_start + htf_secs_s14
+            exit_bar_start = entry_htf_start
             exit_bar_end = exit_bar_start + htf_secs_s14
             if b['time'] >= exit_bar_end:
                 htf_bar = htf_rates_lookup.get(exit_bar_start)

@@ -279,7 +279,10 @@ def _sl_guard_check_unblock(tf: str, side: str, rates) -> bool:
     swing_ref = sg.get("swing_ref", 0.0)
 
     # Find bars that occurred AFTER guard activation
-    bars_after = [r for r in rates if int(r["time"]) > blocked_since]
+    # rates["time"] is MT5 server time (UTC+MT5_SERVER_TZ) stored as-if-UTC, so it is
+    # numerically (MT5_SERVER_TZ * 3600) seconds ahead of real UTC (time.time()).
+    _mt5_tz = getattr(config, "MT5_SERVER_TZ", 1) * 3600
+    bars_after = [r for r in rates if int(r["time"]) > blocked_since + _mt5_tz]
     if not bars_after:
         return False
 
@@ -287,9 +290,9 @@ def _sl_guard_check_unblock(tf: str, side: str, rates) -> bool:
     # (กัน false-unblock ในรอบแรกหลัง activate)
     if swing_ref <= 0:
         if side.upper() == "BUY":
-            swing_ref = float(min(float(r["low"]) for r in rates)) if rates is not None and len(rates) > 0 else 0.0
+            swing_ref = float(rates[-1]["low"]) if rates is not None and len(rates) > 0 else 0.0
         else:
-            swing_ref = float(max(float(r["high"]) for r in rates)) if rates is not None and len(rates) > 0 else 0.0
+            swing_ref = float(rates[-1]["high"]) if rates is not None and len(rates) > 0 else 0.0
         sg["swing_ref"] = swing_ref
         _sl_guard_state[key] = sg
         # ยังไม่ unblock — รอให้มีแท่งใหม่หลัง block จริงๆ ก่อน
@@ -467,16 +470,19 @@ def _combined_guard_check_unblock(tf: str, side: str, rates) -> bool:
     blocked_since  = sg.get("tf_since", {}).get(tf, 0)
     swing_ref      = sg.get("tf_swing_ref", {}).get(tf, 0.0)
 
-    # init swing_ref ถ้ายังไม่ได้ตั้ง (0) — กัน false-unblock ทันทีหลัง activate
+    # init swing_ref ถ้ายังไม่ได้ตั้ง (0) — ใช้ high/low ของแท่งล่าสุด ณ เวลา activate
     if swing_ref <= 0:
         if side == "BUY":
-            swing_ref = float(min(float(r["low"]) for r in rates))
+            swing_ref = float(rates[-1]["low"])
         else:
-            swing_ref = float(max(float(r["high"]) for r in rates))
+            swing_ref = float(rates[-1]["high"])
         sg.setdefault("tf_swing_ref", {})[tf] = swing_ref
         _sl_guard_combined[side] = sg
 
-    bars_after     = [r for r in rates if int(r["time"]) > blocked_since]
+    # rates["time"] is MT5 server time (UTC+MT5_SERVER_TZ) stored as-if-UTC, so it is
+    # numerically (MT5_SERVER_TZ * 3600) seconds ahead of real UTC (time.time()).
+    _mt5_tz = getattr(config, "MT5_SERVER_TZ", 1) * 3600
+    bars_after     = [r for r in rates if int(r["time"]) > blocked_since + _mt5_tz]
     if not bars_after:
         return False
 
@@ -697,16 +703,20 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
         blocked_since = sg.get("tf_since", {}).get(tf, 0)
 
         swing_ref = sg.get("tf_swing_ref", {}).get(tf, 0.0)
-        # init swing_ref ถ้ายังไม่ได้ตั้ง (0) — กัน false-unblock ทันทีหลัง activate
+        # init swing_ref ถ้ายังไม่ได้ตั้ง (0) — ใช้ high/low ของแท่งล่าสุด ณ เวลา activate
+        # (ไม่ใช้ max/min ทั้ง lookback เพราะทำให้ต้องรอทะลุ historical high ก่อนถึง unblock)
         if swing_ref <= 0:
             if side == "BUY":
-                swing_ref = float(min(float(r["low"]) for r in rates))
+                swing_ref = float(rates[-1]["low"])
             else:
-                swing_ref = float(max(float(r["high"]) for r in rates))
+                swing_ref = float(rates[-1]["high"])
             sg.setdefault("tf_swing_ref", {})[tf] = swing_ref
             sg_side[gkey] = sg
 
-        bars_after = [r for r in rates if int(r["time"]) > blocked_since]
+        # rates["time"] is MT5 server time (UTC+MT5_SERVER_TZ) stored as-if-UTC, so it is
+        # numerically (MT5_SERVER_TZ * 3600) seconds ahead of real UTC (time.time()).
+        _mt5_tz = getattr(config, "MT5_SERVER_TZ", 1) * 3600
+        bars_after = [r for r in rates if int(r["time"]) > blocked_since + _mt5_tz]
         if not bars_after:
             continue
 
@@ -730,8 +740,9 @@ def _group_guard_check_unblock(tf: str, side: str, rates) -> bool:
         if swing_bar_time != prev_swing:
             sg["tf_swing_bar_time"][tf] = swing_bar_time
 
-        # รอ confirm_bars แท่งหลัง swing bar ก่อน unblock
-        confirm_time = swing_bar_time + confirm_bars * tf_secs
+        # รอจนแท่งที่ confirm_bars นับรวม swing bar ปิด
+        # (swing bar = bar #1 ดังนั้นรอแค่ confirm_bars-1 แท่งหลัง swing)
+        confirm_time = swing_bar_time + (confirm_bars - 1) * tf_secs
         if latest_bar_time < confirm_time:
             continue
 
@@ -779,8 +790,13 @@ def _group_guard_get_retry_signals(tf: str, side: str) -> list:
     """ดึง retry signals ของ TF นี้จากทุก group หลัง unblock (เรียกครั้งเดียวแล้ว clear)"""
     side = side.upper()
     result = []
+    seen = set()
     for sg in _sl_guard_group.get(side, {}).values():
-        result.extend(sg.get("tf_retry_signals", {}).pop(tf, []))
+        for sig in sg.get("tf_retry_signals", {}).pop(tf, []):
+            key = (sig.get("candle_time", 0), sig.get("sid", 0))
+            if key not in seen:
+                seen.add(key)
+                result.append(sig)
     return result
 
 
@@ -3931,7 +3947,7 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 2, 3, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19):
+        if sid in set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ())):
             continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17/S18/S19 skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -5561,8 +5577,9 @@ async def check_opposite_order_tp(app):
 
     now      = now_bkk().strftime("%H:%M:%S")
     # S15 (VP) ถือ BUY (VAL) + SELL (VAH) พร้อมกันได้ (range play) → ห้ามให้ Opposite Order ปิดฝั่งตรงข้ามทิ้ง
-    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16, 17)]
-    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in (10, 12, 13, 15, 16, 17)]
+    opposite_skip_sids = set(getattr(config, "OPPOSITE_ORDER_SKIP_SIDS", (10, 12, 13, 15, 16, 17, 18, 19)))
+    buy_pos  = [p for p in positions if p.type == mt5.ORDER_TYPE_BUY and position_sid.get(p.ticket) not in opposite_skip_sids]
+    sell_pos = [p for p in positions if p.type == mt5.ORDER_TYPE_SELL and position_sid.get(p.ticket) not in opposite_skip_sids]
 
     def _get_order_tf(ticket):
         info = pending_order_tf.get(ticket)
@@ -5579,8 +5596,8 @@ async def check_opposite_order_tp(app):
     opp_mode = config.OPPOSITE_ORDER_MODE  # "tp_close" | "sl_protect"
 
     if pending and opp_mode == "tp_close":
-        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16, 17)]
-        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in (10, 12, 13, 15, 16, 17)]
+        buy_lim  = [o for o in pending if o.type == mt5.ORDER_TYPE_BUY_LIMIT and _get_order_sid(o.ticket) not in opposite_skip_sids]
+        sell_lim = [o for o in pending if o.type == mt5.ORDER_TYPE_SELL_LIMIT and _get_order_sid(o.ticket) not in opposite_skip_sids]
 
         # BUY position in profit + SELL limit on same TF -> BUY TP = SELL limit entry
         for pos in buy_pos:
@@ -7550,8 +7567,7 @@ async def check_cancel_pending_orders(app):
                                       f" setup ล้มเหลว")
 
         # Premium/Discount zone recheck
-        # Skip: S9 (RSI Divergence), S10 (CRT), S13/S14/S16/S17/S18/S19 standalone, S15 (VP)
-        if not should_cancel and isinstance(info, dict) and _order_sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19):
+        if not should_cancel and isinstance(info, dict) and _order_sid not in set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ())):
             _is_combined = _triple_check_all_enabled()
             pd_status, pd_msgs = _pdfiboplus_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
@@ -8104,14 +8120,29 @@ async def check_s14_engulf_exits(app):
         if is_sweep:
             check_tf = tf
             check_secs = TF_SECONDS.get(check_tf, 60)
-            exit_bar_start = (entry_time // check_secs) * check_secs
+            # ── Case A vs Case B ──────────────────────────────────────────────
+            # Case A: sweep bar เขียว (BUY) / แดง (SELL) → เข้าทันที
+            #   exit bar = แท่งถัดจาก sweep bar (ไม่ใช่แท่งที่ entry อยู่)
+            # Case B: รอ confirm bar → exit bar = แท่งที่ entry/confirm bar อยู่
+            #
+            # ใช้ s14_sweep_bar_time จาก zone_meta เพื่อแยก Case A ออกจาก Case B
+            # (เก็บไว้ใน scanner.py ตอน place order สำหรับ sweep pattern)
+            _sweep_bar_t = zone_meta.get("s14_sweep_bar_time")
+            if _sweep_bar_t:
+                # Case A: entry time ≈ sweep bar time → exit bar = sweep bar + 1 bar
+                sweep_bar_start = (_sweep_bar_t // check_secs) * check_secs
+                exit_bar_start = sweep_bar_start + check_secs
+            else:
+                # Case B: เดิม — exit bar = แท่งที่ entry อยู่ (confirm bar)
+                exit_bar_start = (entry_time // check_secs) * check_secs
             exit_bar_end = exit_bar_start + check_secs
+
         else: # is_engulf
             htf = _get_s14_htf(tf)
             check_tf = htf
             check_secs = TF_SECONDS.get(check_tf, 300)
             entry_htf_start = (entry_time // check_secs) * check_secs
-            exit_bar_start = entry_htf_start + check_secs
+            exit_bar_start = entry_htf_start
             exit_bar_end = exit_bar_start + check_secs
         
         # Get current time (server time)

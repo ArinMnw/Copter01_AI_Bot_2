@@ -3645,12 +3645,20 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         position_tf[order["ticket"]] = tf_name
                         position_sid[order["ticket"]] = sid
                         position_pattern[order["ticket"]] = place_pattern
-                        if sid == 14 and result.get("sec_htf"):
+                        if sid == 14 and (result.get("sec_htf") or result.get("sweep_bar_time")):
                             from trailing import position_zone_meta
-                            position_zone_meta[order["ticket"]] = {
-                                "sec_htf": result["sec_htf"],
-                                "s14_ref_level": result["s14_ref_level"]
-                            }
+                            _s14_zone: dict = {}
+                            if result.get("sec_htf"):
+                                _s14_zone["sec_htf"] = result["sec_htf"]
+                                _s14_zone["s14_ref_level"] = result["s14_ref_level"]
+                            if result.get("sweep_bar_time"):
+                                # เก็บ sweep_bar_time เพื่อให้ check_s14_engulf_exits คำนวณ exit bar ถูกต้อง
+                                # Case A (sweep bar เขียว/แดง → เข้าทันที) exit bar = แท่งถัดจาก sweep bar
+                                _s14_zone["s14_sweep_bar_time"] = int(result["sweep_bar_time"])
+                            if _s14_zone:
+                                existing = position_zone_meta.get(order["ticket"]) or {}
+                                existing.update(_s14_zone)
+                                position_zone_meta[order["ticket"]] = existing
                         if _trend_keys:
                             from trailing import position_trend_filter as _pos_trend
                             _pos_trend[order["ticket"]] = ",".join(_trend_keys)
@@ -3872,8 +3880,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
 
             # ── PD Zone pre-creation check (ก่อนสร้าง order) ────────────────
             # ย้ายมาก่อน PATTERN_FOUND เพื่อไม่ให้ log/TG ซ้ำทุก scan เมื่อ skip
-            # Skip: S9 (RSI Div), S10 (CRT), S13/S14/S16/S17 standalone, S15 (VP), market orders
-            _pdz_skip_sids = (9, 10, 13, 14, 15, 16, 17)
+            _pdz_skip_sids = set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ()))
             if (getattr(config, "PDFIBOPLUS_ENABLED", False)
                     and sid not in _pdz_skip_sids
                     and order_mode == "limit"
@@ -4012,6 +4019,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 position_tf[order["ticket"]] = tf_name
                 position_sid[order["ticket"]] = sid
                 position_pattern[order["ticket"]] = pattern
+                if sid == 14 and result.get("sweep_bar_time"):
+                    from trailing import position_zone_meta as _pzm14
+                    _s14z2 = _pzm14.get(order["ticket"]) or {}
+                    _s14z2["s14_sweep_bar_time"] = int(result["sweep_bar_time"])
+                    _pzm14[order["ticket"]] = _s14z2
                 if _trend_keys:
                     from trailing import position_trend_filter as _pos_trend
                     _pos_trend[order["ticket"]] = ",".join(_trend_keys)

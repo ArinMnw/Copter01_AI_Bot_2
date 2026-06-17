@@ -78,8 +78,8 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "name": "S2 FVG parallel intersection",
             "config_on": bool(getattr(config, "FVG_PARALLEL", False)),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime intersects pending orders across TFs; baseline replay is single-TF normal path",
+            "replay": "partial",
+            "note": "Unified S2 replay can include FVG parallel context TFs and replace overlapping pending gaps with intersection entries",
         },
         {
             "name": "Pending limit lifecycle",
@@ -91,16 +91,30 @@ def s2_runtime_feature_coverage() -> list[dict]:
         {
             "name": "PD Fibo Plus",
             "config_on": getattr(config, "PDFIBOPLUS_ENABLED", False),
-            "runtime": "apply",
-            "replay": "partial",
-            "note": "Replay applies pending/fill round1 gates and S2 EQ/50% entry adjustment; round2 is not included yet",
+            "runtime": "skip_s2",
+            "replay": "skip_s2",
+            "note": "Runtime skips S2 PD Fibo Plus",
         },
         {
             "name": "Limit Trend/Fill Trend Recheck",
             "config_on": getattr(config, "LIMIT_TREND_RECHECK", False),
+            "runtime": "skip_s2",
+            "replay": "skip_s2",
+            "note": "Runtime skips S2 pending/fill trend recheck",
+        },
+        {
+            "name": "Trend Filter scan block",
+            "config_on": getattr(config, "TREND_FILTER_SCAN_BLOCK", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime applies trend recheck to S2 pending/fill",
+            "replay": "ready",
+            "note": "Config is currently OFF in tested state; S2 scan parity currently relies on signal-side trend filters plus sweep block",
+        },
+        {
+            "name": "Sweep Filter scan block",
+            "config_on": getattr(config, "SWEEP_FILTER_ENABLED", False),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Unified S2 replay uses optimized historical sweep detection to block counter-sweep scan signals",
         },
         {
             "name": "RSI Fill Recheck",
@@ -120,8 +134,8 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "name": "Trail/Opposite/Limit Guard",
             "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False) or getattr(config, "LIMIT_GUARD", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Shared lifecycle features are not included in S2 baseline yet",
+            "replay": "partial",
+            "note": "Unified S1-S5/S8 path applies Limit Guard, Opposite Order, Trail SL, and SL Guard/Group baseline; SL Guard counts only losing SL/loss-guard closes like runtime",
         },
     ]
 

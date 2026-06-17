@@ -975,30 +975,34 @@ def _check_ltf_trigger(rates, state, ltf_tf: str, htf_tf: str):
 
     if backward_mode:
         for idx in range(len(rates) - 1, trigger_idx - 1, -1):
-            if m1_entry is None:
-                v = _calc_model1_ob(rates, idx, direction, armed_at)
-                if v is not None:
-                    m1_entry = v
-                    m1_idx = idx
-            if m2_entry is None:
-                v = _calc_model2_fvg(rates, idx, direction)
-                if v is not None:
-                    m2_entry = v
-                    m2_idx = idx
+            v2 = _calc_model2_fvg(rates, idx, direction)
+            if v2 is not None:
+                m2_entry = v2
+                m2_idx = idx
+                m1_entry = None
+                m1_idx = None
+            if m2_entry is not None and m1_entry is None and idx < m2_idx:
+                v1 = _calc_model1_ob(rates, idx, direction, armed_at)
+                if v1 is not None:
+                    if (direction == "BUY" and m2_entry > v1) or (direction == "SELL" and m2_entry < v1):
+                        m1_entry = v1
+                        m1_idx = idx
             if m1_entry is not None and m2_entry is not None:
                 break
     else:
         for idx in range(trigger_idx, len(rates)):
-            if m1_entry is None:
-                v = _calc_model1_ob(rates, idx, direction, armed_at)
-                if v is not None:
-                    m1_entry = v
-                    m1_idx = idx
-            if m2_entry is None:
-                v = _calc_model2_fvg(rates, idx, direction)
-                if v is not None:
-                    m2_entry = v
-                    m2_idx = idx
+            v1 = _calc_model1_ob(rates, idx, direction, armed_at)
+            if v1 is not None:
+                m1_entry = v1
+                m1_idx = idx
+                m2_entry = None
+                m2_idx = None
+            if m1_entry is not None and m2_entry is None and idx > m1_idx:
+                v2 = _calc_model2_fvg(rates, idx, direction)
+                if v2 is not None:
+                    if (direction == "BUY" and v2 > m1_entry) or (direction == "SELL" and v2 < m1_entry):
+                        m2_entry = v2
+                        m2_idx = idx
             if m1_entry is not None and m2_entry is not None:
                 break
 

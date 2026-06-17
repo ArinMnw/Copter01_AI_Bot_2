@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import config
+from mt5_utils import TF_SECONDS_MAP
 
 try:
     from hhll_swing import _build_zz, _classify_pt
@@ -14,7 +15,7 @@ except Exception:  # pragma: no cover - defensive import for standalone tooling
     _calc_rsi_values = None
 
 
-PDFIBOPLUS_SKIP_SIDS = {9, 10, 13, 14, 15, 16, 17, 18, 19}
+PDFIBOPLUS_SKIP_SIDS = set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", {1, 2, 3, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19}))
 RSI_FILL_SKIP_SIDS = {1, 9, 11, 14, 15, 16, 17, 18, 19}
 
 
@@ -739,6 +740,202 @@ def trend_cancel_event(order: dict, close_time, reason: str = "Pending Trend Che
     }
 
 
+def s1_build_forward_meta(signal: str, detect_bar_time: int, forward_bars: int = 5) -> dict:
+    return {
+        "enabled": True,
+        "signal": str(signal or "").upper(),
+        "detect_bar_time": int(detect_bar_time or 0),
+        "forward_bars": max(1, int(forward_bars or 5)),
+        "confirmed": False,
+        "confirmed_sid": 0,
+        "confirmed_bar_time": 0,
+    }
+
+
+def s1_prepare_order(order: dict) -> dict:
+    if int(order.get("sid", 0) or 0) != 1:
+        return order
+    if not order.get("s1_forward_meta"):
+        order["s1_forward_meta"] = s1_build_forward_meta(
+            str(order.get("signal") or order.get("side") or ""),
+            int(order.get("detect_time_raw", 0) or 0),
+            5,
+        )
+    return order
+
+
+def s1_forward_confirm_state(row: dict, bars: list[dict]) -> dict:
+    if int(row.get("sid", 0) or 0) != 1:
+        return {"status": "skip"}
+    meta = row.get("s1_forward_meta") or {}
+    if not meta.get("enabled") or meta.get("confirmed"):
+        return {"status": "skip"}
+
+    signal = str(meta.get("signal") or row.get("signal") or row.get("side") or "").upper()
+    detect_bar_time = int(meta.get("detect_bar_time", row.get("detect_time_raw", 0)) or 0)
+    tf_secs = int(TF_SECONDS_MAP.get(str(row.get("tf") or ""), 0) or 0)
+    forward_bars = max(1, int(meta.get("forward_bars", 5) or 5))
+    if signal not in ("BUY", "SELL") or detect_bar_time <= 0 or tf_secs <= 0 or len(bars) < 4:
+        return {"status": "skip"}
+
+    deadline_time = detect_bar_time + tf_secs * forward_bars
+    last_closed_time = int(bars[-1]["time"])
+    matched_sid = 0
+    matched_bar_time = 0
+
+    from strategy2 import strategy_2
+    from strategy3 import strategy_3
+
+    for idx, bar in enumerate(bars):
+        bar_time = int(bar["time"])
+        if bar_time <= detect_bar_time:
+            continue
+        if bar_time > deadline_time:
+            break
+        if idx < 2:
+            continue
+        sliced_rates = bars[:idx + 1]
+        try:
+            s2 = strategy_2(sliced_rates)
+        except Exception:
+            s2 = {}
+        if str(s2.get("signal", "")).upper() == "FVG_DETECTED":
+            fvg = s2.get("fvg") or {}
+            if str(fvg.get("signal", "")).upper() == signal:
+                matched_sid = 2
+                matched_bar_time = bar_time
+                break
+        try:
+            s3 = strategy_3(sliced_rates)
+        except Exception:
+            s3 = {}
+        if str(s3.get("signal", "")).upper() == signal:
+            matched_sid = 3
+            matched_bar_time = bar_time
+            break
+
+    if matched_sid:
+        meta["confirmed"] = True
+        meta["confirmed_sid"] = matched_sid
+        meta["confirmed_bar_time"] = matched_bar_time
+        row["s1_forward_meta"] = meta
+        return {"status": "pass", "reason": f"S1 Forward Confirm S{matched_sid}", "matched_sid": matched_sid}
+    if last_closed_time >= deadline_time:
+        return {
+            "status": "fail",
+            "reason": f"S1 Forward: no S2/S3 same-side confirm in {forward_bars} bars",
+        }
+    return {"status": "wait"}
+
+
+def _s1_swing_rule_state(row: dict, bars: list[dict], *, pending: bool) -> dict:
+    signal = str(row.get("signal") or row.get("side") or "").upper()
+    detect_bar_time = int(
+        (row.get("s1_forward_meta") or {}).get("detect_bar_time", row.get("detect_time_raw", 0)) or 0
+    )
+    tf_secs = int(TF_SECONDS_MAP.get(str(row.get("tf") or ""), 0) or 0)
+    if signal not in ("BUY", "SELL") or detect_bar_time <= 0 or tf_secs <= 0:
+        return {"status": "skip"}
+
+    snap = hhll_snapshot_from_bars(bars)
+    if not snap:
+        return {"status": "wait"}
+    pts = []
+    if signal == "BUY":
+        pts = [p for p in (snap.get("hl"), snap.get("ll")) if p and p.get("time")]
+    else:
+        pts = [p for p in (snap.get("hh"), snap.get("lh")) if p and p.get("time")]
+
+    hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+    back_bars = 3 if pending else 2
+    pattern_candle_times = {detect_bar_time - n * tf_secs for n in range(back_bars + 1)}
+    for pt in pts:
+        t_swing = int(pt["time"])
+        if t_swing in pattern_candle_times:
+            t_confirm = t_swing + hhll_right * tf_secs
+            if detect_bar_time <= t_confirm <= detect_bar_time + 5 * tf_secs:
+                return {"status": "pass", "reason": "S1 Swing confirmed"}
+
+    last_closed_time = int(bars[-1]["time"])
+    if last_closed_time > detect_bar_time + 4 * tf_secs:
+        return {"status": "fail", "reason": f"S1 Swing: no {signal} swing confirmed in 4 bars"}
+    return {"status": "wait"}
+
+
+def s1_pending_rule_check(order: dict, bars: list[dict]) -> dict:
+    if int(order.get("sid", 0) or 0) != 1:
+        return {"status": "skip"}
+    mode = str(getattr(config, "S1_ZONE_MODE", "") or "")
+    zone_meta = order.get("s1_zone_meta") or {}
+    if mode not in ("zone", "swing") or not zone_meta.get("enabled"):
+        return s1_forward_confirm_state(order, bars)
+
+    if mode == "swing":
+        swing = _s1_swing_rule_state(order, bars, pending=True)
+        if swing.get("status") == "fail":
+            return swing
+    else:
+        detect_bar_time = int((order.get("s1_forward_meta") or {}).get("detect_bar_time", order.get("detect_time_raw", 0)) or 0)
+        candles_passed = sum(1 for bar in bars if int(bar["time"]) > detect_bar_time)
+        if candles_passed >= 7:
+            from strategy1 import evaluate_s1_zone_status
+            zone_state = evaluate_s1_zone_status(
+                bars,
+                str(zone_meta.get("signal") or order.get("signal") or ""),
+                float(zone_meta.get("zone_price", 0.0) or 0.0),
+                tf=str(order.get("tf") or ""),
+            )
+            if not zone_state.get("in_zone", True):
+                return {
+                    "status": "fail",
+                    "reason": f"S1 Zone Cancel: pending still outside zone ({zone_state.get('boundary_price', 0.0):.2f})",
+                }
+
+    return s1_forward_confirm_state(order, bars)
+
+
+def s1_fill_rule_check(trade: dict, bars: list[dict], current_price: float) -> dict:
+    if int(trade.get("sid", 0) or 0) != 1:
+        return {"status": "skip"}
+    mode = str(getattr(config, "S1_ZONE_MODE", "") or "")
+    zone_meta = trade.get("s1_zone_meta") or {}
+
+    if mode == "swing" and zone_meta.get("enabled"):
+        swing = _s1_swing_rule_state(trade, bars, pending=False)
+        if swing.get("status") == "fail":
+            return swing
+    elif mode == "zone" and zone_meta.get("enabled"):
+        from strategy1 import evaluate_s1_zone_status
+        signal = str(zone_meta.get("signal") or trade.get("signal") or "")
+        zone_state = evaluate_s1_zone_status(
+            bars,
+            signal,
+            float(zone_meta.get("zone_price", 0.0) or 0.0),
+            tf=str(trade.get("tf") or ""),
+        )
+        if not zone_state.get("in_zone", True):
+            entry = float(trade.get("entry", 0.0) or 0.0)
+            pnl = current_price - entry if signal == "BUY" else entry - current_price
+            if pnl < 0:
+                return {
+                    "status": "fail",
+                    "reason": f"S1 Zone Loss Exit: outside zone ({zone_state.get('boundary_price', 0.0):.2f})",
+                }
+
+    return s1_forward_confirm_state(trade, bars)
+
+
+def s1_rule_close_type(result: dict) -> str:
+    reason = str((result or {}).get("reason", "") or "").upper()
+    if "ZONE" in reason:
+        return "S1_ZONE_EXIT"
+    if "SWING" in reason:
+        return "S1_SWING_EXIT"
+    if "FORWARD" in reason or "S2/S3" in reason:
+        return "S1_FORWARD_EXIT"
+    return "S1_RULE_EXIT"
+
+
 LIMIT_GUARD_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19}
 
 
@@ -785,7 +982,7 @@ def limit_guard_cancel(order: dict, open_trades: list[dict], bar: dict, point: f
     return {"status": "pass"}
 
 
-OPPOSITE_ORDER_SKIP_SIDS = {10, 12, 13, 15, 16, 17}
+OPPOSITE_ORDER_SKIP_SIDS = set(getattr(config, "OPPOSITE_ORDER_SKIP_SIDS", {10, 12, 13, 15, 16, 17, 18, 19}))
 
 
 def _trade_profit_points(trade: dict, price_now: float) -> float:
@@ -1081,26 +1278,13 @@ def trail_sl_apply(
         trade["trail_focus_skips"] += 1
         return
 
-    # Runtime trails only after price has moved beyond entry.
-    latest_bar = None
-    main_rates = trail_rates_by_tf.get(order_tf) or []
-    for row in reversed(main_rates):
-        if int(row["time"]) < int(upto_ts):
-            latest_bar = row
-            break
-    if latest_bar:
-        latest_close = float(latest_bar["close"])
-        if side == "BUY" and latest_close <= entry:
-            return
-        if side == "SELL" and latest_close >= entry:
-            return
-
     group = list(getattr(config, "TRAIL_GROUPS", {}).get(order_tf, [order_tf]))
     if order_tf not in group:
         group.insert(0, order_tf)
     current_sl = float(trade.get("sl", 0.0) or 0.0)
     best_sl = current_sl
     best_tf = ""
+    best_kind = ""
     entry_ts = int(trade.get("entry_time_raw", 0) or 0)
     if entry_ts <= 0:
         return
@@ -1142,9 +1326,11 @@ def trail_sl_apply(
         if side == "BUY" and tf_sl > best_sl:
             best_sl = tf_sl
             best_tf = trail_tf
+            best_kind = "engulf"
         elif side == "SELL" and (best_sl == 0 or tf_sl < best_sl):
             best_sl = tf_sl
             best_tf = trail_tf
+            best_kind = "engulf"
 
     if not best_tf:
         current_sl_in_profit = (
@@ -1164,6 +1350,7 @@ def trail_sl_apply(
             if rev_ok:
                 best_sl = rev_sl
                 best_tf = order_tf
+                best_kind = "reversal"
                 trade.setdefault("trail_reversal_events", []).append({
                     "time_raw": int(upto_ts),
                     "type": rev_type,
@@ -1183,21 +1370,25 @@ def trail_sl_apply(
                 if safe > best_sl:
                     best_sl = safe
                     best_tf = main_tf
+                    best_kind = "safe"
             else:
                 safe = round(entry - 0.5, 2)
                 if best_sl == 0 or safe < best_sl:
                     best_sl = safe
                     best_tf = main_tf
+                    best_kind = "safe"
 
     if best_tf and best_sl != current_sl:
         trade.setdefault("trail_events", []).append({
             "time_raw": int(upto_ts),
             "tf": best_tf,
+            "kind": best_kind or "unknown",
             "old_sl": round(current_sl, 2),
             "new_sl": round(best_sl, 2),
         })
         trade["sl"] = round(best_sl, 2)
-        trade["trail_had_engulf"] = True
+        if best_kind == "engulf":
+            trade["trail_had_engulf"] = True
 
 
 class SimSLGuard:
@@ -1470,7 +1661,8 @@ class SimSLGuard:
         if close_type == "TP":
             self._reset_on_tp(tf, side)
             return False
-        if close_type != "SL" and not loss_guard:
+        sl_loss = close_type == "SL" and float(pnl) < 0
+        if not sl_loss and not loss_guard:
             return False
         return self._record_sl(tf, side, bars)
 

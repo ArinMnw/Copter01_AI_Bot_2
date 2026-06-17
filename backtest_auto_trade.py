@@ -466,6 +466,19 @@ def resolve_s8_context_tfs(tf_arg: str | None) -> list[str]:
     return [tf for tf in S8_TF_MAP.keys() if tf in context]
 
 
+def resolve_guard_context_tfs(strategy_id: int, tf_arg: str | None, tf_map: dict[str, int]) -> list[str]:
+    base = resolve_run_tfs_for_strategy(strategy_id, tf_arg)
+    if not tf_arg or not getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        return base
+
+    wanted = tf_arg.upper()
+    context = set(base)
+    for group in getattr(config, "SL_GUARD_GROUP_GROUPS", []) or []:
+        if wanted in group:
+            context.update(tf for tf in group if tf in tf_map)
+    return [tf for tf in tf_map.keys() if tf in context]
+
+
 def resolve_s458_context_tfs(tf_arg: str | None, strategies: set[int] | None = None) -> tuple[list[str], list[str]]:
     common_tfs = set(S4_TF_MAP) & set(S5_TF_MAP) & set(S8_TF_MAP)
     if tf_arg:
@@ -478,9 +491,15 @@ def resolve_s458_context_tfs(tf_arg: str | None, strategies: set[int] | None = N
 
     context = set(requested)
     include_guard_context = bool(strategies and 8 in strategies)
+    include_s2_parallel_context = bool(strategies and 2 in strategies and getattr(config, "FVG_PARALLEL", False))
     if tf_arg and include_guard_context and getattr(config, "SL_GUARD_GROUP_ENABLED", False):
         wanted = tf_arg.upper()
         for group in getattr(config, "SL_GUARD_GROUP_GROUPS", []) or []:
+            if wanted in group:
+                context.update(tf for tf in group if tf in common_tfs)
+    if tf_arg and include_s2_parallel_context:
+        wanted = tf_arg.upper()
+        for group in getattr(config, "FVG_PARALLEL_GROUPS", []) or []:
             if wanted in group:
                 context.update(tf for tf in group if tf in common_tfs)
 
@@ -1869,20 +1888,23 @@ def print_feature_snapshot() -> None:
     print(f"  SL Guard group         : {getattr(config, 'SL_GUARD_GROUP_ENABLED', False)}")
 
 
+def _coverage_status(item: dict) -> str:
+    replay = str(item.get("replay", ""))
+    if replay == "apply":
+        return "replayed"
+    if replay == "partial":
+        return "partial"
+    if replay == "ready":
+        return "ready" if item.get("config_on") else "off ready"
+    if replay.startswith("skip"):
+        return "skipped"
+    return "ACTIVE GAP" if item.get("config_on") else "off gap"
+
+
 def print_s1_coverage() -> None:
     print("\nS1 Runtime Coverage:")
     for item in s1_runtime_feature_coverage():
-        replay = item["replay"]
-        if replay == "apply":
-            status = "replayed"
-        elif replay == "partial":
-            status = "partial"
-        elif replay == "ready":
-            status = "ready" if item["config_on"] else "off ready"
-        elif item["config_on"]:
-            status = "ACTIVE GAP"
-        else:
-            status = "off gap"
+        status = _coverage_status(item)
         print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
 
     gaps = s1_unreplayed_active_features()
@@ -1895,17 +1917,7 @@ def print_s1_coverage() -> None:
 def print_s2_coverage() -> None:
     print("\nS2 Runtime Coverage:")
     for item in s2_runtime_feature_coverage():
-        replay = item["replay"]
-        if replay == "apply":
-            status = "replayed"
-        elif replay == "partial":
-            status = "partial"
-        elif replay == "ready":
-            status = "ready" if item["config_on"] else "off ready"
-        elif item["config_on"]:
-            status = "ACTIVE GAP"
-        else:
-            status = "off gap"
+        status = _coverage_status(item)
         print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
 
     gaps = s2_unreplayed_active_features()
@@ -1918,17 +1930,7 @@ def print_s2_coverage() -> None:
 def print_s3_coverage() -> None:
     print("\nS3 Runtime Coverage:")
     for item in s3_runtime_feature_coverage():
-        replay = item["replay"]
-        if replay == "apply":
-            status = "replayed"
-        elif replay == "partial":
-            status = "partial"
-        elif replay == "ready":
-            status = "ready" if item["config_on"] else "off ready"
-        elif item["config_on"]:
-            status = "ACTIVE GAP"
-        else:
-            status = "off gap"
+        status = _coverage_status(item)
         print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
 
     gaps = s3_unreplayed_active_features()
@@ -1941,17 +1943,7 @@ def print_s3_coverage() -> None:
 def print_s4_coverage() -> None:
     print("\nS4 Runtime Coverage:")
     for item in s4_runtime_feature_coverage():
-        replay = item["replay"]
-        if replay == "apply":
-            status = "replayed"
-        elif replay == "partial":
-            status = "partial"
-        elif replay == "ready":
-            status = "ready" if item["config_on"] else "off ready"
-        elif item["config_on"]:
-            status = "ACTIVE GAP"
-        else:
-            status = "off gap"
+        status = _coverage_status(item)
         print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
 
     gaps = s4_unreplayed_active_features()
@@ -1964,17 +1956,7 @@ def print_s4_coverage() -> None:
 def print_s5_coverage() -> None:
     print("\nS5 Runtime Coverage:")
     for item in s5_runtime_feature_coverage():
-        replay = item["replay"]
-        if replay == "apply":
-            status = "replayed"
-        elif replay == "partial":
-            status = "partial"
-        elif replay == "ready":
-            status = "ready" if item["config_on"] else "off ready"
-        elif item["config_on"]:
-            status = "ACTIVE GAP"
-        else:
-            status = "off gap"
+        status = _coverage_status(item)
         print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
 
     gaps = s5_unreplayed_active_features()
@@ -1987,17 +1969,7 @@ def print_s5_coverage() -> None:
 def print_s8_coverage() -> None:
     print("\nS8 Runtime Coverage:")
     for item in s8_runtime_feature_coverage():
-        replay = item["replay"]
-        if replay == "apply":
-            status = "replayed"
-        elif replay == "partial":
-            status = "partial"
-        elif replay == "ready":
-            status = "ready" if item["config_on"] else "off ready"
-        elif item["config_on"]:
-            status = "ACTIVE GAP"
-        else:
-            status = "off gap"
+        status = _coverage_status(item)
         print(f"  {item['name']:<34} config={str(item['config_on']):<5} {status:<12} {item['note']}")
 
     gaps = s8_unreplayed_active_features()
@@ -2484,22 +2456,44 @@ def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime,
             if tf_name in requested_set or _s458_tf_history_overlaps_window(tf_name, window_start_utc, window_end_utc):
                 kept_tfs.append(tf_name)
             else:
-                progress(f"Skipping unified S4/S5/S8 context TF {tf_name}: fetched history does not overlap the requested window.")
+                progress(f"Skipping unified S1-S5/S8 context TF {tf_name}: fetched history does not overlap the requested window.")
         run_tfs = kept_tfs
     if set(run_tfs) != requested_set:
-        progress(f"Unified S1-S5/S8 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+        context_parts = []
+        if 8 in strategies and getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            context_parts.append("SL Guard Group")
+        if 2 in strategies and getattr(config, "FVG_PARALLEL", False):
+            context_parts.append("S2 FVG Parallel")
+        label = " + ".join(context_parts) if context_parts else "context"
+        progress(f"Unified S1-S5/S8 context replay includes {label} TFs: {', '.join(run_tfs)}")
 
     raw_tf_trades = []
     range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
-    for tf_name in run_tfs:
-        progress(f"Running unified S1-S5/S8 replay on {tf_name}...")
-        trades = sim_s458_backtest.backtest_tf(tf_name, S8_TF_MAP[tf_name], strategies, range_end_utc=range_end_utc)
-        progress(f"Unified S1-S5/S8 replay on {tf_name} produced {len(trades)} raw event(s).")
+    if strategy_set := set(strategies):
+        use_multi_s2 = strategy_set == {2} and getattr(config, "FVG_PARALLEL", False) and len(run_tfs) > 1
+    else:
+        use_multi_s2 = False
+    if use_multi_s2:
+        progress(f"Running unified S2 multi-TF parallel replay on {', '.join(run_tfs)}...")
+        trades = sim_s458_backtest.backtest_multi_tf(
+            {tf_name: S8_TF_MAP[tf_name] for tf_name in run_tfs},
+            strategies,
+            range_end_utc=range_end_utc,
+        )
+        progress(f"Unified S2 multi-TF parallel replay produced {len(trades)} raw event(s).")
         for t in trades:
-            t.setdefault("tf", tf_name)
+            tf_name = str(t.get("tf") or "")
             raw_tf_trades.append((tf_name, t))
+    else:
+        for tf_name in run_tfs:
+            progress(f"Running unified S1-S5/S8 replay on {tf_name}...")
+            trades = sim_s458_backtest.backtest_tf(tf_name, S8_TF_MAP[tf_name], strategies, range_end_utc=range_end_utc)
+            progress(f"Unified S1-S5/S8 replay on {tf_name} produced {len(trades)} raw event(s).")
+            for t in trades:
+                t.setdefault("tf", tf_name)
+                raw_tf_trades.append((tf_name, t))
 
-    if len(run_tfs) > 1:
+    if len(run_tfs) > 1 and not use_multi_s2:
         progress("Applying unified S1-S5/S8 SL Guard Group context overlay...")
         raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
 
@@ -2705,41 +2699,75 @@ def run_s17(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
 
 def run_s18(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(18, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(18, args.tf))
+    run_tfs = resolve_guard_context_tfs(18, args.tf, S18_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S18 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S18 replay on {tf_name}...")
         trades = backtest_s18_tf(tf_name, S18_TF_MAP[tf_name])
         progress(f"S18 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 18)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S18 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 18)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S18 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S18 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
 def run_s19(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(19, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(19, args.tf))
+    run_tfs = resolve_guard_context_tfs(19, args.tf, S19_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S19 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S19 replay on {tf_name}...")
         trades = backtest_s19_tf(tf_name, S19_TF_MAP[tf_name])
         progress(f"S19 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 19)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S19 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 19)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S19 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S19 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
@@ -3144,7 +3172,10 @@ def main() -> None:
 
     all_trades = []
     strategy_set = set(strategies)
-    unified_s458 = len(strategy_set) > 1 and strategy_set.issubset({1, 2, 3, 4, 5, 8})
+    unified_s458 = (
+        strategy_set.issubset({1, 2, 3, 4, 5, 8})
+        and (len(strategy_set) > 1 or bool(strategy_set & {1, 2, 3}))
+    )
 
     if unified_s458:
         for sid in sorted(strategy_set):

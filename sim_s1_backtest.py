@@ -6,7 +6,16 @@ import MetaTrader5 as mt5
 
 import config
 from mt5_utils import TF_SECONDS_MAP
-from sim_lifecycle import fill_pdfiboplus_round1, pd_cancel_event, pending_pdfiboplus_round1
+from sim_lifecycle import (
+    fill_pdfiboplus_round1,
+    pd_cancel_event,
+    pending_pdfiboplus_round1,
+    s1_fill_rule_check,
+    s1_pending_rule_check,
+    s1_prepare_order,
+    s1_rule_close_type,
+    trend_cancel_event,
+)
 from strategy1 import strategy_1
 
 
@@ -74,39 +83,39 @@ def s1_runtime_feature_coverage() -> list[dict]:
             "note": "Replay models pending limit fill, cancel_bars, and fixed SL/TP",
         },
         {
-            "name": "S1 zone mode",
-            "config_on": getattr(config, "S1_ZONE_MODE", "zone") == "zone",
+            "name": "S1 zone/swing mode",
+            "config_on": getattr(config, "S1_ZONE_MODE", "zone") in ("zone", "swing"),
             "runtime": "apply",
-            "replay": "partial",
-            "note": "Initial zone filter is inside strategy_1(); post-create zone cancel/loss-exit is not replayed yet",
+            "replay": "apply",
+            "note": "Replay models zone cancel/loss-exit and swing confirm/cancel/exit according to S1_ZONE_MODE",
         },
         {
             "name": "S1 forward confirm",
             "config_on": True,
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime cancels/closes if no S2/S3 same-side confirm within 5 bars",
+            "replay": "apply",
+            "note": "Replay cancels/closes if no S2/S3 same-side confirm within 5 bars",
         },
         {
             "name": "PD Fibo Plus",
             "config_on": getattr(config, "PDFIBOPLUS_ENABLED", False),
-            "runtime": "apply",
-            "replay": "partial",
-            "note": "Replay applies pending and fill round1 gates; round2 is not included yet",
+            "runtime": "skip_s1",
+            "replay": "skip_s1",
+            "note": "Runtime skips S1 PD Fibo Plus",
         },
         {
             "name": "Trend/RSI recheck",
             "config_on": getattr(config, "LIMIT_TREND_RECHECK", False) or getattr(config, "PENDING_RSI_RECHECK_ENABLED", False),
-            "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime can apply trend recheck and RSI fill recheck to S1",
+            "runtime": "skip_s1",
+            "replay": "skip_s1",
+            "note": "Runtime skips S1 trend and RSI recheck",
         },
         {
             "name": "Trail/Opposite/Limit Guard",
             "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False) or getattr(config, "LIMIT_GUARD", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Shared lifecycle features are not included in S1 baseline yet",
+            "replay": "partial",
+            "note": "Unified S1-S5/S8 path applies Limit Guard, Opposite Order, Trail SL, and SL Guard/Group baseline; fine-grained live state can still drift",
         },
     ]
 
@@ -217,6 +226,10 @@ def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None
                     "reason": "cancel_bars",
                 })
                 continue
+            s1_rule = s1_pending_rule_check(order, full_rates)
+            if s1_rule.get("status") == "fail":
+                trades.append(trend_cancel_event(order, bt, s1_rule.get("reason", "S1 rule cancel")))
+                continue
             if order["signal"] == "BUY" and l <= float(order["entry"]):
                 trade = _fill_trade(order, bar)
                 pd = fill_pdfiboplus_round1(trade, full_rates)
@@ -237,6 +250,10 @@ def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None
 
         still_open = []
         for trade in open_trades:
+            s1_rule = s1_fill_rule_check(trade, full_rates, float(bar["close"]))
+            if s1_rule.get("status") == "fail":
+                trades.append(_close_row(trade, s1_rule_close_type(s1_rule), float(bar["close"]), bt))
+                continue
             if trade["signal"] == "BUY":
                 if l <= float(trade["sl"]):
                     trades.append(_close_row(trade, "SL", trade["sl"], bt))
@@ -268,6 +285,7 @@ def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None
             continue
         fired.add(key)
         order = _pending_from_result(result, tf_name, bar)
+        s1_prepare_order(order)
         pd = pending_pdfiboplus_round1(order, full_rates)
         if pd.get("status") == "fail":
             trades.append(pd_cancel_event(order, order["detect_time"]))
