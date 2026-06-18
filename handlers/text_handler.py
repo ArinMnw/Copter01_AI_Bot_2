@@ -95,7 +95,7 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
     }
 
     if tf_str not in _TF_MT5:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ไม่พบ Timeframe `{tf_str}` ค่ะพี่\n"
             f"รองรับเฉพาะ: {', '.join(_TF_MT5.keys())}",
             reply_markup=main_keyboard()
@@ -105,7 +105,7 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
     try:
         dt_naive = datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M")
     except ValueError:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "❌ รูปแบบ วัน-เดือน-ปี หรือ เวลา ไม่ถูกต้องค่ะพี่\n"
             "ตัวอย่างที่ถูกต้อง: `M5 05-06-2026 11:15` (วัน-เดือน-ปี ค.ศ.)",
             reply_markup=main_keyboard()
@@ -114,12 +114,12 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
 
     BKK = timezone(timedelta(hours=config.TZ_OFFSET))
     dt_bkk = dt_naive.replace(tzinfo=BKK)
-    
+
     # คำนวณหา timestamp ใน MT5 server time
     ts_query = int(dt_bkk.timestamp()) + config.MT5_SERVER_TZ * 3600
 
     if not connect_mt5():
-        await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อค่ะพี่", reply_markup=main_keyboard())
+        await update.effective_message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อค่ะพี่", reply_markup=main_keyboard())
         return
 
     # Resolve symbol
@@ -134,7 +134,7 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
                 sym_info = mt5.symbol_info(symbol)
 
     if sym_info is None:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ไม่พบ Symbol `{symbol}` ในระบบ MT5 ค่ะพี่\n"
             f"กรุณาตรวจสอบชื่อ Symbol อีกครั้งนะคะ",
             reply_markup=main_keyboard()
@@ -162,7 +162,7 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
                 break
 
     if matching_bar is None:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ไม่พบข้อมูลแท่งราคา `{tf_str}` ที่เวลา BKK `{date_str} {time_str}` ค่ะพี่",
             reply_markup=main_keyboard()
         )
@@ -203,7 +203,7 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
         f"📦 Volume: `{matching_bar['tick_volume']}`"
     )
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         msg,
         parse_mode="Markdown",
         reply_markup=main_keyboard()
@@ -294,7 +294,7 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
     }
 
     if tf_str not in _TF_MT5:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ไม่พบ Timeframe `{tf_str}` ค่ะพี่\nรองรับ: {', '.join(_TF_MT5.keys())}",
             parse_mode="Markdown", reply_markup=main_keyboard()
         )
@@ -303,7 +303,7 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
     try:
         dt_naive = datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M")
     except ValueError:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "❌ รูปแบบไม่ถูกต้องค่ะพี่\nตัวอย่าง: `trend M5 05-06-2026 11:15`",
             parse_mode="Markdown", reply_markup=main_keyboard()
         )
@@ -314,7 +314,7 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
     ts_query = int(dt_bkk.timestamp()) + config.MT5_SERVER_TZ * 3600
 
     if not connect_mt5():
-        await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อค่ะพี่", reply_markup=main_keyboard())
+        await update.effective_message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อค่ะพี่", reply_markup=main_keyboard())
         return
 
     tf_const = _TF_MT5[tf_str]
@@ -326,7 +326,7 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
         hhll_left  = int(getattr(config, "HHLL_LEFT",    5))
         hhll_right = int(getattr(config, "HHLL_RIGHT",   5))
     except Exception as e:
-        await update.message.reply_text(f"❌ import hhll_swing ไม่ได้: {e}", reply_markup=main_keyboard())
+        await update.effective_message.reply_text(f"❌ import hhll_swing ไม่ได้: {e}", reply_markup=main_keyboard())
         return
 
     need      = hhll_lb + hhll_left + hhll_right + 10
@@ -334,7 +334,7 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
                                      ts_query - need * tf_secs, ts_query + tf_secs)
 
     if rates_raw is None or len(rates_raw) == 0:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ไม่พบข้อมูลราคา `{tf_str}` ในช่วงเวลาที่ระบุค่ะพี่",
             parse_mode="Markdown", reply_markup=main_keyboard()
         )
@@ -342,14 +342,14 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
 
     rates = [r for r in rates_raw if int(r["time"]) <= ts_query]
     if len(rates) < hhll_left + hhll_right + 10:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ข้อมูลไม่พอสำหรับ HHLL (มี {len(rates)} แท่ง)", reply_markup=main_keyboard()
         )
         return
 
     zz = _build_zz(rates, hhll_left, hhll_right)
     if len(zz) < 5:
-        await update.message.reply_text("❌ Zigzag ไม่พอสำหรับ classify ค่ะพี่", reply_markup=main_keyboard())
+        await update.effective_message.reply_text("❌ Zigzag ไม่พอสำหรับ classify ค่ะพี่", reply_markup=main_keyboard())
         return
 
     # เก็บ list ทั้งหมด (oldest→newest) — ไม่ dedup ต่อ label
@@ -417,7 +417,7 @@ async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_
         *swing_lines,
     ]
 
-    await _safe_reply_md(update.message, "\n".join(lines), reply_markup=main_keyboard())
+    await _safe_reply_md(update.effective_message, "\n".join(lines), reply_markup=main_keyboard())
 
 
 async def handle_buttons(update, context):
@@ -470,7 +470,7 @@ async def handle_buttons(update, context):
     if handler:
         await handler(update, context)
     else:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❓ ไม่รู้จักคำสั่ง: {text}",
             reply_markup=main_keyboard()
         )
@@ -485,7 +485,7 @@ async def _handle_lot_input(update, context, text, waiting):
         if lot < 0.01 or lot > 10.0:
             raise ValueError("out of range")
     except (ValueError, TypeError):
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"❌ ค่าไม่ถูกต้อง: `{text}`\n"
             "กรุณากรอกตัวเลข เช่น `0.03` (ขั้นต่ำ 0.01 สูงสุด 10.0)",
             parse_mode="Markdown",
@@ -499,7 +499,7 @@ async def _handle_lot_input(update, context, text, waiting):
         cfg_mod.AUTO_VOLUME = lot
         config.AUTO_VOLUME  = lot
         save_runtime_state()
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"✅ *ตั้งค่า Lot Auto สำเร็จ*\n📦 Lot: `{lot}`",
             parse_mode="Markdown",
             reply_markup=main_keyboard()
@@ -513,7 +513,7 @@ async def _handle_lot_input(update, context, text, waiting):
         price_str = parts[2]
 
         if not connect_mt5():
-            await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อ", reply_markup=main_keyboard())
+            await update.effective_message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อ", reply_markup=main_keyboard())
             return
 
         try:
@@ -535,7 +535,7 @@ async def _handle_lot_input(update, context, text, waiting):
             "type_filling": mt5.ORDER_FILLING_FOK,
         })
         if r and r.retcode == mt5.TRADE_RETCODE_DONE:
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 f"✅ *เปิดสำเร็จ!* {e} {direction.upper()} `{lot}` lot @ `{price}`\n"
                 f"🛑 `{sl}` 🎯 `{tp}` 🔖 `{r.order}`",
                 parse_mode="Markdown",
@@ -543,7 +543,7 @@ async def _handle_lot_input(update, context, text, waiting):
             )
         else:
             err = r.retcode if r else "no result"
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 f"❌ ไม่สำเร็จ: {err}",
                 reply_markup=main_keyboard()
             )
@@ -607,7 +607,7 @@ async def _handle_ticket_lookup(update, ticket: int):
     แสดงในรูปแบบเดียวกับ handle_btn_order: header + signal TG + log events + deal history
     """
     if not connect_mt5():
-        await update.message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อ", reply_markup=main_keyboard())
+        await update.effective_message.reply_text("❌ MT5 ไม่ได้เชื่อมต่อ", reply_markup=main_keyboard())
         return
 
     import trailing
@@ -641,7 +641,7 @@ async def _handle_ticket_lookup(update, ticket: int):
 
     if not pos and not cur_order and not linked_orders and not linked_deals:
         await _safe_reply_md(
-            update.message,
+            update.effective_message,
             f"🔎 ไม่พบข้อมูล ticket `{ticket}` ใน current/history 30 วัน",
             reply_markup=main_keyboard()
         )
@@ -762,14 +762,14 @@ async def _handle_ticket_lookup(update, ticket: int):
     if len(msg) > 4000:
         msg = msg[:4000] + "\n…(ตัดออก)"
 
-    await _safe_reply_md(update.message, msg, reply_markup=main_keyboard())
+    await _safe_reply_md(update.effective_message, msg, reply_markup=main_keyboard())
 
 async def start(update, context):
     if not auth(update):
         await alert_intruder(update)
         return
     status = "▶️ ทำงาน" if auto_active else "⏸️ หยุด"
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🤖 *Copter Gold Bot — ท่าที่ 1*\n"
         f"━━━━━━━━━━━━━━━━━\n"
         f"📊 A: กลืนกิน (เขียว/แดง 2 แท่ง)\n"
