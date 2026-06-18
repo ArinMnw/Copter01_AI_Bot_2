@@ -68,14 +68,14 @@ def s17_runtime_feature_coverage() -> list[dict]:
             "config_on": True,
             "runtime": "skip_s17",
             "replay": "skip_s17",
-            "note": "Runtime skips PD/trend/RSI fill recheck, entry candle, trail SL, and limit guard for S17",
+            "note": "Runtime skips PD/trend/RSI fill recheck, entry candle, trail SL, Opposite Order, and limit guard for S17",
         },
         {
             "name": "SL Guard",
             "config_on": getattr(config, "SL_GUARD_ENABLED", False) or getattr(config, "SL_GUARD_GROUP_ENABLED", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "S17 keeps SL Guard, but central replay does not overlay guard context yet",
+            "replay": "partial",
+            "note": "S17 keeps SL Guard; central replay applies SL Guard Group close-on-activate overlay as a baseline",
         },
     ]
 

@@ -78,6 +78,13 @@ def s16_runtime_feature_coverage() -> list[dict]:
             "note": "Runtime skips S16 fill trend recheck",
         },
         {
+            "name": "SL Guard",
+            "config_on": bool(getattr(config, "SL_GUARD_GROUP_ENABLED", False)),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Central runner can apply SL Guard Group close-on-activate overlay with context TFs",
+        },
+        {
             "name": "Trail/Opposite",
             "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False),
             "runtime": "skip_s16",

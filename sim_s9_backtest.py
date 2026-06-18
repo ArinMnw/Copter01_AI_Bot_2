@@ -98,11 +98,18 @@ def s9_runtime_feature_coverage() -> list[dict]:
             "note": "Runtime can scan-block S9 when strong trend block is enabled",
         },
         {
+            "name": "SL Guard",
+            "config_on": bool(getattr(config, "SL_GUARD_GROUP_ENABLED", False)),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Central runner can apply SL Guard Group close-on-activate overlay with context TFs",
+        },
+        {
             "name": "Trail/Opposite/Limit Guard",
             "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False) or getattr(config, "LIMIT_GUARD", False),
             "runtime": "apply",
             "replay": "gap",
-            "note": "Shared lifecycle features are not included in S9 baseline yet",
+            "note": "Trail SL, Opposite Order, and Limit Guard are not included in S9 baseline yet",
         },
     ]
 

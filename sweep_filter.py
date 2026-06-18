@@ -30,6 +30,7 @@ _sweep_at:         dict[str, str]   = {}  # เวลา detect (BKK string)
 _sweep_ts:         dict[str, int]   = {}  # เวลา detect (unix ของ trigger bar) — ใช้เช็ค expiry
 _prev_trend:       dict[str, str]   = {}  # track trend เพื่อ detect change
 _prev_last_label:  dict[str, str]   = {}  # track last swing label เพื่อ detect change
+_reset_blocked_ts: dict[str, int]   = {}  # bar_ts ที่เพิ่ง reset → block re-activate รอบเดียวกัน
 
 _BKK = timezone(timedelta(hours=7))
 
@@ -79,6 +80,10 @@ def reset_sweep(tf: str, reason: str = "") -> None:
             _log("SWEEP_RESET", prev, tf=tf, reason=reason or "-")
         except Exception:
             pass
+    # บันทึก ts ของ sweep ที่กำลัง reset ไว้เพื่อ block re-activation รอบเดียวกัน
+    old_ts = _sweep_ts.get(tf)
+    if old_ts:
+        _reset_blocked_ts[tf] = old_ts
     _sweep_state.pop(tf, None)
     _sweep_price.pop(tf, None)
     _sweep_at.pop(tf, None)
@@ -90,6 +95,7 @@ def reset_all() -> None:
     _sweep_price.clear()
     _sweep_at.clear()
     _sweep_ts.clear()
+    _reset_blocked_ts.clear()
 
 
 def update_trend_and_check_reset(tf: str, current_trend: str,
@@ -628,6 +634,10 @@ def _detect_both(
 
 
 def _activate(state: str, tf: str, price: float, bar_ts: int, confirm_ts: int = 0) -> None:
+    # ถ้า bar_ts นี้เพิ่ง reset ไปในรอบเดียวกัน → ข้ามเพื่อป้องกัน re-activation
+    if _reset_blocked_ts.get(tf) == int(bar_ts):
+        return
+    _reset_blocked_ts.pop(tf, None)  # clear block เมื่อ sweep ใหม่ผ่าน
     _sweep_state[tf] = state
     _sweep_price[tf] = price
     _sweep_ts[tf]    = int(bar_ts)

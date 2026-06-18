@@ -55,6 +55,7 @@ def clear_symbol_caches():
     กันข้อมูล swing/summary ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่"""
     _swing_data.clear()
     _scan_results.clear()
+    _lookback_fallback_start.clear()
 
 
 _SCAN_TF_ICONS = {"M1": "🟨", "M5": "🟩", "M15": "🟦", "M30": "🟪", "H1": "🟧", "H4": "🟥", "H12": "🟫", "D1": "⬛"}
@@ -2854,8 +2855,19 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 and pending_order_tf[o.ticket].get("tf") == tf_name
                 for o in _existing_orders
             )
+            # เช็ค open positions ด้วย (กรณี pending ถูก fill ไปแล้ว)
+            if not _dup_s2:
+                _sig_type = mt5.ORDER_TYPE_SELL if fvg["signal"] == "SELL" else mt5.ORDER_TYPE_BUY
+                _existing_pos = mt5.positions_get(symbol=SYMBOL) or []
+                _dup_s2 = any(
+                    abs(p.price_open - final_entry) < 0.01
+                    and p.type == _sig_type
+                    and position_sid.get(int(p.ticket)) == 2
+                    and position_tf.get(int(p.ticket)) == tf_name
+                    for p in _existing_pos
+                )
             if _dup_s2:
-                log_event("ORDER_SKIPPED", f"S2 duplicate pending already exists entry={final_entry}",
+                log_event("ORDER_SKIPPED", f"S2 duplicate already exists entry={final_entry}",
                           tf=tf_name, sid=2, signal=fvg["signal"], entry=final_entry)
                 return False
             order  = open_order(
@@ -3767,7 +3779,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 from trailing import _sl_guard_state as _sgs, _sl_guard_check_unblock as _sgu
                 _sg_order_mode = result.get("order_mode", "limit")
                 if _sg_order_mode == "limit":
-                    _sg_key = (tf_name, signal.upper())
+                    _sg_sym = getattr(config, "SYMBOL", "").upper()
+                    _sg_key = (_sg_sym, tf_name, signal.upper())
                     _sg_entry_val = _sgs.get(_sg_key, {})
                     if _sg_entry_val.get("active"):
                         # check unblock (new swing formed?)
@@ -3835,7 +3848,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
 
             # ── SL Guard Group: บล็อก order ใหม่ (ทั้ง LIMIT และ MARKET) ถ้า group guard active ──
-            if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in (10, 14):
                 from trailing import (_group_guard_is_blocked, _group_guard_check_unblock,
                                       _group_guard_get_blocked_groups, _sl_guard_group)
                 _gg_order_mode = result.get("order_mode", "limit")
@@ -3848,7 +3861,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                               f"[{tf_name}] {signal} {_gg_order_mode.upper()} blocked by Group Guard {_gg_grp_str}",
                               tf=tf_name, sid=sid, signal=signal, order_mode=_gg_order_mode)
                     _gg_side = signal.upper()
-                    for _gg_gkey, _gg_sg in _sl_guard_group.get(_gg_side, {}).items():
+                    _gg_sym  = getattr(config, "SYMBOL", "").upper()
+                    for _gg_gkey, _gg_sg in _sl_guard_group.get(_gg_sym, {}).get(_gg_side, {}).items():
                         if not (_gg_sg.get("active") and _gg_sg.get("tf_blocked", {}).get(tf_name)):
                             continue
                         _gg_sigs = _gg_sg.setdefault("tf_blocked_signals", {}).setdefault(tf_name, [])
