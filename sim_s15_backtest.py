@@ -105,6 +105,13 @@ def s15_runtime_feature_coverage() -> list[dict]:
             "replay": "skip_s15",
             "note": "Runtime skips S15 limit guard because VP levels can be intentionally far",
         },
+        {
+            "name": "SL Guard",
+            "config_on": getattr(config, "SL_GUARD_ENABLED", False) or getattr(config, "SL_GUARD_GROUP_ENABLED", False),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "S15 keeps SL Guard; central replay applies SL Guard Group close-on-activate overlay as a baseline",
+        },
     ]
 
 

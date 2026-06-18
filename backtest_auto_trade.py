@@ -2516,41 +2516,75 @@ def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime,
 
 def run_s9(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(9, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(9, args.tf))
+    run_tfs = resolve_guard_context_tfs(9, args.tf, S9_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S9 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S9 replay on {tf_name}...")
         trades = backtest_s9_tf(tf_name, S9_TF_MAP[tf_name])
         progress(f"S9 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 9)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S9 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 9)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S9 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S9 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
 def run_s11(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(11, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(11, args.tf))
+    run_tfs = resolve_guard_context_tfs(11, args.tf, S11_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S11 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S11 replay on {tf_name}...")
         trades = backtest_s11_tf(tf_name, S11_TF_MAP[tf_name])
         progress(f"S11 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 11)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S11 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 11)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S11 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S11 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
@@ -2576,21 +2610,38 @@ def run_s12(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
 
 def run_s13(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(13, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(13, args.tf))
+    run_tfs = resolve_guard_context_tfs(13, args.tf, S13_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S13 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S13 replay on {tf_name}...")
         trades = backtest_s13_tf(tf_name, S13_TF_MAP[tf_name])
         progress(f"S13 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 13)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S13 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 13)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S13 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S13 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
@@ -2639,61 +2690,112 @@ def run_s14(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
 
 def run_s15(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(15, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(15, args.tf))
+    run_tfs = resolve_guard_context_tfs(15, args.tf, S15_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S15 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S15 replay on {tf_name}...")
         trades = backtest_s15_tf(tf_name, S15_TF_MAP[tf_name])
         progress(f"S15 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 15)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S15 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 15)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S15 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S15 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
 def run_s16(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(16, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(16, args.tf))
+    run_tfs = resolve_guard_context_tfs(16, args.tf, S16_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S16 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S16 replay on {tf_name}...")
         trades = backtest_s16_tf(tf_name, S16_TF_MAP[tf_name])
         progress(f"S16 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 16)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S16 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 16)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S16 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S16 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 
 def run_s17(args, window_start_utc: datetime, window_end_utc: datetime) -> list[tuple[str, dict]]:
     all_trades = []
-    for tf_name in resolve_run_tfs_for_strategy(17, args.tf):
+    requested_tfs = set(resolve_run_tfs_for_strategy(17, args.tf))
+    run_tfs = resolve_guard_context_tfs(17, args.tf, S17_TF_MAP)
+    if set(run_tfs) != requested_tfs:
+        progress(f"S17 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
+    raw_tf_trades = []
+    for tf_name in run_tfs:
         progress(f"Running S17 replay on {tf_name}...")
         trades = backtest_s17_tf(tf_name, S17_TF_MAP[tf_name])
         progress(f"S17 replay on {tf_name} produced {len(trades)} raw event(s).")
-        filtered = [t for t in trades if window_start_utc <= t["entry_time"] <= window_end_utc]
+        for t in trades:
+            t.setdefault("sid", 17)
+            t.setdefault("tf", tf_name)
+            raw_tf_trades.append((tf_name, t))
+
+    if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and getattr(config, "SL_GUARD_CLOSE_ON_ACTIVATE", True):
+        progress("Applying S17 SL Guard Group context overlay...")
+        raw_tf_trades = sim_s14_backtest.apply_sl_guard_group_overlay(raw_tf_trades)
+
+    for tf_name in run_tfs:
+        tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
+        filtered = [
+            t for tf, t in tf_rows
+            if tf in requested_tfs and window_start_utc <= t["entry_time"] <= window_end_utc
+        ]
         if args.exclude_cancelled:
             filtered = [
                 t for t in filtered
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        for t in filtered:
-            t.setdefault("sid", 17)
-            t.setdefault("tf", tf_name)
         all_trades.extend((tf_name, t) for t in filtered)
-        progress(f"S17 replay on {tf_name} kept {len(filtered)} event(s) in window.")
+        if tf_name in requested_tfs:
+            progress(f"S17 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
 
 

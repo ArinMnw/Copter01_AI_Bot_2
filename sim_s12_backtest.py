@@ -63,8 +63,8 @@ def s12_runtime_feature_coverage() -> list[dict]:
             "name": "S12 SL cooldown",
             "config_on": getattr(config, "S12_COOLDOWN_SECONDS", 0) > 0,
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Replay does not yet enforce wall-time cooldown after SL",
+            "replay": "partial",
+            "note": "Replay blocks new S12 entries for S12_COOLDOWN_SECONDS after replay SL close",
         },
         {
             "name": "PD/Trend/Limit Guard",
@@ -139,6 +139,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
     state = {"side": None, "order_count": 0, "last_entry_price": None}
     trades: list[dict] = []
     open_trades: list[dict] = []
+    cooldown_until_raw = 0
 
     for i in range(start_idx, len(bars)):
         bar = bars[i]
@@ -152,6 +153,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
             if trade["signal"] == "BUY":
                 if low <= float(trade["sl"]):
                     trades.append(_close_row(trade, "SL", trade["sl"], bt))
+                    cooldown_until_raw = max(cooldown_until_raw, int(bar["time"]) + int(getattr(config, "S12_COOLDOWN_SECONDS", 0) or 0))
                     continue
                 if high >= float(trade["tp"]):
                     trades.append(_close_row(trade, "TP", trade["tp"], bt))
@@ -159,6 +161,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
             else:
                 if high >= float(trade["sl"]):
                     trades.append(_close_row(trade, "SL", trade["sl"], bt))
+                    cooldown_until_raw = max(cooldown_until_raw, int(bar["time"]) + int(getattr(config, "S12_COOLDOWN_SECONDS", 0) or 0))
                     continue
                 if low <= float(trade["tp"]):
                     trades.append(_close_row(trade, "TP", trade["tp"], bt))
@@ -209,6 +212,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
         should_buy = in_buy_zone and (side is None or side == "BUY") and count < config.S12_ORDER_COUNT and (last_price is None or close < last_price)
         should_sell = in_sell_zone and (side is None or side == "SELL") and count < config.S12_ORDER_COUNT and (last_price is None or close > last_price)
         if not should_buy and not should_sell:
+            continue
+        if int(getattr(config, "S12_COOLDOWN_SECONDS", 0) or 0) > 0 and int(bar["time"]) < cooldown_until_raw:
             continue
 
         direction = "BUY" if should_buy else "SELL"

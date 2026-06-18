@@ -201,7 +201,7 @@ async def check_sl_tp_hits(app):
             if close_type == "🛑 SL Hit" and profit < 0 and _config.SL_GUARD_ENABLED and tf_label:
                 try:
                     from trailing import _sl_guard_record_sl, _sl_guard_close_open_positions
-                    _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
+                    _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""), p_info.get("symbol", ""))
                     if _just_activated:
                         _guard_side = p_info.get("type", "")
                         _closed = _sl_guard_close_open_positions(tf_label, _guard_side)
@@ -228,7 +228,7 @@ async def check_sl_tp_hits(app):
             if _sg_loss_ok and _config.SL_GUARD_ENABLED:
                 try:
                     from trailing import _sl_guard_record_sl, _sl_guard_close_open_positions
-                    _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""))
+                    _just_activated = _sl_guard_record_sl(tf_label, p_info.get("type", ""), p_info.get("symbol", ""))
                     if _just_activated and not _sl_guard_extra_msg:
                         _guard_side = p_info.get("type", "")
                         _closed = _sl_guard_close_open_positions(tf_label, _guard_side)
@@ -249,7 +249,7 @@ async def check_sl_tp_hits(app):
             if close_type == "🛑 SL Hit" and profit < 0 and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False) and tf_label:
                 try:
                     from trailing import _combined_guard_record_sl, _sl_guard_close_combined_positions
-                    _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
+                    _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""), p_info.get("symbol", ""))
                     if _cg_act_msg:
                         _guard_side = p_info.get("type", "")
                         _closed = _sl_guard_close_combined_positions(_guard_side)
@@ -263,7 +263,7 @@ async def check_sl_tp_hits(app):
             if _sg_loss_ok and getattr(_config, "SL_GUARD_COMBINED_ENABLED", False):
                 try:
                     from trailing import _combined_guard_record_sl, _sl_guard_close_combined_positions
-                    _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""))
+                    _cg_act_msg = _combined_guard_record_sl(tf_label, p_info.get("type", ""), p_info.get("symbol", ""))
                     if _cg_act_msg:
                         _guard_side = p_info.get("type", "")
                         _closed = _sl_guard_close_combined_positions(_guard_side)
@@ -297,7 +297,7 @@ async def check_sl_tp_hits(app):
             if close_type == "🛑 SL Hit" and profit < 0 and getattr(_config, "SL_GUARD_GROUP_ENABLED", False) and tf_label:
                 try:
                     from trailing import _group_guard_record_sl, _sl_guard_close_all_side_positions
-                    _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""))
+                    _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""), p_info.get("symbol", ""))
                     if _gg_msgs:
                         _guard_side = p_info.get("type", "")
                         _closed = _sl_guard_close_all_side_positions(_guard_side)
@@ -311,7 +311,7 @@ async def check_sl_tp_hits(app):
             if _sg_loss_ok and getattr(_config, "SL_GUARD_GROUP_ENABLED", False):
                 try:
                     from trailing import _group_guard_record_sl, _sl_guard_close_all_side_positions
-                    _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""))
+                    _gg_msgs = _group_guard_record_sl(tf_label, p_info.get("type", ""), p_info.get("symbol", ""))
                     if _gg_msgs:
                         _guard_side = p_info.get("type", "")
                         _closed = _sl_guard_close_all_side_positions(_guard_side)

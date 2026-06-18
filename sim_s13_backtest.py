@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
 
 import config
+import hhll_swing as _hs
 from strategy13 import strategy_13
 
 
@@ -36,6 +37,10 @@ TF_EXTRA_BARS = {
     "H4": 100,
     "D1": 50,
 }
+
+_HHLL_LB = int(getattr(config, "HHLL_LEFT", 5) or 5)
+_HHLL_RB = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+_HHLL_LBK = int(getattr(config, "HHLL_LOOKBACK", 500) or 500)
 
 
 def to_bkk(ts: int) -> datetime:
@@ -80,8 +85,8 @@ def s13_runtime_feature_coverage() -> list[dict]:
             "name": "Trend Recheck",
             "config_on": getattr(config, "LIMIT_TREND_RECHECK", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime fill trend recheck applies to S13; replay baseline does not close from trend yet",
+            "replay": "partial",
+            "note": "Replay applies fill trend recheck round1 with injected HHLL trend context",
         },
         {
             "name": "RSI Fill Recheck",
@@ -89,6 +94,13 @@ def s13_runtime_feature_coverage() -> list[dict]:
             "runtime": "apply",
             "replay": "gap",
             "note": "Runtime RSI fill recheck applies to S13 when enabled",
+        },
+        {
+            "name": "SL Guard",
+            "config_on": bool(getattr(config, "SL_GUARD_GROUP_ENABLED", False)),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Central runner can apply SL Guard Group close-on-activate overlay with context TFs",
         },
         {
             "name": "Trail SL",
@@ -144,6 +156,71 @@ def _close_row(trade: dict, reason: str, price: float, close_time: datetime) -> 
         "profit": pnl,
         "reason": reason,
     }
+
+
+def _inject_hhll_for_trend(tf_name: str, bars_slice: list[dict]) -> bool:
+    max_bars = _HHLL_LBK + _HHLL_LB + _HHLL_RB + 5
+    rates = bars_slice[-max_bars:] if len(bars_slice) > max_bars else bars_slice
+    if len(rates) < _HHLL_LB + _HHLL_RB + 10:
+        return False
+    zz = _hs._build_zz(rates, _HHLL_LB, _HHLL_RB)
+    if len(zz) < 5:
+        return False
+    buckets = {"HH": None, "HL": None, "LH": None, "LL": None}
+    prev_buckets = {"HH": None, "HL": None, "LH": None, "LL": None}
+    structure = []
+    for k in range(len(zz)):
+        lbl = _hs._classify_pt(zz, k)
+        if not lbl:
+            continue
+        pt = {"price": zz[k]["price"], "time": zz[k]["time"], "label": lbl}
+        prev_buckets[lbl] = buckets[lbl]
+        buckets[lbl] = pt
+        structure.append(lbl)
+    _hs._hhll_data[tf_name] = {
+        "hh": buckets["HH"],
+        "hl": buckets["HL"],
+        "lh": buckets["LH"],
+        "ll": buckets["LL"],
+        "prev_hh": prev_buckets["HH"],
+        "prev_hl": prev_buckets["HL"],
+        "prev_lh": prev_buckets["LH"],
+        "prev_ll": prev_buckets["LL"],
+        "last_label": structure[-1] if structure else "",
+        "structure": list(reversed(structure[-6:])),
+    }
+    try:
+        import scanner as _scanner
+
+        trend = _hs.get_trend_from_structure(tf_name) or {}
+        _scanner._swing_data[tf_name] = {
+            "trend": trend,
+            "breakout": {},
+            "asof_time": int(rates[-1]["time"]),
+            "last_bar": {
+                "time": int(rates[-1]["time"]),
+                "open": float(rates[-1]["open"]),
+                "high": float(rates[-1]["high"]),
+                "low": float(rates[-1]["low"]),
+                "close": float(rates[-1]["close"]),
+            },
+        }
+    except Exception:
+        return False
+    return True
+
+
+def _fill_trend_allows(tf_name: str, signal: str, bars_slice: list[dict]) -> tuple[bool, str]:
+    if not getattr(config, "LIMIT_TREND_RECHECK", False):
+        return True, ""
+    if not _inject_hhll_for_trend(tf_name, bars_slice):
+        return True, "trend_data_unavailable"
+    try:
+        import scanner as _scanner
+
+        return _scanner.trend_allows_signal(tf_name, signal)
+    except Exception as exc:
+        return True, f"trend_check_error:{type(exc).__name__}"
 
 
 def _open_trade(result: dict, tf_name: str, bars: list, entry_idx: int, tp: float, order_index: int) -> dict:
@@ -234,8 +311,15 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
                 kept.append(trade)
         open_trades = kept
 
+        trend_ok, trend_why = _fill_trend_allows(tf_name, signal, bars[:i + 1])
         for idx, tp in enumerate(tp_levels, start=1):
-            open_trades.append(_open_trade(result, tf_name, bars, i, tp, idx))
+            trade = _open_trade(result, tf_name, bars, i, tp, idx)
+            if not trend_ok:
+                row = _close_row(trade, "TREND_RECHECK", trade["entry"], to_bkk(bar["time"]))
+                row["trend_recheck_why"] = trend_why
+                trades.append(row)
+                continue
+            open_trades.append(trade)
 
     for trade in open_trades:
         trades.append({
