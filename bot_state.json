@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-06-18 20:52:07",
+  "saved_at": "2026-06-18 20:53:07",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -441,36 +441,6 @@
         "confirmed_bar_time": 0
       },
       "flow_id": "M5|S1|SELL|T1781793900|E4267.91|SL4288.34|TP4241.01"
-    },
-    "547156995": {
-      "tf": "M1",
-      "entry": 4256.85,
-      "sl": 4245.23,
-      "tp": 4276.65,
-      "gap_bot": 4245.23,
-      "gap_top": 4268.47,
-      "detect_bar_time": 1781794200,
-      "signal": "BUY",
-      "sid": 1,
-      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน",
-      "trend_filter": "bull_weak",
-      "s1_zone_meta": {
-        "enabled": true,
-        "signal": "BUY",
-        "zone_price": 4253.13,
-        "swing_price": 4252.84,
-        "zone_ok_initial": true
-      },
-      "s1_forward_meta": {
-        "enabled": true,
-        "signal": "BUY",
-        "detect_bar_time": 1781794200,
-        "forward_bars": 5,
-        "confirmed": false,
-        "confirmed_sid": 0,
-        "confirmed_bar_time": 0
-      },
-      "flow_id": "M1|S1|BUY|T1781794200|E4256.85|SL4245.23|TP4276.65"
     }
   },
   "position_tf": {
@@ -1754,7 +1724,16 @@
     "547091239": "done",
     "547127179": "done"
   },
-  "trail_state": {},
+  "trail_state": {
+    "547156990": {
+      "phase": 0,
+      "order_tf": "M1"
+    },
+    "547156995": {
+      "phase": 0,
+      "order_tf": "M1"
+    }
+  },
   "fvg_order_tickets": {
     "545962021": {
       "tf": "M15",
@@ -2646,14 +2625,14 @@
         6.0,
         17.529999999999745
       ],
-      "step": 0,
+      "step": 1,
       "is_pending": false,
       "sid": "2",
       "tp_original": 4276.65
     },
     "547156995": {
       "direction": "BUY",
-      "entry": 4256.85,
+      "entry": 4256.77,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -2663,8 +2642,8 @@
         6.0,
         19.799999999999272
       ],
-      "step": 0,
-      "is_pending": true,
+      "step": 2,
+      "is_pending": false,
       "sid": "1",
       "tp_original": 4276.65
     }
@@ -2694,6 +2673,7 @@
   "fill_notified": [
     546588552,
     546937696,
-    547156990
+    547156990,
+    547156995
   ]
 }
