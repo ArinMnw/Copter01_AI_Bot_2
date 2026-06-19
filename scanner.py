@@ -2569,7 +2569,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         _ll_info = _find_lower_l(rates, _sl_info)
     # Fetch HHLL swing ก่อน (HHLLStrategy algorithm) เพื่อให้ได้ข้อมูลสดสำหรับ trend + breakout
     try:
-        hhll_swing.fetch_hhll(tf_name)
+        hhll_swing.fetch_hhll(tf_name, current_bar_time=current_bar_time)
     except Exception:
         pass
     # คำนวณ trend จาก HHLL structure (เหมือน TrendFilterLines.mq5) — fallback เป็น bar-scan เดิม
@@ -2624,7 +2624,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     }
     # Fetch AMP trend สำหรับ TF นี้ (ใช้แสดงใน Scan Swing summary)
     try:
-        amp_trend.fetch_amp_trend(tf_name)
+        amp_trend.fetch_amp_trend(tf_name, current_bar_time=current_bar_time)
     except Exception:
         pass
     # ── Sweep Filter: reset-on-trend-change + detect sweep ───────────

@@ -528,6 +528,13 @@ def main():
         application.bot_data["scheduler"] = scheduler
         application.bot_data["check_symbol_switch"] = check_symbol_switch
 
+        # เริ่ม scheduler ก่อนงาน MT5 หนักๆ ด้านล่าง — heartbeat_job/jobs อื่นจะถูก
+        # schedule ไว้ตั้งแต่ตอนนี้ ไม่ต้องรอ connect_mt5/restore/cleanup loop เสร็จก่อน
+        # (run_scan/run_trail_sl/run_position_check เช็ค connect_mt5()/auto_active เองอยู่แล้ว
+        # ถ้ายังต่อ MT5 ไม่ติดจะ no-op เฉยๆ ไม่ error)
+        scheduler.start()
+        config.write_heartbeat()
+
         import news_filter
         import asyncio
         asyncio.create_task(news_filter.fetch_news_loop(application))
@@ -537,8 +544,11 @@ def main():
         now = now_bkk().strftime("%H:%M:%S")
         if connect_mt5():
             import config as _cfg
+            config.write_heartbeat()
             await check_symbol_switch(startup=True)
+            config.write_heartbeat()
             restore_info = restore_runtime_state()
+            config.write_heartbeat()
 
             # ── auto_active reset เป็น False ทุกครั้งที่ restart (ค่า default ใน config.py)
             # เปิดอัตโนมัติให้กลับมาทำงานต่อ กันลืมเปิดมือหลัง restart/crash ───────────
@@ -549,6 +559,7 @@ def main():
                 log_event("AUTO_RESUME", "auto_active=False หลัง start → เปิดอัตโนมัติ")
 
             info = mt5.account_info()
+            config.write_heartbeat()
             acc_txt = f"Account: {info.login} | Balance: {info.balance:.2f}" if info else ""
             mt5_to_bkk_hours = TZ_OFFSET - MT5_SERVER_TZ
             tz_txt = f"MT5 Server=UTC+{MT5_SERVER_TZ} | MT5->BKK=+{mt5_to_bkk_hours} | Display=BKK"
@@ -587,6 +598,7 @@ def main():
             # ── ลบ pending order M1 ที่เก่ากว่า 6 ชม. ──
             _deleted_tickets = []
             for sym_name in SYMBOL_CONFIG:
+                config.write_heartbeat()
                 old_orders = mt5.orders_get(symbol=sym_name)
                 if not old_orders:
                     continue
@@ -618,8 +630,6 @@ def main():
                 f"• Login/Password ถูกต้อง\n"
                 f"• Server: `{MT5_SERVER}`"
             )
-
-        scheduler.start()
 
         print(log_msg)
         try:
