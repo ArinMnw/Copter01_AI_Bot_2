@@ -127,8 +127,8 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "name": "Limit TP/SL Break Cancel",
             "config_on": getattr(config, "LIMIT_BREAK_CANCEL", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime skips engulf pattern 1 but can cancel other S2 patterns",
+            "replay": "ready",
+            "note": "Unified replay cancels pending orders on confirmed TP/SL break when config is enabled and skips S2 engulf pattern 1 like runtime",
         },
         {
             "name": "Trail/Opposite/Limit Guard",

@@ -127,8 +127,15 @@ def s3_runtime_feature_coverage() -> list[dict]:
             "name": "RSI Fill Recheck",
             "config_on": getattr(config, "PENDING_RSI_RECHECK_ENABLED", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime can close S3 after fill when RSI recheck fails",
+            "replay": "ready",
+            "note": "Unified replay calls the shared fill RSI recheck layer when config is enabled",
+        },
+        {
+            "name": "Limit TP/SL Break Cancel",
+            "config_on": getattr(config, "LIMIT_BREAK_CANCEL", False),
+            "runtime": "apply",
+            "replay": "ready",
+            "note": "Unified replay cancels pending orders on confirmed TP/SL break when config is enabled",
         },
         {
             "name": "Trail/Opposite/Limit Guard",

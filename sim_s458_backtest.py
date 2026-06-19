@@ -168,6 +168,69 @@ def _close_row(trade: dict, reason: str, price: float, close_time: datetime) -> 
     }
 
 
+def _green_break(cur_bar: dict, prev_bar: dict, level: float) -> bool:
+    return (
+        float(cur_bar["close"]) > float(cur_bar["open"])
+        and float(prev_bar["close"]) > float(prev_bar["open"])
+        and float(cur_bar["close"]) > float(level)
+        and float(cur_bar["close"]) > float(prev_bar["high"])
+    )
+
+
+def _red_break(cur_bar: dict, prev_bar: dict, level: float) -> bool:
+    return (
+        float(cur_bar["close"]) < float(cur_bar["open"])
+        and float(prev_bar["close"]) < float(prev_bar["open"])
+        and float(cur_bar["close"]) < float(level)
+        and float(cur_bar["close"]) < float(prev_bar["low"])
+    )
+
+
+def _limit_break_cancel_event(order: dict, tf_name: str, rates: list[dict], close_time: datetime) -> dict | None:
+    sid = int(order.get("sid", 0) or 0)
+    if sid == 10:
+        return None
+    if sid == 2 and str(order.get("c3_type") or "") in ("เขียวกลืนกิน", "แดงกลืนกิน"):
+        return None
+    if not getattr(config, "LIMIT_BREAK_CANCEL", False):
+        return None
+    if not getattr(config, "LIMIT_BREAK_CANCEL_TF", {}).get(tf_name, False):
+        return None
+    if len(rates) < 2:
+        return None
+
+    cur_bar = rates[-1]
+    prev_bar = rates[-2]
+    signal = str(order.get("signal") or "").upper()
+    limit_tp = float(order.get("tp", 0.0) or 0.0)
+    limit_sl = float(order.get("sl", 0.0) or order.get("intended_sl", 0.0) or 0.0)
+    reason = ""
+    if signal == "BUY":
+        if limit_tp > 0 and _green_break(cur_bar, prev_bar, limit_tp):
+            reason = "TP Break Cancel"
+        elif limit_sl > 0 and _red_break(cur_bar, prev_bar, limit_sl):
+            reason = "SL Break Cancel"
+    elif signal == "SELL":
+        if limit_tp > 0 and _red_break(cur_bar, prev_bar, limit_tp):
+            reason = "TP Break Cancel"
+        elif limit_sl > 0 and _green_break(cur_bar, prev_bar, limit_sl):
+            reason = "SL Break Cancel"
+    if not reason:
+        return None
+    return {
+        **order,
+        "entry_time": order["detect_time"],
+        "entry_time_raw": order["detect_time_raw"],
+        "close_time": close_time,
+        "close_price": None,
+        "close_type": "CANCEL",
+        "pnl": 0.0,
+        "profit": 0.0,
+        "reason": f"{reason} [{tf_name}]",
+        "cancel_reason": f"{reason} [{tf_name}]",
+    }
+
+
 def _pending_from_result(result: dict, tf_name: str, detect_bar: dict, sid: int) -> dict:
     if result.get("_prebuilt_order"):
         return dict(result["_prebuilt_order"])
@@ -599,6 +662,10 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
                     "cancel_reason": "S8 swing changed",
                 })
                 continue
+            break_cancel = _limit_break_cancel_event(order, tf_name, full_rates, bt)
+            if break_cancel is not None:
+                trades.append(break_cancel)
+                continue
             if sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
                 trades.append(trend_cancel_event(order, bt, "SL Guard active near entry"))
                 continue
@@ -925,6 +992,10 @@ def backtest_multi_tf(
                     "reason": "S8 swing changed",
                     "cancel_reason": "S8 swing changed",
                 })
+                continue
+            break_cancel = _limit_break_cancel_event(order, tf_name, full_rates, bt)
+            if break_cancel is not None:
+                trades.append(break_cancel)
                 continue
             if sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
                 trades.append(trend_cancel_event(order, bt, "SL Guard active near entry"))

@@ -5,6 +5,12 @@ from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
 
 import config
+from sim_lifecycle import (
+    limit_guard_cancel,
+    opposite_order_apply,
+    trail_sl_apply,
+    trend_cancel_event,
+)
 from strategy9 import strategy_9
 
 
@@ -35,6 +41,16 @@ TF_EXTRA_BARS = {
     "H1": 220,
     "H4": 120,
     "D1": 80,
+}
+
+TF_SECONDS = {
+    "M1": 60,
+    "M5": 300,
+    "M15": 900,
+    "M30": 1800,
+    "H1": 3600,
+    "H4": 14400,
+    "D1": 86400,
 }
 
 
@@ -105,11 +121,25 @@ def s9_runtime_feature_coverage() -> list[dict]:
             "note": "Central runner can apply SL Guard Group close-on-activate overlay with context TFs",
         },
         {
-            "name": "Trail/Opposite/Limit Guard",
-            "config_on": getattr(config, "TRAIL_SL_ENABLED", False) or getattr(config, "OPPOSITE_ORDER_ENABLED", False) or getattr(config, "LIMIT_GUARD", False),
+            "name": "Limit Guard",
+            "config_on": getattr(config, "LIMIT_GUARD", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Trail SL, Opposite Order, and Limit Guard are not included in S9 baseline yet",
+            "replay": "partial",
+            "note": "Replay applies pending cancel baseline against open S9 rows",
+        },
+        {
+            "name": "Opposite Order",
+            "config_on": getattr(config, "OPPOSITE_ORDER_ENABLED", False),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Replay applies central opposite-order close/TP-link baseline for open S9 rows",
+        },
+        {
+            "name": "Trail SL",
+            "config_on": getattr(config, "TRAIL_SL_ENABLED", False),
+            "runtime": "apply",
+            "replay": "partial",
+            "note": "Replay applies central engulf/reversal/safe Trail SL baseline for open S9 rows",
         },
     ]
 
@@ -126,6 +156,35 @@ def _as_records(rates) -> list[dict]:
         [{name: r[name] for name in rates.dtype.names} for r in rates],
         key=lambda r: int(r["time"]),
     )
+
+
+def _strategy_window(tf_name: str) -> int:
+    return max(
+        80,
+        int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20) + 6,
+        int(getattr(config, "RSI9_PERIOD", 14))
+        + int(getattr(config, "RSI9_PIVOT_LOOKBACK_LEFT", 5))
+        + int(getattr(config, "RSI9_PIVOT_LOOKBACK_RIGHT", 5))
+        + int(getattr(config, "RSI9_LOOKBACK_RANGE_MAX", 60))
+        + 10,
+    )
+
+
+def _fetch_rates(tf_name: str, tf_val: int, range_end_utc: datetime | None = None):
+    total = TF_EXTRA_BARS.get(tf_name, 500) + 8000
+    if range_end_utc is None:
+        return mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
+
+    pad_bars = max(
+        120,
+        _strategy_window(tf_name)
+        + int(getattr(config, "HHLL_LOOKBACK", 500) or 500)
+        + int(getattr(config, "HHLL_LEFT", 5) or 5)
+        + int(getattr(config, "HHLL_RIGHT", 5) or 5)
+        + 20,
+    )
+    start_utc = SINCE - timedelta(seconds=TF_SECONDS.get(tf_name, 60) * pad_bars)
+    return mt5.copy_rates_range(SYMBOL, tf_val, start_utc, range_end_utc)
 
 
 def _setup_sig(tf_name: str, signal: str, result: dict) -> str:
@@ -193,28 +252,32 @@ def _fill_trade(order: dict, bar: dict) -> dict:
     }
 
 
-def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, TF_EXTRA_BARS.get(tf_name, 500) + 8000)
+def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None) -> list[dict]:
+    rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
     if rates is None or len(rates) < 120:
         return []
+    symbol_info = mt5.symbol_info(SYMBOL)
+    point = float(getattr(symbol_info, "point", 0.01) or 0.01)
+    spread = float(getattr(symbol_info, "spread", 0) or 0) * point
     bars = _as_records(rates)
+    trail_rates_by_tf = {}
+    for trail_tf in list(getattr(config, "TRAIL_GROUPS", {}).get(tf_name, [tf_name])):
+        trail_val = TF_MAP.get(trail_tf)
+        if trail_val is None:
+            continue
+        raw_trail = _fetch_rates(trail_tf, trail_val, range_end_utc=range_end_utc)
+        if raw_trail is not None:
+            trail_rates_by_tf[trail_tf] = _as_records(raw_trail)
     since_ts = int(SINCE.timestamp())
     start_idx = max(80, next((i for i, r in enumerate(bars) if int(r["time"]) >= since_ts), 80))
-    strategy_window = max(
-        80,
-        int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20) + 6,
-        int(getattr(config, "RSI9_PERIOD", 14))
-        + int(getattr(config, "RSI9_PIVOT_LOOKBACK_LEFT", 5))
-        + int(getattr(config, "RSI9_PIVOT_LOOKBACK_RIGHT", 5))
-        + int(getattr(config, "RSI9_LOOKBACK_RANGE_MAX", 60))
-        + 10,
-    )
+    strategy_window = _strategy_window(tf_name)
 
     trades: list[dict] = []
     pending: list[dict] = []
     open_trades: list[dict] = []
     seen_setup: set[str] = set()
     invalid_setup: set[str] = set()
+    trail_focus_state: dict = {}
 
     for i in range(start_idx, len(bars)):
         bar = bars[i]
@@ -224,6 +287,10 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
 
         still_pending = []
         for order in pending:
+            lg = limit_guard_cancel(order, open_trades, bar, point)
+            if lg.get("status") == "fail":
+                trades.append(trend_cancel_event(order, bt, lg.get("reason", "Limit Guard cancel")))
+                continue
             if order["signal"] == "BUY" and l <= float(order["entry"]):
                 open_trades.append(_fill_trade(order, bar))
             elif order["signal"] == "SELL" and h >= float(order["entry"]):
@@ -232,8 +299,25 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
                 still_pending.append(order)
         pending = still_pending
 
+        opposite_closes = opposite_order_apply(open_trades, pending, bar, spread)
+        opposite_close_ids = {id(trade) for trade, _ in opposite_closes}
         still_open = []
         for trade in open_trades:
+            if id(trade) in opposite_close_ids:
+                trades.append(_close_row(trade, "OPPOSITE_CLOSE", float(bar["close"]), bt))
+                continue
+            trail_sl_apply(
+                trade,
+                trail_rates_by_tf,
+                int(bar["time"]),
+                tf_name,
+                open_trades=open_trades,
+                pending=pending,
+                bar=bar,
+                point=point,
+                spread=spread,
+                focus_state=trail_focus_state,
+            )
             if trade["signal"] == "BUY":
                 if l <= float(trade["sl"]):
                     trades.append(_close_row(trade, "SL", trade["sl"], bt))

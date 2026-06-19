@@ -523,6 +523,36 @@ def _s458_tf_history_overlaps_window(tf_name: str, window_start_utc: datetime, w
     return oldest <= window_end_ts and newest >= window_start_ts
 
 
+def _trade_tf_members(trade: dict, default_tf: str = "") -> set[str]:
+    values = trade.get("tf_members") or trade.get("parallel_tfs") or []
+    members = {str(tf).upper() for tf in values if tf}
+    if default_tf:
+        members.add(str(default_tf).upper())
+    trade_tf = str(trade.get("tf", "") or "").upper()
+    if trade_tf:
+        members.add(trade_tf)
+    return members
+
+
+def _s2_multi_trade_matches_requested_tf(trade: dict, default_tf: str, requested_set: set[str]) -> bool:
+    if not requested_set:
+        return True
+    if int(trade.get("sid", 0) or 0) != 2:
+        return str(default_tf).upper() in requested_set
+    return bool(_trade_tf_members(trade, default_tf) & requested_set)
+
+
+def _s2_multi_report_tf(trade: dict, default_tf: str, requested_set: set[str]) -> str:
+    default_tf = str(default_tf or trade.get("tf") or "").upper()
+    if default_tf in requested_set:
+        return default_tf
+    for tf_name in trade.get("parallel_tfs") or trade.get("tf_members") or []:
+        tf_name = str(tf_name).upper()
+        if tf_name in requested_set:
+            return tf_name
+    return default_tf
+
+
 def _replay_range_end_utc(window_end_utc: datetime, extra_days: int) -> datetime:
     real_end_utc = window_end_utc - timedelta(hours=getattr(config, "TZ_OFFSET", 7))
     return real_end_utc + timedelta(days=max(0, int(extra_days or 0)))
@@ -795,13 +825,15 @@ def load_live_sl_guard_activations(log_files: list[str]) -> list[dict]:
 
 def _parse_strategy_comment(comment: str) -> dict:
     comment = comment or ""
-    m = re.search(r"\[([A-Z0-9]+)_([A-Z0-9]+)\]_S(\d+)(?:_#(\d+))?", comment)
+    m = re.search(r"\[([A-Z0-9]+(?:_[A-Z0-9]+)+)\]_S(\d+)(?:_#(\d+))?", comment)
     if m:
+        tf_members = [part for part in m.group(1).split("_") if part]
         return {
-            "htf": m.group(1),
-            "tf": m.group(2),
-            "sid": int(m.group(3)),
-            "model": int(m.group(4) or 0),
+            "htf": tf_members[0] if tf_members else "",
+            "tf": tf_members[-1] if tf_members else "",
+            "tf_members": tf_members,
+            "sid": int(m.group(2)),
+            "model": int(m.group(3) or 0),
         }
 
     m = re.search(r"(?:^|[^A-Z0-9])([A-Z0-9]+)_S(\d+)(?:[_#-](\d+))?", comment)
@@ -809,13 +841,14 @@ def _parse_strategy_comment(comment: str) -> dict:
         return {
             "htf": "",
             "tf": m.group(1),
+            "tf_members": [m.group(1)],
             "sid": int(m.group(2)),
             "model": int(m.group(3) or 0),
         }
 
     m = re.search(r"(?:^|[^A-Z0-9])S(\d+)(?:[^0-9]|$)", comment)
     if m:
-        return {"htf": "", "tf": "", "sid": int(m.group(1)), "model": 0}
+        return {"htf": "", "tf": "", "tf_members": [], "sid": int(m.group(1)), "model": 0}
     return {}
 
 
@@ -888,6 +921,7 @@ def load_mt5_history_orders(start_bkk: datetime, end_bkk: datetime, symbol: str,
             meta = {
                 "tf": positions[pos_id].get("tf", ""),
                 "htf": positions[pos_id].get("htf", ""),
+                "tf_members": list(positions[pos_id].get("tf_members") or []),
                 "sid": positions[pos_id].get("sid", 0),
                 "model": positions[pos_id].get("model", 0),
             }
@@ -898,6 +932,7 @@ def load_mt5_history_orders(start_bkk: datetime, end_bkk: datetime, symbol: str,
             "side": "",
             "tf": meta.get("tf", ""),
             "htf": meta.get("htf", ""),
+            "tf_members": list(meta.get("tf_members") or ([meta.get("tf")] if meta.get("tf") else [])),
             "sid": meta.get("sid", 0),
             "model": meta.get("model", 0),
             "entry": 0.0,
@@ -1004,6 +1039,7 @@ def _sim_live_rows(sim_trades: list[tuple[str, dict]]) -> list[dict]:
             continue
         sid = int(t.get("sid", 10) or 10)
         tf = t.get("tf") or (HTF_TO_LTF.get(htf, htf) if sid == 10 else htf)
+        tf_members = list(t.get("tf_members") or t.get("parallel_tfs") or ([tf] if tf else []))
         fill_ts = t["entry_time"].replace(tzinfo=None)
         close_ts = t["close_time"].replace(tzinfo=None) if t.get("close_time") else None
         row = {
@@ -1013,6 +1049,7 @@ def _sim_live_rows(sim_trades: list[tuple[str, dict]]) -> list[dict]:
             "side": t.get("signal", ""),
             "tf": tf,
             "htf": t.get("htf_tf") or htf,
+            "tf_members": tf_members,
             "sid": sid,
             "entry": float(t.get("entry", 0.0) or 0.0),
             "sl": float(t.get("sl", 0.0) or 0.0),
@@ -1316,9 +1353,12 @@ def _row_matches_requested_tf(row: dict, tf_arg: str | None) -> bool:
     sid = int(row.get("sid", 0) or 0)
     row_tf = str(row.get("tf", "") or "").upper()
     row_htf = str(row.get("htf", "") or "").upper()
+    tf_members = {str(tf).upper() for tf in (row.get("tf_members") or []) if tf}
 
     if sid == 10 and target in HTF_TO_LTF:
         return row_htf == target
+    if target in tf_members:
+        return True
     if row_tf:
         return row_tf == target
     if row_htf:
@@ -1445,7 +1485,8 @@ def _field_summary_rows(
 ) -> list[dict]:
     buckets = {}
     for row in rows:
-        value = str(row.get(field_key, "") or "UNKNOWN")
+        raw_value = row.get(field_key, "")
+        value = "UNKNOWN" if raw_value in ("", None) else str(raw_value)
         side_value = str(row.get(side_key, row.get("live_side", row.get("bt_side", row.get("side", "")))) or "")
         key = (value, side_value)
         item = buckets.setdefault(key, {
@@ -1479,6 +1520,9 @@ def compare_gap_summary_rows(result: dict) -> list[dict]:
     live_only_rows = [r for r in all_rows if r.get("status") == "LIVE_ONLY"]
     bt_only_rows = [r for r in all_rows if r.get("status") == "BACKTEST_ONLY"]
     mismatch_rows = [r for r in all_rows if r.get("status") == "MISMATCH"]
+    live_s14_rows = [r for r in live_only_rows if r.get("live_s14_family")]
+    bt_s14_rows = [r for r in bt_only_rows if r.get("bt_s14_family")]
+    mismatch_s14_rows = [r for r in mismatch_rows if r.get("live_s14_family") or r.get("bt_s14_family")]
     rows = []
     rows.extend(_reason_summary_rows(live_only_rows, "live", "live_reason", "live_pnl"))
     rows.extend(_reason_summary_rows(bt_only_rows, "bt", "bt_reason", "bt_pnl"))
@@ -1504,7 +1548,7 @@ def compare_gap_summary_rows(result: dict) -> list[dict]:
         ("live_fill_ts", "bt_fill_ts", "live_close_ts"),
     ))
     rows.extend(_field_summary_rows(
-        live_only_rows,
+        live_s14_rows,
         "live_s14_family",
         "live_s14_family",
         "live_side",
@@ -1512,7 +1556,7 @@ def compare_gap_summary_rows(result: dict) -> list[dict]:
         ("live_fill_ts", "live_close_ts"),
     ))
     rows.extend(_field_summary_rows(
-        bt_only_rows,
+        bt_s14_rows,
         "bt_s14_family",
         "bt_s14_family",
         "bt_side",
@@ -1520,7 +1564,7 @@ def compare_gap_summary_rows(result: dict) -> list[dict]:
         ("bt_fill_ts", "bt_close_ts"),
     ))
     rows.extend(_field_summary_rows(
-        mismatch_rows,
+        mismatch_s14_rows,
         "mismatch_s14_family",
         "live_s14_family",
         "live_side",
@@ -1528,7 +1572,7 @@ def compare_gap_summary_rows(result: dict) -> list[dict]:
         ("live_fill_ts", "bt_fill_ts", "live_close_ts"),
     ))
     rows.extend(_field_summary_rows(
-        mismatch_rows,
+        mismatch_s14_rows,
         "s14_family_mismatch",
         "s14_family_mismatch",
         "live_side",
@@ -2499,16 +2543,26 @@ def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime,
 
     for tf_name in run_tfs:
         tf_rows = [(tf, t) for tf, t in raw_tf_trades if tf == tf_name]
-        filtered = [
-            t for tf, t in tf_rows
-            if tf in requested_set and window_start_utc <= t["entry_time"] <= window_end_utc
-        ]
+        if use_multi_s2:
+            filtered_rows = [
+                (_s2_multi_report_tf(t, tf, requested_set), t)
+                for tf, t in tf_rows
+                if _s2_multi_trade_matches_requested_tf(t, tf, requested_set)
+                and window_start_utc <= t["entry_time"] <= window_end_utc
+            ]
+        else:
+            filtered_rows = [
+                (tf, t) for tf, t in tf_rows
+                if tf in requested_set and window_start_utc <= t["entry_time"] <= window_end_utc
+            ]
+        filtered = [t for _, t in filtered_rows]
         if args.exclude_cancelled:
-            filtered = [
-                t for t in filtered
+            filtered_rows = [
+                (report_tf, t) for report_tf, t in filtered_rows
                 if t["close_type"] not in ("CANCEL", "PD_FAIL", "OPEN_PENDING", "BLOCK", "OPEN")
             ]
-        all_trades.extend((tf_name, t) for t in filtered)
+            filtered = [t for _, t in filtered_rows]
+        all_trades.extend((report_tf, t) for report_tf, t in filtered_rows)
         if tf_name in requested_set:
             progress(f"Unified S1-S5/S8 replay on {tf_name} kept {len(filtered)} event(s) in window.")
     return all_trades
@@ -2523,7 +2577,7 @@ def run_s9(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
     raw_tf_trades = []
     for tf_name in run_tfs:
         progress(f"Running S9 replay on {tf_name}...")
-        trades = backtest_s9_tf(tf_name, S9_TF_MAP[tf_name])
+        trades = backtest_s9_tf(tf_name, S9_TF_MAP[tf_name], range_end_utc=window_end_utc)
         progress(f"S9 replay on {tf_name} produced {len(trades)} raw event(s).")
         for t in trades:
             t.setdefault("sid", 9)
@@ -2555,12 +2609,13 @@ def run_s11(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
     all_trades = []
     requested_tfs = set(resolve_run_tfs_for_strategy(11, args.tf))
     run_tfs = resolve_guard_context_tfs(11, args.tf, S11_TF_MAP)
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     if set(run_tfs) != requested_tfs:
         progress(f"S11 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
     raw_tf_trades = []
     for tf_name in run_tfs:
         progress(f"Running S11 replay on {tf_name}...")
-        trades = backtest_s11_tf(tf_name, S11_TF_MAP[tf_name])
+        trades = backtest_s11_tf(tf_name, S11_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S11 replay on {tf_name} produced {len(trades)} raw event(s).")
         for t in trades:
             t.setdefault("sid", 11)
@@ -2649,12 +2704,13 @@ def run_s14(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
     all_trades = []
     requested_tfs = set(resolve_run_tfs_for_strategy(14, args.tf))
     run_tfs = resolve_s14_context_tfs(args.tf)
+    range_end_utc = _replay_range_end_utc(window_end_utc, getattr(args, "mt5_close_search_days", 14))
     if set(run_tfs) != requested_tfs:
         progress(f"S14 context replay includes SL Guard Group TFs: {', '.join(run_tfs)}")
     raw_tf_trades = []
     for tf_name in run_tfs:
         progress(f"Running S14 replay on {tf_name}...")
-        trades = backtest_s14_tf(tf_name, S14_TF_MAP[tf_name])
+        trades = backtest_s14_tf(tf_name, S14_TF_MAP[tf_name], range_end_utc=range_end_utc)
         progress(f"S14 replay on {tf_name} produced {len(trades)} raw event(s).")
         for t in trades:
             t.setdefault("sid", 14)

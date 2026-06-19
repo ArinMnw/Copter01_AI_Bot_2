@@ -10,8 +10,9 @@ from datetime import datetime, timezone, timedelta
 import config
 from strategy14 import strategy_14
 
-# HHLL support — inject swing data into hhll_swing when S14_LL_USE_HHLL is True
-_USE_HHLL = getattr(config, 'S14_LL_USE_HHLL', False)
+# HHLL support — S14 swing modes read hhll_swing refs, so replay must inject
+# historical HHLL unless a legacy config explicitly disables it.
+_USE_HHLL = bool(getattr(config, 'S14_LL_USE_HHLL', True))
 if _USE_HHLL:
     import hhll_swing as _hs
     _HHLL_LB  = int(getattr(config, 'HHLL_LEFT',     5) or 5)
@@ -116,11 +117,39 @@ TF_EXTRA_BARS = {
     'M30': 200, 'H1': 150, 'H4': 100, 'D1': 50,
 }
 
+TF_SECONDS_LOCAL = {
+    'M1': 60,
+    'M5': 5 * 60,
+    'M15': 15 * 60,
+    'M30': 30 * 60,
+    'H1': 60 * 60,
+    'H4': 4 * 60 * 60,
+    'D1': 24 * 60 * 60,
+}
+
 def to_bkk(ts: int) -> datetime:
     return datetime.fromtimestamp(ts, tz=UTC) + timedelta(hours=TZ_OFF - SRV_TZ)
 
 def profit(price_diff: float) -> float:
     return round(price_diff * PRICE_TO_USD, 2)
+
+
+def _fetch_rates(tf_name: str, tf_val: int, range_end_utc: datetime | None = None):
+    extra = TF_EXTRA_BARS.get(tf_name, 200)
+    total = 5000 + extra
+    if range_end_utc is None:
+        return mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
+
+    pad_bars = max(
+        extra,
+        WINDOW_NEEDED + TP_EXTRA + 50,
+        int(getattr(config, "HHLL_LOOKBACK", 500) or 500)
+        + int(getattr(config, "HHLL_LEFT", 5) or 5)
+        + int(getattr(config, "HHLL_RIGHT", 5) or 5)
+        + 20,
+    )
+    start_utc = SINCE - timedelta(seconds=TF_SECONDS_LOCAL.get(tf_name, 60) * pad_bars)
+    return mt5.copy_rates_range(SYMBOL, tf_val, start_utc, range_end_utc)
 
 
 def s14_runtime_feature_coverage() -> list[dict]:
@@ -337,12 +366,9 @@ def apply_sl_guard_group_overlay(tf_trades: list[tuple[str, dict]]) -> list[tupl
 
     return [(row["tf"], row["trade"]) for row in sorted(rows, key=lambda r: r["idx"])]
 
-def backtest_tf(tf_name: str, tf_val: int) -> list:
-    extra = TF_EXTRA_BARS.get(tf_name, 200)
-    total = 5000 + extra
-
+def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None) -> list:
     # ดึง bars จาก MT5 โดยเริ่ม from_pos=0 (newest first internally)
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
+    rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
     if rates is None or len(rates) == 0:
         return []
 
@@ -356,7 +382,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
     from strategy14 import _get_s14_htf, TF_SECONDS
     htf_name = _get_s14_htf(tf_name)
     htf_val = TF_MAP[htf_name]
-    htf_rates_raw = mt5.copy_rates_from_pos(SYMBOL, htf_val, 0, total)
+    htf_rates_raw = _fetch_rates(htf_name, htf_val, range_end_utc=range_end_utc)
     htf_rates_lookup = {}
     if htf_rates_raw is not None:
         htf_rates_lookup = {
@@ -376,7 +402,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
         trail_val = TF_MAP.get(trail_tf)
         if trail_val is None:
             continue
-        raw_trail = mt5.copy_rates_from_pos(SYMBOL, trail_val, 0, total)
+        raw_trail = _fetch_rates(trail_tf, trail_val, range_end_utc=range_end_utc)
         if raw_trail is None:
             continue
         trail_rates_by_tf[trail_tf] = sorted([

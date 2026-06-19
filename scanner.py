@@ -1983,6 +1983,19 @@ def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, ga
     tickets_to_cancel = [g["ticket"] for g in all_gaps if g["ticket"] is not None]
     patterns_list = [g.get("pattern", "") for g in all_gaps]
     return round(int_bot, 2), round(int_top, 2), tfs_list, tickets_to_cancel, patterns_list
+
+
+async def _timed_scan_one_tf(app, tf_name: str):
+    """wrap scan_one_tf เพื่อจับเวลาแต่ละ TF — หา TF ที่ทำให้ scan cycle ช้าผิดปกติ (กัน event-loop stall)"""
+    _t0 = _time.perf_counter()
+    try:
+        return await scan_one_tf(app, tf_name)
+    finally:
+        _dur = _time.perf_counter() - _t0
+        if _dur > 2.0:
+            log_event("SCAN_TF_SLOW", f"scan_one_tf[{tf_name}] ใช้เวลา {_dur:.2f}s > 2s", tf=tf_name, duration=round(_dur, 2))
+
+
 async def auto_scan(app):
     """สแกนทุก Timeframe ที่เปิดอยู่พร้อมกัน"""
     global _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
@@ -1991,16 +2004,23 @@ async def auto_scan(app):
     if not connect_mt5():
         await tg(app, "\u26a0\ufe0f MT5 \u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d")
         return
-    await check_sl_tp_hits(app)
-    await check_cancel_pending_orders(app)
-    await check_engulf_trail_sl(app)
+    _timing_steps: list[tuple[str, float]] = []
+    _t0 = _time.perf_counter()
+
+    def _lap(label: str) -> None:
+        _now_t = _time.perf_counter()
+        _timing_steps.append((label, _now_t - _t0))
+
+    await check_sl_tp_hits(app); _lap("sl_tp_hits")
+    await check_cancel_pending_orders(app); _lap("cancel_pending")
+    await check_engulf_trail_sl(app); _lap("engulf_trail_sl")
     # await check_breakeven_tp(app)  # ปิดชั่วคราว
-    await check_opposite_order_tp(app)
-    await check_entry_candle_quality(app)
-    await check_s3_maru_pending(app)
-    await check_fvg_pending(app)
-    await check_pb_pending(app)
-    await check_s12_management(app)
+    await check_opposite_order_tp(app); _lap("opposite_order_tp")
+    await check_entry_candle_quality(app); _lap("entry_candle_quality")
+    await check_s3_maru_pending(app); _lap("s3_maru_pending")
+    await check_fvg_pending(app); _lap("fvg_pending")
+    await check_pb_pending(app); _lap("pb_pending")
+    await check_s12_management(app); _lap("s12_management")
     positions  = mt5.positions_get(symbol=SYMBOL)
     open_count = len(positions) if positions else 0
     if open_count >= MAX_ORDERS:
@@ -2039,10 +2059,22 @@ async def auto_scan(app):
     # หมายเหตุ: ไม่ clear _swing_data ก่อน scan — ให้ scan_one_tf overwrite ทีละ TF
     # เพื่อป้องกัน race condition กับ fill_trend_recheck ที่อาจวิ่งระหว่าง gather
     _scan_results.clear()
-    await asyncio.gather(*[scan_one_tf(app, tf) for tf in active_tfs])
+    await asyncio.gather(*[_timed_scan_one_tf(app, tf) for tf in active_tfs])
+    _lap("scan_all_tf")
 
     # export trend state สำหรับ MQL5 indicator (TrendFilterLines.mq5)
     _export_trend_state_for_mt5()
+    _lap("export_trend_state")
+
+    # ── timing diag: หา step ที่ทำให้ scan cycle ช้าผิดปกติ (กัน event-loop stall) ──
+    _total_dur = _timing_steps[-1][1] if _timing_steps else 0.0
+    if _total_dur > 3.0:
+        _prev = 0.0
+        _breakdown = []
+        for _label, _cum in _timing_steps:
+            _breakdown.append(f"{_label}={_cum - _prev:.2f}s")
+            _prev = _cum
+        log_event("SCAN_SLOW", f"scan cycle ใช้เวลา {_total_dur:.2f}s > 3s", breakdown=" ".join(_breakdown))
 
     # print log รวมเป็น block เดียว
     if _scan_results:

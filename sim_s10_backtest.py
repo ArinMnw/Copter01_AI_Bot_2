@@ -287,6 +287,11 @@ def s10_unreplayed_active_features() -> list[dict]:
     ]
 
 
+def _s10_pending_cancel_does_not_close_arm() -> None:
+    """Runtime pending cancel removes order state but does not notify strategy10."""
+    return None
+
+
 def _sim_point() -> float:
     try:
         info = mt5.symbol_info(SYMBOL)
@@ -702,8 +707,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                         'pnl': 0.0,
                         'cancel_reason': reason,
                     })
-                    from strategy10 import handle_ticket_closed
-                    handle_ticket_closed(p['s10_htf_tf'], p['ticket'], "cancel")
+                    _s10_pending_cancel_does_not_close_arm()
                 else:
                     kept_pending.append(p)
             pending_orders = kept_pending
@@ -839,11 +843,10 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     'close_type': 'CANCEL',
                     'close_price': b['open'],
                     'close_time': bt,
-                    'pnl': 0.0,
-                    'cancel_reason': "S10 Sibling order filled"
-                })
-                from strategy10 import handle_ticket_closed
-                handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
+                'pnl': 0.0,
+                'cancel_reason': "S10 Sibling order filled"
+            })
+                _s10_pending_cancel_does_not_close_arm()
                 continue
             # 3.1 ตรวจสอบเงื่อนไขการโดนยกเลิกออเดอร์ (Cancel Criteria)
             if sl_guard.near_blocked(tf_name, pending["signal"], pending["entry"], b):
@@ -852,11 +855,10 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     'close_type': 'CANCEL',
                     'close_price': b['open'],
                     'close_time': bt,
-                    'pnl': 0.0,
-                    'cancel_reason': "SL Guard active near entry"
-                })
-                from strategy10 import handle_ticket_closed
-                handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
+                'pnl': 0.0,
+                'cancel_reason': "SL Guard active near entry"
+            })
+                _s10_pending_cancel_does_not_close_arm()
                 continue
 
             cancel_reason = check_pending_order_invalid(pending, b, ltf_bars_so_far, htf_rates_all[pending['s10_htf_tf']])
@@ -866,11 +868,10 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                     'close_type': 'CANCEL',
                     'close_price': b['open'],
                     'close_time': bt,
-                    'pnl': 0.0,
-                    'cancel_reason': cancel_reason
-                })
-                from strategy10 import handle_ticket_closed
-                handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
+                'pnl': 0.0,
+                'cancel_reason': cancel_reason
+            })
+                _s10_pending_cancel_does_not_close_arm()
                 continue
 
             # 3.1.2 PD Fibo Plus is skipped for S10.
@@ -885,8 +886,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                         'pnl': 0.0,
                         'cancel_reason': pd_reason
                     })
-                    from strategy10 import handle_ticket_closed
-                    handle_ticket_closed(pending['s10_htf_tf'], pending['ticket'], "cancel")
+                    _s10_pending_cancel_does_not_close_arm()
                     continue
                 
             # 3.2 ตรวจสอบเงื่อนไขราคาเกี่ยวออเดอร์สำเร็จ (Fill Check)
@@ -949,8 +949,7 @@ def backtest_tf(tf_name: str, tf_val: int) -> list:
                                 'pnl': 0.0,
                                 'cancel_reason': f"S10 Sibling order filled (ticket {pending['ticket']})"
                             })
-                            from strategy10 import handle_ticket_closed
-                            handle_ticket_closed(sibling_in_still['s10_htf_tf'], sibling_in_still['ticket'], "cancel")
+                            _s10_pending_cancel_does_not_close_arm()
                             still_pending = [p for p in still_pending if p["ticket"] != sib]
             else:
                 still_pending.append(pending)

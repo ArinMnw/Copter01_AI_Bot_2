@@ -539,6 +539,15 @@ def main():
             import config as _cfg
             await check_symbol_switch(startup=True)
             restore_info = restore_runtime_state()
+
+            # ── auto_active reset เป็น False ทุกครั้งที่ restart (ค่า default ใน config.py)
+            # เปิดอัตโนมัติให้กลับมาทำงานต่อ กันลืมเปิดมือหลัง restart/crash ───────────
+            _auto_resumed = False
+            if not _cfg.auto_active:
+                _cfg.auto_active = True
+                _auto_resumed = True
+                log_event("AUTO_RESUME", "auto_active=False หลัง start → เปิดอัตโนมัติ")
+
             info = mt5.account_info()
             acc_txt = f"Account: {info.login} | Balance: {info.balance:.2f}" if info else ""
             mt5_to_bkk_hours = TZ_OFFSET - MT5_SERVER_TZ
@@ -557,6 +566,9 @@ def main():
                 + f"📋 Strategy: {', '.join(STRATEGY_NAMES[k] for k,v in active_strategies.items() if v)}\n"
                 + f"🕐 TF: {', '.join(tf for tf,on in TF_ACTIVE.items() if on) or 'ยังไม่ได้เลือก'}"
             )
+
+            if _auto_resumed:
+                tg_msg += f"\n⚡ Auto: `🟢ON` (เปิดอัตโนมัติหลัง restart)"
 
             if restore_info.get("restored"):
                 restore_line = (
