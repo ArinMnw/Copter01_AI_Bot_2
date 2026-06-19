@@ -55,3 +55,10 @@
 [2026-06-19 22:25:05] Launching: python main.py
 [2026-06-19 22:25:13] main.py running (pid=6900)
 [2026-06-19 22:26:53] WARN: heartbeat missing/unreadable (up=100s) — wait next cycle
+[2026-06-19 23:06:57] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
+[2026-06-19 23:07:02] Launching: python main.py
+[2026-06-19 23:07:06] main.py running (pid=7424)
+[2026-06-20 00:14:28] STALL: heartbeat age=207s > 180s (loop hang) -> kill pid=7424 + restart
+[2026-06-20 00:14:36] Restarting in 5 s ...
+[2026-06-20 00:14:48] Launching: python main.py
+[2026-06-20 00:14:55] main.py running (pid=692)
