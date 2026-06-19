@@ -2,6 +2,7 @@ import logging
 import MetaTrader5 as mt5
 import os
 import re
+import time
 from datetime import datetime, timedelta, timezone
 
 
@@ -23,8 +24,23 @@ _SYSTEM_MONTHLY_LOG_RE = re.compile(r"^system-\d{4}-\d{2}\.log$")
 # ── Rotation state ─────────────────────────────────────────────
 _last_bot_log_month: tuple = (0, 0)   # (year, month) ที่ bot.log ถูกเขียนล่าสุด
 
+# ── _now_bkk() throttle ─────────────────────────────────────────
+# log_event()/log_error() เรียก _now_bkk() ทุกบรรทัด (หลายร้อยครั้ง/รอบ scan)
+# ถ้าเรียก mt5.symbol_info_tick() สดทุกครั้ง แล้ว MT5 IPC ค้าง/หน่วง จะลาก
+# event loop ค้างไปด้วย (เหมือน MT5 blocking call อื่นๆ ที่ทำให้ supervisor restart วนลูป)
+# จึง cache offset ไว้ แล้ว refresh จาก MT5 แค่เป็นช่วงๆ พอ
+_NOW_BKK_REFRESH_SEC = 15.0
+_now_bkk_cache_offset: timedelta = None
+_now_bkk_cache_at: float = 0.0
+
 
 def _now_bkk() -> datetime:
+    global _now_bkk_cache_offset, _now_bkk_cache_at
+
+    nowt = time.monotonic()
+    if _now_bkk_cache_offset is not None and (nowt - _now_bkk_cache_at) < _NOW_BKK_REFRESH_SEC:
+        return datetime.now(timezone.utc) + _now_bkk_cache_offset
+
     try:
         import config as _config
         symbols = []
@@ -48,11 +64,17 @@ def _now_bkk() -> datetime:
         if best_ts is not None:
             dt = _config.mt5_ts_to_bkk(best_ts)
             if dt is not None:
+                _now_bkk_cache_offset = dt - datetime.now(timezone.utc)
+                _now_bkk_cache_at = nowt
                 return dt
     except Exception:
         pass
+
     server_tz = getattr(locals().get("_config", None), "MT5_SERVER_TZ", 1) if "_config" in locals() else 1
-    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET - server_tz)
+    fallback_offset = timedelta(hours=TZ_OFFSET - server_tz)
+    _now_bkk_cache_offset = fallback_offset
+    _now_bkk_cache_at = nowt
+    return datetime.now(timezone.utc) + fallback_offset
 
 
 def _sanitize(value) -> str:
