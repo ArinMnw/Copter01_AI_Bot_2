@@ -36,12 +36,16 @@ PEARSON_SIDEWAY = 0.3   # r < 0.3 → Sideways (ใช้ slope เป็น dir
 #   }
 _amp_data: dict[str, dict] = {}
 
+# bar time (ของแท่งกำลังก่อตัว) ล่าสุดที่ fetch_amp_trend คำนวณสำเร็จ ต่อ TF
+_amp_last_bar_time: dict[str, int] = {}
+
 
 def clear_cache():
     """ล้าง _amp_data ทั้งหมด — เรียกตอนสลับ symbol (XAU<->BTC)
     กัน trend label ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่
     (scan_one_tf จะ fetch_amp_trend ใหม่ทุกรอบ → cache repopulate เองทันที)"""
     _amp_data.clear()
+    _amp_last_bar_time.clear()
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -145,15 +149,24 @@ def _compute_trend(slope: float, price_mid: float, pearson: float) -> dict:
 # Public — fetch / scan
 # ══════════════════════════════════════════════════════════════════════
 
-def fetch_amp_trend(tf_name: str, symbol: str | None = None) -> bool:
+def fetch_amp_trend(tf_name: str, symbol: str | None = None,
+                     current_bar_time: int | None = None) -> bool:
     """
     Fetch ราคาจาก MT5 → คำนวณ AMP trend → เก็บใน _amp_data[tf_name]
     Return True ถ้าสำเร็จ
-    """
+
+    current_bar_time (optional): ถ้า caller (scan_one_tf) ส่งมาและตรงกับรอบก่อนหน้า
+    (แท่งยังไม่ปิด) จะข้าม fetch+regression ก้อนใหญ่ (สูงสุด ~410 แท่ง/รอบ) — ใช้ label
+    ที่คำนวณไว้ล่าสุดต่อแทน ใช้แสดงผลใน Scan Summary เท่านั้น ไม่กระทบ trading logic
+    (amp_trend ไม่ถูกใช้ตัดสิน order ที่จุดใดในระบบปัจจุบัน)"""
     sym    = symbol or SYMBOL
     tf_val = TF_OPTIONS.get(tf_name)
     if tf_val is None:
         return False
+
+    if (current_bar_time is not None and tf_name in _amp_data
+            and _amp_last_bar_time.get(tf_name) == current_bar_time):
+        return True
 
     max_period = max(_PERIODS)
     rates = mt5.copy_rates_from_pos(sym, tf_val, 0, max_period + 10)
@@ -179,6 +192,8 @@ def fetch_amp_trend(tf_name: str, symbol: str | None = None) -> bool:
         "period":    best["period"],
         **trend_info,
     }
+    if current_bar_time is not None:
+        _amp_last_bar_time[tf_name] = current_bar_time
     return True
 
 

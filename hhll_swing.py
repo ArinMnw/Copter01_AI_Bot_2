@@ -31,12 +31,17 @@ except ImportError:
 #   }
 _hhll_data: dict[str, dict] = {}
 
+# bar time (ของแท่งกำลังก่อตัว) ล่าสุดที่ fetch_hhll คำนวณสำเร็จ ต่อ TF
+# ใช้กันคำนวณ HH/HL/LH/LL ซ้ำเมื่อแท่งยังไม่ปิด (ค่าไม่เปลี่ยนระหว่างแท่งเดียวกัน)
+_hhll_last_bar_time: dict[str, int] = {}
+
 
 def clear_cache():
     """ล้าง _hhll_data ทั้งหมด — เรียกตอนสลับ symbol (XAU<->BTC)
     กัน HH/HL/LH/LL level ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่
     (scan_one_tf จะ fetch_hhll ใหม่ทุกรอบ → cache repopulate เองทันที)"""
     _hhll_data.clear()
+    _hhll_last_bar_time.clear()
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -175,12 +180,23 @@ def _classify_pt(zz: list[dict], k: int) -> str:
 
 def fetch_hhll(tf_name: str, symbol: str | None = None,
                lb: int | None = None, rb: int | None = None,
-               lookback: int | None = None) -> bool:
-    """Fetch ราคาจาก MT5 → classify HH/HL/LH/LL → เก็บใน _hhll_data"""
+               lookback: int | None = None,
+               current_bar_time: int | None = None) -> bool:
+    """Fetch ราคาจาก MT5 → classify HH/HL/LH/LL → เก็บใน _hhll_data
+
+    current_bar_time (optional): bar time ของแท่งกำลังก่อตัวที่ caller ดึงมาแล้ว
+    (เช่น scan_one_tf) — ถ้าตรงกับรอบก่อนหน้า แปลว่าแท่งยังไม่ปิด โครงสร้าง HH/HL/LH/LL
+    ยังไม่เปลี่ยน จะข้าม fetch+recompute ก้อนใหญ่ (ลด MT5 IPC call ที่ทำให้ scan ช้า/ลาก
+    event loop ค้าง — ดู §External Supervisor / Event-Loop Stall ใน AGENTS.md)
+    ผู้เรียกที่ไม่ส่ง current_bar_time มา (เช่น force-fetch ใน trailing.py) ยัง fetch สดทุกครั้งเหมือนเดิม"""
     sym      = symbol  or SYMBOL
     tf_val   = TF_OPTIONS.get(tf_name)
     if tf_val is None:
         return False
+
+    if (current_bar_time is not None and tf_name in _hhll_data
+            and _hhll_last_bar_time.get(tf_name) == current_bar_time):
+        return True
 
     _lb  = lb       if lb       is not None else HHLL_LEFT
     _rb  = rb       if rb       is not None else HHLL_RIGHT
@@ -220,6 +236,8 @@ def fetch_hhll(tf_name: str, symbol: str | None = None,
         "last_label": structure[-1] if structure else "",
         "structure":  list(reversed(structure[-6:])),   # 6 ล่าสุด เรียง newest→oldest
     }
+    if current_bar_time is not None:
+        _hhll_last_bar_time[tf_name] = current_bar_time
     return True
 
 
