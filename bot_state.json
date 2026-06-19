@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-06-20 00:38:06",
+  "saved_at": "2026-06-20 00:43:03",
   "symbol": "BTCUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -222,7 +222,7 @@
       "pre_arm": false,
       "fired_tickets": [],
       "awaiting_choch": false,
-      "fire_count": 42
+      "fire_count": 90
     }
   },
   "rsi9_plot_bullish": true,
@@ -275,7 +275,7 @@
   "last_traded_per_tf": {
     "H4": 1781870400,
     "H12": 1781827200,
-    "M5": 1781893500,
+    "M5": 1781894100,
     "M30": 1781892000,
     "H1": 1781888400
   },
@@ -287,7 +287,8 @@
       "2": 1781827200
     },
     "M5": {
-      "1": 1781893500
+      "1": 1781893500,
+      "2": 1781894100
     },
     "M30": {
       "1": 1781892000
@@ -401,6 +402,19 @@
         "confirmed_bar_time": 0
       },
       "flow_id": "H1|S1|SELL|T1781888400|E63143.10|SL64116.55|TP62395.80"
+    },
+    "548413622": {
+      "tf": "M5",
+      "gap_bot": 62919.8,
+      "gap_top": 62940.5,
+      "final_gap_bot": 62919.8,
+      "final_gap_top": 62940.5,
+      "detect_bar_time": 1781894100,
+      "signal": "BUY",
+      "sid": 2,
+      "pattern": "ท่าที่ 2 FVG 🟢 BUY — แดง",
+      "c3_type": "แดง",
+      "trend_filter": "sideway"
     }
   },
   "position_tf": {
@@ -412,28 +426,32 @@
     "548410403": "M15",
     "548403327": "H4",
     "548405780": "M5",
-    "548410375": "M5"
+    "548410375": "M5",
+    "548413622": "M5"
   },
   "position_sid": {
     "548410932": 1,
     "548411053": 2,
     "548411102": 1,
     "548411129": 1,
-    "548411162": 1
+    "548411162": 1,
+    "548413622": 2
   },
   "position_pattern": {
     "548410932": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern F 2 แท่งกลืนกิน",
     "548411053": "ท่าที่ 2 FVG SELL [H12]",
     "548411102": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
     "548411129": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-    "548411162": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน"
+    "548411162": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
+    "548413622": "ท่าที่ 2 FVG BUY [M5]"
   },
   "position_trend_filter": {
     "548410932": "sideway",
     "548411053": "sideway",
     "548411102": "sideway",
     "548411129": "bull_weak",
-    "548411162": "bear_weak"
+    "548411162": "bear_weak",
+    "548413622": "sideway"
   },
   "position_zone_meta": {},
   "position_forward_meta": {},
@@ -455,6 +473,11 @@
     "548411053": {
       "tf": "H12",
       "signal": "SELL",
+      "checked": false
+    },
+    "548413622": {
+      "tf": "M5",
+      "signal": "BUY",
       "checked": false
     }
   },
@@ -547,6 +570,23 @@
       "is_pending": true,
       "sid": "1",
       "tp_original": 62395.8
+    },
+    "548413622": {
+      "direction": "BUY",
+      "entry": 62940.09,
+      "original_volume": 0.16,
+      "base_volume": 0.04,
+      "per_tp_volume": 0.04,
+      "tp_distances": [
+        8.0,
+        12.0,
+        24.0,
+        377.01000000000204
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "2",
+      "tp_original": 63317.1
     }
   },
   "s15_use_val_vah": true,
