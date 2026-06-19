@@ -246,7 +246,7 @@ OBSERVABLE_MODE = True
 #  ทุก Pattern ต้องเกิดที่ High/Low Zone
 # ============================================================
 
-auto_active = False
+auto_active = True
 last_traded_candle = 0  # เก็บ timestamp แท่งที่เพิ่งเทรดไป (ป้องกันเปิดซ้ำในแท่งเดิม)
 
 # Strategy ที่เปิดใช้งาน (True=เปิด, False=ปิด)
