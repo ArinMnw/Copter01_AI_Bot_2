@@ -106,8 +106,8 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "name": "Trend Filter scan block",
             "config_on": getattr(config, "TREND_FILTER_SCAN_BLOCK", False),
             "runtime": "apply",
-            "replay": "ready",
-            "note": "Config is currently OFF in tested state; S2 scan parity currently relies on signal-side trend filters plus sweep block",
+            "replay": "partial",
+            "note": "Unified replay calls scanner trend_allows_signal() with current-TF historical HHLL when enabled; higher-TF/exported scanner state can still drift",
         },
         {
             "name": "Sweep Filter scan block",
@@ -120,8 +120,8 @@ def s2_runtime_feature_coverage() -> list[dict]:
             "name": "RSI Fill Recheck",
             "config_on": getattr(config, "PENDING_RSI_RECHECK_ENABLED", False),
             "runtime": "apply",
-            "replay": "gap",
-            "note": "Runtime can close S2 after fill when RSI recheck fails",
+            "replay": "ready",
+            "note": "Unified replay calls the shared fill RSI recheck layer when config is enabled",
         },
         {
             "name": "Limit TP/SL Break Cancel",

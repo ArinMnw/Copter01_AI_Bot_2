@@ -35,6 +35,7 @@ class FakeMessage:
 class FakeUpdate:
     def __init__(self):
         self.message = FakeMessage()
+        self.effective_message = self.message
 
 
 async def main():

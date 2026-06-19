@@ -69,10 +69,6 @@ def detect_fvg(rates, tf=""):
         else:
             c0_type = "เขียว"
 
-        # ปิดใช้งาน pattern 3-4 (แดง/เขียว default) — เหลือเฉพาะ "เขียวกลืนกิน" และ "ปฏิเสธราคา"
-        if c0_type in ("แดง", "เขียว"):
-            return None, f"FVG BUY pattern '{c0_type}' ปิดใช้งาน"
-
         near_zone = gap_bot <= sl_z + ms["atr"] * 3
         zone_note = "✅ ใกล้ Swing Low" if near_zone else "⚠️ ไม่อยู่ Zone"
 
@@ -112,10 +108,6 @@ def detect_fvg(rates, tf=""):
             c0_type = "เขียว"
         else:
             c0_type = "แดง"
-
-        # ปิดใช้งาน pattern 3-4 (เขียว/แดง default) — เหลือเฉพาะ "แดงกลืนกิน" และ "ปฏิเสธราคา"
-        if c0_type in ("เขียว", "แดง"):
-            return None, f"FVG SELL pattern '{c0_type}' ปิดใช้งาน"
 
         near_zone = gap_top >= sh - ms["atr"] * 3
         zone_note = "✅ ใกล้ Swing High" if near_zone else "⚠️ ไม่อยู่ Zone"

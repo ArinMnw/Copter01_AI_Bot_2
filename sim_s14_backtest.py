@@ -84,6 +84,27 @@ def _check_pd_fibo(signal: str, entry: float, tf_name: str) -> tuple:
     return True, fibo_pct, h, l, h_time, l_time
 
 
+def _strong_trend_blocks_signal(tf_name: str, signal: str) -> tuple[bool, str]:
+    if not (
+        getattr(config, "STRONG_TREND_BLOCK_ENABLED", False)
+        and 14 in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14, 15, 16))
+    ):
+        return False, ""
+    if not _USE_HHLL:
+        return False, ""
+    try:
+        trend = _hs.get_trend_from_structure(tf_name) or {}
+    except Exception:
+        trend = {}
+    if trend.get("strength") != "strong":
+        return False, ""
+    if trend.get("trend") == "BULL" and signal == "SELL":
+        return True, f"{tf_name} BULL strong"
+    if trend.get("trend") == "BEAR" and signal == "BUY":
+        return True, f"{tf_name} BEAR strong"
+    return False, ""
+
+
 
 SYMBOL       = config.SYMBOL
 SINCE        = datetime(2026, 5, 24, 0, 0, 0, tzinfo=timezone.utc)
@@ -253,8 +274,8 @@ def s14_runtime_feature_coverage() -> list[dict]:
                 and 14 in getattr(config, "STRONG_TREND_BLOCK_SIDS", (9, 10, 11, 13, 14, 15, 16))
             ),
             "runtime": "apply",
-            "replay": "not_implemented",
-            "note": "No effect while config is OFF; replay must be added before enabling for S14 backtests",
+            "replay": "ready",
+            "note": "Replay blocks counter-strong-trend S14 signals when config is enabled; no effect while config is OFF",
         },
     ]
 
@@ -780,6 +801,9 @@ def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None
         for ord_ in orders:
             # Preserve all fields from the order (including swing reference data)
             if ord_.get('signal') in ('BUY', 'SELL') and ord_.get('entry') is not None and ord_.get('sl') is not None and ord_.get('tp') is not None:
+                blocked, _block_reason = _strong_trend_blocks_signal(tf_name, ord_.get('signal'))
+                if blocked:
+                    continue
                 in_trade = _s14_market_fill(ord_, i, bt)
                 if in_trade is None:
                     continue

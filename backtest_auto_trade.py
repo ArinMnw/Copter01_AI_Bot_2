@@ -2034,6 +2034,8 @@ def print_s9_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2054,6 +2056,8 @@ def print_s10_coverage() -> None:
             status = "runtime skip"
         elif item["replay"] == "apply":
             status = "replayed"
+        elif item["replay"] == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2078,6 +2082,8 @@ def print_s11_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2102,6 +2108,8 @@ def print_s12_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2126,6 +2134,8 @@ def print_s14_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2150,6 +2160,8 @@ def print_s13_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2174,6 +2186,8 @@ def print_s15_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2198,6 +2212,8 @@ def print_s16_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2222,6 +2238,8 @@ def print_s17_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2246,6 +2264,8 @@ def print_s18_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:
@@ -2270,6 +2290,8 @@ def print_s19_coverage() -> None:
             status = "replayed"
         elif replay == "partial":
             status = "partial"
+        elif replay == "ready":
+            status = "ready"
         elif item["config_on"]:
             status = "ACTIVE GAP"
         else:

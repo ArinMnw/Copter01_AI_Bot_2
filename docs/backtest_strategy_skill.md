@@ -98,7 +98,7 @@ S2 runtime coverage audit (updated 2026-06-18):
 
 Checklist status note:
 
-- `strategy2.strategy_2()`, normal confirm lookback, swing fallback, pending fill, `cancel_bars`, S2-only multi-TF `FVG_PARALLEL` context, composite TF comment/member filtering, optimized sweep scan block, Limit Guard, Opposite Order, Trail SL, and SL Guard baseline are implemented.
+- `strategy2.strategy_2()`, normal confirm lookback, swing fallback, pending fill, `cancel_bars`, S2-only multi-TF `FVG_PARALLEL` context, composite TF comment/member filtering, optimized sweep scan block, RSI Fill Recheck, Limit Guard, Opposite Order, Trail SL, and SL Guard baseline are implemented.
 - The remaining unchecked checklist item is still valid because exact cross-TF FVG cancel/re-place timing is not complete yet; Limit TP/SL Break Cancel is now a ready/off layer because current config has `LIMIT_BREAK_CANCEL=False`.
 
 | Feature | Runtime for S2 | Replay status | Note |
@@ -109,9 +109,9 @@ Checklist status note:
 | Pending limit lifecycle | apply | partial | Replay models pending fill, `cancel_bars`, fixed SL/TP with bar high/low. |
 | PD Fibo Plus | skip_s2 | skip_s2 | Runtime currently skips S2 in pending/fill PD Fibo Plus. |
 | Limit Trend / Fill Trend Recheck | skip_s2 | skip_s2 | Runtime currently skips S2 approach/fill trend recheck. |
-| Trend Filter scan block | apply if enabled | off/ready | Config is currently OFF in tested state; S2 scan parity currently relies on signal-side trend filters plus sweep block. |
+| Trend Filter scan block | apply if enabled | partial | Unified replay now calls scanner `trend_allows_signal()` with current-TF historical HHLL when enabled; higher-TF/exported scanner state can still drift. |
 | Sweep Filter scan block | apply | partial | Unified S2 replay uses optimized historical sweep detection to block counter-sweep scan signals. |
-| RSI Fill Recheck | apply if enabled | gap/off | Config is currently OFF in tested state. |
+| RSI Fill Recheck | apply if enabled | off/ready | Config is currently OFF in tested state; unified replay calls the shared fill RSI recheck layer when enabled. |
 | Limit TP/SL Break Cancel | apply if enabled | off/ready | Config is currently OFF in tested state; replay now cancels pending orders on confirmed TP/SL break and skips S2 engulf pattern 1 when enabled. |
 | Trail SL / Opposite / Limit Guard | apply if enabled | partial | Replay applies Limit Guard, Opposite Order, engulf Trail SL baseline, SL Guard/Group retry/unblock baseline, and counts only losing SL/loss-guard closes for SL Guard like runtime; shared order-state and focus/reversal nuances can still drift. |
 
@@ -132,7 +132,7 @@ python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00
 
 Known remaining S2 gaps:
 
-- Cross-TF `FVG_PARALLEL` intersection/cancel/re-place and optimized sweep scan block have first-pass replay for S2-only runs; report filtering now recognizes multi-member comments like `[M5_M15_M30]_S2`; remaining drift is exact live tick timing, shared state timing, and exact cross-TF re-place behavior.
+- Cross-TF `FVG_PARALLEL` intersection/cancel/re-place, optimized sweep scan block, and current-TF Trend Filter scan block have first-pass replay for S2-only runs; report filtering now recognizes multi-member comments like `[M5_M15_M30]_S2`; remaining drift is exact live tick timing, shared state timing, higher-TF/exported trend scan state, and exact cross-TF re-place behavior.
 - Limit TP/SL Break Cancel is implemented as a dormant replay layer for current config (`LIMIT_BREAK_CANCEL=False`); rerun with that config enabled if future audit needs to validate active break-cancel behavior.
 - Limit Guard, Opposite Order, Trail SL, and SL Guard are replayed as baseline lifecycle layers, but exact focus/reversal/tick timing can still drift from live.
 - PD/Trend recheck are runtime skips for S2 now; live mismatch labels can still appear from historical orders/logs, especially orders created before the skip-list change. Pre-create, pending, and fill PD skip lists are synced in `scanner.py`/`trailing.py`.
@@ -150,7 +150,7 @@ S3 runtime coverage audit (updated 2026-06-18):
 Checklist status note:
 
 - `strategy3.strategy_3()`, DM/SP detection, normal confirm lookback, swing fallback, Marubozu/No Engulf pending confirmation, adjacent same-sid block, sweep scan block, pending fill, RSI Fill Recheck, Limit TP/SL Break Cancel, Limit Guard, Opposite Order, Trail SL, and SL Guard baseline are implemented.
-- The remaining unchecked checklist item is still valid because exact global runtime state, exact sweep expiry/state, and trend scan block parity are not complete yet.
+- The remaining unchecked checklist item is still valid because exact global runtime state, exact sweep expiry/state, and higher-TF/exported trend scan state parity are not complete yet.
 
 | Feature | Runtime for S3 | Replay status | Note |
 |---|---|---|---|
@@ -162,7 +162,7 @@ Checklist status note:
 | Pending limit lifecycle | apply | partial | Replay models pending fill and fixed SL/TP with bar high/low. |
 | PD Fibo Plus | skip_s3 | skip_s3 | Runtime currently skips S3 in pending/fill PD Fibo Plus. |
 | Limit Trend / Fill Trend Recheck | skip_s3 | skip_s3 | Runtime currently skips S3 approach/fill trend recheck. |
-| Trend Filter scan block | apply if enabled | off/ready | Config is currently OFF in tested state; full breakout-mode scan block is a ready/off layer. |
+| Trend Filter scan block | apply if enabled | partial | Unified replay now calls scanner `trend_allows_signal()` with current-TF historical HHLL when enabled; higher-TF/exported scanner state can still drift. |
 | RSI Fill Recheck | apply if enabled | off/ready | Config is currently OFF in tested state; replay supports mode1/mode2/mode3 when enabled. |
 | Limit TP/SL Break Cancel | apply if enabled | off/ready | Config is currently OFF in tested state; replay cancels pending orders on confirmed TP/SL break when enabled. |
 | Trail SL / Opposite / Limit Guard | apply if enabled | partial | Replay applies Limit Guard, Opposite Order, engulf Trail SL baseline, and SL Guard/Group baseline; SL Guard counts only losing SL/loss-guard closes like runtime, while focus/reversal/retry nuances can still drift. |
@@ -184,9 +184,9 @@ python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00
 
 Known remaining S3 gaps:
 
-- PD/Trend recheck are runtime skips for S3 now; single S3 uses unified same-TF lifecycle, but exact sweep-state expiry, trend scan block, and trail/guard state still drift. Pre-create, pending, and fill PD skip lists are synced in `scanner.py`/`trailing.py`.
+- PD/Trend recheck are runtime skips for S3 now; single S3 uses unified same-TF lifecycle, but exact sweep-state expiry, higher-TF/exported trend scan state, and trail/guard state still drift. Pre-create, pending, and fill PD skip lists are synced in `scanner.py`/`trailing.py`.
 - Limit Guard, Opposite Order, Trail SL, RSI modes, Limit TP/SL Break Cancel, and SL Guard are replayed as baseline lifecycle layers, but exact focus/reversal/tick timing can still drift from live.
-- Need remaining scan/runtime parity: global runtime state interactions, exact sweep-state expiry, and exact trend scan block behavior if `TREND_FILTER_SCAN_BLOCK` is turned back on.
+- Need remaining scan/runtime parity: global runtime state interactions, exact sweep-state expiry, and exact higher-TF/exported trend scan state behavior if `TREND_FILTER_SCAN_BLOCK` is turned back on.
 - Backtest-only count is high, so S3 is still partial parity rather than full audit-grade parity.
 
 ### S4
@@ -449,7 +449,7 @@ Known remaining S10 gaps:
 ### S11
 
 - [x] สร้าง/รวม replay ราย strategy baseline
-- [ ] รองรับ Fibo S1 และ PD/recheck skip/apply ตาม runtime ล่าสุดให้ครบ
+- [x] รองรับ Fibo S1 และ PD/recheck skip/apply ตาม runtime ล่าสุดให้ครบ
 - [x] เทียบ MT5 history รายช่วง baseline
 - [x] จด command ใน `commands_and_tips.md`
 
@@ -458,12 +458,12 @@ S11 runtime coverage audit (updated 2026-06-18):
 Checklist status note:
 
 - S11 Fibo state/cascade, S1 anchor hook, S1 shadow linked cleanup, PD skip-list parity, Limit Trend/RSI skip parity, Limit Guard, Opposite Order, Trail SL, and SL Guard Group baseline are implemented.
-- The remaining unchecked checklist item is now mostly historical/timing parity rather than missing Fibo/PD skip support; exact bar/tick timing and shared runtime state still drift.
+- Fibo/S1 and PD/recheck skip/apply coverage is now checked; exact bar/tick timing and shared runtime state still drift as known gaps.
 
 | Feature | Runtime for S11 | Replay status | Note |
 |---|---|---|---|
-| S1 anchor hook | apply | apply | Replay calls `strategy1.strategy_1()` and `strategy11.record_s1_pattern()`. |
-| S11 Fibo state/cascade | apply | apply | Replay calls shared `strategy11.strategy_11()`. |
+| S1 anchor hook | apply | apply | Replay uses range-based MT5 fetch, calls `strategy1.strategy_1()`, and records S1 anchors for strategy11. |
+| S11 Fibo state/cascade | apply | apply | Replay calls shared `strategy11.strategy_11()` on scanner-style rolling windows. |
 | Pending limit lifecycle | apply | partial | Replay models pending fill and fixed SL/TP with bar high/low. |
 | PD Fibo Plus | skip_s11 | skip_s11 | Runtime currently skips S11 via `config.PDFIBOPLUS_SKIP_SIDS`; replay now follows the same skip list. |
 | Limit Trend / RSI Recheck | skip_s11 | skip_s11 | Runtime skips S11 in pending trend and RSI fill recheck. |
@@ -481,14 +481,14 @@ Evidence ล่าสุด:
 python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M15 --strategies 11 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
 ```
 
-- S11 replay optimized to use rolling `TF_LOOKBACK + 6` strategy window, matching scanner-style input and avoiding the earlier timeout from ever-growing full-history slices.
+- S11 replay now uses range-based MT5 fetch for main/trail TF data and rolling `TF_LOOKBACK + 6` strategy windows, matching scanner-style input while avoiding the earlier timeout from ever-growing full-history slices.
 - S11 linked cleanup now has a shadow S1 lifecycle; S11 pending cleanup is recorded as cancelled, while filled S11 rows close at the replay bar close with `S11_LINKED_CLEANUP`.
-- S11 context raw events after linked-cleanup + Limit Guard + Opposite + Trail SL baseline: M1 `49`, M5 `540`, M15 `170`, M30 `88`, H1 `47`; kept M15 filled events in window after `--exclude-cancelled`: `35`.
-- Backtest P&L: `-37.68`.
+- S11 context raw events after range fetch + linked-cleanup + Limit Guard + Opposite + Trail SL baseline: M1 `31`, M5 `551`, M15 `175`, M30 `90`, H1 `51`; kept M15 filled events in window after `--exclude-cancelled`: `35`.
+- Backtest P&L: `-21.11`.
 - MT5 live rows loaded: 104; after M15 filter: 11.
 - Matched: 10; mismatches: 9; live-only: 1; backtest-only: 25.
 - Matched P&L live `-1.67` | BT `+8.60` | diff `-10.27`.
-- Latest M15 run included SL Guard Group context TFs `M1`, `M5`, `M15`, `M30`, `H1`; overlay ran after S11 context replay and produced one M15 `SL_GUARD_GROUP` close.
+- Latest M15 run included SL Guard Group context TFs `M1`, `M5`, `M15`, `M30`, `H1`; overlay ran after S11 context replay but the current summary did not produce an M15 `SL_GUARD_GROUP` close.
 - Largest mismatch groups: `CLOSE_BUCKET_DIFF SELL -35.78`, `PNL_DIFF_SAME_BUCKET SELL +15.32`, `LIVE_CLOSE_TREND_RECHECK BUY +5.60`, `CLOSE_LIFECYCLE_PD BUY +4.01`.
 - Report: `excel_reports/backtest_compare/s11/compare_s11_M15_20260528_0800_20260608_1000.csv`.
 
@@ -589,7 +589,7 @@ Known remaining S13 gaps:
 - [x] เพิ่ม optional `--hybrid-live-guard-context` เป็น diagnostic mode
 - [x] เพิ่ม granular S14 lifecycle price path: SL/TP/trail/scale-out ใช้ TF ย่อยจาก `TRAIL_GROUPS` ระหว่างแท่งหลัก
 - [x] รัน baseline ช่วง `2026-05-28 08:00` ถึง `2026-06-08 10:00`, `M15`, `XAUUSD.iux`
-- [ ] ไล่ gap ที่เหลือ: `SELL_SWEEP` live-only, `SELL_ENGULF` drift, `TRAIL_SL_DIFF_SOURCE`
+- [ ] ไล่ gap ที่เหลือ: `SELL_SWEEP` live-only และ `SELL_ENGULF` drift; `TRAIL_SL_DIFF_SOURCE` ถูกตรวจแล้วว่า live source ว่างเพราะไม่มี bot log ช่วง 2026-05-29
 - [x] Audit ให้ครบทุก config runtime ที่พี่ระบุเหมือน S10
 
 S14 runtime coverage audit (updated 2026-06-18):
@@ -611,7 +611,7 @@ S14 runtime coverage audit (updated 2026-06-18):
 | Opposite Order | skip_s14 | skip_s14 | Runtime filters S14 positions/orders. |
 | Limit Guard | skip_s14 | skip_s14 | S14 uses market orders. |
 | Delay SL | skip_s14 | skip_s14 | S14 does not use delayed pending SL. |
-| Strong Trend Block | apply if enabled for S14 | gap | Config is currently OFF; replay must be added before enabling this for S14 backtests. |
+| Strong Trend Block | apply if enabled for S14 | off/ready | Config is currently OFF; replay now blocks counter-strong-trend S14 signals when enabled. |
 
 Evidence ล่าสุด:
 
@@ -621,17 +621,18 @@ python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00
 
 ผล baseline ล่าสุด:
 
-- S14 replay raw events by context TF after range fetch + HHLL injection: M1=261, M5=61, M15=11, M30=10, H1=2.
+- S14 replay raw events by context TF after range fetch + HHLL injection + Strong Trend Block ready path: M1=268, M5=62, M15=11, M30=10, H1=2.
 - S14 replay kept M15 events in window: 3.
 - Backtest P&L: `+34.37`.
 - MT5 live rows loaded: 433; after `M15` filter: 32.
 - Matched: 1; mismatches: 1; live-only: 31; backtest-only: 2.
 - Matched P&L live `+11.14` | BT `-1.24` | diff `+12.38`.
 - Main mismatch gap: `PNL_DIFF_SAME_BUCKET SELL count=1 pnl=+12.38`.
-- Remaining explicit trail-source gap: `TRAIL_SL_DIFF_SOURCE SELL count=1 pnl=+12.38`.
+- Trail-source diagnostic note: the remaining `TRAIL_SL_DIFF_SOURCE SELL count=1 pnl=+12.38` row has live ticket `534295319` on `2026-05-29`, but available `logs/bot.log` starts on `2026-06-18`, so live trail source cannot be reconstructed from bot logs for that historical row.
 - Lifecycle note: granular price path now checks current SL/TP before applying newly trailed SL, so same-bar trail look-ahead is avoided.
 - Market-fill note: S14 market replay now fills on the detect bar using strategy reference entry instead of next-bar open, matching runtime timing more closely.
 - HHLL note: the previous 0-event run came from missing historical HHLL injection; the replay now injects HHLL by default for S14 swing refs.
+- Strong Trend Block note: config is OFF in the tested state, but S14 replay now follows the runtime counter-strong-trend block when enabled.
 - Report: `excel_reports/backtest_compare/s14/compare_s14_M15_20260528_0800_20260608_1000.csv`
 
 Known remaining S14 gaps:
@@ -639,7 +640,7 @@ Known remaining S14 gaps:
 - Live-only remains high after the HHLL replay fix: live families are BUY_ENGULF 9, SELL_SWEEP 9, BUY_SWEEP 7, SELL_ENGULF 6 while replay kept only 3 M15 rows in the requested window.
 - S14 signal sensitivity check points to historical gate/config drift rather than range-fetch failure: with current config replay kept 3 M15 rows; forcing `S14_RSI_DIV_ENABLED=False` in-process kept 13; forcing `S14_SWEEP_RETURN=True` kept 15; forcing both kept 60, which overshoots live.
 - Current replay uses HHLL swing refs and current `S14_RSI_DIV_ENABLED=True`, `S14_SWEEP_RETURN=False` from `bot_state.json`; older live rows in this window likely came from looser S14 gates or a prior `strategy14.py` version.
-- `TRAIL_SL_DIFF_SOURCE` remains on 1 SELL matched row.
+- `TRAIL_SL_DIFF_SOURCE` remains on 1 SELL matched row, but current evidence points to missing historical bot log trail metadata rather than a confirmed replay trail-source bug.
 - SL Guard Group / Fill Trend Recheck close rows remain because replay only approximates cross-TF runtime state.
 - Old live orders still contain `PD Zone fill...` close reasons in this historical window; current runtime and replay now skip PD for S14, so compare after the skip-fix date should be cleaner.
 

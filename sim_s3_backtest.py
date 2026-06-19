@@ -99,8 +99,8 @@ def s3_runtime_feature_coverage() -> list[dict]:
             "name": "Trend Filter scan block",
             "config_on": getattr(config, "TREND_FILTER_SCAN_BLOCK", False),
             "runtime": "apply",
-            "replay": "ready",
-            "note": "Config is currently OFF in tested state; full breakout-mode scan block is a ready/off layer",
+            "replay": "partial",
+            "note": "Unified replay calls scanner trend_allows_signal() with current-TF historical HHLL when enabled; higher-TF/exported scanner state can still drift",
         },
         {
             "name": "Pending limit lifecycle",

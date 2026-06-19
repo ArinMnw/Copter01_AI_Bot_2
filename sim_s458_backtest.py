@@ -129,6 +129,37 @@ def _call_with_hhll(tf_name: str, hist_data: dict, func, *args, **kwargs) -> dic
             hhll_swing._hhll_data[tf_name] = old_data
 
 
+def _trend_scan_blocked(tf_name: str, hist_data: dict, sid: int, signal: str) -> tuple[bool, str]:
+    if not getattr(config, "TREND_FILTER_SCAN_BLOCK", False):
+        return False, ""
+    if sid in (9, 10, 13, 14, 15, 16, 17, 18, 19):
+        return False, ""
+    if not hist_data:
+        return False, ""
+
+    try:
+        import scanner as _scanner
+    except Exception:
+        return False, ""
+
+    old_swing = getattr(_scanner, "_swing_data", {}).get(tf_name)
+    old_hhll = hhll_swing._hhll_data.get(tf_name)
+    try:
+        _scanner._swing_data[tf_name] = hist_data
+        hhll_swing._hhll_data[tf_name] = hist_data
+        allowed, reason = _scanner.trend_allows_signal(tf_name, signal)
+        return (not allowed), reason
+    finally:
+        if old_swing is None:
+            _scanner._swing_data.pop(tf_name, None)
+        else:
+            _scanner._swing_data[tf_name] = old_swing
+        if old_hhll is None:
+            hhll_swing._hhll_data.pop(tf_name, None)
+        else:
+            hhll_swing._hhll_data[tf_name] = old_hhll
+
+
 def _sweep_htf_name(tf_name: str) -> str:
     mapping = {
         "M1": "M5",
@@ -834,6 +865,10 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
                 trades.append(trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block"))
                 continue
+            trend_blocked, trend_reason = _trend_scan_blocked(tf_name, hist_data, sid, order["signal"])
+            if trend_blocked:
+                trades.append(trend_cancel_event(order, order["detect_time"], f"Trend Filter scan block: {trend_reason}"))
+                continue
             if sid != 8 and not _pattern_allows_adjacent_order(sid, str(order.get("pattern", ""))):
                 if _adjacent_sid_blocked_sim(last_sid_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs):
                     trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
@@ -1128,6 +1163,10 @@ def backtest_multi_tf(
                 continue
             if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
                 trades.append(trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block"))
+                continue
+            trend_blocked, trend_reason = _trend_scan_blocked(tf_name, hist_data, sid, order["signal"])
+            if trend_blocked:
+                trades.append(trend_cancel_event(order, order["detect_time"], f"Trend Filter scan block: {trend_reason}"))
                 continue
             if sid != 8 and not _pattern_allows_adjacent_order(sid, str(order.get("pattern", ""))):
                 if _adjacent_sid_blocked_sim(last_sid_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs):

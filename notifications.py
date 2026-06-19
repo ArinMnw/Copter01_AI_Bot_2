@@ -421,6 +421,14 @@ async def check_sl_tp_hits(app):
         except Exception:
             pass
 
+        # ── S1 swing mode: S1 ปิดแล้ว (SL/TP/manual) → ปิด S11 ที่ ref TF เดียวกันด้วย ──
+        try:
+            if int(sid_label or 0) == 1 and tf_label and getattr(_config, "S1_ZONE_MODE", "") == "swing":
+                from trailing import _close_linked_s11_for_tf
+                await _close_linked_s11_for_tf(app, tf_label, f"S1 closed by {close_type} [{tf_label}]")
+        except Exception:
+            pass
+
         _config.tracked_positions.pop(ticket, None)
 
     # Daily Loss Limit — ถ้า realized ของวันติดลบเกินเกณฑ์ → kill switch (ครั้งเดียว/วัน)
