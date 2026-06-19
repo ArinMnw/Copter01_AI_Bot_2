@@ -7,3 +7,14 @@
 [2026-06-17 23:49:29] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
 [2026-06-17 23:49:29] Launching: python main.py
 [2026-06-17 23:49:29] main.py running (pid=980)
+[2026-06-18 22:47:37] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
+[2026-06-18 22:47:45] Launching: python main.py
+[2026-06-18 22:47:52] main.py running (pid=7820)
+[2026-06-18 23:57:43] STALL: heartbeat age=195s > 180s (loop hang) -> kill pid=7820 + restart
+[2026-06-18 23:57:51] Restarting in 5 s ...
+[2026-06-18 23:58:03] Launching: python main.py
+[2026-06-18 23:58:09] main.py running (pid=3408)
+[2026-06-19 07:50:26] STALL: heartbeat age=201s > 180s (loop hang) -> kill pid=3408 + restart
+[2026-06-19 07:50:34] Restarting in 5 s ...
+[2026-06-19 07:50:46] Launching: python main.py
+[2026-06-19 07:50:52] main.py running (pid=92)
