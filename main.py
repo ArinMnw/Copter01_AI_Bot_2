@@ -310,48 +310,82 @@ def main():
                 await auto_scan(app)
 
     async def run_trail_sl():
-        """Trail SL — รันได้เลย ไม่ต้องรอ"""
+        """Trail SL — รันได้เลย ไม่ต้องรอ
+        มี timing breakdown กัน MT5 call ค้างแบบไม่รู้ตัว (เหมือน auto_scan ใน scanner.py)"""
         if not config.auto_active:
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
+        _steps: list[tuple[str, float]] = []
+        _t0 = _time.perf_counter()
+
+        def _lap(label: str) -> None:
+            _steps.append((label, _time.perf_counter() - _t0))
+
         try:
-            await check_engulf_trail_sl(app)
-            await check_s6_trail(app)
+            await check_engulf_trail_sl(app); _lap("engulf_trail_sl")
+            await check_s6_trail(app); _lap("s6_trail")
         except Exception as e:
             await _tg_error(app, "run_trail_sl", e)
+        finally:
+            _total = _steps[-1][1] if _steps else (_time.perf_counter() - _t0)
+            if _total > 3.0:
+                _prev = 0.0
+                _breakdown = []
+                for _label, _t in _steps:
+                    _breakdown.append(f"{_label}={_t - _prev:.2f}s")
+                    _prev = _t
+                log_event("TRAIL_SL_SLOW", f"run_trail_sl ใช้เวลา {_total:.2f}s > 3s",
+                          breakdown=" ".join(_breakdown))
 
     async def run_position_check():
-        """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)"""
+        """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)
+        มี timing breakdown กัน MT5 call ค้างแบบไม่รู้ตัว (เหมือน auto_scan ใน scanner.py)"""
         if not config.auto_active:
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
+        _steps: list[tuple[str, float]] = []
+        _t0 = _time.perf_counter()
+
+        def _lap(label: str) -> None:
+            _steps.append((label, _time.perf_counter() - _t0))
+
         try:
             # Limit Fill notify ก่อน (อิสระจาก ENTRY_CANDLE_ENABLED)
-            await check_limit_fill_notify(app)
+            await check_limit_fill_notify(app); _lap("limit_fill_notify")
             # RSI Fill Recheck รันก่อน entry candle — ถ้า fail ปิด position ทันที
-            await check_fill_rsi_recheck(app)
+            await check_fill_rsi_recheck(app); _lap("fill_rsi_recheck")
             # Pending Trend Check on Approach — เช็ค trend ของ pending ก่อน fill (200pt)
-            await check_pending_trend_approach(app)
+            await check_pending_trend_approach(app); _lap("pending_trend_approach")
             # Trend Fill Recheck — เช็ค trend หลัง fill (round1 + round2/3 หลัง H/L เปลี่ยน)
-            await check_fill_trend_recheck(app)
+            await check_fill_trend_recheck(app); _lap("fill_trend_recheck")
             # PD Fibo Plus Fill Check — อิสระจาก ENTRY_CANDLE_ENABLED จับ case fill เร็วกว่า pending cycle
-            await check_fill_pdfiboplus(app)
-            await check_s14_engulf_exits(app)
-            await check_entry_candle_quality(app)
-            await check_sl_tp_hits(app)
-            await check_s1_zone_rules(app)
-            await check_s1_forward_confirm_rules(app)
-            await check_cancel_pending_orders(app)
+            await check_fill_pdfiboplus(app); _lap("fill_pdfiboplus")
+            await check_s14_engulf_exits(app); _lap("s14_engulf_exits")
+            await check_entry_candle_quality(app); _lap("entry_candle_quality")
+            await check_sl_tp_hits(app); _lap("sl_tp_hits")
+            await check_s1_zone_rules(app); _lap("s1_zone_rules")
+            await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
+            await check_cancel_pending_orders(app); _lap("cancel_pending_orders")
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
-            await check_opposite_order_tp(app)
-            await check_limit_sweep(app)
-            await check_scale_out_partial(app)
+            await check_opposite_order_tp(app); _lap("opposite_order_tp")
+            await check_limit_sweep(app); _lap("limit_sweep")
+            await check_scale_out_partial(app); _lap("scale_out_partial")
         except Exception as e:
             await _tg_error(app, "run_position_check", e)
+        finally:
+            _total = _steps[-1][1] if _steps else (_time.perf_counter() - _t0)
+            if _total > 3.0:
+                _prev = 0.0
+                _breakdown = []
+                for _label, _t in _steps:
+                    _breakdown.append(f"{_label}={_t - _prev:.2f}s")
+                    _prev = _t
+                log_event("POSITION_CHECK_SLOW", f"run_position_check ใช้เวลา {_total:.2f}s > 3s",
+                          breakdown=" ".join(_breakdown))
 
     async def save_bot_state_job():
         """บันทึก state สำคัญเป็นระยะ เพื่อลดปัญหา pattern/state หายหลัง restart"""
