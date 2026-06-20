@@ -690,7 +690,9 @@ def main():
         print(f"[{now}] ✅ Auto Scan เริ่มทำงาน — สแกนทุก {SCAN_INTERVAL} นาที | TF: {active_tfs}")
 
     app.post_init = post_init
-    app.run_polling()
+    # bootstrap_retries=3 กัน process ตายตอนสตาร์ท ถ้า delete_webhook timeout (เน็ต VPS สะดุด)
+    # ค่า default=0 = ไม่ retry เลย -> TimedOut หลุดออกมาทำให้ทั้ง process exit เงียบ ๆ
+    app.run_polling(bootstrap_retries=3)
 
 
 if __name__ == '__main__':
