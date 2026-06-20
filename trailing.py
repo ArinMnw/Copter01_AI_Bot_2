@@ -1386,6 +1386,13 @@ async def check_scale_out_partial(app):
     """
     if not config.scale_out_state:
         return
+
+    # timing breakdown — กัน MT5 call (โดยเฉพาะ order_send ใน _tso_close_partial) ค้างแบบไม่รู้ตัว
+    _t0 = time.perf_counter()
+    _query_dt = 0.0          # เวลา query positions/orders/tick ตอนต้น
+    _close_dt = 0.0          # เวลารวมใน _tso_close_partial (order_send)
+    _close_calls = 0         # จำนวนครั้งที่เรียก order_send
+
     positions = mt5.positions_get(symbol=SYMBOL) or []
     pos_by_ticket = {int(p.ticket): p for p in positions}
     pending_orders = mt5.orders_get(symbol=SYMBOL) or []
@@ -1401,6 +1408,7 @@ async def check_scale_out_partial(app):
         return
     bid = float(getattr(tick, "bid", 0.0))
     ask = float(getattr(tick, "ask", 0.0))
+    _query_dt = time.perf_counter() - _t0
 
     for tk, st in list(config.scale_out_state.items()):
         # ข้ามถ้ายังเป็น pending (รอ fill)
@@ -1476,7 +1484,10 @@ async def check_scale_out_partial(app):
                 reason = f"TSO TP{step+1} (S10 TP_orig {eff_d:.2f})"
             else:
                 reason = f"TSO TP{step+1} ({tp_pts}pt)"
+            _cs0 = time.perf_counter()
             ok = _tso_close_partial(pos, direction, per_tp, reason)
+            _close_dt += time.perf_counter() - _cs0
+            _close_calls += 1
             if not ok:
                 break
             step += 1
@@ -1521,6 +1532,18 @@ async def check_scale_out_partial(app):
         if step >= len(distances):
             # ปิดครบทุกขั้นแล้ว
             config.scale_out_state.pop(tk, None)
+
+    # ── timing breakdown: log ถ้าใช้เวลานานผิดปกติ (> 3s) ──
+    _total = time.perf_counter() - _t0
+    if _total > 3.0:
+        _other = _total - _query_dt - _close_dt
+        log_event(
+            "SCALE_OUT_SLOW",
+            f"check_scale_out_partial ใช้เวลา {_total:.2f}s > 3s",
+            breakdown=(f"query={_query_dt:.2f}s order_send={_close_dt:.2f}s"
+                       f"({_close_calls} calls) other={_other:.2f}s"),
+            tickets=len(config.scale_out_state),
+        )
 
 
 def scale_out_cleanup_on_disable() -> dict:
