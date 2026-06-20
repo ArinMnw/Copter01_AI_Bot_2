@@ -36,6 +36,7 @@ _scan_results: dict = {}   # {tf_name: dict}
 # Swing fallback state: {(tf, sid, signal): first_blocked_bar_time}
 _lookback_fallback_start: dict = {}
 _scan_lock = None
+_auto_scan_running = False  # กัน auto_scan() ทำงานซ้อนข้าม job (scheduler vs symbol switch)
 _last_scan_summary_telegram = ""
 _last_scan_summary_cmd = ""
 _last_scan_summary_log_time: float = 0.0
@@ -1998,12 +1999,24 @@ async def _timed_scan_one_tf(app, tf_name: str):
 
 async def auto_scan(app):
     """สแกนทุก Timeframe ที่เปิดอยู่พร้อมกัน"""
-    global _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
+    global _auto_scan_running
     if not config.auto_active:
+        return
+    if _auto_scan_running:
+        log_event("SCAN_SKIP_OVERLAP", "auto_scan() กำลังรันอยู่ ข้ามรอบนี้")
         return
     if not connect_mt5():
         await tg(app, "\u26a0\ufe0f MT5 \u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d")
         return
+    _auto_scan_running = True
+    try:
+        await _auto_scan_inner(app)
+    finally:
+        _auto_scan_running = False
+
+
+async def _auto_scan_inner(app):
+    global _first_scan_done, _last_scan_summary_telegram, _last_scan_summary_cmd, _last_scan_summary_log_time
     _timing_steps: list[tuple[str, float]] = []
     _t0 = _time.perf_counter()
 

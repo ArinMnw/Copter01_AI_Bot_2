@@ -1674,6 +1674,10 @@ def restore_runtime_state():
             _focus_frozen_side, _fill_notified
         )
 
+        saved_symbol = state.get("symbol")
+        if saved_symbol and saved_symbol != SYMBOL:
+            set_runtime_symbol(saved_symbol)
+
         positions = mt5.positions_get(symbol=SYMBOL) or []
         orders = mt5.orders_get(symbol=SYMBOL) or []
         open_pos_tickets = {int(p.ticket) for p in positions}

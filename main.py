@@ -258,6 +258,18 @@ def main():
                 f"bid={getattr(xau_tick, 'bid', 0.0)} ask={getattr(xau_tick, 'ask', 0.0)} "
                 f"tick_ok={tick_ok} => xau_open={xau_open}"
             )
+            log_event(
+                "SYMBOL_CHECK",
+                f"XAUUSD.iux trade_mode={xau_info.trade_mode} xau_open={xau_open}",
+                trade_mode=xau_info.trade_mode,
+                tick_time=getattr(xau_tick, "time", 0),
+                bid=float(getattr(xau_tick, "bid", 0.0)),
+                ask=float(getattr(xau_tick, "ask", 0.0)),
+                tick_ok=tick_ok,
+                xau_open=xau_open,
+                current_symbol=config.SYMBOL,
+                startup=startup,
+            )
         except Exception as e:
             print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ check_symbol_switch error: {e}")
             return
@@ -545,9 +557,9 @@ def main():
         if connect_mt5():
             import config as _cfg
             config.write_heartbeat()
-            await check_symbol_switch(startup=True)
-            config.write_heartbeat()
             restore_info = restore_runtime_state()
+            config.write_heartbeat()
+            await check_symbol_switch(startup=True)
             config.write_heartbeat()
 
             # ── auto_active reset เป็น False ทุกครั้งที่ restart (ค่า default ใน config.py)
