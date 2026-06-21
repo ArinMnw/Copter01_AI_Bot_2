@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-06-21 09:24:48",
+  "saved_at": "2026-06-21 10:23:55",
   "symbol": "BTCUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -108,35 +108,6 @@
   "s14_engulf_breakeven": true,
   "s14_rsi_div_enabled": true,
   "s10_armed_states": {
-    "H4": {
-      "direction": "SELL",
-      "sl_target": 63715.8,
-      "tp_target": 62285.21,
-      "armed_at": 1781985600,
-      "htf_tf": "H4",
-      "ltf_tf": "M5",
-      "candles": [
-        {
-          "open": 62467.3,
-          "high": 63347.9,
-          "low": 62285.21,
-          "close": 63142.21,
-          "time": 1781870400
-        },
-        {
-          "open": 63255.9,
-          "high": 63713.8,
-          "low": 63207.3,
-          "close": 63274.5,
-          "time": 1781913600
-        }
-      ],
-      "pattern_base": "ท่าที่ 10 CRT TBS 🔴 SELL — Sweep High (2bar)",
-      "pre_arm": false,
-      "fired_tickets": [],
-      "awaiting_choch": false,
-      "fire_count": 0
-    },
     "D1": {
       "direction": "SELL",
       "sl_target": 64339.21,
@@ -165,6 +136,64 @@
       "fired_tickets": [],
       "awaiting_choch": false,
       "fire_count": 0
+    },
+    "H4": {
+      "direction": "SELL",
+      "sl_target": 63715.8,
+      "tp_target": 62285.21,
+      "armed_at": 1782000000,
+      "htf_tf": "H4",
+      "ltf_tf": "M5",
+      "candles": [
+        {
+          "open": 62467.3,
+          "high": 63347.9,
+          "low": 62285.21,
+          "close": 63142.21,
+          "time": 1781870400
+        },
+        {
+          "open": 63255.9,
+          "high": 63713.8,
+          "low": 63207.3,
+          "close": 63274.5,
+          "time": 1781913600
+        }
+      ],
+      "pattern_base": "ท่าที่ 10 CRT TBS 🔴 SELL — Sweep High (2bar)",
+      "pre_arm": false,
+      "fired_tickets": [],
+      "awaiting_choch": false,
+      "fire_count": 0
+    },
+    "M15": {
+      "direction": "SELL",
+      "sl_target": 64197.5,
+      "tp_target": 64146.5,
+      "armed_at": 1782014400,
+      "htf_tf": "M15",
+      "ltf_tf": "M1",
+      "candles": [
+        {
+          "open": 64165.1,
+          "high": 64184.5,
+          "low": 64146.5,
+          "close": 64183.5,
+          "time": 1782010800
+        },
+        {
+          "open": 64158.4,
+          "high": 64195.5,
+          "low": 64157.0,
+          "close": 64162.3,
+          "time": 1782013500
+        }
+      ],
+      "pattern_base": "ท่าที่ 10 CRT TBS 🔴 SELL — Sweep High (2bar)",
+      "pre_arm": false,
+      "fired_tickets": [],
+      "awaiting_choch": false,
+      "fire_count": 0
     }
   },
   "rsi9_plot_bullish": true,
@@ -178,12 +207,12 @@
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
     "date": "2026-06-21",
-    "realized": 0.0,
+    "realized": -1.33,
     "wins": 0,
-    "losses": 0,
-    "count": 0,
+    "losses": 1,
+    "count": 1,
     "gross_win": 0.0,
-    "gross_loss": 0.0
+    "gross_loss": -1.33
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -216,16 +245,18 @@
   "sl_guard_group_count": 2,
   "last_traded_per_tf": {
     "H12": 1781913600,
-    "D1": 1781913600
+    "D1": 1781913600,
+    "M5": 1782015300
   },
   "last_traded_sid_tf": {
     "M5": {
-      "2": 1781972400,
+      "2": 1782012900,
       "11": 1781972100,
-      "1": 1781972100,
+      "1": 1782013500,
       "19": 1781944800,
       "16": 1781968800,
-      "3": 1781955000
+      "3": 1781955000,
+      "2": 1782015300
     },
     "M15": {
       "2": 1781971200,
@@ -301,29 +332,52 @@
       "pattern": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 1 (KRH1)",
       "trend_filter": "bear_strong",
       "flow_id": "D1|S11|BUY|T1781913600|E62796.56|SL61903.38|TP70012.56"
+    },
+    "548648142": {
+      "tf": "M5",
+      "gap_bot": 64183.3,
+      "gap_top": 64200.0,
+      "final_gap_bot": 64183.3,
+      "final_gap_top": 64200.0,
+      "detect_bar_time": 1782015300,
+      "signal": "BUY",
+      "sid": 2,
+      "pattern": "ท่าที่ 2 FVG 🟢 BUY — เขียวกลืนกิน",
+      "c3_type": "เขียวกลืนกิน",
+      "trend_filter": "sideway"
     }
   },
   "position_tf": {
     "548646625": "D1",
-    "548646626": "D1"
+    "548646626": "D1",
+    "548648142": "M5"
   },
   "position_sid": {
     "548646625": 1,
-    "548646626": 11
+    "548646626": 11,
+    "548648142": 2
   },
   "position_pattern": {
     "548646625": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ย้อนโครงสร้าง",
-    "548646626": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 1 (KRH1)"
+    "548646626": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 1 (KRH1)",
+    "548648142": "ท่าที่ 2 FVG BUY [M5]"
   },
   "position_trend_filter": {
     "548646625": "bear_strong",
-    "548646626": "bear_strong"
+    "548646626": "bear_strong",
+    "548648142": "sideway"
   },
   "position_zone_meta": {},
   "position_forward_meta": {},
   "entry_state": {},
   "trail_state": {},
-  "fvg_order_tickets": {},
+  "fvg_order_tickets": {
+    "548648142": {
+      "tf": "M5",
+      "signal": "BUY",
+      "checked": false
+    }
+  },
   "s8_fill_sl": {},
   "trail_sl_frozen_side": "BUY",
   "entry_candle_frozen_side": null,
@@ -362,6 +416,23 @@
       "is_pending": true,
       "sid": "11",
       "tp_original": 70012.56
+    },
+    "548648142": {
+      "direction": "BUY",
+      "entry": 64199.67,
+      "original_volume": 0.16,
+      "base_volume": 0.04,
+      "per_tp_volume": 0.04,
+      "tp_distances": [
+        8.0,
+        12.0,
+        24.0,
+        87.27000000000407
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "2",
+      "tp_original": 64286.94
     }
   },
   "s15_use_val_vah": true,
