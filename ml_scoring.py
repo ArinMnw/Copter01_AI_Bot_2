@@ -36,7 +36,7 @@ def extract_features(symbol, tf, signal, current_price, time_bkk):
     if mt5.terminal_info() is not None:
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 60)
         if rates is not None and len(rates) > 50:
-            df = pd.DataFrame(list(rates), columns=rates[0]._asdict().keys())
+            df = pd.DataFrame(rates)
             
             delta = df['close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -173,7 +173,7 @@ def train_from_mt5_history(days=30):
         rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M15, rates_start, end_time)
         df_rates = pd.DataFrame()
         if rates is not None and len(rates) > 0:
-            df_rates = pd.DataFrame(list(rates), columns=rates[0]._asdict().keys())
+            df_rates = pd.DataFrame(rates)
             df_rates['time'] = pd.to_datetime(df_rates['time'], unit='s')
             df_rates.set_index('time', inplace=True)
             
