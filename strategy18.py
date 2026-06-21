@@ -168,7 +168,7 @@ def _get_htf_bias(tf, htf_rates=None):
 
     # fallback: ดึง HTF สด (แบบ amp_trend/S14)
     try:
-        import MetaTrader5 as mt5
+        import mt5_worker as mt5
         tfval = config.TF_OPTIONS.get(htf_tf)
         if tfval is not None:
             hr = mt5.copy_rates_from_pos(config.SYMBOL, tfval, 0, 200)

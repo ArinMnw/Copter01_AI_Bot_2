@@ -277,7 +277,7 @@ def _higher_tf_sweep_valid(current_tf, reject_time, is_buy):
     """Check higher TF sweep patterns around reject_time.
     Returns True if all matching higher TF sweeps satisfy the one‑bar color rule.
     If no higher TF sweep matches the time, returns True (no restriction)."""
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
     from datetime import timedelta
     for tf in S14_HIGHER_TF_CHECK:
         if tf == current_tf:
@@ -361,7 +361,7 @@ def _get_htf_bar(tf_name: str, target_time: int, htf_rates_lookup: dict = None):
 
     # Live bot case:
     try:
-        import MetaTrader5 as mt5
+        import mt5_worker as mt5
         htf = _get_s14_htf(tf_name)
         htf_const = getattr(mt5, f"TIMEFRAME_{htf.upper()}")
         rates_raw = mt5.copy_rates_range(config.SYMBOL, htf_const, target_time, target_time + 10)

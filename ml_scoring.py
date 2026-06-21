@@ -27,7 +27,7 @@ def extract_features(symbol, tf, signal, current_price, time_bkk):
     Extract basic features for ML model.
     Fetches real RSI, ATR, and EMA distance from MT5.
     """
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
     import pandas as pd
     import numpy as np
     
@@ -147,7 +147,7 @@ def train_from_mt5_history(days=30):
         return False
         
     try:
-        import MetaTrader5 as mt5
+        import mt5_worker as mt5
         import pandas as pd
         import numpy as np
         import config

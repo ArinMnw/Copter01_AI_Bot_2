@@ -1,4 +1,4 @@
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 import asyncio
 import copy
 import json
