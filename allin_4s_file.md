@@ -41,8 +41,8 @@
 ---
 
 ## 📂 โฟลเดอร์: `TikTok`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846699704.mp4`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846709698.mp4`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846699704.mp4`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846709698.mp4`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846737586.mp4`
 
 ---
@@ -55,10 +55,10 @@
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\Fore  ebook.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\MSNR ✨🐢.pdf`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\การหานัยยะ โซนฟิโบ.mov`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\กินไส้พี่Nc(แจกของครั้งใหญ่2).pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\กินไส้พี่Nc(แจกของครั้งใหญ่2).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ท่าไม้ตายอออิน4วิ 1.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ท่าไม้ตายอออิน4วิ 6.pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4 (1).pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4 (1).pdf`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4.pdf`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3 (1).pdf`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3.pdf`
@@ -75,5 +75,5 @@
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\All in 4s Collector’s Edition (2).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\วิชาอออิน4S upgrade .pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\วิชาแท่งเทียนสำนักALL IN 4S.pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\โครงสร้างกลับตัวหลอก.pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\โครงสร้างกลับตัวหลอก.pdf`
 

@@ -387,7 +387,13 @@ def apply_sl_guard_group_overlay(tf_trades: list[tuple[str, dict]]) -> list[tupl
 
     return [(row["tf"], row["trade"]) for row in sorted(rows, key=lambda r: r["idx"])]
 
-def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None) -> list:
+def backtest_tf(
+    tf_name: str,
+    tf_val: int,
+    range_end_utc: datetime | None = None,
+    *,
+    fill_next_bar: bool = False,
+) -> list:
     # ดึง bars จาก MT5 โดยเริ่ม from_pos=0 (newest first internally)
     rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
     if rates is None or len(rates) == 0:
@@ -502,9 +508,10 @@ def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None
             trade[f'scale_out_{idx}_pnl'] = 0.0
 
     def _s14_market_fill(order: dict, i: int, bt: datetime) -> dict | None:
-        if i >= len(bars):
+        fill_idx = i + 1 if fill_next_bar else i
+        if fill_idx >= len(bars):
             return None
-        fill_bar = bars[i]
+        fill_bar = bars[fill_idx]
         strategy_entry = float(order['entry'])
         return {
             **order,
@@ -512,7 +519,7 @@ def backtest_tf(tf_name: str, tf_val: int, range_end_utc: datetime | None = None
             'entry': round(strategy_entry, 2),
             'entry_time': to_bkk(fill_bar['time']),
             'entry_time_raw': int(fill_bar['time']),
-            'entry_idx': i,
+            'entry_idx': fill_idx,
             'signal_time': bt,
             'signal_time_raw': int(bars[i]['time']),
         }

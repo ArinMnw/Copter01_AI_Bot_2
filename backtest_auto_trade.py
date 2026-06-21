@@ -152,6 +152,7 @@ ALL_STRATEGIES = set(range(1, 20))
 RUN_STARTED_AT = time.perf_counter()
 COMPARE_REPORT_DIR = os.path.join("excel_reports", "backtest_compare")
 SCALE_OUT_COLUMNS = 4
+FILL_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19}
 
 
 def elapsed() -> str:
@@ -306,6 +307,59 @@ def resolve_compare_output_path(raw_path: str | None, default_name: str, ext: st
     if os.path.dirname(raw_path):
         return raw_path
     return os.path.join(base_dir, raw_path)
+
+
+def _csv_value(value):
+    if isinstance(value, datetime):
+        return _excel_dt(value).strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(value, (list, tuple, set)):
+        return "|".join(str(v) for v in value)
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return value
+
+
+def _capture_raw_replay_context(args, rows: list[tuple[str, dict]]) -> None:
+    bucket = getattr(args, "_raw_replay_context_trades", None)
+    if bucket is not None:
+        bucket.extend(rows)
+
+
+def write_trades_csv(path: str, trades: list[tuple[str, dict]]) -> str:
+    headers = [
+        "report_tf", "sid", "tf", "lifecycle_tf", "signal", "pattern",
+        "entry_time", "close_time", "close_type", "cancel_reason",
+        "entry", "sl", "tp", "close_price", "pnl", "profit",
+        "parallel_tfs", "parallel_patterns", "gap_bot", "gap_top",
+        "final_gap_bot", "final_gap_top", "detect_time_raw", "entry_time_raw",
+        "cancel_age_bars", "cancel_bars", "cancel_bar_high", "cancel_bar_low", "cancel_bar_touched_entry",
+        "pd_h", "pd_l", "pd_fib_382", "pd_fib_618", "pd_fallback_used", "pd_outside_range",
+        "sweep_scan_state", "sweep_scan_tf",
+        "sweep_scan_price", "sweep_scan_time", "sweep_scan_ts",
+        "sweep_scan_age_min", "sweep_scan_expiry_min",
+        "sl_guard_scope", "sl_guard_key", "sl_guard_count", "sl_guard_since", "sl_guard_swing_ref",
+    ]
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    try:
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")
+            w.writeheader()
+            for report_tf, trade in trades:
+                row = dict(trade)
+                row["report_tf"] = report_tf
+                w.writerow({key: _csv_value(row.get(key, "")) for key in headers})
+        return path
+    except PermissionError:
+        root, ext = os.path.splitext(path)
+        fallback = f"{root}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext or '.csv'}"
+        with open(fallback, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")
+            w.writeheader()
+            for report_tf, trade in trades:
+                row = dict(trade)
+                row["report_tf"] = report_tf
+                w.writerow({key: _csv_value(row.get(key, "")) for key in headers})
+        return fallback
 
 
 def resolve_run_tfs(tf_arg: str | None) -> list[str]:
@@ -479,7 +533,12 @@ def resolve_guard_context_tfs(strategy_id: int, tf_arg: str | None, tf_map: dict
     return [tf for tf in tf_map.keys() if tf in context]
 
 
-def resolve_s458_context_tfs(tf_arg: str | None, strategies: set[int] | None = None) -> tuple[list[str], list[str]]:
+def resolve_s458_context_tfs(
+    tf_arg: str | None,
+    strategies: set[int] | None = None,
+    *,
+    include_connected_s2_context: bool = False,
+) -> tuple[list[str], list[str]]:
     common_tfs = set(S4_TF_MAP) & set(S5_TF_MAP) & set(S8_TF_MAP)
     if tf_arg:
         target = tf_arg.upper()
@@ -500,8 +559,19 @@ def resolve_s458_context_tfs(tf_arg: str | None, strategies: set[int] | None = N
     if tf_arg and include_s2_parallel_context:
         wanted = tf_arg.upper()
         for group in getattr(config, "FVG_PARALLEL_GROUPS", []) or []:
-            if wanted in group:
-                context.update(tf for tf in group if tf in common_tfs)
+            group_tfs = {tf for tf in group if tf in common_tfs}
+            if wanted in group_tfs:
+                context.update(group_tfs)
+
+        if include_connected_s2_context:
+            direct_context = set(context)
+            max_direct_secs = max(sim_s458_backtest.TF_SECONDS.get(tf, 0) for tf in direct_context)
+            for group in getattr(config, "FVG_PARALLEL_GROUPS", []) or []:
+                group_tfs = {tf for tf in group if tf in common_tfs}
+                if not group_tfs or not (group_tfs & direct_context):
+                    continue
+                if max(sim_s458_backtest.TF_SECONDS.get(tf, 0) for tf in group_tfs) <= max_direct_secs:
+                    context.update(group_tfs)
 
     run_tfs = [tf for tf in S8_TF_MAP.keys() if tf in context]
     return requested, run_tfs
@@ -1181,8 +1251,25 @@ def _nearest_gap_reason(nearest: dict, prefix: str, time_tolerance_min: float, e
     return "NEAREST_ALREADY_MATCHED_OR_GREEDY"
 
 
+def _live_runtime_drift_label(live: dict) -> str:
+    """Classify old live closes that current runtime would now skip."""
+    try:
+        sid = int(live.get("sid", 0) or 0)
+    except (TypeError, ValueError):
+        sid = 0
+    reason = str(live.get("reason", "") or "").upper()
+    if "PD ZONE" in reason and sid in set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ())):
+        return "LIVE_HISTORICAL_PD_SKIP_DRIFT"
+    if "FILL TREND" in reason and sid in FILL_TREND_RECHECK_SKIP_SIDS:
+        return "LIVE_HISTORICAL_TREND_SKIP_DRIFT"
+    return ""
+
+
 def _live_only_gap_reason(live: dict, nearest: dict, time_tolerance_min: float, entry_tolerance: float) -> str:
     base = _nearest_gap_reason(nearest, "bt", time_tolerance_min, entry_tolerance)
+    drift = _live_runtime_drift_label(live)
+    if drift:
+        return f"{drift}:{base}"
     reason = str(live.get("reason", "") or "").upper()
     entry_comment = str(live.get("entry_comment", live.get("comment", "")) or "").upper()
     if "PD ZONE" in reason:
@@ -1206,9 +1293,12 @@ def _compare_note(live: dict, sim: dict, match_quality: str = "") -> str:
     sim_reason = str(sim.get("reason", "") or "").upper()
     live_family = str(live.get("s14_family", "") or "")
     sim_family = str(sim.get("s14_family", "") or "")
+    drift = _live_runtime_drift_label(live)
     if live_family and sim_family and live_family != sim_family:
         return "S14_FAMILY_DIFF"
     if live_bucket != sim_bucket:
+        if drift:
+            return drift
         if "SL GUARD" in live_reason or "SL_GUARD" in sim_reason:
             if str(match_quality or "").upper() == "LOOSE":
                 return "LOOSE_MATCH_SL_GUARD"
@@ -1235,6 +1325,8 @@ def _compare_note(live: dict, sim: dict, match_quality: str = "") -> str:
         except (TypeError, ValueError):
             return "TRAIL_SL_DIFF_PRICE"
     if abs(float(live.get("profit", 0.0) or 0.0) - float(sim.get("profit", 0.0) or 0.0)) > 1.0:
+        if drift:
+            return drift
         return "PNL_DIFF_SAME_BUCKET"
     return ""
 
@@ -1328,6 +1420,83 @@ def compare_live_vs_backtest(
         "live_only": live_only,
         "backtest_only": backtest_only,
     }
+
+
+def enrich_compare_with_raw_replay_context(result: dict, all_trades: list[tuple[str, dict]]) -> None:
+    raw_rows = []
+    for report_tf, trade in all_trades:
+        close_type = str(trade.get("close_type", "") or "")
+        if close_type in ("SL", "TP", "SL_GUARD_CLOSE", "OPPOSITE_CLOSE", "LIMIT_SWEEP", "PD_FILL_FAIL", "TREND_FAIL", "RSI_FAIL"):
+            continue
+        entry_time = trade.get("entry_time")
+        if not isinstance(entry_time, datetime):
+            continue
+        raw_rows.append((report_tf, trade, _excel_dt(entry_time)))
+
+    for live in result.get("live_only", []):
+        side = str(live.get("side", "") or "")
+        fill_ts = live.get("fill_ts")
+        if not isinstance(fill_ts, datetime):
+            continue
+        try:
+            live_entry = float(live.get("entry", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            live_entry = 0.0
+
+        best = None
+        for report_tf, trade, entry_time in raw_rows:
+            if str(trade.get("signal", trade.get("side", "")) or "") != side:
+                continue
+            try:
+                entry = float(trade.get("entry", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                entry = 0.0
+            time_diff = _minutes_abs(fill_ts, entry_time)
+            entry_diff = abs(live_entry - entry)
+            score = time_diff * 10.0 + entry_diff
+            if best is None or score < best[0]:
+                best = (score, report_tf, trade, time_diff, entry_diff)
+
+        if best is None:
+            continue
+        _, report_tf, trade, time_diff, entry_diff = best
+        live["nearest_raw_replay_tf"] = report_tf
+        live["nearest_raw_replay_entry_ts"] = _excel_dt(trade.get("entry_time"))
+        live["nearest_raw_replay_entry"] = trade.get("entry", "")
+        live["nearest_raw_replay_close_type"] = trade.get("close_type", "")
+        live["nearest_raw_replay_cancel_reason"] = trade.get("cancel_reason", trade.get("reason", ""))
+        live["nearest_raw_replay_pattern"] = trade.get("pattern", "")
+        live["nearest_raw_replay_parallel_tfs"] = "|".join(str(tf) for tf in (trade.get("parallel_tfs") or []) if tf)
+        live["nearest_raw_replay_gap_bot"] = trade.get("gap_bot", "")
+        live["nearest_raw_replay_gap_top"] = trade.get("gap_top", "")
+        live["nearest_raw_replay_final_gap_bot"] = trade.get("final_gap_bot", "")
+        live["nearest_raw_replay_final_gap_top"] = trade.get("final_gap_top", "")
+        live["nearest_raw_replay_cancel_age_bars"] = trade.get("cancel_age_bars", "")
+        live["nearest_raw_replay_cancel_bars"] = trade.get("cancel_bars", "")
+        live["nearest_raw_replay_cancel_bar_high"] = trade.get("cancel_bar_high", "")
+        live["nearest_raw_replay_cancel_bar_low"] = trade.get("cancel_bar_low", "")
+        live["nearest_raw_replay_cancel_bar_touched_entry"] = trade.get("cancel_bar_touched_entry", "")
+        live["nearest_raw_replay_pd_h"] = trade.get("pd_h", "")
+        live["nearest_raw_replay_pd_l"] = trade.get("pd_l", "")
+        live["nearest_raw_replay_pd_fib_382"] = trade.get("pd_fib_382", "")
+        live["nearest_raw_replay_pd_fib_618"] = trade.get("pd_fib_618", "")
+        live["nearest_raw_replay_pd_fallback_used"] = trade.get("pd_fallback_used", "")
+        live["nearest_raw_replay_pd_outside_range"] = trade.get("pd_outside_range", "")
+        live["nearest_raw_replay_detect_time_raw"] = trade.get("detect_time_raw", "")
+        live["nearest_raw_replay_sweep_scan_state"] = trade.get("sweep_scan_state", "")
+        live["nearest_raw_replay_sweep_scan_tf"] = trade.get("sweep_scan_tf", "")
+        live["nearest_raw_replay_sweep_scan_price"] = trade.get("sweep_scan_price", "")
+        live["nearest_raw_replay_sweep_scan_time"] = trade.get("sweep_scan_time", "")
+        live["nearest_raw_replay_sweep_scan_ts"] = trade.get("sweep_scan_ts", "")
+        live["nearest_raw_replay_sweep_scan_age_min"] = trade.get("sweep_scan_age_min", "")
+        live["nearest_raw_replay_sweep_scan_expiry_min"] = trade.get("sweep_scan_expiry_min", "")
+        live["nearest_raw_replay_sl_guard_scope"] = trade.get("sl_guard_scope", "")
+        live["nearest_raw_replay_sl_guard_key"] = trade.get("sl_guard_key", "")
+        live["nearest_raw_replay_sl_guard_count"] = trade.get("sl_guard_count", "")
+        live["nearest_raw_replay_sl_guard_since"] = trade.get("sl_guard_since", "")
+        live["nearest_raw_replay_sl_guard_swing_ref"] = trade.get("sl_guard_swing_ref", "")
+        live["nearest_raw_replay_time_diff_min"] = round(time_diff, 2)
+        live["nearest_raw_replay_entry_diff"] = round(entry_diff, 2)
 
 
 def _dedupe_live_rows(rows: list[dict]) -> list[dict]:
@@ -1724,6 +1893,46 @@ def compare_result_rows(result: dict) -> list[dict]:
         row.update(_scale_cols("live", live))
         for key in ("nearest_bt_fill_ts", "nearest_bt_entry", "nearest_bt_reason", "nearest_bt_time_diff_min", "nearest_bt_entry_diff"):
             row[key] = live.get(key, "")
+        for key in (
+            "nearest_raw_replay_tf",
+            "nearest_raw_replay_entry_ts",
+            "nearest_raw_replay_entry",
+            "nearest_raw_replay_close_type",
+            "nearest_raw_replay_cancel_reason",
+            "nearest_raw_replay_pattern",
+            "nearest_raw_replay_parallel_tfs",
+            "nearest_raw_replay_gap_bot",
+            "nearest_raw_replay_gap_top",
+            "nearest_raw_replay_final_gap_bot",
+            "nearest_raw_replay_final_gap_top",
+            "nearest_raw_replay_cancel_age_bars",
+            "nearest_raw_replay_cancel_bars",
+            "nearest_raw_replay_cancel_bar_high",
+            "nearest_raw_replay_cancel_bar_low",
+            "nearest_raw_replay_cancel_bar_touched_entry",
+            "nearest_raw_replay_pd_h",
+            "nearest_raw_replay_pd_l",
+            "nearest_raw_replay_pd_fib_382",
+            "nearest_raw_replay_pd_fib_618",
+            "nearest_raw_replay_pd_fallback_used",
+            "nearest_raw_replay_pd_outside_range",
+            "nearest_raw_replay_detect_time_raw",
+            "nearest_raw_replay_sweep_scan_state",
+            "nearest_raw_replay_sweep_scan_tf",
+            "nearest_raw_replay_sweep_scan_price",
+            "nearest_raw_replay_sweep_scan_time",
+            "nearest_raw_replay_sweep_scan_ts",
+            "nearest_raw_replay_sweep_scan_age_min",
+            "nearest_raw_replay_sweep_scan_expiry_min",
+            "nearest_raw_replay_sl_guard_scope",
+            "nearest_raw_replay_sl_guard_key",
+            "nearest_raw_replay_sl_guard_count",
+            "nearest_raw_replay_sl_guard_since",
+            "nearest_raw_replay_sl_guard_swing_ref",
+            "nearest_raw_replay_time_diff_min",
+            "nearest_raw_replay_entry_diff",
+        ):
+            row[key] = live.get(key, "")
         rows.append(row)
     for sim in result["backtest_only"]:
         row = {"status": "BACKTEST_ONLY", "gap_reason": sim.get("gap_reason", ""), "bt_fill_ts": sim["fill_ts"], "bt_close_ts": sim.get("close_ts", ""), "bt_close_price": sim.get("close_price", ""), "bt_side": sim.get("side", ""), "bt_entry": sim["entry"], "bt_pnl": sim["profit"], "bt_reason": sim.get("reason", ""), "bt_s14_family": sim.get("s14_family", ""), "bt_trail_count": sim.get("bt_trail_count", ""), "bt_last_trail_ts": sim.get("bt_last_trail_ts", ""), "bt_last_trail_sl": sim.get("bt_last_trail_sl", ""), "bt_last_trail_source": sim.get("bt_last_trail_source", ""), "bt_trail_path": sim.get("bt_trail_path", ""), "bt_sl_guard_group": sim.get("bt_sl_guard_group", ""), "bt_sl_guard_trigger_tf": sim.get("bt_sl_guard_trigger_tf", "")}
@@ -1897,6 +2106,26 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
         "bt_trail_count", "bt_last_trail_ts", "bt_last_trail_sl", "bt_last_trail_source", "bt_trail_path",
         "bt_sl_guard_group", "bt_sl_guard_trigger_tf",
         "nearest_bt_fill_ts", "nearest_bt_entry", "nearest_bt_reason", "nearest_bt_time_diff_min", "nearest_bt_entry_diff",
+        "nearest_raw_replay_tf", "nearest_raw_replay_entry_ts", "nearest_raw_replay_entry",
+        "nearest_raw_replay_close_type", "nearest_raw_replay_cancel_reason",
+        "nearest_raw_replay_pattern", "nearest_raw_replay_parallel_tfs",
+        "nearest_raw_replay_gap_bot", "nearest_raw_replay_gap_top",
+        "nearest_raw_replay_final_gap_bot", "nearest_raw_replay_final_gap_top",
+        "nearest_raw_replay_cancel_age_bars", "nearest_raw_replay_cancel_bars",
+        "nearest_raw_replay_cancel_bar_high", "nearest_raw_replay_cancel_bar_low",
+        "nearest_raw_replay_cancel_bar_touched_entry",
+        "nearest_raw_replay_pd_h", "nearest_raw_replay_pd_l",
+        "nearest_raw_replay_pd_fib_382", "nearest_raw_replay_pd_fib_618",
+        "nearest_raw_replay_pd_fallback_used", "nearest_raw_replay_pd_outside_range",
+        "nearest_raw_replay_detect_time_raw",
+        "nearest_raw_replay_sweep_scan_state", "nearest_raw_replay_sweep_scan_tf",
+        "nearest_raw_replay_sweep_scan_price", "nearest_raw_replay_sweep_scan_time",
+        "nearest_raw_replay_sweep_scan_ts", "nearest_raw_replay_sweep_scan_age_min",
+        "nearest_raw_replay_sweep_scan_expiry_min",
+        "nearest_raw_replay_sl_guard_scope", "nearest_raw_replay_sl_guard_key",
+        "nearest_raw_replay_sl_guard_count", "nearest_raw_replay_sl_guard_since",
+        "nearest_raw_replay_sl_guard_swing_ref",
+        "nearest_raw_replay_time_diff_min", "nearest_raw_replay_entry_diff",
         "nearest_live_fill_ts", "nearest_live_entry", "nearest_live_reason", "nearest_live_time_diff_min", "nearest_live_entry_diff",
     ]
     add_rows_sheet("All Compare", all_rows, preferred)
@@ -2514,7 +2743,11 @@ def run_s8(args, window_start_utc: datetime, window_end_utc: datetime) -> list[t
 
 def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime, strategies: set[int]) -> list[tuple[str, dict]]:
     all_trades = []
-    requested_tfs, run_tfs = resolve_s458_context_tfs(args.tf, strategies)
+    requested_tfs, run_tfs = resolve_s458_context_tfs(
+        args.tf,
+        strategies,
+        include_connected_s2_context=getattr(args, "s2_include_connected_fvg_context", False),
+    )
     requested_set = set(requested_tfs)
     if len(run_tfs) > len(requested_tfs):
         kept_tfs = []
@@ -2545,6 +2778,8 @@ def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime,
             {tf_name: S8_TF_MAP[tf_name] for tf_name in run_tfs},
             strategies,
             range_end_utc=range_end_utc,
+            scan_until_utc=window_end_utc,
+            progress_cb=progress,
         )
         progress(f"Unified S2 multi-TF parallel replay produced {len(trades)} raw event(s).")
         for t in trades:
@@ -2553,7 +2788,14 @@ def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime,
     else:
         for tf_name in run_tfs:
             progress(f"Running unified S1-S5/S8 replay on {tf_name}...")
-            trades = sim_s458_backtest.backtest_tf(tf_name, S8_TF_MAP[tf_name], strategies, range_end_utc=range_end_utc)
+            trades = sim_s458_backtest.backtest_tf(
+                tf_name,
+                S8_TF_MAP[tf_name],
+                strategies,
+                range_end_utc=range_end_utc,
+                scan_until_utc=window_end_utc,
+                progress_cb=progress,
+            )
             progress(f"Unified S1-S5/S8 replay on {tf_name} produced {len(trades)} raw event(s).")
             for t in trades:
                 t.setdefault("tf", tf_name)
@@ -2577,6 +2819,7 @@ def run_s458_unified(args, window_start_utc: datetime, window_end_utc: datetime,
                 (tf, t) for tf, t in tf_rows
                 if tf in requested_set and window_start_utc <= t["entry_time"] <= window_end_utc
             ]
+        _capture_raw_replay_context(args, filtered_rows)
         filtered = [t for _, t in filtered_rows]
         if args.exclude_cancelled:
             filtered_rows = [
@@ -2732,7 +2975,12 @@ def run_s14(args, window_start_utc: datetime, window_end_utc: datetime) -> list[
     raw_tf_trades = []
     for tf_name in run_tfs:
         progress(f"Running S14 replay on {tf_name}...")
-        trades = backtest_s14_tf(tf_name, S14_TF_MAP[tf_name], range_end_utc=range_end_utc)
+        trades = backtest_s14_tf(
+            tf_name,
+            S14_TF_MAP[tf_name],
+            range_end_utc=range_end_utc,
+            fill_next_bar=getattr(args, "s14_fill_next_bar", False),
+        )
         progress(f"S14 replay on {tf_name} produced {len(trades)} raw event(s).")
         for t in trades:
             t.setdefault("sid", 14)
@@ -3241,9 +3489,17 @@ def main() -> None:
     parser.add_argument("--max-match-quality", choices=("exact", "near", "loose"), default="loose", help="Highest match quality allowed. Use near/exact to avoid loose matches.")
     parser.add_argument("--pnl-tolerance", type=float, default=1.0, help="P&L difference threshold for mismatch reporting.")
     parser.add_argument("--prefer-same-s14-family", action="store_true", help="Prefer S14 matches with the same normalized family. Diagnostic mode; default keeps time/entry priority.")
+    parser.add_argument("--s14-disable-rsi-div", action="store_true", help="Diagnostic only: temporarily set S14_RSI_DIV_ENABLED=False for this replay run.")
+    parser.add_argument("--s14-enable-sweep-return", action="store_true", help="Diagnostic only: temporarily set S14_SWEEP_RETURN=True for this replay run.")
+    parser.add_argument("--s14-fill-next-bar", action="store_true", help="Diagnostic only: fill S14 market entries on the next bar open time after the closed-bar signal, matching scanner timing more closely.")
+    parser.add_argument("--s2-include-connected-fvg-context", action="store_true", help="Diagnostic only: include one-hop connected FVG parallel TFs such as M1 via M5 for an M15 S2 run. Can be slow.")
+    parser.add_argument("--s2-parallel-lifecycle-tf", action="store_true", help="Diagnostic only: manage S2 parallel fills/SL/TP on the smallest TF in the parallel group instead of the signal TF.")
+    parser.add_argument("--s2-disable-sweep-filter", action="store_true", help="Diagnostic only: temporarily set SWEEP_FILTER_ENABLED=False for this replay run.")
+    parser.add_argument("--s2-fill-before-cancel-bars", action="store_true", help="Diagnostic only: when a cancel_bars expiry bar also touches entry, let S2 fill before cancelling.")
     parser.add_argument("--mt5-close-search-days", type=int, default=14, help="Extra MT5 history days after --end to find exits for filled orders.")
     parser.add_argument("--compare-csv", nargs="?", const="", help="Optional CSV path/name for compare detail. Defaults under excel_reports/backtest_compare.")
     parser.add_argument("--compare-xlsx", nargs="?", const="", help="Optional Excel .xlsx path/name for compare detail. Defaults under excel_reports/backtest_compare.")
+    parser.add_argument("--dump-trades-csv", nargs="?", const="", help="Optional raw replay events CSV, including cancelled/open events. Defaults under excel_reports/backtest_compare.")
     parser.add_argument("--hybrid-live-guard-context", action="store_true", help="Apply live SL Guard Group activations from logs as compare-time overlay for replay trades.")
     args = parser.parse_args()
 
@@ -3282,6 +3538,19 @@ def main() -> None:
 
     progress("Restoring bot_state/config...")
     restore_info = config.restore_runtime_state()
+    s14_diagnostic_overrides = []
+    if args.s14_disable_rsi_div:
+        config.S14_RSI_DIV_ENABLED = False
+        s14_diagnostic_overrides.append("S14_RSI_DIV_ENABLED=False")
+    if args.s14_enable_sweep_return:
+        config.S14_SWEEP_RETURN = True
+        s14_diagnostic_overrides.append("S14_SWEEP_RETURN=True")
+    s2_diagnostic_overrides = []
+    if args.s2_disable_sweep_filter:
+        config.SWEEP_FILTER_ENABLED = False
+        s2_diagnostic_overrides.append("SWEEP_FILTER_ENABLED=False")
+    sim_s458_backtest.S2_PARALLEL_LIFECYCLE_TF = bool(args.s2_parallel_lifecycle_tf)
+    sim_s458_backtest.S2_FILL_BEFORE_CANCEL_BARS = bool(args.s2_fill_before_cancel_bars)
     selected_symbol = args.symbol or load_state_symbol() or config.SYMBOL
     config.set_runtime_symbol(selected_symbol)
     sim_s1_backtest.SYMBOL = selected_symbol
@@ -3309,6 +3578,10 @@ def main() -> None:
 
     print(f"Symbol   : {config.SYMBOL}")
     print(f"Restore  : {restore_info}")
+    if s14_diagnostic_overrides:
+        print(f"S14 Diagnostic Overrides: {', '.join(s14_diagnostic_overrides)}")
+    if s2_diagnostic_overrides:
+        print(f"S2 Diagnostic Overrides: {', '.join(s2_diagnostic_overrides)}")
     print(f"Window   : {start_bkk} -> {end_bkk} (Bangkok timezone)")
     print(f"Strategy : {strategies}")
     print_feature_snapshot()
@@ -3351,6 +3624,7 @@ def main() -> None:
     print("=" * 72)
 
     all_trades = []
+    args._raw_replay_context_trades = []
     strategy_set = set(strategies)
     unified_s458 = (
         strategy_set.issubset({1, 2, 3, 4, 5, 8})
@@ -3447,6 +3721,48 @@ def main() -> None:
         ),
     )
 
+    report_variants = []
+    if args.hybrid_live_guard_context:
+        report_variants.append("hybrid_guard")
+    if args.prefer_same_s14_family:
+        report_variants.append("s14_family")
+    if args.s14_disable_rsi_div:
+        report_variants.append("s14_no_rsi_div")
+    if args.s14_enable_sweep_return:
+        report_variants.append("s14_sweep_return")
+    if args.s14_fill_next_bar:
+        report_variants.append("s14_next_bar")
+    if args.s2_include_connected_fvg_context:
+        report_variants.append("s2_connected_fvg")
+    if args.s2_parallel_lifecycle_tf:
+        report_variants.append("s2_lifecycle_tf")
+    if args.s2_disable_sweep_filter:
+        report_variants.append("s2_no_sweep_filter")
+    if args.s2_fill_before_cancel_bars:
+        report_variants.append("s2_fill_before_cancel")
+    report_variant = "_".join(report_variants) if report_variants else None
+    default_report_name = default_compare_report_base(
+        start_bkk,
+        end_bkk,
+        args.tf,
+        strategies,
+        variant=report_variant,
+    )
+
+    if args.dump_trades_csv is not None:
+        trades_path = resolve_compare_output_path(
+            args.dump_trades_csv,
+            default_report_name + "_trades",
+            ".csv",
+            strategies,
+        )
+        progress(f"Writing raw replay trades CSV: {trades_path}")
+        written_trades_csv = write_trades_csv(trades_path, all_trades)
+        if written_trades_csv != trades_path:
+            print(f"\nReplay Trades CSV: {written_trades_csv} (requested file was locked)")
+        else:
+            print(f"\nReplay Trades CSV: {written_trades_csv}")
+
     groups = defaultdict(list)
     for htf, trade in all_trades:
         groups[htf].append(trade)
@@ -3493,20 +3809,9 @@ def main() -> None:
             max_match_quality=args.max_match_quality,
             prefer_same_s14_family=args.prefer_same_s14_family,
         )
+        raw_replay_context = getattr(args, "_raw_replay_context_trades", None) or all_trades
+        enrich_compare_with_raw_replay_context(compare, raw_replay_context)
         print_compare_report(compare)
-        report_variants = []
-        if args.hybrid_live_guard_context:
-            report_variants.append("hybrid_guard")
-        if args.prefer_same_s14_family:
-            report_variants.append("s14_family")
-        report_variant = "_".join(report_variants) if report_variants else None
-        default_report_name = default_compare_report_base(
-            start_bkk,
-            end_bkk,
-            args.tf,
-            strategies,
-            variant=report_variant,
-        )
         if args.compare_csv is not None:
             csv_path = resolve_compare_output_path(args.compare_csv, default_report_name, ".csv", strategies)
             progress(f"Writing compare CSV: {csv_path}")
@@ -3533,6 +3838,12 @@ def main() -> None:
                     "max_match_quality": args.max_match_quality,
                     "prefer_same_s14_family": args.prefer_same_s14_family,
                     "hybrid_live_guard_context": args.hybrid_live_guard_context,
+                    "s14_disable_rsi_div": args.s14_disable_rsi_div,
+                    "s14_enable_sweep_return": args.s14_enable_sweep_return,
+                    "s14_fill_next_bar": args.s14_fill_next_bar,
+                    "s2_include_connected_fvg_context": args.s2_include_connected_fvg_context,
+                    "s2_parallel_lifecycle_tf": args.s2_parallel_lifecycle_tf,
+                    "s2_fill_before_cancel_bars": args.s2_fill_before_cancel_bars,
                     "scale_out_column_volume": scale_out_column_volume(config.SYMBOL),
                 },
             )

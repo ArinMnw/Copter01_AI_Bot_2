@@ -48,6 +48,8 @@ TZ_OFF = getattr(config, "TZ_OFFSET", 7)
 SRV_TZ = getattr(config, "MT5_SERVER_TZ", 0)
 VOLUME = 0.01
 PRICE_TO_USD = 100 * VOLUME
+S2_PARALLEL_LIFECYCLE_TF = False
+S2_FILL_BEFORE_CANCEL_BARS = False
 
 TF_MAP = sim_s8_backtest.TF_MAP
 TF_EXTRA_BARS = {
@@ -129,6 +131,18 @@ def _call_with_hhll(tf_name: str, hist_data: dict, func, *args, **kwargs) -> dic
             hhll_swing._hhll_data[tf_name] = old_data
 
 
+def _pre_scan_hhll_needed(strategies: set[int]) -> bool:
+    return bool(strategies & {4, 5, 8})
+
+
+def _post_signal_hhll_needed(strategies: set[int], scan_results: list[tuple[int, dict]]) -> bool:
+    if not scan_results:
+        return False
+    if strategies & {2, 3}:
+        return True
+    return bool(getattr(config, "TREND_FILTER_SCAN_BLOCK", False))
+
+
 def _trend_scan_blocked(tf_name: str, hist_data: dict, sid: int, signal: str) -> tuple[bool, str]:
     if not getattr(config, "TREND_FILTER_SCAN_BLOCK", False):
         return False, ""
@@ -180,6 +194,18 @@ def _entry_already_passed(result: dict, signal_bar: dict) -> bool:
         return close <= entry
     if signal == "SELL":
         return close >= entry
+    return False
+
+
+def _order_touched_entry(order: dict, bar: dict) -> bool:
+    entry = float(order.get("entry", 0.0) or 0.0)
+    signal = str(order.get("signal") or order.get("side") or "").upper()
+    if entry <= 0:
+        return False
+    if signal == "BUY":
+        return float(bar.get("low", 0.0) or 0.0) <= entry
+    if signal == "SELL":
+        return float(bar.get("high", 0.0) or 0.0) >= entry
     return False
 
 
@@ -259,6 +285,44 @@ def _limit_break_cancel_event(order: dict, tf_name: str, rates: list[dict], clos
         "profit": 0.0,
         "reason": f"{reason} [{tf_name}]",
         "cancel_reason": f"{reason} [{tf_name}]",
+    }
+
+
+def _cancel_pending_event(
+    order: dict,
+    close_time: datetime,
+    reason: str,
+    *,
+    bar: dict | None = None,
+    age_bars: int | None = None,
+    cancel_bars: int | None = None,
+) -> dict:
+    entry = float(order.get("entry", 0.0) or 0.0)
+    signal = str(order.get("signal") or order.get("side") or "").upper()
+    bar_high = float(bar.get("high", 0.0) or 0.0) if bar else 0.0
+    bar_low = float(bar.get("low", 0.0) or 0.0) if bar else 0.0
+    touched_entry = False
+    if entry > 0 and bar:
+        if signal == "BUY":
+            touched_entry = bar_low <= entry
+        elif signal == "SELL":
+            touched_entry = bar_high >= entry
+    return {
+        **order,
+        "entry_time": order["detect_time"],
+        "entry_time_raw": order["detect_time_raw"],
+        "close_time": close_time,
+        "close_price": None,
+        "close_type": "CANCEL",
+        "pnl": 0.0,
+        "profit": 0.0,
+        "reason": reason,
+        "cancel_reason": reason,
+        "cancel_age_bars": "" if age_bars is None else int(age_bars),
+        "cancel_bars": "" if cancel_bars is None else int(cancel_bars),
+        "cancel_bar_high": round(bar_high, 2) if bar else "",
+        "cancel_bar_low": round(bar_low, 2) if bar else "",
+        "cancel_bar_touched_entry": touched_entry if bar else "",
     }
 
 
@@ -392,7 +456,17 @@ def _sweep_scan_state(
             sweep_rates = list(full_rates[-150:])
             state = sweep_filter._detect_both(tf_name, hist_data, sweep_rates, htf_rates, htf_rates)
         if not state:
-            state = sweep_filter.get_sweep_state(tf_name)
+            state = getattr(sweep_filter, "_sweep_state", {}).get(tf_name)
+        if state:
+            info = _sweep_filter_info(tf_name)
+            sweep_ts = int(info.get("ts", 0) or 0)
+            if sweep_ts <= 0:
+                return None
+            expiry_min = int(info.get("expiry_min", 0) or 0)
+            current_ts = int(full_rates[-1]["time"]) if full_rates else 0
+            if sweep_ts and expiry_min > 0 and current_ts - sweep_ts > expiry_min * 60:
+                sweep_filter.reset_sweep(tf_name, reason="historical_expired")
+                return None
         return state
     except Exception:
         return None
@@ -402,6 +476,36 @@ def _sweep_scan_blocked(sweep_state: str | None, sid: int, signal: str) -> bool:
     if int(sid or 0) in (9, 10, 13, 14, 15, 16, 17, 18, 19):
         return False
     return (sweep_state == "SWEEP_LOW" and signal == "SELL") or (sweep_state == "SWEEP_HIGH" and signal == "BUY")
+
+
+def _sweep_filter_info(tf_name: str) -> dict:
+    try:
+        import sweep_filter
+        info = dict(sweep_filter.get_sweep_info(tf_name) or {})
+        expiry_cfg = getattr(config, "SWEEP_FILTER_EXPIRY_MIN", 0)
+        if isinstance(expiry_cfg, dict):
+            expiry_min = int(expiry_cfg.get(tf_name, 0) or 0)
+        else:
+            expiry_min = int(expiry_cfg or 0)
+        info["ts"] = getattr(sweep_filter, "_sweep_ts", {}).get(tf_name, 0)
+        info["expiry_min"] = expiry_min
+        return info
+    except Exception:
+        return {}
+
+
+def _sweep_scan_meta(tf_name: str, order: dict) -> dict:
+    info = _sweep_filter_info(tf_name)
+    sweep_ts = int(info.get("ts", 0) or 0)
+    detect_ts = int(order.get("detect_time_raw", 0) or 0)
+    age_min = round((detect_ts - sweep_ts) / 60.0, 2) if sweep_ts and detect_ts else ""
+    return {
+        "sweep_scan_price": info.get("price", ""),
+        "sweep_scan_time": info.get("time", ""),
+        "sweep_scan_ts": sweep_ts or "",
+        "sweep_scan_age_min": age_min,
+        "sweep_scan_expiry_min": info.get("expiry_min", ""),
+    }
 
 
 def _tf_sort_key(tf_name: str) -> int:
@@ -418,6 +522,15 @@ def _s2_group_candidates(tf_name: str, active_tfs: set[str]) -> list[list[str]]:
         if any(tf != tf_name for tf in group):
             groups.append(list(group))
     return groups
+
+
+def _s2_lifecycle_tf(order: dict) -> str:
+    if int(order.get("sid", 0) or 0) != 2:
+        return str(order.get("tf") or "")
+    parallel_tfs = [str(tf) for tf in (order.get("parallel_tfs") or []) if tf]
+    if len(parallel_tfs) < 2:
+        return str(order.get("tf") or "")
+    return min(parallel_tfs, key=_tf_sort_key)
 
 
 def _s2_parallel_prepare(
@@ -507,6 +620,8 @@ def _s2_parallel_prepare(
     order["final_gap_top"] = round(float(int_top), 2)
     order["parallel_tfs"] = list(parallel_tfs)
     order["parallel_patterns"] = list(parallel_patterns)
+    if S2_PARALLEL_LIFECYCLE_TF:
+        order["lifecycle_tf"] = _s2_lifecycle_tf(order)
     order["pattern"] = f"{order.get('pattern', 'S2 FVG')} [{'+'.join(parallel_tfs)}]"
 
     if cancel_ids:
@@ -538,7 +653,7 @@ def _scan_signals(
         if r1.get("signal") in ("BUY", "SELL"):
             signals.append((1, r1))
     if 2 in strategies:
-        r2 = strategy_2(full_rates, tf=tf_name)
+        r2 = strategy_2(scan_rates, tf=tf_name)
         if r2.get("signal") == "FVG_DETECTED":
             fvg = r2.get("fvg") or {}
             signal = fvg.get("signal")
@@ -596,7 +711,14 @@ def _scan_signals(
     return signals
 
 
-def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: datetime | None = None) -> list[dict]:
+def backtest_tf(
+    tf_name: str,
+    tf_val: int,
+    strategies: set[int],
+    range_end_utc: datetime | None = None,
+    scan_until_utc: datetime | None = None,
+    progress_cb=None,
+) -> list[dict]:
     try:
         import sweep_filter
         sweep_filter.reset_all()
@@ -644,13 +766,23 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
     maru_pending: dict = {}
     tf_secs = TF_SECONDS.get(tf_name, 60)
 
-    for i in range(start_idx, len(bars)):
+    progress_every = max(1, (len(bars) - start_idx) // 20)
+    for event_no, i in enumerate(range(start_idx, len(bars)), start=1):
+        if progress_cb is not None and (event_no == 1 or event_no % progress_every == 0 or i == len(bars) - 1):
+            try:
+                total_events = max(1, len(bars) - start_idx)
+                progress_cb(f"Unified {tf_name} replay progress {event_no}/{total_events} bar(s) ({event_no * 100 // total_events}%)")
+            except Exception:
+                pass
         bar = bars[i]
         bt = to_bkk(bar["time"])
+        scan_allowed = scan_until_utc is None or bt <= scan_until_utc
+        if not scan_allowed and not pending and not open_trades:
+            continue
         h = float(bar["high"])
         l = float(bar["low"])
         full_rates = bars[:i + 1]
-        hist_data = _build_historical_hhll_data(full_rates)
+        hist_data = _build_historical_hhll_data(full_rates) if _pre_scan_hhll_needed(strategies) else {}
         scan_rates = bars[max(0, i - strategy_window + 1):i + 1]
         s8_scan = (
             _call_with_hhll(tf_name, hist_data, strategy_8, scan_rates, tf=tf_name if hist_data else "")
@@ -666,18 +798,17 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
                 cancel_bars
                 and ((sid == 1 and age_bars > cancel_bars) or (sid != 1 and age_bars >= cancel_bars))
             )
+            if cancel_expired and S2_FILL_BEFORE_CANCEL_BARS and _order_touched_entry(order, bar):
+                cancel_expired = False
             if cancel_expired:
-                trades.append({
-                    **order,
-                    "entry_time": order["detect_time"],
-                    "entry_time_raw": order["detect_time_raw"],
-                    "close_time": bt,
-                    "close_price": None,
-                    "close_type": "CANCEL",
-                    "pnl": 0.0,
-                    "profit": 0.0,
-                    "reason": "cancel_bars",
-                })
+                trades.append(_cancel_pending_event(
+                    order,
+                    bt,
+                    "cancel_bars",
+                    bar=bar,
+                    age_bars=age_bars,
+                    cancel_bars=cancel_bars,
+                ))
                 continue
             if sid == 8 and sim_s8_backtest._cancelled_by_swing_change(order, s8_scan):
                 trades.append({
@@ -837,9 +968,13 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             if not _duplicate_pending(pending, retry_order):
                 pending.append(retry_order)
 
-        scan_results = _scan_signals(
-            strategies, scan_rates, full_rates, hist_data, tf_name, bt, bar, tf_secs, fallback_start, maru_pending
-        )
+        scan_results = []
+        if scan_allowed:
+            scan_results = _scan_signals(
+                strategies, scan_rates, full_rates, hist_data, tf_name, bt, bar, tf_secs, fallback_start, maru_pending
+            )
+        if not hist_data and _post_signal_hhll_needed(strategies, scan_results):
+            hist_data = _build_historical_hhll_data(full_rates)
         sweep_state = _sweep_scan_state(tf_name, hist_data, full_rates, sweep_htf_rates) if scan_results else None
         for sid, result in scan_results:
             order = _pending_from_result(result, tf_name, bar, sid)
@@ -863,7 +998,11 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
             if _duplicate_pending(pending, order):
                 continue
             if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
-                trades.append(trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block"))
+                event = trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block")
+                event["sweep_scan_state"] = sweep_state or ""
+                event["sweep_scan_tf"] = tf_name
+                event.update(_sweep_scan_meta(tf_name, order))
+                trades.append(event)
                 continue
             trend_blocked, trend_reason = _trend_scan_blocked(tf_name, hist_data, sid, order["signal"])
             if trend_blocked:
@@ -874,8 +1013,11 @@ def backtest_tf(tf_name: str, tf_val: int, strategies: set[int], range_end_utc: 
                     trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
                     continue
             if sl_guard.is_blocked(tf_name, order["signal"], full_rates):
+                guard_meta = sl_guard.block_reason_meta(tf_name, order["signal"])
                 sl_guard.record_blocked_order(tf_name, order, int(bar["time"]))
-                trades.append(trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT"))
+                event = trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT")
+                event.update(guard_meta)
+                trades.append(event)
                 continue
             if sid == 4:
                 pd = sim_s4_backtest._pd_precreate_check(order, scan_rates, tf_name)
@@ -914,6 +1056,8 @@ def backtest_multi_tf(
     tf_map: dict[str, int],
     strategies: set[int],
     range_end_utc: datetime | None = None,
+    scan_until_utc: datetime | None = None,
+    progress_cb=None,
 ) -> list[dict]:
     if not tf_map:
         return []
@@ -928,7 +1072,7 @@ def backtest_multi_tf(
     spread = float(getattr(symbol_info, "spread", 0) or 0) * point
 
     states: dict[str, dict] = {}
-    events: list[tuple[int, int, str]] = []
+    events: list[tuple[int, int, str, int]] = []
     since_ts = int(SINCE.timestamp())
     for tf_name, tf_val in tf_map.items():
         rates = _fetch_rates(tf_name, tf_val, range_end_utc=range_end_utc)
@@ -956,7 +1100,7 @@ def backtest_multi_tf(
             if raw_sweep_htf is not None:
                 states[tf_name]["sweep_htf_rates"] = _as_records(raw_sweep_htf)
         for idx in range(start_idx, len(bars)):
-            events.append((int(bars[idx]["time"]), _tf_sort_key(tf_name), tf_name))
+            events.append((int(bars[idx]["time"]), _tf_sort_key(tf_name), tf_name, idx))
 
     if not states:
         return []
@@ -972,18 +1116,35 @@ def backtest_multi_tf(
     trail_focus_state: dict = {}
     last_sid_tf: dict = {}
 
-    for event_time, _, tf_name in events:
+    progress_every = max(1, len(events) // 20)
+    for event_no, (event_time, _, tf_name, idx) in enumerate(events, start=1):
+        if progress_cb is not None and (event_no == 1 or event_no % progress_every == 0 or event_no == len(events)):
+            try:
+                progress_cb(f"S2 multi-TF replay progress {event_no}/{len(events)} event(s) ({event_no * 100 // max(1, len(events))}%)")
+            except Exception:
+                pass
         state = states[tf_name]
         bars = state["bars"]
-        idx = next((j for j, r in enumerate(bars) if int(r["time"]) == event_time), None)
-        if idx is None:
-            continue
         bar = bars[idx]
         bt = to_bkk(bar["time"])
+        scan_allowed = scan_until_utc is None or bt <= scan_until_utc
+        if not scan_allowed:
+            has_active_tf = any(
+                str(row.get("tf") or "") == tf_name
+                or str(row.get("lifecycle_tf") or "") == tf_name
+                for row in pending
+            )
+            has_active_tf = has_active_tf or any(
+                str(row.get("tf") or "") == tf_name
+                or str(row.get("lifecycle_tf") or "") == tf_name
+                for row in open_trades
+            )
+            if not has_active_tf:
+                continue
         h = float(bar["high"])
         l = float(bar["low"])
         full_rates = bars[:idx + 1]
-        hist_data = _build_historical_hhll_data(full_rates)
+        hist_data = _build_historical_hhll_data(full_rates) if _pre_scan_hhll_needed(strategies) else {}
         scan_rates = bars[max(0, idx - int(state["strategy_window"]) + 1):idx + 1]
         tf_secs = int(state["tf_secs"])
         s8_scan = {"signal": "WAIT"}
@@ -991,7 +1152,8 @@ def backtest_multi_tf(
         still_pending = []
         for order in pending:
             order_tf = str(order.get("tf") or tf_name)
-            if order_tf != tf_name:
+            lifecycle_tf = str(order.get("lifecycle_tf") or order_tf)
+            if order_tf != tf_name and lifecycle_tf != tf_name:
                 still_pending.append(order)
                 continue
             sid = int(order.get("sid", 0) or 0)
@@ -1001,18 +1163,17 @@ def backtest_multi_tf(
                 cancel_bars
                 and ((sid == 1 and age_bars > cancel_bars) or (sid != 1 and age_bars >= cancel_bars))
             )
-            if cancel_expired:
-                trades.append({
-                    **order,
-                    "entry_time": order["detect_time"],
-                    "entry_time_raw": order["detect_time_raw"],
-                    "close_time": bt,
-                    "close_price": None,
-                    "close_type": "CANCEL",
-                    "pnl": 0.0,
-                    "profit": 0.0,
-                    "reason": "cancel_bars",
-                })
+            if cancel_expired and S2_FILL_BEFORE_CANCEL_BARS and _order_touched_entry(order, bar):
+                cancel_expired = False
+            if order_tf == tf_name and cancel_expired:
+                trades.append(_cancel_pending_event(
+                    order,
+                    bt,
+                    "cancel_bars",
+                    bar=bar,
+                    age_bars=age_bars,
+                    cancel_bars=cancel_bars,
+                ))
                 continue
             if sid == 8 and sim_s8_backtest._cancelled_by_swing_change(order, s8_scan):
                 trades.append({
@@ -1028,7 +1189,7 @@ def backtest_multi_tf(
                     "cancel_reason": "S8 swing changed",
                 })
                 continue
-            break_cancel = _limit_break_cancel_event(order, tf_name, full_rates, bt)
+            break_cancel = _limit_break_cancel_event(order, tf_name, full_rates, bt) if order_tf == tf_name else None
             if break_cancel is not None:
                 trades.append(break_cancel)
                 continue
@@ -1038,6 +1199,9 @@ def backtest_multi_tf(
             lg = limit_guard_cancel(order, open_trades, bar, point)
             if lg.get("status") == "fail":
                 trades.append(trend_cancel_event(order, bt, lg.get("reason", "Limit Guard cancel")))
+                continue
+            if lifecycle_tf != tf_name:
+                still_pending.append(order)
                 continue
 
             filled = (
@@ -1061,7 +1225,7 @@ def backtest_multi_tf(
         guard_activated_sides = []
         still_open = []
         for trade in open_trades:
-            trade_tf = str(trade.get("tf") or tf_name)
+            trade_tf = str(trade.get("lifecycle_tf") or trade.get("tf") or tf_name)
             if trade_tf != tf_name:
                 still_open.append(trade)
                 continue
@@ -1124,18 +1288,22 @@ def backtest_multi_tf(
             if not _duplicate_pending(pending, retry_order):
                 pending.append(retry_order)
 
-        scan_results = _scan_signals(
-            strategies,
-            scan_rates,
-            full_rates,
-            hist_data,
-            tf_name,
-            bt,
-            bar,
-            tf_secs,
-            state["fallback_start"],
-            state["maru_pending"],
-        )
+        scan_results = []
+        if scan_allowed:
+            scan_results = _scan_signals(
+                strategies,
+                scan_rates,
+                full_rates,
+                hist_data,
+                tf_name,
+                bt,
+                bar,
+                tf_secs,
+                state["fallback_start"],
+                state["maru_pending"],
+            )
+        if not hist_data and _post_signal_hhll_needed(strategies, scan_results):
+            hist_data = _build_historical_hhll_data(full_rates)
         sweep_state = (
             _sweep_scan_state(tf_name, hist_data, full_rates, state.get("sweep_htf_rates"))
             if scan_results and bool(strategies & {2, 3}) else None
@@ -1162,7 +1330,11 @@ def backtest_multi_tf(
             if _duplicate_pending(pending, order):
                 continue
             if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
-                trades.append(trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block"))
+                event = trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block")
+                event["sweep_scan_state"] = sweep_state or ""
+                event["sweep_scan_tf"] = tf_name
+                event.update(_sweep_scan_meta(tf_name, order))
+                trades.append(event)
                 continue
             trend_blocked, trend_reason = _trend_scan_blocked(tf_name, hist_data, sid, order["signal"])
             if trend_blocked:
@@ -1173,8 +1345,11 @@ def backtest_multi_tf(
                     trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
                     continue
             if sl_guard.is_blocked(tf_name, order["signal"], full_rates):
+                guard_meta = sl_guard.block_reason_meta(tf_name, order["signal"])
                 sl_guard.record_blocked_order(tf_name, order, int(bar["time"]))
-                trades.append(trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT"))
+                event = trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT")
+                event.update(guard_meta)
+                trades.append(event)
                 continue
             pd = pending_pdfiboplus_round1(order, full_rates)
             if pd.get("status") == "fail":

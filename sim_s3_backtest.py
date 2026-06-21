@@ -59,6 +59,10 @@ def profit(price_diff: float) -> float:
 
 
 def s3_runtime_feature_coverage() -> list[dict]:
+    pd_skip_sids = set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ()))
+    pd_runtime = "skip_s3" if 3 in pd_skip_sids else "apply"
+    pd_replay = "skip_s3" if 3 in pd_skip_sids else "partial"
+    pd_note = "Runtime skips S3 PD Fibo Plus" if 3 in pd_skip_sids else "Replay follows current config.PDFIBOPLUS_SKIP_SIDS and applies PD gates for S3"
     return [
         {
             "name": "S3 DM/SP detect",
@@ -112,9 +116,9 @@ def s3_runtime_feature_coverage() -> list[dict]:
         {
             "name": "PD Fibo Plus",
             "config_on": getattr(config, "PDFIBOPLUS_ENABLED", False),
-            "runtime": "skip_s3",
-            "replay": "skip_s3",
-            "note": "Runtime skips S3 PD Fibo Plus",
+            "runtime": pd_runtime,
+            "replay": pd_replay,
+            "note": pd_note,
         },
         {
             "name": "Limit Trend/Fill Trend Recheck",

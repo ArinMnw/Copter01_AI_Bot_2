@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover - defensive import for standalone tooling
     _calc_rsi_values = None
 
 
-PDFIBOPLUS_SKIP_SIDS = set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", {1, 2, 3, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19}))
+PDFIBOPLUS_SKIP_SIDS = set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", {1, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19}))
 RSI_FILL_SKIP_SIDS = {1, 9, 11, 14, 15, 16, 17, 18, 19}
 
 
@@ -479,6 +479,7 @@ def pending_pdfiboplus_round1(order: dict, bars: list[dict], *, allow_entry_adju
         "pd_fallback_used": fallback_used,
         "pd_outside_range": outside_pd,
     }
+    order.update(meta)
     if result or wait_round2:
         order["pd_pending_h"] = float(meta["pd_h"])
         order["pd_pending_l"] = float(meta["pd_l"])
@@ -1646,6 +1647,41 @@ class SimSLGuard:
                 if st and st.get("tf_blocked", {}).get(tf):
                     return True
         return False
+
+    def block_reason_meta(self, tf: str, side: str) -> dict:
+        side = side.upper()
+        if getattr(config, "SL_GUARD_ENABLED", False):
+            st = self.per_tf.get((tf, side))
+            if st and st.get("active"):
+                return {
+                    "sl_guard_scope": "per_tf",
+                    "sl_guard_key": tf,
+                    "sl_guard_count": st.get("count", ""),
+                    "sl_guard_since": st.get("blocked_since_bar", ""),
+                    "sl_guard_swing_ref": st.get("swing_ref", ""),
+                }
+        if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            st = self.combined.get(side)
+            if st and st.get("tf_blocked", {}).get(tf):
+                return {
+                    "sl_guard_scope": "combined",
+                    "sl_guard_key": ",".join(str(t) for t in getattr(config, "SL_GUARD_COMBINED_TFS", []) or []),
+                    "sl_guard_count": st.get("count", ""),
+                    "sl_guard_since": st.get("tf_since", {}).get(tf, ""),
+                    "sl_guard_swing_ref": st.get("tf_swing_ref", {}).get(tf, ""),
+                }
+        if getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+            for key in self._group_keys(tf):
+                st = self.group.get((side, key))
+                if st and st.get("tf_blocked", {}).get(tf):
+                    return {
+                        "sl_guard_scope": "group",
+                        "sl_guard_key": ",".join(str(t) for t in key),
+                        "sl_guard_count": st.get("count", ""),
+                        "sl_guard_since": st.get("tf_since", {}).get(tf, ""),
+                        "sl_guard_swing_ref": st.get("tf_swing_ref", {}).get(tf, ""),
+                    }
+        return {}
 
     def near_blocked(self, tf: str, side: str, entry: float, bar: dict, bars: list[dict]) -> bool:
         if not self.is_blocked(tf, side, bars):
