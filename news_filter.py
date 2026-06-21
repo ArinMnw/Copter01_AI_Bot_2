@@ -5,9 +5,11 @@ import config
 
 # Use bot_log or direct print depending on project structure
 try:
-    from bot_log import log_event
+    from bot_log import log_event, log_error
 except ImportError:
     def log_event(*args, **kwargs):
+        pass
+    def log_error(*args, **kwargs):
         pass
 
 NEWS_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
@@ -23,6 +25,7 @@ async def fetch_news_loop(app=None):
             await _fetch_news()
         except Exception as e:
             print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] ⚠️ [News Filter] Error fetching news: {e}")
+            log_error("NEWS_FILTER_ERROR", f"fetch: {type(e).__name__}: {e}")
         
         await asyncio.sleep(6 * 3600)  # Sleep for 6 hours
 
@@ -48,6 +51,7 @@ async def _fetch_news():
                     })
                 except Exception as e:
                     print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] ⚠️ [News Filter] Parse error: {e} for date {date_str}")
+                    log_error("NEWS_FILTER_ERROR", f"parse date={date_str}: {type(e).__name__}: {e}")
         
         _news_events = sorted(events, key=lambda x: x["time"])
         _last_fetch_time = datetime.now().timestamp()

@@ -21,6 +21,11 @@ def _load_model():
             _model = joblib.load(MODEL_PATH)
         except Exception as e:
             print(f"[ML Scoring] Error loading model: {e}")
+            try:
+                from bot_log import log_error
+                log_error("ML_SCORING_ERROR", f"load model: {type(e).__name__}: {e}")
+            except Exception:
+                pass
 
 def extract_features(symbol, tf, signal, current_price, time_bkk):
     """
@@ -98,6 +103,11 @@ def predict_success_probability(features: dict) -> float:
         return float(prob)
     except Exception as e:
         print(f"[ML Scoring] Prediction error: {e}")
+        try:
+            from bot_log import log_error
+            log_error("ML_SCORING_ERROR", f"predict: {type(e).__name__}: {e}")
+        except Exception:
+            pass
         return 0.5
 
 def train_dummy_model():
@@ -241,4 +251,9 @@ def train_from_mt5_history(days=30):
         return True
     except Exception as e:
         print(f"[ML Scoring] Error during training: {e}")
+        try:
+            from bot_log import log_error
+            log_error("ML_SCORING_ERROR", f"training: {type(e).__name__}: {e}")
+        except Exception:
+            pass
         return False
