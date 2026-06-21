@@ -256,6 +256,11 @@ async def tg(app, text: str, parse_mode: str = "Markdown"):
         await app.bot.send_message(chat_id=MY_USER_ID, text=text, parse_mode=parse_mode)
     except Exception as e:
         print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ Telegram error: {e}")
+        try:
+            from bot_log import log_error as _lerr
+            _lerr("TG_SEND_ERROR", f"{type(e).__name__}: {e}")
+        except Exception:
+            pass
 
 
 class _TgWrapper:
@@ -1459,6 +1464,11 @@ def reset_runtime_config_to_defaults(save_state: bool = True):
             print("🗑️ Deleted optimized_params.json during config reset")
         except Exception as e:
             print(f"⚠️ Failed to delete optimized_params.json: {e}")
+            try:
+                from bot_log import log_error as _lerr
+                _lerr("CONFIG_RESET_ERROR", f"delete optimized_params: {type(e).__name__}: {e}")
+            except Exception:
+                pass
             
     if save_state:
         save_runtime_state()
@@ -1661,6 +1671,11 @@ def save_runtime_state():
         os.replace(tmp_path, STATE_FILE)
     except Exception as e:
         print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ save_runtime_state error: {e}")
+        try:
+            from bot_log import log_error as _lerr
+            _lerr("SAVE_STATE_ERROR", f"{type(e).__name__}: {e}")
+        except Exception:
+            pass
 
 
 def restore_runtime_state():
@@ -2018,6 +2033,11 @@ def restore_runtime_state():
                 s16_state.update(saved_s16_state)
         except Exception as e:
             print(f"⚠️ restore_runtime_state S16 error: {e}")
+            try:
+                from bot_log import log_error as _lerr
+                _lerr("RESTORE_STATE_ERROR", f"S16: {type(e).__name__}: {e}")
+            except Exception:
+                pass
 
         pending_order_tf.clear()
         pending_order_tf.update({
@@ -2181,3 +2201,8 @@ if os.path.exists(OPTIMIZED_PARAMS_FILE):
         print(f"✅ Loaded optimized parameters from {OPTIMIZED_PARAMS_FILE}")
     except Exception as _e:
         print(f"⚠️ Error loading optimized parameters: {_e}")
+        try:
+            from bot_log import log_error as _lerr
+            _lerr("LOAD_OPTIMIZED_PARAMS_ERROR", f"{type(_e).__name__}: {_e}")
+        except Exception:
+            pass

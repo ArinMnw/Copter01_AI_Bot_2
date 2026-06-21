@@ -309,6 +309,7 @@ def main():
             )
         except Exception as e:
             print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ check_symbol_switch error: {e}")
+            log_error("SYMBOL_SWITCH_ERROR", f"{type(e).__name__}: {e}")
             return
         if xau_open:
             if config.SYMBOL != "XAUUSD.iux":
@@ -739,6 +740,7 @@ def main():
             )
         except Exception as e:
             print(f"[{now}] ⚠️ ส่ง Telegram ไม่ได้: {e}")
+            log_error("TG_SEND_ERROR", f"startup msg: {type(e).__name__}: {e}")
 
         active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
         save_runtime_state()

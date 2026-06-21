@@ -4,7 +4,7 @@ import re
 import inspect
 import os
 import time
-from bot_log import LOG_DIR, log_event
+from bot_log import LOG_DIR, log_event, log_error
 from mt5_utils import connect_mt5, TF_SECONDS_MAP
 from strategy4 import (
     _find_prev_swing_high,
@@ -169,6 +169,7 @@ def _sl_guard_cancel_pending_orders(side: str, scope: str = "all", tf: str = "")
         return cancelled
     except Exception as e:
         print(f"[SL Guard] _sl_guard_cancel_pending_orders error: {e}")
+        log_error("SL_GUARD_ERROR", f"cancel_pending: {type(e).__name__}: {e}")
         return []
 
 
@@ -197,6 +198,7 @@ def _sl_guard_close_open_positions(tf: str, side: str) -> list:
                     log_event("SL_GUARD_CLOSE", f"ปิด {side_up} [{tf}] ticket={pos.ticket}", tf=tf, side=side_up)
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_open_positions error: {e}")
+        log_error("SL_GUARD_ERROR", f"close_open: {type(e).__name__}: {e}", tf=tf, side=side)
     # ยกเลิก pending orders ของ tf+side เดียวกัน
     result.extend(_sl_guard_cancel_pending_orders(side, scope="tf", tf=tf))
     return result
@@ -229,6 +231,7 @@ def _sl_guard_close_combined_positions(side: str) -> list:
                     log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Combined [{pos_tf}] ticket={pos.ticket}", side=side_up)
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_combined_positions error: {e}")
+        log_error("SL_GUARD_ERROR", f"close_combined: {type(e).__name__}: {e}", side=side)
     # ยกเลิก pending orders ของ combined_tfs+side เดียวกัน
     result.extend(_sl_guard_cancel_pending_orders(side, scope="combined"))
     return result
@@ -257,6 +260,7 @@ def _sl_guard_close_all_side_positions(side: str) -> list:
                     log_event("SL_GUARD_CLOSE", f"ปิด {side_up} Group [{pos_tf}] ticket={pos.ticket}", side=side_up)
     except Exception as e:
         print(f"[SL Guard] _sl_guard_close_all_side_positions error: {e}")
+        log_error("SL_GUARD_ERROR", f"close_all_side: {type(e).__name__}: {e}", side=side)
     # ยกเลิก pending orders ทุก TF ของ side นั้น
     result.extend(_sl_guard_cancel_pending_orders(side, scope="all"))
     return result
@@ -1230,6 +1234,7 @@ def _append_sltp_audit(line: str) -> None:
             f.write(line + "\n")
     except Exception as e:
         print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ SLTP audit write error: {e}")
+        log_error("SLTP_AUDIT_ERROR", f"{type(e).__name__}: {e}")
 
 
 def _sltp_dedup_key(source: str, pos, old_sl: float, old_tp: float,

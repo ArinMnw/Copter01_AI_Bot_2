@@ -149,6 +149,8 @@ def _scale_out_register_ticket(ticket: int, direction: str, entry: float,
             print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ TSO register error: {e}")
         except Exception:
             pass
+        from bot_log import log_error
+        log_error("TSO_REGISTER_ERROR", f"{type(e).__name__}: {e}")
 
 
 def _symbol_consistency_error(entry, sl, tp, send_volume,
@@ -806,6 +808,8 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
                     return {"success": False, "skipped": True, "error": f"ML Prob too low: {prob:.2f}"}
     except Exception as e:
         print(f"⚠️ [ML Filter] Error evaluating {signal}: {e}")
+        from bot_log import log_error
+        log_error("ML_FILTER_ERROR", f"{type(e).__name__}: {e}", tf=tf, sid=sid, signal=signal)
 
     # ใช้เฉพาะ BUY LIMIT และ SELL LIMIT เท่านั้น
     # tolerance ตรงนี้ใช้แค่กันกรณี entry ชิดราคาปัจจุบันมากจน broker มองว่า
@@ -942,6 +946,8 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
                     return {"success": False, "skipped": True, "error": f"ML Prob too low: {prob:.2f}"}
     except Exception as e:
         print(f"⚠️ [ML Filter] Error evaluating {signal}: {e}")
+        from bot_log import log_error
+        log_error("ML_FILTER_ERROR", f"{type(e).__name__}: {e}", tf=tf, sid=sid, signal=signal)
 
     price = tick.ask if signal == "BUY" else tick.bid
     ot    = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
