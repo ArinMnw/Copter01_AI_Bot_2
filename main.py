@@ -1,4 +1,4 @@
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 import asyncio
 import time as _time
 from datetime import datetime
@@ -118,6 +118,7 @@ def main():
     _sys.excepthook = _fatal_excepthook
 
     setup_python_logging()
+    mt5.start_worker()
     _install_stall_watchdog()
     log_event("APP_START", "Bot starting", symbol=SYMBOL, scan_interval=SCAN_INTERVAL)
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -157,7 +158,7 @@ def main():
                         print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 News Embargo Active: {reason}")
                         
                         if connect_mt5():
-                            import MetaTrader5 as mt5
+                            import mt5_worker as mt5
                             orders = mt5.orders_get(symbol=config.SYMBOL)
                             if orders:
                                 for o in orders:
@@ -498,6 +499,23 @@ def main():
         ts จะ freeze ทันที → supervisor เห็น ts เก่าเกิน threshold → kill+restart"""
         config.write_heartbeat()
         _rearm_stall_watchdog()
+        await _check_mt5_wedge(app)
+
+    async def _check_mt5_wedge(app, stale_after: float = 60.0) -> None:
+        """ตรวจว่า mt5_worker thread ค้างอยู่กลาง call นานเกิน stale_after วิหรือไม่
+        (อ่านแค่ตัวแปร in-memory ของ mt5_worker — ไม่เรียก MT5 เอง จึงไม่ค้างตามไปด้วย)
+        ถ้าค้างจริง → log + แจ้ง Telegram (event loop ไม่ถูกบล็อกแล้ว จึงส่งได้) แล้ว
+        os._exit(1) ให้ supervisor restart ทันที เร็วกว่ารอ heartbeat-stale kill"""
+        if not mt5.is_wedged(stale_after):
+            return
+        info = mt5.wedge_info()
+        log_event("MT5_WORKER_WEDGED", f"mt5_worker thread ค้าง: {info}")
+        try:
+            await tg(app, f"🚨 *MT5 Worker ค้าง*\n`{info}`\nกำลัง restart บอท...")
+        except Exception:
+            pass
+        import os as _os
+        _os._exit(1)
 
     from datetime import timezone as _tz2
 

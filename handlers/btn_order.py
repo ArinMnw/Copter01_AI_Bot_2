@@ -374,7 +374,7 @@ _UTC6 = timezone(timedelta(hours=6))
 
 def _fetch_ticket_metadata_from_mt5(ticket: int) -> dict | None:
     """ดึงข้อมูลของ ticket โดยตรงจาก MT5 เมื่อไม่มีข้อมูลใน log"""
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
     # 1. ลองดึงจาก active position
     pos = mt5.positions_get(ticket=ticket)
     if pos:

@@ -4,7 +4,7 @@
 # Mirror structure of amp_trend.py  (fetch / get / scan_all)
 # ──────────────────────────────────────────────────────────────────────
 
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 
 try:
     from config import TF_OPTIONS, SYMBOL

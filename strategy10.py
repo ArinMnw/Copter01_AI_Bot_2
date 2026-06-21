@@ -33,7 +33,7 @@ from config import (
 import config as _config
 
 try:
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
 except Exception:
     mt5 = None
 
