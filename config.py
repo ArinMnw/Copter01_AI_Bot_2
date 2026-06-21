@@ -194,7 +194,6 @@ SL_ATR_MULT    = 2      # ตัวคูณ: 1=×1, 2=×2, ..., 5=×5  (default
 PENDING_LIMIT_GUARD_ENABLED = True   # เปิด/ปิด guard
 PENDING_LIMIT_BUFFER        = 2      # เว้นช่อง pending ว่างกี่ตัวก่อนถึง broker cap
 ORDERS_LIMIT_COOLDOWN_SEC   = 60     # หลังโดน 10033 → งดยิง order ใหม่กี่วินาที
-ORDER_SEND_TIMEOUT          = 30.0   # mt5.order_send ค้างเกินกี่วินาที → คืน None (กัน freeze event loop → STALL)
 
 def SL_BUFFER(atr=None):
     """ดึง SL buffer ตาม SYMBOL ปัจจุบัน
