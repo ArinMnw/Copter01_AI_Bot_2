@@ -162,9 +162,13 @@ def process_source(src_path: str, prefix: str, cur_ym: tuple) -> dict:
             except PermissionError:
                 print(f"    [WARN] cannot truncate -- bot will continue writing to existing file")
         else:
-            # ลบ .archiving (ข้อมูลถูกย้ายหมดแล้ว)
+            # ลบ .archiving (ข้อมูลถูกย้ายหมดแล้ว) — ข้อมูลอยู่ใน target ปลอดภัยแล้ว
+            # ต่อให้ remove ไม่สำเร็จ (ไฟล์ถูก lock ชั่วคราว) ก็ไม่ควรทำให้ทั้ง script ค้าง/error
             if os.path.exists(work_path):
-                os.remove(work_path)
+                try:
+                    os.remove(work_path)
+                except PermissionError:
+                    print(f"    [WARN] cannot remove {os.path.basename(work_path)} -- ข้อมูล archive แล้ว ลบเองได้ทีหลัง")
 
     for ym, n in sorted(result["months"].items()):
         tgt = _target_path(prefix, ym, cur_ym)
