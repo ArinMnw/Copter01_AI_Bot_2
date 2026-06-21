@@ -10,7 +10,7 @@
 #   - Swing Reference selection and Close Invalidation match S14
 # ──────────────────────────────────────────────────────────────────────
 
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 from datetime import datetime, timedelta, timezone
 
 try:
@@ -171,7 +171,7 @@ def _get_htf_bar(tf_name: str, target_time: int, htf_rates_lookup: dict = None):
 
     # Live bot case:
     try:
-        import MetaTrader5 as mt5
+        import mt5_worker as mt5
         htf = _get_s14_htf(tf_name)
         htf_const = getattr(mt5, f"TIMEFRAME_{htf.upper()}")
         rates_raw = mt5.copy_rates_range(SYMBOL, htf_const, target_time, target_time + 10)

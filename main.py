@@ -1,4 +1,4 @@
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 import asyncio
 import time as _time
 from datetime import datetime
@@ -24,6 +24,41 @@ from handlers.callback_handler import handle_callback
 
 _error_last_sent: dict = {}
 _ERROR_COOLDOWN = 300  # วินาที — ไม่ส่ง error ซ้ำภายใน 5 นาที
+
+
+def _install_stall_watchdog() -> None:
+    """ติดตั้ง diagnostic watchdog สำหรับ STALL — ถ้า event loop แข็ง (MT5 call
+    ค้าง) นานเกิน config.STALL_TRACE_TIMEOUT วิ จะ dump stack trace ของทุก
+    thread ไปไฟล์ logs/debug/stall_trace.log ให้รู้ว่าค้างอยู่ที่บรรทัด/MT5
+    call ไหนแน่ ๆ (ก่อนหน้านี้ supervisor kill ที่ 180s ก่อน log ไหนจะทันเขียน)
+
+    ใช้ watchdog thread ภายในของ faulthandler เอง (อ่าน stack อย่างเดียว ไม่เรียก
+    MT5 เลย) — ไม่ย้าย MT5 call ไป thread อื่นเด็ดขาด (เคยทำพัง order_send มาแล้ว
+    เพราะ MT5 ผูกกับ thread ที่ initialize ไว้)
+    """
+    import faulthandler
+    from bot_log import DEBUG_LOG_DIR
+    import os as _os
+    _os.makedirs(DEBUG_LOG_DIR, exist_ok=True)
+    path = _os.path.join(DEBUG_LOG_DIR, "stall_trace.log")
+    f = open(path, "a", encoding="utf-8")
+    config._stall_trace_file = f
+    faulthandler.enable(file=f)
+    _rearm_stall_watchdog()
+
+
+def _rearm_stall_watchdog() -> None:
+    """รีเซ็ตนาฬิกาจับเวลา — เรียกทุกครั้งที่ event loop ยังมีชีวิต (จาก
+    write_heartbeat_job ทุก 15s) ถ้า loop แข็งจริง จะไม่มีใครมาเรียกฟังก์ชันนี้
+    ต่อ → ตัวจับเวลาที่ตั้งไว้ครั้งล่าสุดจะ fire เอง แล้ว dump stack"""
+    import faulthandler
+    if config._stall_trace_file is None:
+        return
+    faulthandler.cancel_dump_traceback_later()
+    faulthandler.dump_traceback_later(
+        config.STALL_TRACE_TIMEOUT, repeat=False,
+        file=config._stall_trace_file, exit=False,
+    )
 
 
 async def _tg_error(app, job_name: str, exc: Exception) -> None:
@@ -83,6 +118,8 @@ def main():
     _sys.excepthook = _fatal_excepthook
 
     setup_python_logging()
+    mt5.start_worker()
+    _install_stall_watchdog()
     log_event("APP_START", "Bot starting", symbol=SYMBOL, scan_interval=SCAN_INTERVAL)
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("🤖 Copter Gold Bot — ท่าที่ 1")
@@ -121,7 +158,7 @@ def main():
                         print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 News Embargo Active: {reason}")
                         
                         if connect_mt5():
-                            import MetaTrader5 as mt5
+                            import mt5_worker as mt5
                             orders = mt5.orders_get(symbol=config.SYMBOL)
                             if orders:
                                 for o in orders:
@@ -258,8 +295,21 @@ def main():
                 f"bid={getattr(xau_tick, 'bid', 0.0)} ask={getattr(xau_tick, 'ask', 0.0)} "
                 f"tick_ok={tick_ok} => xau_open={xau_open}"
             )
+            log_event(
+                "SYMBOL_CHECK",
+                f"XAUUSD.iux trade_mode={xau_info.trade_mode} xau_open={xau_open}",
+                trade_mode=xau_info.trade_mode,
+                tick_time=getattr(xau_tick, "time", 0),
+                bid=float(getattr(xau_tick, "bid", 0.0)),
+                ask=float(getattr(xau_tick, "ask", 0.0)),
+                tick_ok=tick_ok,
+                xau_open=xau_open,
+                current_symbol=config.SYMBOL,
+                startup=startup,
+            )
         except Exception as e:
             print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ check_symbol_switch error: {e}")
+            log_error("SYMBOL_SWITCH_ERROR", f"{type(e).__name__}: {e}")
             return
         if xau_open:
             if config.SYMBOL != "XAUUSD.iux":
@@ -298,48 +348,82 @@ def main():
                 await auto_scan(app)
 
     async def run_trail_sl():
-        """Trail SL — รันได้เลย ไม่ต้องรอ"""
+        """Trail SL — รันได้เลย ไม่ต้องรอ
+        มี timing breakdown กัน MT5 call ค้างแบบไม่รู้ตัว (เหมือน auto_scan ใน scanner.py)"""
         if not config.auto_active:
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
+        _steps: list[tuple[str, float]] = []
+        _t0 = _time.perf_counter()
+
+        def _lap(label: str) -> None:
+            _steps.append((label, _time.perf_counter() - _t0))
+
         try:
-            await check_engulf_trail_sl(app)
-            await check_s6_trail(app)
+            await check_engulf_trail_sl(app); _lap("engulf_trail_sl")
+            await check_s6_trail(app); _lap("s6_trail")
         except Exception as e:
             await _tg_error(app, "run_trail_sl", e)
+        finally:
+            _total = _steps[-1][1] if _steps else (_time.perf_counter() - _t0)
+            if _total > 3.0:
+                _prev = 0.0
+                _breakdown = []
+                for _label, _t in _steps:
+                    _breakdown.append(f"{_label}={_t - _prev:.2f}s")
+                    _prev = _t
+                log_event("TRAIL_SL_SLOW", f"run_trail_sl ใช้เวลา {_total:.2f}s > 3s",
+                          breakdown=" ".join(_breakdown))
 
     async def run_position_check():
-        """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)"""
+        """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)
+        มี timing breakdown กัน MT5 call ค้างแบบไม่รู้ตัว (เหมือน auto_scan ใน scanner.py)"""
         if not config.auto_active:
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
+        _steps: list[tuple[str, float]] = []
+        _t0 = _time.perf_counter()
+
+        def _lap(label: str) -> None:
+            _steps.append((label, _time.perf_counter() - _t0))
+
         try:
             # Limit Fill notify ก่อน (อิสระจาก ENTRY_CANDLE_ENABLED)
-            await check_limit_fill_notify(app)
+            await check_limit_fill_notify(app); _lap("limit_fill_notify")
             # RSI Fill Recheck รันก่อน entry candle — ถ้า fail ปิด position ทันที
-            await check_fill_rsi_recheck(app)
+            await check_fill_rsi_recheck(app); _lap("fill_rsi_recheck")
             # Pending Trend Check on Approach — เช็ค trend ของ pending ก่อน fill (200pt)
-            await check_pending_trend_approach(app)
+            await check_pending_trend_approach(app); _lap("pending_trend_approach")
             # Trend Fill Recheck — เช็ค trend หลัง fill (round1 + round2/3 หลัง H/L เปลี่ยน)
-            await check_fill_trend_recheck(app)
+            await check_fill_trend_recheck(app); _lap("fill_trend_recheck")
             # PD Fibo Plus Fill Check — อิสระจาก ENTRY_CANDLE_ENABLED จับ case fill เร็วกว่า pending cycle
-            await check_fill_pdfiboplus(app)
-            await check_s14_engulf_exits(app)
-            await check_entry_candle_quality(app)
-            await check_sl_tp_hits(app)
-            await check_s1_zone_rules(app)
-            await check_s1_forward_confirm_rules(app)
-            await check_cancel_pending_orders(app)
+            await check_fill_pdfiboplus(app); _lap("fill_pdfiboplus")
+            await check_s14_engulf_exits(app); _lap("s14_engulf_exits")
+            await check_entry_candle_quality(app); _lap("entry_candle_quality")
+            await check_sl_tp_hits(app); _lap("sl_tp_hits")
+            await check_s1_zone_rules(app); _lap("s1_zone_rules")
+            await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
+            await check_cancel_pending_orders(app); _lap("cancel_pending_orders")
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
-            await check_opposite_order_tp(app)
-            await check_limit_sweep(app)
-            await check_scale_out_partial(app)
+            await check_opposite_order_tp(app); _lap("opposite_order_tp")
+            await check_limit_sweep(app); _lap("limit_sweep")
+            await check_scale_out_partial(app); _lap("scale_out_partial")
         except Exception as e:
             await _tg_error(app, "run_position_check", e)
+        finally:
+            _total = _steps[-1][1] if _steps else (_time.perf_counter() - _t0)
+            if _total > 3.0:
+                _prev = 0.0
+                _breakdown = []
+                for _label, _t in _steps:
+                    _breakdown.append(f"{_label}={_t - _prev:.2f}s")
+                    _prev = _t
+                log_event("POSITION_CHECK_SLOW", f"run_position_check ใช้เวลา {_total:.2f}s > 3s",
+                          breakdown=" ".join(_breakdown))
 
     async def save_bot_state_job():
         """บันทึก state สำคัญเป็นระยะ เพื่อลดปัญหา pattern/state หายหลัง restart"""
@@ -415,6 +499,24 @@ def main():
         ไม่เรียก MT5 — แค่ stamp ts; ถ้า event loop แข็ง (mt5 blocking call ค้าง)
         ts จะ freeze ทันที → supervisor เห็น ts เก่าเกิน threshold → kill+restart"""
         config.write_heartbeat()
+        _rearm_stall_watchdog()
+        await _check_mt5_wedge(app)
+
+    async def _check_mt5_wedge(app, stale_after: float = 60.0) -> None:
+        """ตรวจว่า mt5_worker thread ค้างอยู่กลาง call นานเกิน stale_after วิหรือไม่
+        (อ่านแค่ตัวแปร in-memory ของ mt5_worker — ไม่เรียก MT5 เอง จึงไม่ค้างตามไปด้วย)
+        ถ้าค้างจริง → log + แจ้ง Telegram (event loop ไม่ถูกบล็อกแล้ว จึงส่งได้) แล้ว
+        os._exit(1) ให้ supervisor restart ทันที เร็วกว่ารอ heartbeat-stale kill"""
+        if not mt5.is_wedged(stale_after):
+            return
+        info = mt5.wedge_info()
+        log_event("MT5_WORKER_WEDGED", f"mt5_worker thread ค้าง: {info}")
+        try:
+            await tg(app, f"🚨 *MT5 Worker ค้าง*\n`{info}`\nกำลัง restart บอท...")
+        except Exception:
+            pass
+        import os as _os
+        _os._exit(1)
 
     from datetime import timezone as _tz2
 
@@ -528,6 +630,13 @@ def main():
         application.bot_data["scheduler"] = scheduler
         application.bot_data["check_symbol_switch"] = check_symbol_switch
 
+        # เริ่ม scheduler ก่อนงาน MT5 หนักๆ ด้านล่าง — heartbeat_job/jobs อื่นจะถูก
+        # schedule ไว้ตั้งแต่ตอนนี้ ไม่ต้องรอ connect_mt5/restore/cleanup loop เสร็จก่อน
+        # (run_scan/run_trail_sl/run_position_check เช็ค connect_mt5()/auto_active เองอยู่แล้ว
+        # ถ้ายังต่อ MT5 ไม่ติดจะ no-op เฉยๆ ไม่ error)
+        scheduler.start()
+        config.write_heartbeat()
+
         import news_filter
         import asyncio
         asyncio.create_task(news_filter.fetch_news_loop(application))
@@ -537,8 +646,11 @@ def main():
         now = now_bkk().strftime("%H:%M:%S")
         if connect_mt5():
             import config as _cfg
-            await check_symbol_switch(startup=True)
+            config.write_heartbeat()
             restore_info = restore_runtime_state()
+            config.write_heartbeat()
+            await check_symbol_switch(startup=True)
+            config.write_heartbeat()
 
             # ── auto_active reset เป็น False ทุกครั้งที่ restart (ค่า default ใน config.py)
             # เปิดอัตโนมัติให้กลับมาทำงานต่อ กันลืมเปิดมือหลัง restart/crash ───────────
@@ -549,6 +661,7 @@ def main():
                 log_event("AUTO_RESUME", "auto_active=False หลัง start → เปิดอัตโนมัติ")
 
             info = mt5.account_info()
+            config.write_heartbeat()
             acc_txt = f"Account: {info.login} | Balance: {info.balance:.2f}" if info else ""
             mt5_to_bkk_hours = TZ_OFFSET - MT5_SERVER_TZ
             tz_txt = f"MT5 Server=UTC+{MT5_SERVER_TZ} | MT5->BKK=+{mt5_to_bkk_hours} | Display=BKK"
@@ -587,6 +700,7 @@ def main():
             # ── ลบ pending order M1 ที่เก่ากว่า 6 ชม. ──
             _deleted_tickets = []
             for sym_name in SYMBOL_CONFIG:
+                config.write_heartbeat()
                 old_orders = mt5.orders_get(symbol=sym_name)
                 if not old_orders:
                     continue
@@ -619,8 +733,6 @@ def main():
                 f"• Server: `{MT5_SERVER}`"
             )
 
-        scheduler.start()
-
         print(log_msg)
         try:
             await application.bot.send_message(
@@ -628,13 +740,16 @@ def main():
             )
         except Exception as e:
             print(f"[{now}] ⚠️ ส่ง Telegram ไม่ได้: {e}")
+            log_error("TG_SEND_ERROR", f"startup msg: {type(e).__name__}: {e}")
 
         active_tfs = [tf for tf, on in TF_ACTIVE.items() if on]
         save_runtime_state()
         print(f"[{now}] ✅ Auto Scan เริ่มทำงาน — สแกนทุก {SCAN_INTERVAL} นาที | TF: {active_tfs}")
 
     app.post_init = post_init
-    app.run_polling()
+    # bootstrap_retries=3 กัน process ตายตอนสตาร์ท ถ้า delete_webhook timeout (เน็ต VPS สะดุด)
+    # ค่า default=0 = ไม่ retry เลย -> TimedOut หลุดออกมาทำให้ทั้ง process exit เงียบ ๆ
+    app.run_polling(bootstrap_retries=3)
 
 
 if __name__ == '__main__':

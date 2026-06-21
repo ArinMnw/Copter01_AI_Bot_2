@@ -1,6 +1,6 @@
 import time as _time
 
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 
 import config
 from strategy4 import _find_prev_pivot_swing_high, _find_prev_pivot_swing_low

@@ -21,13 +21,18 @@ def _load_model():
             _model = joblib.load(MODEL_PATH)
         except Exception as e:
             print(f"[ML Scoring] Error loading model: {e}")
+            try:
+                from bot_log import log_error
+                log_error("ML_SCORING_ERROR", f"load model: {type(e).__name__}: {e}")
+            except Exception:
+                pass
 
 def extract_features(symbol, tf, signal, current_price, time_bkk):
     """
     Extract basic features for ML model.
     Fetches real RSI, ATR, and EMA distance from MT5.
     """
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
     import pandas as pd
     import numpy as np
     
@@ -36,7 +41,7 @@ def extract_features(symbol, tf, signal, current_price, time_bkk):
     if mt5.terminal_info() is not None:
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 60)
         if rates is not None and len(rates) > 50:
-            df = pd.DataFrame(list(rates), columns=rates[0]._asdict().keys())
+            df = pd.DataFrame(rates)
             
             delta = df['close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -98,6 +103,11 @@ def predict_success_probability(features: dict) -> float:
         return float(prob)
     except Exception as e:
         print(f"[ML Scoring] Prediction error: {e}")
+        try:
+            from bot_log import log_error
+            log_error("ML_SCORING_ERROR", f"predict: {type(e).__name__}: {e}")
+        except Exception:
+            pass
         return 0.5
 
 def train_dummy_model():
@@ -147,7 +157,7 @@ def train_from_mt5_history(days=30):
         return False
         
     try:
-        import MetaTrader5 as mt5
+        import mt5_worker as mt5
         import pandas as pd
         import numpy as np
         import config
@@ -173,7 +183,7 @@ def train_from_mt5_history(days=30):
         rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M15, rates_start, end_time)
         df_rates = pd.DataFrame()
         if rates is not None and len(rates) > 0:
-            df_rates = pd.DataFrame(list(rates), columns=rates[0]._asdict().keys())
+            df_rates = pd.DataFrame(rates)
             df_rates['time'] = pd.to_datetime(df_rates['time'], unit='s')
             df_rates.set_index('time', inplace=True)
             
@@ -241,4 +251,9 @@ def train_from_mt5_history(days=30):
         return True
     except Exception as e:
         print(f"[ML Scoring] Error during training: {e}")
+        try:
+            from bot_log import log_error
+            log_error("ML_SCORING_ERROR", f"training: {type(e).__name__}: {e}")
+        except Exception:
+            pass
         return False

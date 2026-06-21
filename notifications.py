@@ -1,4 +1,4 @@
-﻿import re
+import re
 import config as _config
 from bot_log import log_event
 from config import *

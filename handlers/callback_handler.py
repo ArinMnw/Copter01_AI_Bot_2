@@ -258,6 +258,11 @@ async def handle_callback(update, ctx):
                     await checker()
             except Exception as e:
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ toggle_auto symbol check error: {e}")
+                try:
+                    from bot_log import log_error as _lerr
+                    _lerr("CALLBACK_ERROR", f"toggle_auto symbol check: {type(e).__name__}: {e}")
+                except Exception:
+                    pass
         try:
             await query.edit_message_text(
                 f"⚙️ *Auto Trade: {status}*\n⏰ สแกนทุก {config.SCAN_INTERVAL} นาที",
@@ -602,6 +607,11 @@ async def handle_callback(update, ctx):
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ scheduler ไม่พบใน bot_data")
         except Exception as e:
             print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚠️ reschedule error: {e}")
+            try:
+                from bot_log import log_error as _lerr
+                _lerr("CALLBACK_ERROR", f"reschedule: {type(e).__name__}: {e}")
+            except Exception:
+                pass
         try:
             await query.edit_message_text(
                 f"⏰ *ตั้งค่า Scan Interval*\n━━━━━━━━━━━━━━━━━\n⏰ ปัจจุบัน: *ทุก {config.SCAN_INTERVAL} นาที*\n\nเลือกความถี่:",

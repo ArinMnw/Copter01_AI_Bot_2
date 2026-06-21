@@ -81,7 +81,7 @@ BUTTON_ROUTES = {
 async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_str: str, symbol_str: str = None):
     """ฟังก์ชันค้นหาและแสดงผล OHLC ของแท่งราคาตามเวลา BKK ที่ระบุ"""
     from datetime import datetime, timezone, timedelta
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
     import config
 
     tf_str = tf_str.upper()
@@ -280,7 +280,7 @@ def _batch_find_detect(tf_str: str, windows: "list[tuple[int,int]]") -> "dict[in
 async def handle_trend_lookup(update, context, tf_str: str, date_str: str, time_str: str):
     """ค้นหา HHLL trend ณ เวลาที่ระบุ — แสดง 8 swing points ล่าสุดพร้อมราคา bar time confirm detect"""
     from datetime import datetime, timezone, timedelta
-    import MetaTrader5 as mt5
+    import mt5_worker as mt5
     import config
 
     tf_str = tf_str.upper()

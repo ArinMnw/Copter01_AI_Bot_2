@@ -19,7 +19,7 @@ Win Rate อ้างอิง: 85-90%+ (AMD Cycle + Inversion FVG)
   7. TP: ขอบเอเชียฝั่งตรงข้าม (หรือ fallback RR 1.5R)
 """
 
-import MetaTrader5 as mt5
+import mt5_worker as mt5
 from datetime import datetime, timedelta, timezone, time
 import config
 from config import SL_BUFFER
