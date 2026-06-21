@@ -26,6 +26,41 @@ _error_last_sent: dict = {}
 _ERROR_COOLDOWN = 300  # วินาที — ไม่ส่ง error ซ้ำภายใน 5 นาที
 
 
+def _install_stall_watchdog() -> None:
+    """ติดตั้ง diagnostic watchdog สำหรับ STALL — ถ้า event loop แข็ง (MT5 call
+    ค้าง) นานเกิน config.STALL_TRACE_TIMEOUT วิ จะ dump stack trace ของทุก
+    thread ไปไฟล์ logs/debug/stall_trace.log ให้รู้ว่าค้างอยู่ที่บรรทัด/MT5
+    call ไหนแน่ ๆ (ก่อนหน้านี้ supervisor kill ที่ 180s ก่อน log ไหนจะทันเขียน)
+
+    ใช้ watchdog thread ภายในของ faulthandler เอง (อ่าน stack อย่างเดียว ไม่เรียก
+    MT5 เลย) — ไม่ย้าย MT5 call ไป thread อื่นเด็ดขาด (เคยทำพัง order_send มาแล้ว
+    เพราะ MT5 ผูกกับ thread ที่ initialize ไว้)
+    """
+    import faulthandler
+    from bot_log import DEBUG_LOG_DIR
+    import os as _os
+    _os.makedirs(DEBUG_LOG_DIR, exist_ok=True)
+    path = _os.path.join(DEBUG_LOG_DIR, "stall_trace.log")
+    f = open(path, "a", encoding="utf-8")
+    config._stall_trace_file = f
+    faulthandler.enable(file=f)
+    _rearm_stall_watchdog()
+
+
+def _rearm_stall_watchdog() -> None:
+    """รีเซ็ตนาฬิกาจับเวลา — เรียกทุกครั้งที่ event loop ยังมีชีวิต (จาก
+    write_heartbeat_job ทุก 15s) ถ้า loop แข็งจริง จะไม่มีใครมาเรียกฟังก์ชันนี้
+    ต่อ → ตัวจับเวลาที่ตั้งไว้ครั้งล่าสุดจะ fire เอง แล้ว dump stack"""
+    import faulthandler
+    if config._stall_trace_file is None:
+        return
+    faulthandler.cancel_dump_traceback_later()
+    faulthandler.dump_traceback_later(
+        config.STALL_TRACE_TIMEOUT, repeat=False,
+        file=config._stall_trace_file, exit=False,
+    )
+
+
 async def _tg_error(app, job_name: str, exc: Exception) -> None:
     """ส่ง error ไป Telegram พร้อม dedup กัน spam"""
     import time, traceback
@@ -83,6 +118,7 @@ def main():
     _sys.excepthook = _fatal_excepthook
 
     setup_python_logging()
+    _install_stall_watchdog()
     log_event("APP_START", "Bot starting", symbol=SYMBOL, scan_interval=SCAN_INTERVAL)
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("🤖 Copter Gold Bot — ท่าที่ 1")
@@ -461,6 +497,7 @@ def main():
         ไม่เรียก MT5 — แค่ stamp ts; ถ้า event loop แข็ง (mt5 blocking call ค้าง)
         ts จะ freeze ทันที → supervisor เห็น ts เก่าเกิน threshold → kill+restart"""
         config.write_heartbeat()
+        _rearm_stall_watchdog()
 
     from datetime import timezone as _tz2
 
