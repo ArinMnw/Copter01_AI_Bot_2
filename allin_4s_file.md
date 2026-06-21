@@ -48,7 +48,7 @@
 ---
 
 ## 📂 โฟลเดอร์: `กลุ่มDaf RP3`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ALCHEMIST 2.00 AbayF  (1)_unlocked.pdf`
+- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ALCHEMIST 2.00 AbayFX (1)_unlocked.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\Candlestick (1) RP3 (1).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\Candlestick (1) RP3(1).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\Candlestick (1) RP3.pdf`
@@ -59,7 +59,7 @@
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ท่าไม้ตายอออิน4วิ 1.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ท่าไม้ตายอออิน4วิ 6.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4 (1).pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4.pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4.pdf`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3 (1).pdf`
 - [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\แจกของครั้งใหญ่1.pdf`
