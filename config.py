@@ -12,7 +12,26 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # ── Timezone offset สำหรับ display (Bangkok UTC+7) ──────────
 # ถ้าเครื่อง Windows ตั้ง timezone ผิด ให้ปรับ TZ_OFFSET
 TZ_OFFSET = 7   # UTC+7 Bangkok
-MT5_SERVER_TZ = 1  # MT5 server UTC offset (IUXMarkets = UTC+1) — ลบออกจาก bar time ก่อนแปลง
+MT5_SERVER_TZ = 1  # ค่าเริ่มต้นก่อน auto-refresh (ดู _refresh_mt5_server_tz ด้านล่าง) —
+                    # broker server time เปลี่ยนตาม DST ปีละ 2 ครั้ง hardcode ตรงๆ
+                    # ทำให้เลขนี้ผิดไปครึ่งปี (ทุกจุดที่อ่าน config.MT5_SERVER_TZ ตรงๆ
+                    # เช่น trailing.py/scanner.py/handlers/* จะแปลง bar time ผิดตามไปด้วย)
+
+_mt5_server_tz_checked_at = 0.0
+_MT5_SERVER_TZ_REFRESH_SEC = 300.0  # DST เปลี่ยนปีละ 2 ครั้ง ไม่ต้อง refresh ถี่
+
+
+def _refresh_mt5_server_tz(tick_ts: int, now_ts: float) -> None:
+    """อัปเดต MT5_SERVER_TZ จาก tick.time จริงเทียบกับเวลา UTC ปัจจุบัน แทนเลข hardcode
+    ที่ผิดไปครึ่งปีตอน broker สลับ DST — เรียกจาก mt5_ts_to_bkk() ทุกครั้งที่มี tick สด
+    (throttle ด้วย _MT5_SERVER_TZ_REFRESH_SEC กันอัปเดตถี่เกินจำเป็น)"""
+    global MT5_SERVER_TZ, _mt5_server_tz_checked_at
+    if (now_ts - _mt5_server_tz_checked_at) < _MT5_SERVER_TZ_REFRESH_SEC:
+        return
+    _mt5_server_tz_checked_at = now_ts
+    offset = round((tick_ts - now_ts) / 3600.0)
+    if -12 <= offset <= 14:
+        MT5_SERVER_TZ = offset
 
 def now_bkk() -> datetime:
     """คืนเวลา Bangkok โดยยึด MT5 server time ก่อน แล้วค่อย fallback เป็น MT5->BKK"""
@@ -48,7 +67,9 @@ def mt5_ts_to_bkk(ts: int | float | None) -> datetime | None:
     try:
         if ts is None:
             return None
-        return datetime.fromtimestamp(int(ts), tz=timezone.utc) + timedelta(hours=TZ_OFFSET - MT5_SERVER_TZ)
+        ts_int = int(ts)
+        _refresh_mt5_server_tz(ts_int, datetime.now(timezone.utc).timestamp())
+        return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET - MT5_SERVER_TZ)
     except Exception:
         return None
 
