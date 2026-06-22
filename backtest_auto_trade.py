@@ -968,11 +968,40 @@ def load_mt5_history_orders(start_bkk: datetime, end_bkk: datetime, symbol: str,
     bkk_tz = timezone(timedelta(hours=getattr(config, "TZ_OFFSET", 7)))
     from_dt = start_bkk.replace(tzinfo=bkk_tz)
     to_dt = (end_bkk + timedelta(days=close_search_days)).replace(tzinfo=bkk_tz)
-    deals = mt5.history_deals_get(from_dt, to_dt) or []
-    orders = mt5.history_orders_get(from_dt, to_dt) or []
+    wanted_symbol = symbol or config.SYMBOL
+
+    def _fetch_history_once() -> tuple[list, list, object]:
+        fetched_deals = mt5.history_deals_get(from_dt, to_dt) or []
+        fetched_orders = mt5.history_orders_get(from_dt, to_dt) or []
+        try:
+            err = mt5.last_error()
+        except Exception:
+            err = None
+        return list(fetched_deals), list(fetched_orders), err
+
+    deals, orders, first_err = _fetch_history_once()
+    if not deals and not orders:
+        progress(f"MT5 history returned empty (last_error={first_err}); reinitializing MT5 and retrying once...")
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+        initialized = mt5.initialize()
+        try:
+            retry_err = mt5.last_error()
+        except Exception:
+            retry_err = None
+        if initialized:
+            try:
+                mt5.symbol_select(wanted_symbol, True)
+            except Exception:
+                pass
+            deals, orders, retry_fetch_err = _fetch_history_once()
+            progress(f"MT5 history retry loaded: deals={len(deals)} orders={len(orders)} last_error={retry_fetch_err}")
+        else:
+            progress(f"MT5 history retry skipped: initialize failed last_error={retry_err}")
     progress(f"MT5 history loaded: deals={len(deals)} orders={len(orders)}")
 
-    wanted_symbol = symbol or config.SYMBOL
     order_by_ticket = {int(o.ticket): o for o in orders if getattr(o, "symbol", "") == wanted_symbol}
     positions = {}
 
@@ -1132,6 +1161,25 @@ def _sim_live_rows(sim_trades: list[tuple[str, dict]]) -> list[dict]:
             "bt_sl_guard_group": t.get("sl_guard_group", ""),
             "bt_sl_guard_trigger_tf": t.get("sl_guard_trigger_tf", ""),
         }
+        for key in (
+            "pd_h",
+            "pd_l",
+            "pd_fib_382",
+            "pd_fib_618",
+            "pd_fallback_used",
+            "pd_outside_range",
+            "pd_fill_h",
+            "pd_fill_l",
+            "pd_round2_h",
+            "pd_round2_l",
+            "pd_round2_changed",
+            "pd_pending_h",
+            "pd_pending_l",
+            "pd_pending_round2_h",
+            "pd_pending_round2_l",
+            "pd_pending_round2_changed",
+        ):
+            row[key] = t.get(key, "")
         trail_events = list(t.get("trail_events") or [])
         if trail_events:
             last_trail = trail_events[-1]
@@ -1286,6 +1334,25 @@ def _backtest_only_gap_reason(sim: dict, nearest: dict, time_tolerance_min: floa
     return base
 
 
+def _annotate_live_window_gap(sim: dict, live_rows: list[dict], time_tolerance_min: float) -> str:
+    live_times = [row.get("fill_ts") for row in live_rows if isinstance(row.get("fill_ts"), datetime)]
+    sim_ts = sim.get("fill_ts")
+    if not isinstance(sim_ts, datetime):
+        return ""
+    if not live_times:
+        return "BT_NO_LIVE_ROWS"
+    first_live = min(live_times)
+    last_live = max(live_times)
+    sim["live_window_first_fill_ts"] = first_live
+    sim["live_window_last_fill_ts"] = last_live
+    tolerance = timedelta(minutes=float(time_tolerance_min or 0.0))
+    if sim_ts < first_live - tolerance:
+        return "BT_BEFORE_FIRST_FILTERED_LIVE_FILL"
+    if sim_ts > last_live + tolerance:
+        return "BT_AFTER_LAST_FILTERED_LIVE_FILL"
+    return ""
+
+
 def _compare_note(live: dict, sim: dict, match_quality: str = "") -> str:
     live_bucket = _close_bucket(live)
     sim_bucket = _close_bucket(sim)
@@ -1407,7 +1474,11 @@ def compare_live_vs_backtest(
         sim = dict(sim_row)
         nearest = _nearest_candidate(sim, live_rows, "live")
         sim.update(nearest)
-        sim["gap_reason"] = _backtest_only_gap_reason(sim, nearest, time_tolerance_min, entry_tolerance)
+        gap_reason = _backtest_only_gap_reason(sim, nearest, time_tolerance_min, entry_tolerance)
+        live_window_gap = _annotate_live_window_gap(sim, live_rows, time_tolerance_min)
+        if live_window_gap:
+            gap_reason = f"{live_window_gap}:{gap_reason}"
+        sim["gap_reason"] = gap_reason
         backtest_only.append(sim)
     mismatches = [
         m for m in matches
@@ -1497,6 +1568,11 @@ def enrich_compare_with_raw_replay_context(result: dict, all_trades: list[tuple[
         live["nearest_raw_replay_sl_guard_swing_ref"] = trade.get("sl_guard_swing_ref", "")
         live["nearest_raw_replay_time_diff_min"] = round(time_diff, 2)
         live["nearest_raw_replay_entry_diff"] = round(entry_diff, 2)
+        raw_reason = str(trade.get("cancel_reason", trade.get("reason", "")) or "").upper()
+        if "PD FIBO PLUS" in raw_reason:
+            current_gap = str(live.get("gap_reason", "") or "")
+            if not current_gap.startswith("REPLAY_PD_REJECTED:"):
+                live["gap_reason"] = f"REPLAY_PD_REJECTED:{current_gap or 'NEAREST_RAW_PD_FAIL'}"
 
 
 def _dedupe_live_rows(rows: list[dict]) -> list[dict]:
@@ -1830,6 +1906,29 @@ def compare_result_rows(result: dict) -> list[dict]:
             for idx in range(1, SCALE_OUT_COLUMNS + 1)
         }
 
+    bt_pd_diag_keys = (
+        "pd_h",
+        "pd_l",
+        "pd_fib_382",
+        "pd_fib_618",
+        "pd_fallback_used",
+        "pd_outside_range",
+        "pd_fill_h",
+        "pd_fill_l",
+        "pd_round2_h",
+        "pd_round2_l",
+        "pd_round2_changed",
+        "pd_pending_h",
+        "pd_pending_l",
+        "pd_pending_round2_h",
+        "pd_pending_round2_l",
+        "pd_pending_round2_changed",
+    )
+
+    def _add_bt_pd_diag(prefix_row: dict, sim_row: dict) -> None:
+        for key in bt_pd_diag_keys:
+            prefix_row[f"bt_{key}"] = sim_row.get(key, "")
+
     rows = []
     for m in result["matches"]:
         live = m["live"]
@@ -1887,6 +1986,7 @@ def compare_result_rows(result: dict) -> list[dict]:
         }
         row.update(_scale_cols("live", live))
         row.update(_scale_cols("bt", sim))
+        _add_bt_pd_diag(row, sim)
         rows.append(row)
     for live in result["live_only"]:
         row = {"status": "LIVE_ONLY", "gap_reason": live.get("gap_reason", ""), "live_ticket": live["ticket"], "live_fill_ts": live["fill_ts"], "live_close_ts": live.get("close_ts", ""), "live_close_price": live.get("close_price", ""), "live_side": live["side"], "live_entry": live["entry"], "live_pnl": live.get("profit", 0.0), "live_reason": live.get("reason", ""), "live_entry_comment": live.get("entry_comment", live.get("comment", "")), "live_s14_family": live.get("s14_family", ""), "live_trail_count": live.get("live_trail_count", ""), "live_last_trail_ts": live.get("live_last_trail_ts", ""), "live_last_trail_sl": live.get("live_last_trail_sl", ""), "live_last_trail_source": live.get("live_last_trail_source", ""), "live_trail_path": live.get("live_trail_path", ""), "live_close_vs_trail_sl_diff": live.get("live_close_vs_trail_sl_diff", ""), "live_sl_guard_close_ts": live.get("live_sl_guard_close_ts", ""), "live_sl_guard_activate_ts": live.get("live_sl_guard_activate_ts", ""), "live_sl_guard_group": live.get("live_sl_guard_group", ""), "live_sl_guard_trigger_tf": live.get("live_sl_guard_trigger_tf", ""), "live_sl_guard_count": live.get("live_sl_guard_count", ""), "live_sl_guard_trigger_candidates": live.get("live_sl_guard_trigger_candidates", ""), "live_sl_guard_request_price": live.get("live_sl_guard_request_price", ""), "live_sl_guard_spread": live.get("live_sl_guard_spread", "")}
@@ -1937,6 +2037,7 @@ def compare_result_rows(result: dict) -> list[dict]:
     for sim in result["backtest_only"]:
         row = {"status": "BACKTEST_ONLY", "gap_reason": sim.get("gap_reason", ""), "bt_fill_ts": sim["fill_ts"], "bt_close_ts": sim.get("close_ts", ""), "bt_close_price": sim.get("close_price", ""), "bt_side": sim.get("side", ""), "bt_entry": sim["entry"], "bt_pnl": sim["profit"], "bt_reason": sim.get("reason", ""), "bt_s14_family": sim.get("s14_family", ""), "bt_trail_count": sim.get("bt_trail_count", ""), "bt_last_trail_ts": sim.get("bt_last_trail_ts", ""), "bt_last_trail_sl": sim.get("bt_last_trail_sl", ""), "bt_last_trail_source": sim.get("bt_last_trail_source", ""), "bt_trail_path": sim.get("bt_trail_path", ""), "bt_sl_guard_group": sim.get("bt_sl_guard_group", ""), "bt_sl_guard_trigger_tf": sim.get("bt_sl_guard_trigger_tf", "")}
         row.update(_scale_cols("bt", sim))
+        _add_bt_pd_diag(row, sim)
         for key in ("nearest_live_fill_ts", "nearest_live_entry", "nearest_live_reason", "nearest_live_time_diff_min", "nearest_live_entry_diff"):
             row[key] = sim.get(key, "")
         rows.append(row)
@@ -2103,8 +2204,12 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
         "bt_fill_ts", "bt_close_ts", "bt_close_price", "bt_side", "bt_entry", "bt_pnl",
         "bt_scale_out_1_pnl", "bt_scale_out_2_pnl", "bt_scale_out_3_pnl", "bt_scale_out_4_pnl",
         "bt_reason", "match_quality", "match_score", "time_diff_min", "entry_diff", "close_price_diff", "pnl_diff",
+        "bt_pd_h", "bt_pd_l", "bt_pd_fib_382", "bt_pd_fib_618", "bt_pd_fallback_used", "bt_pd_outside_range",
+        "bt_pd_fill_h", "bt_pd_fill_l", "bt_pd_round2_h", "bt_pd_round2_l", "bt_pd_round2_changed",
+        "bt_pd_pending_h", "bt_pd_pending_l", "bt_pd_pending_round2_h", "bt_pd_pending_round2_l", "bt_pd_pending_round2_changed",
         "bt_trail_count", "bt_last_trail_ts", "bt_last_trail_sl", "bt_last_trail_source", "bt_trail_path",
         "bt_sl_guard_group", "bt_sl_guard_trigger_tf",
+        "live_window_first_fill_ts", "live_window_last_fill_ts",
         "nearest_bt_fill_ts", "nearest_bt_entry", "nearest_bt_reason", "nearest_bt_time_diff_min", "nearest_bt_entry_diff",
         "nearest_raw_replay_tf", "nearest_raw_replay_entry_ts", "nearest_raw_replay_entry",
         "nearest_raw_replay_close_type", "nearest_raw_replay_cancel_reason",
@@ -3496,6 +3601,7 @@ def main() -> None:
     parser.add_argument("--s2-parallel-lifecycle-tf", action="store_true", help="Diagnostic only: manage S2 parallel fills/SL/TP on the smallest TF in the parallel group instead of the signal TF.")
     parser.add_argument("--s2-disable-sweep-filter", action="store_true", help="Diagnostic only: temporarily set SWEEP_FILTER_ENABLED=False for this replay run.")
     parser.add_argument("--s2-fill-before-cancel-bars", action="store_true", help="Diagnostic only: when a cancel_bars expiry bar also touches entry, let S2 fill before cancelling.")
+    parser.add_argument("--s3-disable-pd-fibo-plus", action="store_true", help="Diagnostic only: temporarily add S3 to PDFIBOPLUS_SKIP_SIDS for this replay run.")
     parser.add_argument("--mt5-close-search-days", type=int, default=14, help="Extra MT5 history days after --end to find exits for filled orders.")
     parser.add_argument("--compare-csv", nargs="?", const="", help="Optional CSV path/name for compare detail. Defaults under excel_reports/backtest_compare.")
     parser.add_argument("--compare-xlsx", nargs="?", const="", help="Optional Excel .xlsx path/name for compare detail. Defaults under excel_reports/backtest_compare.")
@@ -3551,6 +3657,13 @@ def main() -> None:
         s2_diagnostic_overrides.append("SWEEP_FILTER_ENABLED=False")
     sim_s458_backtest.S2_PARALLEL_LIFECYCLE_TF = bool(args.s2_parallel_lifecycle_tf)
     sim_s458_backtest.S2_FILL_BEFORE_CANCEL_BARS = bool(args.s2_fill_before_cancel_bars)
+    s3_diagnostic_overrides = []
+    if args.s3_disable_pd_fibo_plus:
+        pd_skip_sids = set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ()))
+        pd_skip_sids.add(3)
+        config.PDFIBOPLUS_SKIP_SIDS = tuple(sorted(pd_skip_sids))
+        sim_lifecycle.PDFIBOPLUS_SKIP_SIDS = set(config.PDFIBOPLUS_SKIP_SIDS)
+        s3_diagnostic_overrides.append("PDFIBOPLUS_SKIP_SIDS+=S3")
     selected_symbol = args.symbol or load_state_symbol() or config.SYMBOL
     config.set_runtime_symbol(selected_symbol)
     sim_s1_backtest.SYMBOL = selected_symbol
@@ -3582,6 +3695,8 @@ def main() -> None:
         print(f"S14 Diagnostic Overrides: {', '.join(s14_diagnostic_overrides)}")
     if s2_diagnostic_overrides:
         print(f"S2 Diagnostic Overrides: {', '.join(s2_diagnostic_overrides)}")
+    if s3_diagnostic_overrides:
+        print(f"S3 Diagnostic Overrides: {', '.join(s3_diagnostic_overrides)}")
     print(f"Window   : {start_bkk} -> {end_bkk} (Bangkok timezone)")
     print(f"Strategy : {strategies}")
     print_feature_snapshot()
@@ -3740,6 +3855,8 @@ def main() -> None:
         report_variants.append("s2_no_sweep_filter")
     if args.s2_fill_before_cancel_bars:
         report_variants.append("s2_fill_before_cancel")
+    if args.s3_disable_pd_fibo_plus:
+        report_variants.append("s3_no_pd")
     report_variant = "_".join(report_variants) if report_variants else None
     default_report_name = default_compare_report_base(
         start_bkk,
@@ -3844,6 +3961,7 @@ def main() -> None:
                     "s2_include_connected_fvg_context": args.s2_include_connected_fvg_context,
                     "s2_parallel_lifecycle_tf": args.s2_parallel_lifecycle_tf,
                     "s2_fill_before_cancel_bars": args.s2_fill_before_cancel_bars,
+                    "s3_disable_pd_fibo_plus": args.s3_disable_pd_fibo_plus,
                     "scale_out_column_volume": scale_out_column_volume(config.SYMBOL),
                 },
             )

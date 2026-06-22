@@ -99,19 +99,48 @@ def _as_records(rates) -> list[dict]:
 
 def _fetch_rates(tf_name: str, tf_val: int, range_end_utc: datetime | None = None):
     total = TF_EXTRA_BARS.get(tf_name, 500) + 8000
-    if range_end_utc is None:
-        return mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
 
-    pad_bars = max(
-        120,
-        int(getattr(config, "HHLL_LOOKBACK", 500) or 500)
-        + int(getattr(config, "HHLL_LEFT", 5) or 5)
-        + int(getattr(config, "HHLL_RIGHT", 5) or 5)
-        + int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20)
-        + 20,
-    )
-    start_utc = SINCE - timedelta(seconds=TF_SECONDS.get(tf_name, 60) * pad_bars)
-    return mt5.copy_rates_range(SYMBOL, tf_val, start_utc, range_end_utc)
+    def _copy_once():
+        if range_end_utc is None:
+            return mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, total)
+        pad_bars = max(
+            120,
+            int(getattr(config, "HHLL_LOOKBACK", 500) or 500)
+            + int(getattr(config, "HHLL_LEFT", 5) or 5)
+            + int(getattr(config, "HHLL_RIGHT", 5) or 5)
+            + int(getattr(config, "TF_LOOKBACK", {}).get(tf_name, getattr(config, "SWING_LOOKBACK", 20)) or 20)
+            + 20,
+        )
+        start_utc = SINCE - timedelta(seconds=TF_SECONDS.get(tf_name, 60) * pad_bars)
+        return mt5.copy_rates_range(SYMBOL, tf_val, start_utc, range_end_utc)
+
+    rates = _copy_once()
+    if rates is not None and len(rates) >= 120:
+        return rates
+    try:
+        first_err = mt5.last_error()
+    except Exception:
+        first_err = None
+    try:
+        mt5.shutdown()
+    except Exception:
+        pass
+    initialized = mt5.initialize()
+    try:
+        retry_err = mt5.last_error()
+    except Exception:
+        retry_err = None
+    if not initialized:
+        print(f"[rates retry] {tf_name}: initialize failed last_error={retry_err}")
+        return rates
+    try:
+        mt5.symbol_select(SYMBOL, True)
+    except Exception:
+        pass
+    retry_rates = _copy_once()
+    retry_len = 0 if retry_rates is None else len(retry_rates)
+    print(f"[rates retry] {tf_name}: first_len={0 if rates is None else len(rates)} first_error={first_err} retry_len={retry_len}")
+    return retry_rates
 
 
 def _build_historical_hhll_data(rates: list[dict]) -> dict:
@@ -863,9 +892,13 @@ def backtest_tf(
                 continue
 
             trade = _fill_trade(order, bar)
-            pd = fill_pdfiboplus_round1(trade, full_rates)
+            # Runtime fill rechecks run right after the limit is filled, before
+            # the fill bar is closed. Use the prior closed bars for the zone
+            # snapshot, otherwise replay can let the fill bar rewrite PD state.
+            fill_check_rates = bars[:i] or full_rates
+            pd = fill_pdfiboplus_round1(trade, fill_check_rates)
             if pd.get("status") == "fail":
-                trades.append(_close_row(trade, "PD_FILL_FAIL", float(bar["close"]), bt))
+                trades.append(_close_row(trade, "PD_FILL_FAIL", float(trade["entry"]), trade["entry_time"]))
                 continue
             rsi = fill_rsi_recheck(trade, full_rates)
             if rsi.get("status") == "fail":
@@ -1213,6 +1246,11 @@ def backtest_multi_tf(
                 continue
 
             trade = _fill_trade(order, bar)
+            fill_check_rates = bars[:idx] or full_rates
+            pd = fill_pdfiboplus_round1(trade, fill_check_rates)
+            if pd.get("status") == "fail":
+                trades.append(_close_row(trade, "PD_FILL_FAIL", float(trade["entry"]), trade["entry_time"]))
+                continue
             rsi = fill_rsi_recheck(trade, full_rates)
             if rsi.get("status") == "fail":
                 trades.append(_close_row(trade, "RSI_FAIL", float(bar["close"]), bt))

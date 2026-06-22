@@ -13,7 +13,7 @@
 
 ## 📂 โฟลเดอร์: `เทคนิคการเทรดพี่นาย`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\เทคนิคการเทรดพี่นาย\2 ตัวเลือกให้คุณเลือกว่าคุณอยากเล่นสไตล์ไหนแล้วควรเรียนอะไรบ้าง.pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\เทคนิคการเทรดพี่นาย\All in 4s Collector’s Edition.pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\เทคนิคการเทรดพี่นาย\All in 4s Collector’s Edition.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\เทคนิคการเทรดพี่นาย\Demand&Supply.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\เทคนิคการเทรดพี่นาย\FIBO.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\เทคนิคการเทรดพี่นาย\กลับต้ว.pdf`
@@ -43,7 +43,7 @@
 ## 📂 โฟลเดอร์: `TikTok`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846699704.mp4`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846709698.mp4`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846737586.mp4`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\TikTok\1751846737586.mp4`
 
 ---
 
@@ -60,8 +60,8 @@
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\ท่าไม้ตายอออิน4วิ 6.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4 (1).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่ Nc แจกของครั้งใหญ่4.pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3 (1).pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3.pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3 (1).pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\พี่Nc แจกของครั้งใหญ่3.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\แจกของครั้งใหญ่1.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\กลุ่มDaf RP3\𝚂𝚎𝚝𝚛𝚌𝚝𝚞𝚛𝚎_𝙰𝚕𝚌𝚑𝚎𝚖𝚒𝚜𝚝_𝙷𝚝𝚏_𝙺𝚎𝚢⚤︎.pdf`
 
@@ -72,7 +72,7 @@
 - [x] `C:\Users\Copter\Downloads\อออิน4s\4CB5FAA80470E1A51585945B6EDA02DDC554E74A_โครงสร้างที่หน้าจับตามอง.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\4s(1).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\4s(2).pdf`
-- [ ] `C:\Users\Copter\Downloads\อออิน4s\All in 4s Collector’s Edition (2).pdf`
+- [x] `C:\Users\Copter\Downloads\อออิน4s\All in 4s Collector’s Edition (2).pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\วิชาอออิน4S upgrade .pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\วิชาแท่งเทียนสำนักALL IN 4S.pdf`
 - [x] `C:\Users\Copter\Downloads\อออิน4s\โครงสร้างกลับตัวหลอก.pdf`
