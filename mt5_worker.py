@@ -19,6 +19,19 @@ worker ไม่ตอบภายในเวลา ผู้เรียกจ
 คืน None ตอน fail ที่โค้ดทั้งระบบเช็คอยู่แล้ว) แทนที่จะค้าง caller (และถ้า caller
 คือ event loop หลัก ก็คือทั้งบอท) แบบไม่มีกำหนด — กัน MT5 read ค้าง freeze loop (STALL)
 
+อัปเดต (รอบ 2 — หลักฐานจาก VPS จริงหลัง deploy hybrid): order_send ที่ย้ายมารัน
+ตรงบน main thread แล้วยัง fail -2 ซ้ำ และ stall_trace.log จับได้ว่า main thread
+ค้างอยู่ใน open_order (เส้นเดียวกับ order_send) นานเกิน 2 นาที — ทั้งที่ก่อนหน้านี้
+พิสูจน์แล้วว่า order_send ไม่เคยค้าง สิ่งที่เปลี่ยนไปจาก Period 2 (PR#21 ที่ order_send
+สำเร็จเป็นส่วนใหญ่) คือ hybrid มี "worker thread แยกที่ยังเรียก mt5.* (read) พร้อมๆ
+กัน" ซึ่ง Period 2 ไม่มีเลย (ตอนนั้นทุกอย่างเดิน thread เดียวตามลำดับ ไม่มี concurrency)
+สมมติฐานใหม่: MT5 IPC ไม่ thread-safe ต่อการเรียกพร้อมกันจาก 2 thread แม้แต่ละ
+thread แยกกันเรียกได้ปกติ — order_send (main thread) ชนกับ read (worker thread)
+พร้อมกันจึงพังหรือค้าง เพิ่ม `_mt5_lock` (threading.Lock) คลุมทุกการเรียก _mt5.*
+ไม่ว่าจะมาจาก main thread (ตรง) หรือ worker thread (ผ่าน queue) เพื่อ serialize
+ไม่ให้ 2 thread เข้า MT5 IPC พร้อมกันเด็ดขาด — ฝั่ง trade ใช้ `acquire(timeout=...)`
+ไม่รอ lock แบบไม่มีกำหนด กัน main thread ค้างถ้า worker ดันไปค้างยึด lock อยู่ตอนนั้น
+
 ห้าม `import MetaTrader5` ตรงที่ไฟล์อื่นในโค้ด production — ให้
 `import mt5_worker as mt5` แทนเสมอ (ทุก call site ถูก migrate มาใช้โมดูลนี้แล้ว)
 """
@@ -32,10 +45,12 @@ from MetaTrader5 import *  # noqa: F401,F403 — ดึง constants (TRADE_ACTI
 
 CALL_TIMEOUT_DEFAULT = 15.0   # วิ — ผู้เรียกแต่ละจุดรอ worker ตอบนานสุดเท่านี้
 INIT_TIMEOUT          = 30.0  # initialize()/login() อาจช้ากว่าปกติตอน terminal เพิ่ง start
+TRADE_LOCK_TIMEOUT    = 10.0  # วิ — trade/connection รอ _mt5_lock นานสุดเท่านี้ ถ้า worker ยึดอยู่ค้าง
 
 _q: "queue.Queue" = queue.Queue()
 _worker_thread: "threading.Thread | None" = None
 _start_lock = threading.Lock()
+_mt5_lock = threading.Lock()   # serialize ทุกการเรียก _mt5.* กัน 2 thread ชน MT5 IPC พร้อมกัน
 
 # ── สถานะให้ watchdog เช็คว่า worker แข็งค้างอยู่ไหม (อัปเดตโดย worker thread เอง) ──
 current_call_name: str = ""          # ฟังก์ชันที่ worker กำลังรันอยู่ตอนนี้ (ว่าง = ไม่มี call ค้าง)
@@ -51,7 +66,8 @@ def _worker_loop() -> None:
         current_call_name = name
         current_call_started_ts = time.time()
         try:
-            result = func(*args, **kwargs)
+            with _mt5_lock:
+                result = func(*args, **kwargs)
             if not fut.cancelled():
                 fut.set_result(result)
         except Exception as e:
@@ -120,13 +136,29 @@ def wedge_info() -> str:
 #       ต้องอ่าน error จาก thread เดียวกับที่เพิ่งเรียก ถึงจะได้ค่าที่ถูกต้อง
 #       order_send ไม่เคยปรากฏว่าค้างใน stall dump เลย → รันตรงไม่ทำให้ STALL กลับมา
 #   • read ทั้งหมด → ผ่าน worker thread (timeout-protected, กัน STALL)
+#   • ทุกการเรียก _mt5.* (ทั้ง 2 กลุ่ม) ต้องถือ _mt5_lock ก่อน กัน main thread
+#     (trade) ชนกับ worker thread (read) เข้า MT5 IPC พร้อมกัน (ดูหัวไฟล์ "อัปเดต รอบ 2")
+
+def _call_direct(func, *args, **kwargs):
+    """เรียก _mt5.* ตรงบน thread ผู้เรียก แต่ขอ _mt5_lock ก่อนกัน race กับ worker
+    thread ที่อาจกำลังเรียก read อยู่พร้อมกัน รอ lock ได้ไม่เกิน TRADE_LOCK_TIMEOUT
+    ถ้าหมดเวลา (worker ค้างยึด lock อยู่) → คืน None ทันที ไม่รอค้างไม่มีกำหนด
+    (None ตรงกับ contract เดิมที่ caller เช็ค `if r is None`/`if not mt5.initialize()`
+    อยู่แล้วทั่วระบบ)"""
+    if not _mt5_lock.acquire(timeout=TRADE_LOCK_TIMEOUT):
+        return None
+    try:
+        return func(*args, **kwargs)
+    finally:
+        _mt5_lock.release()
+
 
 # trade/connection — รันตรงบน main thread (ห้ามย้ายไป worker เด็ดขาด)
-def initialize(*a, **kw):           return _mt5.initialize(*a, **kw)
-def login(*a, **kw):                return _mt5.login(*a, **kw)
-def shutdown(*a, **kw):             return _mt5.shutdown(*a, **kw)
-def last_error(*a, **kw):           return _mt5.last_error(*a, **kw)
-def order_send(*a, **kw):           return _mt5.order_send(*a, **kw)
+def initialize(*a, **kw):           return _call_direct(_mt5.initialize, *a, **kw)
+def login(*a, **kw):                return _call_direct(_mt5.login, *a, **kw)
+def shutdown(*a, **kw):             return _call_direct(_mt5.shutdown, *a, **kw)
+def last_error(*a, **kw):           return _call_direct(_mt5.last_error, *a, **kw)
+def order_send(*a, **kw):           return _call_direct(_mt5.order_send, *a, **kw)
 
 # read — ผ่าน worker thread (timeout กัน MT5 call ค้าง freeze event loop)
 def account_info(*a, **kw):         return _call(_mt5.account_info, *a, **kw)
