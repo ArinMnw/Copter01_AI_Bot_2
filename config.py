@@ -231,6 +231,11 @@ def SL_BUFFER(atr=None):
 # "swing"  = ต้องมี swing เกิดขึ้นฝั่งเดียวกันภายใน 4 แท่งหลังเกิด setup
 S1_ZONE_MODE = "swing"
 
+# ── ท่าไม้ตายอออิน 4 วิ (S20) VIP Features ────────────────
+S20_USE_PSYCHOLOGICAL_NUMBERS = True
+S20_PSYCHO_DIGITS = [7, 8, 9]  # เลขจิตวิทยาที่ใช้หลีกเลี่ยง 0 และ 5
+S20_DYNAMIC_FIBO = True        # หดเป้า RUN เหลือ KRH2 อัตโนมัติถ้าแท่งฐานใหญ่เกินไป
+
 # ── News Filter API ───────────────────────────────
 NEWS_FILTER_ENABLED = True
 NEWS_EMBARGO_BEFORE_MINS = 15
@@ -2321,3 +2326,5 @@ if os.path.exists(OPTIMIZED_PARAMS_FILE):
             _lerr("LOAD_OPTIMIZED_PARAMS_ERROR", f"{type(_e).__name__}: {_e}")
         except Exception:
             pass
+S20_HTF_FVG_FILTER = True
+S20_HTF_TFS = ['D1', 'H4']

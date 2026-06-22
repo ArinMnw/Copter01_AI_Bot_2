@@ -20,6 +20,7 @@ import MetaTrader5 as mt5
 
 import config
 import hhll_swing
+import htf_fvg
 from strategy20 import strategy_20
 
 SYMBOL = config.SYMBOL
@@ -32,6 +33,9 @@ TF_MAP = {
     "M15": (mt5.TIMEFRAME_M15, 96),
     "M30": (mt5.TIMEFRAME_M30, 48),
     "H1":  (mt5.TIMEFRAME_H1, 24),
+    "H4":  (mt5.TIMEFRAME_H4, 6),
+    "H12": (mt5.TIMEFRAME_H12, 2),
+    "D1":  (mt5.TIMEFRAME_D1, 1),
 }
 
 def fetch_bars(symbol, tf_name, days):
@@ -189,7 +193,7 @@ def fmt_row(label, s):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=30)
-    ap.add_argument("--tf", default="M1,M5,M15,M30,H1")
+    ap.add_argument("--tf", default="M1,M5,M15,M30,H1,H4,H12,D1")
     ap.add_argument("--spread", type=float, default=0.20)
     ap.add_argument("--fibo", type=float, default=None)
     args = ap.parse_args()
@@ -201,8 +205,15 @@ def main():
         print(f"MT5 initialize ล้มเหลว: {mt5.last_error()}")
         return
         
-    symbol = config.SYMBOL
-    print(f"Symbol: {symbol} | days={args.days} | spread=${args.spread:.2f}/trade | lot=0.01")
+    # --- [NEW] Pre-fetch HTF FVGs for Backtest ---
+    print("  fetching D1/H4 FVG Liquidity Zones for backtest...")
+    htf_fvg.clear_cache()
+    htf_fvg.fetch_active_fvgs("D1", SYMBOL, lookback=1000)
+    htf_fvg.fetch_active_fvgs("H4", SYMBOL, lookback=5000)
+    print("  Done fetching HTF FVGs.")
+    # ---------------------------------------------
+        
+    print(f"Symbol: {SYMBOL} | days={args.days} | spread=${args.spread:.2f}/trade | lot=0.01")
 
     # ── Prevent Look-ahead Bias in Backtest ──
     # S20_TREND_FILTER and S20.3 (HTF Fibo) rely on live H1 data.
@@ -214,7 +225,7 @@ def main():
     tf_list = [t.strip() for t in args.tf.split(",") if t.strip() in TF_MAP]
     bars_by_tf = {}
     for tf_name in tf_list:
-        bars = fetch_bars(symbol, tf_name, args.days)
+        bars = fetch_bars(SYMBOL, tf_name, args.days)
         if bars is None:
             print(f"! {tf_name}: ดึงข้อมูลไม่ได้ - ข้าม")
             continue
@@ -238,6 +249,20 @@ def main():
     for sp in sorted(list(sub_patterns)):
         sp_trades = [t for t in all_trades if t.get("sub_pattern") == sp]
         print(fmt_row(f"Sub-pattern {sp}", summarize(sp_trades)))
+
+    # Export to CSV
+    csv_file = "s20_backtest_summary.csv"
+    with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["TF", "Sub-Pattern", "Trades", "WinRate(%)", "P/L($)", "AvgWin($)", "AvgLoss($)", "MaxSLStreak"])
+        
+        for tf_name in tf_list:
+            for sp in sorted(list(sub_patterns)):
+                sp_tf_trades = [t for t in all_trades if t.get("tf") == tf_name and t.get("sub_pattern") == sp]
+                s = summarize(sp_tf_trades)
+                if s:
+                    writer.writerow([tf_name, sp, s['trades'], s['wr'], s['pnl'], s['avg_win'], s['avg_loss'], s['max_consec_sl']])
+    print(f"\n✅ Exported detailed breakdown to {csv_file}")
 
 if __name__ == "__main__":
     main()

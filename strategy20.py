@@ -2,26 +2,22 @@
 strategy20.py — S20 All in 4s (Hardcore Mode + VIP Enhancements)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Sub-patterns (ท่าย่อยตามฉบับ All in 4s):
-  S20.1: Classic 2-Bar — เขียว 2 แท่ง ปิดคลุมไส้ (กลับตัวสมบูรณ์)
-  S20.2: Wick Fill & Reject — ลงไปกินไส้เก่าแล้วปิดเหนือปลายไส้ (แท่งตำหนิ/ท่าไม้ตาย)
-  S20.3: Solid Momentum — แท่งตัน (Solid) ไม่มีไส้ บอกทิศทางแรง
-  S20.4: Small 2L-2H (Butterfly) — เทรนด์ขึ้น ย่อแดงสั้นๆ 1 แท่ง แล้วเขียวกลืนกิน (พักตัวสั้น)
-  S20.5: LQ Sweep (Candlestick Divergence) — ทะลุหลอกกวาด Liquidity แล้วถูกตบกลับเข้า FVG
-  S20.6: FVG Retest & Reject 
-  S20.7: Doji at Structure Break
-  S20.8: Candlestick Divergence
-  S20.9: Trap Engulfing Return
+  S20.1.Defect: แท่งตำหนิที่ต้องเกิดที่ Swing High/Low ในรอบ 20 แท่งเท่านั้น
+  S20.2.Small_2L / 2H: โครงสร้างย่อย กลับตัว 2L/2H ขนาดเล็ก
+  S20.3.Solid: แท่งตันปฏิเสธราคา (Solid Momentum)
 
 VIP Enhancements Added:
 - Psychological Numbers (หลบ 0 และ 5)
-- Fibo Targets: RUN (7.044) & KRH2 (3.097)
+- Fibo Targets: Wick Fill Target (1:1.5 RR)
 - Strict No-Touch SL
+- HTF FVG Liquidity Filter (D1/H4)
 """
 
 from datetime import time
 import config
 import hhll_swing
 from mt5_utils import calc_atr
+import htf_fvg
 
 def _in_session(dt_bkk) -> bool:
     """เช็ค Killzones (London/NY)"""
@@ -53,207 +49,188 @@ def _trend_allows(signal: str, tf: str) -> bool:
         return False
     return True
 
-def _has_fvg(rates, signal: str, start_idx: int) -> bool:
-    """ตรวจว่ามี FVG รองรับทิศทางนั้นหรือไม่"""
-    if start_idx < 2:
-        return False
-    c1, c2, c3 = rates[start_idx-2], rates[start_idx-1], rates[start_idx]
-    if signal == "BUY" and c3['low'] > c1['high']:
-        return True
-    if signal == "SELL" and c3['high'] < c1['low']:
-        return True
-    return False
-
 def _apply_psychological_number(price: float, is_buy: bool, is_tp: bool) -> float:
     """
-    VIP Rule: Adjusts the price to end in 3 or 7. Avoids 0 and 5.
+    VIP Rule: Adjusts the price to end in 7 or 8. Avoids 0 and 5.
     Front-runs the retail stops.
     """
-    if not getattr(config, "S20_USE_PSYCHO_NUMBERS", True):
+    if not getattr(config, "S20_USE_PSYCHOLOGICAL_NUMBERS", True):
         return price
         
     int_price = int(price)
-    remainder = int_price % 10
+    last_digit = int_price % 10
     
-    if remainder == 7:
-        target_int = int_price
-    elif remainder < 7:
-        if is_tp and is_buy:
-            target_int = int_price - remainder + 7
-            if target_int > price: target_int -= 10
-        else:
-            target_int = int_price - remainder + 7 - 10
-    else: 
-        if is_tp and is_buy:
-            target_int = int_price - remainder + 17
-            if target_int > price: target_int -= 1
+    offset = 0
+    if last_digit in (0, 1, 2):
+        offset = - (last_digit + 2)  # 0 -> -2 (ends in 8)
+    elif last_digit in (3, 4, 5, 6):
+        offset = (8 - last_digit)    # 5 -> +3 (ends in 8)
+    elif last_digit == 9:
+        offset = -1                  # 9 -> -1 (ends in 8)
+        
+    if last_digit == 7:
+        offset = 0
+        
+    return float(int_price + offset) + (price - int_price)
+
+def strategy_20(rates, tf="M5", dt_bkk=None) -> dict:
+    if not _in_session(dt_bkk):
+        return {"signal": "WAIT", "reason": "S20 - นอกเวลาทำการ", "pattern": "S20", "sid": 20}
+        
+    if rates is None or len(rates) < 20:
+        return {"signal": "WAIT", "reason": "S20 - ข้อมูลไม่พอ (ตัองการ 20+ แท่ง)", "pattern": "S20", "sid": 20}
+
+    atr = calc_atr(rates[:-1], 14) or 1.0
+
+    signal = None
+    res = {"signal": "WAIT", "reason": "", "pattern": "S20", "sid": 20}
+    sub_pattern = None
     
-    # ── อ่านตั้งค่า Pipeline ──
-    s_defect = getattr(config, "S20_TRIGGER_DEFECT", True)
-    s_2l2h = getattr(config, "S20_TRIGGER_2L2H", True)
-    s_solid = getattr(config, "S20_TRIGGER_SOLID_CLEAR", True)
-    s_fvg = getattr(config, "S20_TRIGGER_FVG_OB", True)
+    c_curr  = rates[-1]
+    c_prev1 = rates[-2]
+    c_prev2 = rates[-3]
+    c_prev3 = rates[-4]
 
-    m_magic = getattr(config, "S20_MODIFIER_MAGIC_NUM", True)
-    m_no_body = getattr(config, "S20_MODIFIER_NO_BODY_BRK", True)
-    m_fibo = getattr(config, "S20_MODIFIER_FIBO_CONF", True)
-
-    c_prev3 = rates[-4] if len(rates) >= 4 else None
-    c_prev2 = rates[-3] if len(rates) >= 3 else None
-    c_prev1 = rates[-2] if len(rates) >= 2 else None
-    c_curr  = rates[-1] if len(rates) >= 1 else None
-
-    # helper properties
     def is_green(c): return c and c['close'] > c['open']
     def is_red(c): return c and c['close'] < c['open']
     def body_size(c): return abs(c['close'] - c['open']) if c else 0
     def wick_top(c): return c['high'] - max(c['open'], c['close']) if c else 0
     def wick_bot(c): return min(c['open'], c['close']) - c['low'] if c else 0
-    
-    atr = calc_atr(rates[:-1], 14) or 1.0
 
-    signal = None
-    sub_pattern = None
+    # ── STAGE 1: Base Triggers (Strict High/Low Filter) ─────────────────
+    recent_rates = rates[-20:]
+    recent_high = max(r['high'] for r in recent_rates)
+    recent_low  = min(r['low']  for r in recent_rates)
+    
+    is_swing_high = (c_curr['high'] >= recent_high or c_prev1['high'] >= recent_high)
+    is_swing_low  = (c_curr['low'] <= recent_low or c_prev1['low'] <= recent_low)
+
     ref_bar = c_curr
 
-    # ── STAGE 1: Base Triggers ──────────────────────────────────────────
-    # 1. Defect Pullback (การดูดกลับรอยแหว่ง)
-    if not signal and s_defect and len(rates) >= 4:
-        if is_red(c_prev1) and wick_bot(c_prev1) > body_size(c_prev1) and is_green(c_curr) and c_curr['low'] <= c_prev1['low']:
-            signal, sub_pattern, ref_bar = "BUY", "S20.Base.Defect", c_curr
-        elif is_green(c_prev1) and wick_top(c_prev1) > body_size(c_prev1) and is_red(c_curr) and c_curr['high'] >= c_prev1['high']:
-            signal, sub_pattern, ref_bar = "SELL", "S20.Base.Defect", c_curr
-
-    # 2. 2L/2H Structure (โครงสร้างเบรคหลอก)
-    if not signal and s_2l2h and len(rates) >= 4:
-        if is_green(c_curr) and c_curr['low'] < c_prev1['low'] and c_curr['close'] > c_prev1['low']:
-            signal, sub_pattern, ref_bar = "BUY", "S20.Base.2L2H", c_curr
-        elif is_red(c_curr) and c_curr['high'] > c_prev1['high'] and c_curr['close'] < c_prev1['high']:
-            signal, sub_pattern, ref_bar = "SELL", "S20.Base.2L2H", c_curr
-
-    # 3. Solid / Clear Candle (แท่งตัน/แท่งเคลียร์)
-    if not signal and s_solid and len(rates) >= 3:
-        if is_green(c_prev1) and wick_top(c_prev1) < (atr*0.05) and is_red(c_curr) and c_curr['close'] < c_prev1['low']:
-            signal, sub_pattern, ref_bar = "SELL", "S20.Base.Solid", c_curr
-        elif is_red(c_prev1) and wick_bot(c_prev1) < (atr*0.05) and is_green(c_curr) and c_curr['close'] > c_prev1['high']:
-            signal, sub_pattern, ref_bar = "BUY", "S20.Base.Solid", c_curr
-
-    # 4. FVG / OB Retrace (ย่อตัว 50% หรือเทส FVG)
-    if not signal and s_fvg and len(rates) >= 4:
-        if is_green(c_prev2) and is_red(c_prev1) and is_green(c_curr) and c_curr['low'] <= (c_prev2['open'] + c_prev2['close']) / 2:
-            signal, sub_pattern, ref_bar = "BUY", "S20.Base.FVG", c_curr
-        elif is_red(c_prev2) and is_green(c_prev1) and is_red(c_curr) and c_curr['high'] >= (c_prev2['open'] + c_prev2['close']) / 2:
-            signal, sub_pattern, ref_bar = "SELL", "S20.Base.FVG", c_curr
-
-    # ── STAGE 2: Modifiers & Filters ────────────────────────────────────
-    if signal:
-        # Modifier 1: Magic Number 7 Filter
-        if m_magic:
-            last_digit = int(c_curr['close']) % 10
-            if last_digit == 7:
-                sub_pattern += "+Magic7"
+    # 1. Defect Candle (S20.1.Defect)
+    if not signal and (is_swing_high or is_swing_low):
+        # BUY: Swing Low -> Previous is Red, Current is Green (Engulfs body, but leaves wick alone)
+        if is_swing_low and is_red(c_prev1) and is_green(c_curr):
+            if c_curr['close'] > c_prev1['open'] and c_curr['low'] > c_prev1['low']:
+                signal, sub_pattern, ref_bar = "BUY", "S20.1.Defect", c_prev1
                 
-        # Modifier 2: No Body Close on Support Rule
-        if m_no_body:
-            if signal == "BUY" and c_curr['close'] < c_prev1['low']:
-                signal = None # Failed test, cancel buy
-            elif signal == "SELL" and c_curr['close'] > c_prev1['high']:
-                signal = None # Failed test, cancel sell
-        
-        # Modifier 3: Fibo Confluence (Pseudo-check via wicks)
-        if m_fibo and signal:
-            if wick_top(c_curr) > body_size(c_curr) * 2 or wick_bot(c_curr) > body_size(c_curr) * 2:
-                sub_pattern += "+Fibo"
+        # SELL: Swing High -> Previous is Green, Current is Red (Engulfs body, but leaves high wick alone)
+        if is_swing_high and is_green(c_prev1) and is_red(c_curr):
+            if c_curr['close'] < c_prev1['open'] and c_curr['high'] < c_prev1['high']:
+                signal, sub_pattern, ref_bar = "SELL", "S20.1.Defect", c_prev1
+
+    # 2. Small 2L / 2H Trap (S20.2.Small)
+    if not signal:
+        # BUY (2L): Green pushing up -> Red pulls back but doesn't break origin low -> Current Green
+        if is_green(c_prev3) and is_green(c_prev2) and is_red(c_prev1) and is_green(c_curr):
+            if c_prev1['low'] >= min(c_prev3['low'], c_prev2['low']):
+                signal, sub_pattern, ref_bar = "BUY", "S20.2.Small_2L", c_prev1
+                
+        # SELL (2H): Red pushing down -> Green pulls back but doesn't break origin high -> Current Red
+        if is_red(c_prev3) and is_red(c_prev2) and is_green(c_prev1) and is_red(c_curr):
+            if c_prev1['high'] <= max(c_prev3['high'], c_prev2['high']):
+                signal, sub_pattern, ref_bar = "SELL", "S20.2.Small_2H", c_prev1
+
+    # 3. Solid Rejection (S20.3.Solid)
+    if not signal and (is_swing_high or is_swing_low):
+        # BUY: Green solid (no top wick) at Low
+        if is_swing_low and is_green(c_curr) and wick_top(c_curr) < atr * 0.1:
+            signal, sub_pattern, ref_bar = "BUY", "S20.3.Solid", c_curr
+            
+        # SELL: Red solid (no bot wick) at High
+        if is_swing_high and is_red(c_curr) and wick_bot(c_curr) < atr * 0.1:
+            signal, sub_pattern, ref_bar = "SELL", "S20.3.Solid", c_curr
+
+    # 4. Pullback 80% (S20.4.Pullback80)
+    # จากคัมภีร์เชิงแท่งเทียน: "แท่งสวนเทรนด์ปิดไม่คลุมเนื้อ โอกาสย้อนกลับ 80%"
+    if not signal:
+        # BUY: Trend UP. Red pulls down, Green tries to go up but fails to engulf Red's body.
+        # Next candle pulls back DOWN to the wick. We Buy there.
+        if is_swing_low and is_red(c_prev2) and is_green(c_prev1):
+            if c_prev1['close'] < c_prev2['open']:
+                signal, sub_pattern, ref_bar = "BUY", "S20.4.Pullback80", c_prev1
+                
+        # SELL: Trend DOWN. Green pulls up, Red tries to go down but fails to engulf Green's body.
+        # Next candle pulls back UP to the wick. We Sell there.
+        if is_swing_high and is_green(c_prev2) and is_red(c_prev1):
+            if c_prev1['close'] > c_prev2['open']:
+                signal, sub_pattern, ref_bar = "SELL", "S20.4.Pullback80", c_prev1
 
     if not signal:
         return res
+        
+    # --- [NEW] D1/H4 HTF FVG Liquidity Filter ---
+    # บอทจะเช็คว่าตำแหน่งที่เกิดสัญญาณ อยู่ใน FVG ของ D1 หรือ H4 หรือไม่
+    # ถ้าไม่อยู่ ถือว่าเป็น Liquidity Trap
+    if getattr(config, "S20_HTF_FVG_FILTER", False):
+        htf_tfs = getattr(config, "S20_HTF_TFS", ["D1", "H4"])
+        check_price = ref_bar['low'] if signal == "BUY" else ref_bar['high']
+        check_time = int(ref_bar['time'])
+        if not htf_fvg.is_price_in_htf_fvg(check_price, signal, htf_tfs, at_time=check_time):
+            return {"signal": "WAIT", "reason": f"S20 - Liquidity Trap (Not in D1/H4 FVG)"}
+            
+    # --- ────────────────────────────────────── ---
+
     # ── Trend Filter ──
     if tf and not _trend_allows(signal, tf):
         res["reason"] = f"S20: Blocked by Counter-Trend [{tf}]"
         return res
-
-    # ── Body Size Filter ──
-    min_body_pct = getattr(config, "S20_MIN_BODY_ATR_PCT", 0.3)
-    if min_body_pct > 0 and sub_pattern != "S20.2":
-        body_size = abs(ref_bar['close'] - ref_bar['open'])
-        if body_size < min_body_pct * atr:
-            res["reason"] = f"S20: Body ({body_size:.2f}) < {min_body_pct}xATR"
-            return res
 
     # ── Calculate Entry, SL, TP ──
     tf_max_wick = {"M1": 50.0, "M5": 310.0, "M15": 363.0, "M30": 621.0, "H1": 1200.0, "H4": 2100.0, "H12": 3500.0, "D1": 3390.0}
     base_wick = 310.0
     tf_scale = tf_max_wick.get(tf, base_wick) / base_wick
     
-    entry_buffer = getattr(config, "S20_ENTRY_BUFFER", 0.0) * tf_scale
-    sl_2l2h = getattr(config, "S20_SL_2L2H", 100.0) * tf_scale
+    entry_buffer = getattr(config, "S20_ENTRY_BUFFER", 0.0) * tf_scale * 0.01
+    sl_2l2h = atr * 1.5
     
-    # 1. Entry
-    if sub_pattern == "S20.Base.Defect":
-        entry = ref_bar['low'] if signal == "BUY" else ref_bar['high']
-    elif sub_pattern == "S20.Base.2L2H":
-        entry = c_curr['close']
-        if signal == "BUY": entry -= entry_buffer
-        else: entry += entry_buffer
-    else:
-        if entry_buffer > 0:
-            if signal == "BUY": entry = c_curr['close'] - entry_buffer
-            else: entry = c_curr['close'] + entry_buffer
-        else:
-            entry = (c_curr['open'] + c_curr['close']) / 2.0
+    fibo_run = 7.044
+    fibo_krh2 = 3.097
+    if "Defect" in sub_pattern:
+        fibo_run = 2.0  # Wick fill target instead of deep run
+        
+    if "Pullback80" in sub_pattern:
+        fibo_run = 1.0  # 1:1 RR to capture the 80% short pullback
+        
+    if "Small" in sub_pattern:
+        fibo_run = 1.5  # Wick fill target
 
-    # 2. SL (Stop Loss)
-    sl_buf = config.SL_BUFFER(atr) * getattr(config, "S20_SL_BUFFER", 1.0)
-    setup_bars = rates[-3:]
+    if getattr(config, "S20_DYNAMIC_FIBO", True):
+        anchor_size = abs(ref_bar['high'] - ref_bar['low'])
+        if anchor_size > (atr * 1.5):
+            fibo_run = min(fibo_run, 3.097)  # Cap to KRH2 if anchor is too big
     
-    if sub_pattern == "S20.Base.2L2H":
-        if signal == "BUY": sl = entry - sl_2l2h
-        else: sl = entry + sl_2l2h
+    # 1. Entry: For Defect & 2L/2H, entry is at the WICK of the anchor
+    # For Solid, it's 50% retrace of the body
+    if "Solid" in sub_pattern:
+        entry = (ref_bar['open'] + ref_bar['close']) / 2
+        sl_raw = ref_bar['low'] if signal == "BUY" else ref_bar['high']
     else:
-        if signal == "BUY": sl = min(b['low'] for b in setup_bars) - sl_buf
-        else: sl = max(b['high'] for b in setup_bars) + sl_buf
+        if signal == "BUY":
+            entry = ref_bar['low'] + entry_buffer
+            sl_raw = ref_bar['low'] - sl_2l2h
+        else:
+            entry = ref_bar['high'] - entry_buffer
+            sl_raw = ref_bar['high'] + sl_2l2h
+            
+    # "No Touch Rule" - Strict SL
+    sl = sl_raw
 
-    # 3. TP (Take Profit) - Stage 3 Dynamic Exits
-    fibo_run = getattr(config, "S20_FIBO_RUN", 7.044)
-    defect_run = getattr(config, "S20_DEFECT_FIBO_RUN", 7.467)
-    fibo_krh2 = getattr(config, "S20_FIBO_KRH2", 3.097)
+    # 2. Fibo Targets
+    low_pt = ref_bar['low']
+    high_pt = ref_bar['high']
     
-    if sub_pattern == "S20.Base.Defect":
-        # Defect plays use special 7.467 extension
-        if signal == "BUY":
-            sl_raw = min(b['low'] for b in setup_bars)
-            high_pt = max(b['high'] for b in setup_bars)
-            tp_raw = sl_raw + ((high_pt - sl_raw) * defect_run)
-        else:
-            sl_raw = max(b['high'] for b in setup_bars)
-            low_pt = min(b['low'] for b in setup_bars)
-            tp_raw = sl_raw - ((sl_raw - low_pt) * defect_run)
-    elif sub_pattern == "S20.Base.2L2H":
-        # Massive Fibo run for Traps
-        if signal == "BUY":
-            sl_raw = min(b['low'] for b in setup_bars)
-            high_pt = max(b['high'] for b in setup_bars)
-            tp_raw = sl_raw + ((high_pt - sl_raw) * fibo_run)
-        else:
-            sl_raw = max(b['high'] for b in setup_bars)
-            low_pt = min(b['low'] for b in setup_bars)
-            tp_raw = sl_raw - ((sl_raw - low_pt) * fibo_run)
+    if signal == "BUY":
+        tp_raw = sl_raw + ((high_pt - sl_raw) * fibo_run)
     else:
-        # Default KRH2 Fibo for Solid and FVG Retrace
-        if signal == "BUY":
-            sl_raw = min(b['low'] for b in setup_bars)
-            high_pt = max(b['high'] for b in setup_bars)
-            tp_raw = sl_raw + ((high_pt - sl_raw) * fibo_krh2)
-        else:
-            sl_raw = max(b['high'] for b in setup_bars)
-            low_pt = min(b['low'] for b in setup_bars)
-            tp_raw = sl_raw - ((sl_raw - low_pt) * fibo_krh2)
+        tp_raw = sl_raw - ((sl_raw - low_pt) * fibo_run)
 
-    # 4. Apply Stage 2 Modifiers (Psychological Numbers VIP Rule)
-    if getattr(config, "S20_USE_PSYCHO_NUMBERS", True):
+    # 3. Modifiers (Psychological Numbers)
+    if getattr(config, "S20_USE_PSYCHOLOGICAL_NUMBERS", True):
         entry = _apply_psychological_number(entry, is_buy=(signal=="BUY"), is_tp=False)
         tp_raw = _apply_psychological_number(tp_raw, is_buy=(signal=="BUY"), is_tp=True)
 
+    # 4. Limit minimum RR
     if signal == "BUY":
         tp_raw = max(tp_raw, entry + atr)
         sl = min(sl, entry - (atr*0.2))
