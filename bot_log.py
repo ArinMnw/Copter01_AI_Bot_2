@@ -316,8 +316,7 @@ def log_error(kind: str, message: str = "", **fields) -> None:
         if flat_fields:
             line += " | " + " | ".join(flat_fields)
         error_log = get_monthly_error_log_file_for_dt(now_dt)
-        with open(error_log, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+        _write_line_with_retry(error_log, line)
     except Exception:
         pass
 
@@ -359,6 +358,33 @@ def setup_python_logging() -> None:
         root.addHandler(error_handler)
 
 
+def _write_line_with_retry(path: str, line: str) -> None:
+    """เขียนบรรทัดลงไฟล์ ลอง 1 ครั้ง + retry อีก 1 ครั้งหลัง 0.2s (กัน lock ชั่วคราว
+    จาก antivirus/cloud-sync บน Windows เช่น OneDrive ที่ sync โฟลเดอร์ Documents)
+    ถ้ายัง fail ทั้ง 2 ครั้ง → จด exception จริงไว้ที่ logs/debug/log_write_errors.log
+    แทนการกลืน exception เงียบๆ (เดิม except: pass ทำให้หา root cause ตอน bot.log
+    ไม่อัปเดตเลยไม่ได้เลย)"""
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+        return
+    except Exception as e1:
+        time.sleep(0.2)
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+            return
+        except Exception as e2:
+            try:
+                os.makedirs(DEBUG_LOG_DIR, exist_ok=True)
+                fallback = os.path.join(DEBUG_LOG_DIR, "log_write_errors.log")
+                with open(fallback, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now(timezone.utc).isoformat()}] write to {path} failed twice: "
+                            f"{type(e1).__name__}: {e1} | retry: {type(e2).__name__}: {e2} | line={line[:200]}\n")
+            except Exception:
+                pass
+
+
 def log_event(kind: str, message: str = "", **fields) -> None:
     try:
         _ensure_log_dir()
@@ -372,8 +398,7 @@ def log_event(kind: str, message: str = "", **fields) -> None:
             line += " | " + " | ".join(flat_fields)
         _rotate_bot_log_if_needed(now_dt)
         _rotate_bot_log_by_size(now_dt)
-        with open(BOT_LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+        _write_line_with_retry(BOT_LOG_FILE, line)
     except Exception:
         pass
 
