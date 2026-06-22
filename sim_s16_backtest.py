@@ -300,8 +300,13 @@ def _fill_trade(order: dict, bar: dict) -> dict:
 
 
 def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, TF_EXTRA_BARS.get(tf_name, 500) + 8000)
-    m5_rates = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M5, 0, 2500)
+    _since = SINCE if SINCE.tzinfo is not None else SINCE.replace(tzinfo=timezone.utc)
+    days = max(30, (datetime.now(timezone.utc) - _since).days + 3)
+    bars_per_day = {"M1": 1440, "M5": 288, "M15": 96, "M30": 48, "H1": 24, "H4": 6, "D1": 1}.get(tf_name, 100)
+    count = min(TF_EXTRA_BARS.get(tf_name, 500) + days * bars_per_day, 90000)  # cap ~90k
+    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, count)
+    m5_days_bars = min(days * 288 + 500, 90000)
+    m5_rates = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M5, 0, m5_days_bars)
     if rates is None or len(rates) < 100 or m5_rates is None or len(m5_rates) < 100:
         return []
 
@@ -314,6 +319,11 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
     pending: list[dict] = []
     open_trades: list[dict] = []
     fired_keys: set[tuple] = set()
+    # _strategy_16_at ใช้ absolute timestamp filter (kz_start_ts) ไม่ใช่ relative index
+    # → window ต้องครอบ kz_start_ts เสมอ (killzone อยู่ใน "วันนี้" เสมอ) ใช้ ~33h เผื่อ
+    # (เดิม bars[:i+1] copy ทั้ง list ทุกแท่ง = O(n^2), ค้างที่ >10k แท่ง)
+    _WIN_BARS = {"M1": 2000, "M5": 400, "M15": 200, "M30": 100, "H1": 60, "H4": 30, "D1": 10}
+    win_size = _WIN_BARS.get(tf_name, 500)
 
     for i in range(start_idx, len(bars)):
         bar = bars[i]
@@ -351,7 +361,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
         open_trades = still_open
 
         day = bt.strftime("%Y-%m-%d")
-        result = _strategy_16_at(bars[:i + 1], tf_name, bt, asian_by_date.get(day))
+        window = bars[max(0, i + 1 - win_size):i + 1]
+        result = _strategy_16_at(window, tf_name, bt, asian_by_date.get(day))
         if result.get("signal") in ("BUY", "SELL") and result.get("order_mode") == "limit":
             # mirror runtime one-shot dedup: 1 order ต่อ (side, killzone window)
             # (เดิม key ละเอียดระดับ iFVG → live เกิด pending สะสม fill พร้อมกัน 13 ไม้ 09/06/2026)

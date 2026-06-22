@@ -434,9 +434,16 @@ async def handle_buttons(update, context):
     text = message.text
 
     # ── ตรวจ waiting_lot_input ก่อน ──────────────────────────────
+    # ── ตรวจ waiting_lot_input ก่อน ──────────────────────────────
     waiting = context.user_data.get("waiting_lot_input")
     if waiting:
         await _handle_lot_input(update, context, text, waiting)
+        return
+
+    # ── ตรวจ awaiting_input (S20) ──────────────────────────────
+    awaiting = context.user_data.get("awaiting_input")
+    if awaiting:
+        await _handle_custom_input(update, context, text, awaiting)
         return
 
     stripped = text.strip()
@@ -475,6 +482,39 @@ async def handle_buttons(update, context):
             reply_markup=main_keyboard()
         )
 
+
+async def _handle_custom_input(update, context, text, awaiting):
+    """รับค่าตัวเลขจาก user สำหรับ settings ต่างๆ"""
+    context.user_data.pop("awaiting_input", None)
+    
+    try:
+        val = float(text.strip())
+    except ValueError:
+        await update.effective_message.reply_text(
+            f"❌ ค่าไม่ถูกต้อง: `{text}`\nกรุณากรอกเป็นตัวเลขเท่านั้น",
+            parse_mode="Markdown", reply_markup=main_keyboard()
+        )
+        return
+
+    import config
+    if awaiting == "s20_entry_buffer":
+        config.S20_ENTRY_BUFFER = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20 Entry Buffer** เป็น {val} จุดเรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.keyboard import show_s20_settings_menu
+        await show_s20_settings_menu(update, is_query=False)
+    elif awaiting == "s20_sl_2l2h":
+        config.S20_SL_2L2H = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20 SL 2L/2H** เป็น {val} จุดเรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.keyboard import show_s20_settings_menu
+        await show_s20_settings_menu(update, is_query=False)
 
 async def _handle_lot_input(update, context, text, waiting):
     """รับ lot size จาก user input"""

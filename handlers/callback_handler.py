@@ -210,6 +210,16 @@ _STRATEGY_DESC = {
         "5️⃣ *TP*: New Day Opening Gap (ถ้าในทิศ) หรือ liquidity ตรงข้าม\n\n"
         "🎯 LIMIT ที่โซน | SL หลังไส้ sweep\n"
         "⚠️ ค่า default ตั้งต้นก่อน backtest — ควรรัน sim_s19_backtest ก่อนใช้จริง",
+
+    20: "🎯 *S20 All in 4s*\n\n"
+        "ประกอบด้วย 5 ท่าย่อย (เลือกเปิด/ปิดอิสระ):\n"
+        "1️⃣ *S20.1 Classic*: กลืนกิน 2 แท่ง สมบูรณ์ปิดคลุมไส้\n"
+        "2️⃣ *S20.2 Wick Fill*: ท่าไม้ตาย ลงไปกินไส้แล้วตบกลับ (แท่งตำหนิ)\n"
+        "3️⃣ *S20.3 Solid*: แท่งตันตามเทรนด์ + FVG\n"
+        "4️⃣ *S20.4 2L-2H*: ท่าผีเสื้อ ย่อพักตัวสั้นๆ\n"
+        "5️⃣ *S20.5 LQ Sweep*: ทะลุหลอกกวาด Liquidity แล้วถูกตบกลับเข้า FVG\n\n"
+        "🎯 Entry: LIMIT ครึ่งแท่ง (50%) | TP: Fibo 1.618 | SL: Extreme Wick + ATR Buffer\n"
+        "⚠️ แนะนำเปิด Trend Filter และ Session Filter เสมอ",
 }
 
 
@@ -946,6 +956,59 @@ async def handle_callback(update, ctx):
         config.S19_MIN_RR = rr_map[rr_str]
         save_runtime_state()
         await _show_strategy_detail(query, 19, f"✅ ท่า19 Min R:R: {config.S19_MIN_RR}")
+
+    elif data == "toggle_s20_enabled":
+        config.S20_ENABLED = not getattr(config, "S20_ENABLED", False)
+        save_runtime_state()
+        status = "ON" if config.S20_ENABLED else "OFF"
+        await _show_strategy_detail(query, 20, f"✅ ท่า 20 (Master): {status}")
+
+    elif data.startswith("toggle_s20_trigger_"):
+        trigger_id = data.replace("toggle_s20_trigger_", "")
+        key_map = {
+            "defect": "S20_TRIGGER_DEFECT",
+            "2l2h": "S20_TRIGGER_2L2H",
+            "solid": "S20_TRIGGER_SOLID",
+            "fvg": "S20_TRIGGER_FVG"
+        }
+        key = key_map.get(trigger_id)
+        if key:
+            new_val = not getattr(config, key, True)
+            setattr(config, key, new_val)
+            save_runtime_state()
+            status = "ON" if new_val else "OFF"
+            await _show_strategy_detail(query, 20, f"✅ S20 Trigger ({trigger_id.upper()}): {status}")
+        else:
+            await _qanswer(query, "Trigger ไม่ถูกต้อง")
+
+    elif data.startswith("toggle_s20_mod_"):
+        mod_id = data.replace("toggle_s20_mod_", "")
+        key_map = {
+            "magic": "S20_MODIFIER_MAGIC_NUM",
+            "nobody": "S20_MODIFIER_NO_BODY_BRK",
+            "fibo": "S20_MODIFIER_FIBO_CONF"
+        }
+        key = key_map.get(mod_id)
+        if key:
+            new_val = not getattr(config, key, True)
+            setattr(config, key, new_val)
+            save_runtime_state()
+            status = "ON" if new_val else "OFF"
+            await _show_strategy_detail(query, 20, f"✅ S20 Modifier ({mod_id.upper()}): {status}")
+        else:
+            await _qanswer(query, "Modifier ไม่ถูกต้อง")
+
+    elif data == "toggle_s20_trend":
+        config.S20_TREND_FILTER = not getattr(config, "S20_TREND_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S20_TREND_FILTER else "OFF"
+        await _show_strategy_detail(query, 20, f"✅ ท่า 20 Trend Filter: {status}")
+
+    elif data == "toggle_s20_session":
+        config.S20_SESSION_FILTER = not getattr(config, "S20_SESSION_FILTER", True)
+        save_runtime_state()
+        status = "ON" if config.S20_SESSION_FILTER else "OFF"
+        await _show_strategy_detail(query, 20, f"✅ ท่า 20 Session Filter: {status}")
 
     elif data.startswith("set_trail_engulf_mode_"):
         mode = data.replace("set_trail_engulf_mode_", "")
@@ -1707,7 +1770,51 @@ async def handle_callback(update, ctx):
             await query.edit_message_text(f"❌ ไม่สำเร็จ: {r.retcode} — {r.comment}")
             await _qanswer(query,'เปิด Order ไม่สำเร็จ')
 
+    elif data == 'open_s20_settings_menu':
+        from handlers.keyboard import show_s20_settings_menu
+        await show_s20_settings_menu(query, is_query=True)
 
-# ============================================================
-#  MAIN
-# ============================================================
+    elif data.startswith('set_s20_trigger_'):
+        trigger_id = data.replace("set_s20_trigger_", "")
+        key_map = {
+            "defect": "S20_TRIGGER_DEFECT",
+            "2l2h": "S20_TRIGGER_2L2H",
+            "solid": "S20_TRIGGER_SOLID",
+            "fvg": "S20_TRIGGER_FVG"
+        }
+        key = key_map.get(trigger_id)
+        if key:
+            new_val = not getattr(config, key, True)
+            setattr(config, key, new_val)
+            config.save_runtime_state()
+            from handlers.keyboard import show_s20_settings_menu
+            await show_s20_settings_menu(query, is_query=True)
+
+    elif data.startswith('set_s20_mod_'):
+        mod_id = data.replace("set_s20_mod_", "")
+        key_map = {
+            "magic": "S20_MODIFIER_MAGIC_NUM",
+            "nobody": "S20_MODIFIER_NO_BODY_BRK",
+            "fibo": "S20_MODIFIER_FIBO_CONF"
+        }
+        key = key_map.get(mod_id)
+        if key:
+            new_val = not getattr(config, key, True)
+            setattr(config, key, new_val)
+            config.save_runtime_state()
+            from handlers.keyboard import show_s20_settings_menu
+            await show_s20_settings_menu(query, is_query=True)
+
+    elif data == 'prompt_s20_entry_buffer':
+        from config import tg
+        msg = await query.message.reply_text("✏️ พิมพ์จำนวนจุดสำหรับ **Entry Buffer** (เช่น 390):")
+        ctx.user_data['awaiting_input'] = 's20_entry_buffer'
+        ctx.user_data['prompt_msg_id'] = msg.message_id
+        await _qanswer(query)
+
+    elif data == 'prompt_s20_sl_2l2h':
+        from config import tg
+        msg = await query.message.reply_text("✏️ พิมพ์จำนวนจุดสำหรับ **SL 2L/2H** (เช่น 100):")
+        ctx.user_data['awaiting_input'] = 's20_sl_2l2h'
+        ctx.user_data['prompt_msg_id'] = msg.message_id
+        await _qanswer(query)

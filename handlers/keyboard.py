@@ -100,6 +100,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     risk_health_suffix = f"🟢 {' + '.join(_rh_parts)}" if _rh_parts else "🔴OFF"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 เลือก Strategy", callback_data="open_strategy_menu")],
+        [InlineKeyboardButton("⚙️ ตั้งค่า S20 All in 4s", callback_data="open_s20_settings_menu")],
         [InlineKeyboardButton(f"📐 Trail SL: {trail_suffix}", callback_data="open_trail_menu")],
         [InlineKeyboardButton(f"↩️ จุดกลับตัว -> Trail SL: {reversal_trail_suffix}", callback_data="toggle_trail_reversal_override")],
         [InlineKeyboardButton(f"🕯 Entry Candle Mode: {entry_suffix}", callback_data="open_entry_candle_mode_menu")],
@@ -1271,6 +1272,52 @@ def build_strategy_detail_keyboard(sid: int):
             ),
         ])
 
+    elif sid == 20:
+        s20_en     = getattr(config, "S20_ENABLED", False)
+        t_defect   = getattr(config, "S20_TRIGGER_DEFECT", True)
+        t_2l2h     = getattr(config, "S20_TRIGGER_2L2H", True)
+        t_solid    = getattr(config, "S20_TRIGGER_SOLID", True)
+        t_fvg      = getattr(config, "S20_TRIGGER_FVG", True)
+        trend_on   = getattr(config, "S20_TREND_FILTER", True)
+        sess_on    = getattr(config, "S20_SESSION_FILTER", True)
+
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if s20_en else '⬜'} เปิดใช้งาน S20 (Master Toggle)",
+                callback_data="toggle_s20_enabled"
+            )
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if t_defect else '⬜'} Trigger: Defect",
+                callback_data="toggle_s20_trigger_defect"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if t_2l2h else '⬜'} Trigger: 2L/2H Trap",
+                callback_data="toggle_s20_trigger_2l2h"
+            )
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if t_solid else '⬜'} Trigger: Solid Candle",
+                callback_data="toggle_s20_trigger_solid"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if t_fvg else '⬜'} Trigger: FVG Retrace",
+                callback_data="toggle_s20_trigger_fvg"
+            )
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if trend_on else '⬜'} Trend Filter",
+                callback_data="toggle_s20_trend"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if sess_on else '⬜'} Session Filter",
+                callback_data="toggle_s20_session"
+            )
+        ])
+
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
     return InlineKeyboardMarkup(rows)
 
@@ -2343,6 +2390,76 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
         f"  กด ⚙️ SL Guard เพื่อตั้งค่าแบบแยก / รวม / group"
     )
     keyboard = build_trend_filter_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            pass
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+def build_s20_settings_keyboard():
+    rows = []
+    t_defect = "🟢 Trigger: Defect" if getattr(config, "S20_TRIGGER_DEFECT", True) else "🔴 Trigger: Defect"
+    t_2l2h   = "🟢 Trigger: 2L/2H" if getattr(config, "S20_TRIGGER_2L2H", True) else "🔴 Trigger: 2L/2H"
+    rows.append([
+        InlineKeyboardButton(t_defect, callback_data="set_s20_trigger_defect"),
+        InlineKeyboardButton(t_2l2h, callback_data="set_s20_trigger_2l2h")
+    ])
+    t_solid  = "🟢 Trigger: Solid" if getattr(config, "S20_TRIGGER_SOLID", True) else "🔴 Trigger: Solid"
+    t_fvg    = "🟢 Trigger: FVG" if getattr(config, "S20_TRIGGER_FVG", True) else "🔴 Trigger: FVG"
+    rows.append([
+        InlineKeyboardButton(t_solid, callback_data="set_s20_trigger_solid"),
+        InlineKeyboardButton(t_fvg, callback_data="set_s20_trigger_fvg")
+    ])
+    
+    m_magic   = "🟢 Mod: Magic 7" if getattr(config, "S20_MODIFIER_MAGIC_NUM", True) else "🔴 Mod: Magic 7"
+    m_nobody  = "🟢 Mod: No Body Close" if getattr(config, "S20_MODIFIER_NO_BODY_BRK", True) else "🔴 Mod: No Body Close"
+    rows.append([
+        InlineKeyboardButton(m_magic, callback_data="set_s20_mod_magic"),
+        InlineKeyboardButton(m_nobody, callback_data="set_s20_mod_nobody")
+    ])
+    
+    m_fibo    = "🟢 Mod: Fibo Conf" if getattr(config, "S20_MODIFIER_FIBO_CONF", True) else "🔴 Mod: Fibo Conf"
+    rows.append([
+        InlineKeyboardButton(m_fibo, callback_data="set_s20_mod_fibo")
+    ])
+
+    rows.append([
+        InlineKeyboardButton("✏️ ปรับ Entry Buffer", callback_data="prompt_s20_entry_buffer"),
+        InlineKeyboardButton("✏️ ปรับ SL 2L/2H", callback_data="prompt_s20_sl_2l2h")
+    ])
+    rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="back_to_settings")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def show_s20_settings_menu(update_or_query, is_query=False):
+    t_defect = "🟢 ON" if getattr(config, "S20_TRIGGER_DEFECT", True) else "🔴 OFF"
+    t_2l2h   = "🟢 ON" if getattr(config, "S20_TRIGGER_2L2H", True) else "🔴 OFF"
+    t_solid  = "🟢 ON" if getattr(config, "S20_TRIGGER_SOLID", True) else "🔴 OFF"
+    t_fvg    = "🟢 ON" if getattr(config, "S20_TRIGGER_FVG", True) else "🔴 OFF"
+    
+    m_magic  = "🟢 ON" if getattr(config, "S20_MODIFIER_MAGIC_NUM", True) else "🔴 OFF"
+    m_nobody = "🟢 ON" if getattr(config, "S20_MODIFIER_NO_BODY_BRK", True) else "🔴 OFF"
+    m_fibo   = "🟢 ON" if getattr(config, "S20_MODIFIER_FIBO_CONF", True) else "🔴 OFF"
+    
+    text = (
+        "🎯 *S20 All in 4s Pipeline Configuration*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        "จัดการ Pipeline ตั้งแต่จุดเข้า ไปจนถึงตัวกรองความแม่นยำ\n\n"
+        f"📍 *Stage 1: Base Triggers*\n"
+        f"- Defect Pullback: *{t_defect}*\n"
+        f"- 2L/2H Trap: *{t_2l2h}*\n"
+        f"- Solid Candle: *{t_solid}*\n"
+        f"- FVG Retrace: *{t_fvg}*\n\n"
+        f"🛡️ *Stage 2: Modifiers*\n"
+        f"- Magic Number 7: *{m_magic}*\n"
+        f"- No Body Close: *{m_nobody}*\n"
+        f"- Fibo Confluence: *{m_fibo}*\n\n"
+        f"📏 Entry Buffer: *{getattr(config, 'S20_ENTRY_BUFFER', 0)} จุด*\n"
+        f"🛑 SL 2L/2H: *{getattr(config, 'S20_SL_2L2H', 100)} จุด*"
+    )
+    keyboard = build_s20_settings_keyboard()
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)

@@ -167,7 +167,11 @@ def _fill_trade(pending: dict, bar: dict) -> dict:
 
 def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
     extra = TF_EXTRA_BARS.get(tf_name, 500)
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, extra + 7000)
+    _since = SINCE if SINCE.tzinfo is not None else SINCE.replace(tzinfo=timezone.utc)
+    days = max(30, (datetime.now(timezone.utc) - _since).days + 3)
+    bars_per_day = {"M1": 1440, "M5": 288, "M15": 96, "M30": 48, "H1": 24, "H4": 6, "D1": 1}.get(tf_name, 100)
+    count = min(extra + days * bars_per_day, 90000)  # cap: MT5 คืน None ถ้าขอเกิน ~90k
+    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 0, count)
     if rates is None or len(rates) < 120:
         return []
     bars = sorted(
@@ -186,6 +190,14 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
     trades: list[dict] = []
     pending: list[dict] = []
     open_trades: list[dict] = []
+    # strategy_15 อ้างอิงแค่ย้อนหลังจำกัด (lookback VP + EMA trend*3 + RSI*3)
+    # → ใช้ sliding window แทน bars[:i+1] (เดิม copy ทั้ง list ทุกแท่ง = O(n^2), ค้างที่ >10k แท่ง)
+    # +300 buffer ให้ ATR (Wilder RMA) warm-up พอ ไม่งั้น VP bucket ขอบเพี้ยนจาก ATR ลู่ช้า
+    win_size = max(
+        int(getattr(config, "S15_LOOKBACK", 100)) + 20,
+        int(getattr(config, "S15_TREND_EMA", 50)) * 3 + 20,
+        200,
+    ) + 300
 
     try:
         for i in range(start_idx, len(bars)):
@@ -223,7 +235,8 @@ def backtest_tf(tf_name: str, tf_val: int) -> list[dict]:
                 still_open.append(trade)
             open_trades = still_open
 
-            result = strategy_15(bars[:i + 1], tf=tf_name)
+            window = bars[max(0, i + 1 - win_size):i + 1]
+            result = strategy_15(window, tf=tf_name)
             sig = result.get("signal", "WAIT")
             orders = result.get("orders", [result]) if sig == "MULTI" else ([result] if sig in ("BUY", "SELL") else [])
             for order in orders:
