@@ -1,145 +1,50 @@
 """
-strategy20.py — S20 All in 4s (Reversal & Retracement)
+strategy20.py — S20 All in 4s (Hardcore Mode + VIP Enhancements)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Sub-patterns:
-  S20.1: Classic — กลับตัวสมบูรณ์ เนื้อคลุมเนื้อ (body engulf body, 2 แท่ง)
-  S20.2: Tainted — กลับตัวแบบมีตำหนิ แท่ง 1 คลุมไม่มิด ต้องใช้แท่ง 3 คอนเฟิร์ม
-  S20.3: HTF Fibo — อิงสวิงของ H1 (ราคาอยู่ใน Fibo 50-78.6%)
-  S20.4: FVG Bounce — เด้งจากโซน FVG เก่า
-  S20.5: Sideway Trap — กวาด High/Low (Liquidity Sweep) แล้วกลับตัว
+Sub-patterns (ท่าย่อยตามฉบับ All in 4s):
+  S20.1: Classic 2-Bar — เขียว 2 แท่ง ปิดคลุมไส้ (กลับตัวสมบูรณ์)
+  S20.2: Wick Fill & Reject — ลงไปกินไส้เก่าแล้วปิดเหนือปลายไส้ (แท่งตำหนิ/ท่าไม้ตาย)
+  S20.3: Solid Momentum — แท่งตัน (Solid) ไม่มีไส้ บอกทิศทางแรง
+  S20.4: Small 2L-2H (Butterfly) — เทรนด์ขึ้น ย่อแดงสั้นๆ 1 แท่ง แล้วเขียวกลืนกิน (พักตัวสั้น)
+  S20.5: LQ Sweep (Candlestick Divergence) — ทะลุหลอกกวาด Liquidity แล้วถูกตบกลับเข้า FVG
+  S20.6: FVG Retest & Reject 
+  S20.7: Doji at Structure Break
+  S20.8: Candlestick Divergence
+  S20.9: Trap Engulfing Return
 
-Entry: ย่อ 50% ของ body แท่ง confirm (Limit Order)
-TP:    Fibo 161.8% ของสวิงชุดกลับตัว
-SL:    ไส้ extreme + ATR buffer
-
-Filters (WR improvement):
-  - Body Size Filter: engulf bar body ≥ S20_MIN_BODY_ATR_PCT × ATR
-  - Session Filter: เทรดเฉพาะ Killzones (London/NY)
-  - Trend Filter: HHLL structure alignment (ไม่เข้าสวน strong trend)
+VIP Enhancements Added:
+- Psychological Numbers (หลบ 0 และ 5)
+- Fibo Targets: RUN (7.044) & KRH2 (3.097)
+- Strict No-Touch SL
 """
 
 from datetime import time
-
 import config
 import hhll_swing
 from mt5_utils import calc_atr
 
-
-# ──────────────────────────────────────────────────────────────────────
-# Helper: FVG detection (for S20.4)
-# ──────────────────────────────────────────────────────────────────────
-
-def _get_recent_fvg(rates, signal: str):
-    """
-    Find the most recent FVG that hasn't been completely filled.
-    BUY signal needs Bullish FVG (Demand): L3 > H1.
-    SELL signal needs Bearish FVG (Supply): H3 < L1.
-    """
-    # Check last 20 candles
-    n = len(rates)
-    for i in range(n - 4, max(-1, n - 20), -1):
-        c1, c2, c3 = rates[i], rates[i+1], rates[i+2]
-        if signal == "BUY":
-            if c3['low'] > c1['high']:  # Bullish FVG
-                # Check if it was filled by subsequent candles
-                filled = False
-                for j in range(i+3, n):
-                    if rates[j]['low'] <= c1['high']:
-                        filled = True
-                        break
-                if not filled:
-                    return (c1['high'], c3['low']) # FVG Top, FVG Bot
-        else:
-            if c3['high'] < c1['low']:  # Bearish FVG
-                filled = False
-                for j in range(i+3, n):
-                    if rates[j]['high'] >= c1['low']:
-                        filled = True
-                        break
-                if not filled:
-                    return (c3['high'], c1['low']) # FVG Top, FVG Bot
-    return None
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Helper: Sideway Trap detection (for S20.5)
-# ──────────────────────────────────────────────────────────────────────
-
-def _is_sideway_trap(rates, signal: str):
-    """
-    Detect if the recent price action swept a local High/Low and reversed.
-    For BUY: Swept a local Low, then reversed up (ปิดกลับเหนือ local low).
-    For SELL: Swept a local High, then reversed down (ปิดกลับใต้ local high).
-    """
-    n = len(rates)
-    lookback = max(10, min(n - 3, 15))  # ขยาย lookback สำหรับ M1 ที่ต้องการ context กว้างขึ้น
-    if n < lookback + 3:
-        return False
-
-    sweep_bar = rates[-2]  # แท่งที่เกิด sweep (ปิดแล้ว)
-    confirm_bar = rates[-1]  # แท่งยืนยัน
-
-    if signal == "BUY":
-        # หา local low จาก lookback window (ไม่รวม 2 แท่งสุดท้าย)
-        local_lows = [rates[i]['low'] for i in range(n - lookback, n - 3)]
-        if not local_lows:
-            return False
-        min_local_low = min(local_lows)
-
-        # Sweep: ไส้ทะลุต่ำกว่า local low
-        swept = min(sweep_bar['low'], confirm_bar['low']) < min_local_low
-        # Close back: ปิดกลับเหนือ local low (genuine trap, ไม่ใช่ breakdown)
-        closed_back = confirm_bar['close'] > min_local_low
-
-        return swept and closed_back
-    else:
-        local_highs = [rates[i]['high'] for i in range(n - lookback, n - 3)]
-        if not local_highs:
-            return False
-        max_local_high = max(local_highs)
-
-        swept = max(sweep_bar['high'], confirm_bar['high']) > max_local_high
-        closed_back = confirm_bar['close'] < max_local_high
-
-        return swept and closed_back
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Helper: Session filter (for WR improvement)
-# ──────────────────────────────────────────────────────────────────────
-
 def _in_session(dt_bkk) -> bool:
-    """เช็คว่าเวลา BKK อยู่ใน S20_SESSIONS หรือไม่"""
+    """เช็ค Killzones (London/NY)"""
     if not getattr(config, "S20_SESSION_FILTER", False):
         return True
     if dt_bkk is None:
         return True
     cur = dt_bkk.time() if hasattr(dt_bkk, 'time') else dt_bkk
-    for start_str, end_str in getattr(
-        config, "S20_SESSIONS", [("14:00", "18:00"), ("19:00", "23:00")]
-    ):
+    sessions = getattr(config, "S20_SESSIONS", [("14:00", "18:00"), ("19:00", "23:00")])
+    for start_str, end_str in sessions:
         sh, sm = map(int, start_str.split(":"))
         eh, em = map(int, end_str.split(":"))
         if time(sh, sm) <= cur < time(eh, em):
             return True
     return False
 
-
-# ──────────────────────────────────────────────────────────────────────
-# Helper: Trend filter via HHLL structure
-# ──────────────────────────────────────────────────────────────────────
-
 def _trend_allows(signal: str, tf: str) -> bool:
-    """เช็คว่า HHLL trend ของ TF นี้ไม่สวนทาง signal
-    - BUY ห้ามเข้าเมื่อ BEAR strong
-    - SELL ห้ามเข้าเมื่อ BULL strong
-    - SIDEWAY / UNKNOWN / weak = อนุญาต
-    """
+    """ห้ามเข้าสวน Strong Trend"""
     if not getattr(config, "S20_TREND_FILTER", False):
         return True
     trend_info = hhll_swing.get_trend_from_structure(tf)
     if not trend_info:
-        return True  # ไม่มีข้อมูล → อนุญาต
+        return True
     trend = trend_info.get("trend", "UNKNOWN")
     strength = trend_info.get("strength", "")
     if signal == "BUY" and trend == "BEAR" and strength == "strong":
@@ -148,201 +53,220 @@ def _trend_allows(signal: str, tf: str) -> bool:
         return False
     return True
 
+def _has_fvg(rates, signal: str, start_idx: int) -> bool:
+    """ตรวจว่ามี FVG รองรับทิศทางนั้นหรือไม่"""
+    if start_idx < 2:
+        return False
+    c1, c2, c3 = rates[start_idx-2], rates[start_idx-1], rates[start_idx]
+    if signal == "BUY" and c3['low'] > c1['high']:
+        return True
+    if signal == "SELL" and c3['high'] < c1['low']:
+        return True
+    return False
 
-# ──────────────────────────────────────────────────────────────────────
-# Main strategy function
-# ──────────────────────────────────────────────────────────────────────
-
-def strategy_20(rates, tf=None, dt_bkk=None):
+def _apply_psychological_number(price: float, is_buy: bool, is_tp: bool) -> float:
     """
-    Strategy 20: All in 4s Variants
-    S20.1: Classic (2 bars body engulfing)
-    S20.2: Tainted (3 bars delayed body engulfing)
-    S20.3: HTF Fibo Alignment
-    S20.4: FVG / OB Bounce
-    S20.5: Sideway Trap (Liquidity Sweep)
+    VIP Rule: Adjusts the price to end in 3 or 7. Avoids 0 and 5.
+    Front-runs the retail stops.
     """
-    res = {"signal": "WAIT", "reason": ""}
+    if not getattr(config, "S20_USE_PSYCHO_NUMBERS", True):
+        return price
+        
+    int_price = int(price)
+    remainder = int_price % 10
+    
+    if remainder == 7:
+        target_int = int_price
+    elif remainder < 7:
+        if is_tp and is_buy:
+            target_int = int_price - remainder + 7
+            if target_int > price: target_int -= 10
+        else:
+            target_int = int_price - remainder + 7 - 10
+    else: 
+        if is_tp and is_buy:
+            target_int = int_price - remainder + 17
+            if target_int > price: target_int -= 1
+    
+    # ── อ่านตั้งค่า Pipeline ──
+    s_defect = getattr(config, "S20_TRIGGER_DEFECT", True)
+    s_2l2h = getattr(config, "S20_TRIGGER_2L2H", True)
+    s_solid = getattr(config, "S20_TRIGGER_SOLID_CLEAR", True)
+    s_fvg = getattr(config, "S20_TRIGGER_FVG_OB", True)
 
-    if len(rates) < 4:
-        res["reason"] = "Not enough data"
-        return res
+    m_magic = getattr(config, "S20_MODIFIER_MAGIC_NUM", True)
+    m_no_body = getattr(config, "S20_MODIFIER_NO_BODY_BRK", True)
+    m_fibo = getattr(config, "S20_MODIFIER_FIBO_CONF", True)
 
-    if tf and tf not in config.S20_ALLOWED_TFS:
-        res["reason"] = f"TF {tf} not allowed for S20"
-        return res
+    c_prev3 = rates[-4] if len(rates) >= 4 else None
+    c_prev2 = rates[-3] if len(rates) >= 3 else None
+    c_prev1 = rates[-2] if len(rates) >= 2 else None
+    c_curr  = rates[-1] if len(rates) >= 1 else None
 
-    # ── Session Filter ─────────────────────────────────────────────
-    if dt_bkk is not None and not _in_session(dt_bkk):
-        res["reason"] = "S20: อยู่นอกช่วง Killzones"
-        return res
-
-    bar_prev2 = rates[-3]
-    bar_prev1 = rates[-2]
-    bar_curr  = rates[-1]
-
-    # ── Bar color detection ───────────────────────────────────────
-    is_red1 = bar_prev1['close'] < bar_prev1['open']      # prev1 = แดง
-    is_green2 = bar_curr['close'] > bar_curr['open']        # curr = เขียว
-
-    # --- S20.1 Classic: "เนื้อคลุมเนื้อ" (body engulf body) ---
-    # BUY: แท่งแดง (มีไส้ล่าง = rejection) → แท่งเขียว body คลุม body แดง
-    #   Red body: top=open, bot=close   Green body: top=close, bot=open
-    classic_buy = (is_red1 and is_green2 and
-                   bar_prev1['low'] < bar_prev1['close'] and       # มีไส้ล่าง (rejection wick)
-                   bar_curr['open'] <= bar_prev1['close'] and      # green body_bot ≤ red body_bot
-                   bar_curr['close'] >= bar_prev1['open'])          # green body_top ≥ red body_top
-
-    # SELL: แท่งเขียว (มีไส้บน = rejection) → แท่งแดง body คลุม body เขียว
-    #   Green body: top=close, bot=open   Red body: top=open, bot=close
-    classic_sell = (not is_red1 and not is_green2 and
-                    bar_prev1['high'] > bar_prev1['close'] and     # มีไส้บน (rejection wick)
-                    bar_curr['open'] >= bar_prev1['close'] and     # red body_top ≥ green body_top
-                    bar_curr['close'] <= bar_prev1['open'])         # red body_bot ≤ green body_bot
-
-    # --- S20.2 Tainted: แท่ง 1 คลุมไม่มิด → แท่ง 2 คลุมสำเร็จ ---
-    is_red_prev2 = bar_prev2['close'] < bar_prev2['open']
-    is_green_prev1 = bar_prev1['close'] > bar_prev1['open']
-    is_green_curr = bar_curr['close'] > bar_curr['open']
-
-    # BUY tainted: prev2=แดง(rejection), prev1=เขียว(ยังคลุมไม่มิด), curr=เขียว(คลุมสำเร็จ)
-    #   Red prev2: body_top=open, body_bot=close
-    tainted_buy = (is_red_prev2 and is_green_prev1 and is_green_curr and
-                   bar_prev2['low'] < bar_prev2['close'] and          # prev2 มีไส้ล่าง
-                   bar_prev1['close'] <= bar_prev2['open'] and        # prev1 body ยังไม่คลุม prev2 body_top
-                   bar_curr['close'] > bar_prev2['open'])              # curr body คลุม prev2 body_top สำเร็จ
-
-    # SELL tainted: prev2=เขียว(rejection), prev1=แดง(ยังคลุมไม่มิด), curr=แดง(คลุมสำเร็จ)
-    #   Green prev2: body_top=close, body_bot=open
-    tainted_sell = (not is_red_prev2 and not is_green_prev1 and not is_green_curr and
-                    bar_prev2['high'] > bar_prev2['close'] and        # prev2 มีไส้บน
-                    bar_prev1['close'] >= bar_prev2['open'] and       # prev1 body ยังไม่คลุม prev2 body_bot
-                    bar_curr['close'] < bar_prev2['open'])             # curr body คลุม prev2 body_bot สำเร็จ
+    # helper properties
+    def is_green(c): return c and c['close'] > c['open']
+    def is_red(c): return c and c['close'] < c['open']
+    def body_size(c): return abs(c['close'] - c['open']) if c else 0
+    def wick_top(c): return c['high'] - max(c['open'], c['close']) if c else 0
+    def wick_bot(c): return min(c['open'], c['close']) - c['low'] if c else 0
+    
+    atr = calc_atr(rates[:-1], 14) or 1.0
 
     signal = None
     sub_pattern = None
-    entry_bar = None
-    ref_bar = None  # แท่งตั้งต้นที่ใช้อ้างอิง High/Low สำหรับ Fibo
+    ref_bar = c_curr
 
-    if classic_buy:
-        signal = "BUY"
-        sub_pattern = "S20.1"
-        entry_bar = bar_curr
-        ref_bar = bar_prev1
-    elif classic_sell:
-        signal = "SELL"
-        sub_pattern = "S20.1"
-        entry_bar = bar_curr
-        ref_bar = bar_prev1
-    elif tainted_buy:
-        signal = "BUY"
-        sub_pattern = "S20.2"
-        entry_bar = bar_curr
-        ref_bar = bar_prev2
-    elif tainted_sell:
-        signal = "SELL"
-        sub_pattern = "S20.2"
-        entry_bar = bar_curr
-        ref_bar = bar_prev2
+    # ── STAGE 1: Base Triggers ──────────────────────────────────────────
+    # 1. Defect Pullback (การดูดกลับรอยแหว่ง)
+    if not signal and s_defect and len(rates) >= 4:
+        if is_red(c_prev1) and wick_bot(c_prev1) > body_size(c_prev1) and is_green(c_curr) and c_curr['low'] <= c_prev1['low']:
+            signal, sub_pattern, ref_bar = "BUY", "S20.Base.Defect", c_curr
+        elif is_green(c_prev1) and wick_top(c_prev1) > body_size(c_prev1) and is_red(c_curr) and c_curr['high'] >= c_prev1['high']:
+            signal, sub_pattern, ref_bar = "SELL", "S20.Base.Defect", c_curr
+
+    # 2. 2L/2H Structure (โครงสร้างเบรคหลอก)
+    if not signal and s_2l2h and len(rates) >= 4:
+        if is_green(c_curr) and c_curr['low'] < c_prev1['low'] and c_curr['close'] > c_prev1['low']:
+            signal, sub_pattern, ref_bar = "BUY", "S20.Base.2L2H", c_curr
+        elif is_red(c_curr) and c_curr['high'] > c_prev1['high'] and c_curr['close'] < c_prev1['high']:
+            signal, sub_pattern, ref_bar = "SELL", "S20.Base.2L2H", c_curr
+
+    # 3. Solid / Clear Candle (แท่งตัน/แท่งเคลียร์)
+    if not signal and s_solid and len(rates) >= 3:
+        if is_green(c_prev1) and wick_top(c_prev1) < (atr*0.05) and is_red(c_curr) and c_curr['close'] < c_prev1['low']:
+            signal, sub_pattern, ref_bar = "SELL", "S20.Base.Solid", c_curr
+        elif is_red(c_prev1) and wick_bot(c_prev1) < (atr*0.05) and is_green(c_curr) and c_curr['close'] > c_prev1['high']:
+            signal, sub_pattern, ref_bar = "BUY", "S20.Base.Solid", c_curr
+
+    # 4. FVG / OB Retrace (ย่อตัว 50% หรือเทส FVG)
+    if not signal and s_fvg and len(rates) >= 4:
+        if is_green(c_prev2) and is_red(c_prev1) and is_green(c_curr) and c_curr['low'] <= (c_prev2['open'] + c_prev2['close']) / 2:
+            signal, sub_pattern, ref_bar = "BUY", "S20.Base.FVG", c_curr
+        elif is_red(c_prev2) and is_green(c_prev1) and is_red(c_curr) and c_curr['high'] >= (c_prev2['open'] + c_prev2['close']) / 2:
+            signal, sub_pattern, ref_bar = "SELL", "S20.Base.FVG", c_curr
+
+    # ── STAGE 2: Modifiers & Filters ────────────────────────────────────
+    if signal:
+        # Modifier 1: Magic Number 7 Filter
+        if m_magic:
+            last_digit = int(c_curr['close']) % 10
+            if last_digit == 7:
+                sub_pattern += "+Magic7"
+                
+        # Modifier 2: No Body Close on Support Rule
+        if m_no_body:
+            if signal == "BUY" and c_curr['close'] < c_prev1['low']:
+                signal = None # Failed test, cancel buy
+            elif signal == "SELL" and c_curr['close'] > c_prev1['high']:
+                signal = None # Failed test, cancel sell
+        
+        # Modifier 3: Fibo Confluence (Pseudo-check via wicks)
+        if m_fibo and signal:
+            if wick_top(c_curr) > body_size(c_curr) * 2 or wick_bot(c_curr) > body_size(c_curr) * 2:
+                sub_pattern += "+Fibo"
 
     if not signal:
         return res
-
-    # ── Body Size Filter: กรอง engulf ที่เล็กเกินไป (noise) ─────────
-    min_body_pct = float(getattr(config, "S20_MIN_BODY_ATR_PCT", 0.3))
-    if min_body_pct > 0 and len(rates) >= 16:
-        atr = calc_atr(rates[:-1], 14)
-        if atr and atr > 0:
-            body_size = abs(entry_bar['close'] - entry_bar['open'])
-            if body_size < min_body_pct * atr:
-                res["reason"] = f"S20: body ({body_size:.2f}) < {min_body_pct}×ATR ({min_body_pct * atr:.2f})"
-                return res
-
-    # ── Trend Filter: ห้ามเข้าสวน strong trend ──────────────────────
+    # ── Trend Filter ──
     if tf and not _trend_allows(signal, tf):
-        res["reason"] = f"S20: {signal} blocked by strong counter-trend [{tf}]"
+        res["reason"] = f"S20: Blocked by Counter-Trend [{tf}]"
         return res
 
-    # ── Check for S20.3, S20.4, S20.5 enhancements ────────────────
-    # ถ้า classic/tainted pattern match → เช็คว่ามี confluence เพิ่มเติมไหม
+    # ── Body Size Filter ──
+    min_body_pct = getattr(config, "S20_MIN_BODY_ATR_PCT", 0.3)
+    if min_body_pct > 0 and sub_pattern != "S20.2":
+        body_size = abs(ref_bar['close'] - ref_bar['open'])
+        if body_size < min_body_pct * atr:
+            res["reason"] = f"S20: Body ({body_size:.2f}) < {min_body_pct}xATR"
+            return res
 
-    # 1. Check Sideway Trap (S20.5)
-    if _is_sideway_trap(rates, signal):
-        sub_pattern = "S20.5"
-
-    # 2. Check FVG Bounce (S20.4)
-    fvg_zone = _get_recent_fvg(rates, signal)
-    if fvg_zone:
-        # FVG Zone (Top, Bot)
-        # If the entry_bar low/high touched the FVG, it's a bounce
-        if signal == "BUY" and entry_bar['low'] <= fvg_zone[0] and entry_bar['low'] >= fvg_zone[1]:
-            sub_pattern = "S20.4"
-        elif signal == "SELL" and entry_bar['high'] >= fvg_zone[1] and entry_bar['high'] <= fvg_zone[0]:
-            sub_pattern = "S20.4"
-
-    # 3. Check HTF Alignment (S20.3)
-    # If we have H1 swing data
-    h1_swing = hhll_swing.get_swing_hl_pts("H1")
-    if h1_swing and h1_swing[0] is not None and h1_swing[1] is not None:
-        htf_high = float(h1_swing[0]["price"])
-        htf_low  = float(h1_swing[1]["price"])
-        fibo_range = htf_high - htf_low
-        if fibo_range > 0:
-            ret_50  = htf_low + (fibo_range * 0.5)      # 50% retracement level
-            ret_786 = htf_low + (fibo_range * 0.214)     # 78.6% retracement level
-
-            if signal == "BUY":
-                # Retracement down → BUY ใน discount zone (50-78.6%)
-                if ret_786 <= entry_bar['low'] <= ret_50:
-                    sub_pattern = "S20.3"
-            else:
-                # Retracement up → SELL ใน premium zone (50-78.6% from top)
-                ret_50_up  = htf_high - (fibo_range * 0.5)
-                ret_786_up = htf_high - (fibo_range * 0.214)
-                if ret_50_up <= entry_bar['high'] <= ret_786_up:
-                    sub_pattern = "S20.3"
-
-    # ── Calculate Entry, SL, TP ────────────────────────────────────
-    entry = (entry_bar['open'] + entry_bar['close']) / 2.0
-
-    # คำนวณ ATR สำหรับ SL buffer (consistent กับท่าอื่นในระบบ)
-    atr_val = None
-    if len(rates) >= 16:
-        atr_val = calc_atr(rates[:-1], 14)
-
-    # Fibo for TP: 161.8% extension ของ swing กลับตัว
-    setup_bars = rates[-3:] if sub_pattern == "S20.2" else rates[-2:]
+    # ── Calculate Entry, SL, TP ──
+    tf_max_wick = {"M1": 50.0, "M5": 310.0, "M15": 363.0, "M30": 621.0, "H1": 1200.0, "H4": 2100.0, "H12": 3500.0, "D1": 3390.0}
+    base_wick = 310.0
+    tf_scale = tf_max_wick.get(tf, base_wick) / base_wick
     
-    if signal == "BUY":
-        sl_raw = min([b['low'] for b in setup_bars])
-        high_pt = max([b['high'] for b in setup_bars])
-        fibo_range = high_pt - sl_raw
-        tp_raw = sl_raw + (fibo_range * getattr(config, 'S20_FIBO_TP_LEVEL', 1.618))
-        sl_buffer = config.SL_BUFFER(atr_val) * getattr(config, 'S20_SL_BUFFER', 1.0)
-        sl = sl_raw - sl_buffer
+    entry_buffer = getattr(config, "S20_ENTRY_BUFFER", 0.0) * tf_scale
+    sl_2l2h = getattr(config, "S20_SL_2L2H", 100.0) * tf_scale
+    
+    # 1. Entry
+    if sub_pattern == "S20.Base.Defect":
+        entry = ref_bar['low'] if signal == "BUY" else ref_bar['high']
+    elif sub_pattern == "S20.Base.2L2H":
+        entry = c_curr['close']
+        if signal == "BUY": entry -= entry_buffer
+        else: entry += entry_buffer
     else:
-        sl_raw = max([b['high'] for b in setup_bars])
-        low_pt = min([b['low'] for b in setup_bars])
-        fibo_range = sl_raw - low_pt
-        tp_raw = sl_raw - (fibo_range * getattr(config, 'S20_FIBO_TP_LEVEL', 1.618))
-        sl_buffer = config.SL_BUFFER(atr_val) * getattr(config, 'S20_SL_BUFFER', 1.0)
-        sl = sl_raw + sl_buffer
+        if entry_buffer > 0:
+            if signal == "BUY": entry = c_curr['close'] - entry_buffer
+            else: entry = c_curr['close'] + entry_buffer
+        else:
+            entry = (c_curr['open'] + c_curr['close']) / 2.0
 
-    # Formatting reason based on sub_pattern
-    reason_map = {
-        "S20.1": "Classic Allin4s",
-        "S20.2": "Tainted Allin4s (ตำหนิ)",
-        "S20.3": "HTF Fibo Align Allin4s",
-        "S20.4": "FVG Bounce Allin4s",
-        "S20.5": "Sideway Trap Allin4s"
-    }
+    # 2. SL (Stop Loss)
+    sl_buf = config.SL_BUFFER(atr) * getattr(config, "S20_SL_BUFFER", 1.0)
+    setup_bars = rates[-3:]
+    
+    if sub_pattern == "S20.Base.2L2H":
+        if signal == "BUY": sl = entry - sl_2l2h
+        else: sl = entry + sl_2l2h
+    else:
+        if signal == "BUY": sl = min(b['low'] for b in setup_bars) - sl_buf
+        else: sl = max(b['high'] for b in setup_bars) + sl_buf
+
+    # 3. TP (Take Profit) - Stage 3 Dynamic Exits
+    fibo_run = getattr(config, "S20_FIBO_RUN", 7.044)
+    defect_run = getattr(config, "S20_DEFECT_FIBO_RUN", 7.467)
+    fibo_krh2 = getattr(config, "S20_FIBO_KRH2", 3.097)
+    
+    if sub_pattern == "S20.Base.Defect":
+        # Defect plays use special 7.467 extension
+        if signal == "BUY":
+            sl_raw = min(b['low'] for b in setup_bars)
+            high_pt = max(b['high'] for b in setup_bars)
+            tp_raw = sl_raw + ((high_pt - sl_raw) * defect_run)
+        else:
+            sl_raw = max(b['high'] for b in setup_bars)
+            low_pt = min(b['low'] for b in setup_bars)
+            tp_raw = sl_raw - ((sl_raw - low_pt) * defect_run)
+    elif sub_pattern == "S20.Base.2L2H":
+        # Massive Fibo run for Traps
+        if signal == "BUY":
+            sl_raw = min(b['low'] for b in setup_bars)
+            high_pt = max(b['high'] for b in setup_bars)
+            tp_raw = sl_raw + ((high_pt - sl_raw) * fibo_run)
+        else:
+            sl_raw = max(b['high'] for b in setup_bars)
+            low_pt = min(b['low'] for b in setup_bars)
+            tp_raw = sl_raw - ((sl_raw - low_pt) * fibo_run)
+    else:
+        # Default KRH2 Fibo for Solid and FVG Retrace
+        if signal == "BUY":
+            sl_raw = min(b['low'] for b in setup_bars)
+            high_pt = max(b['high'] for b in setup_bars)
+            tp_raw = sl_raw + ((high_pt - sl_raw) * fibo_krh2)
+        else:
+            sl_raw = max(b['high'] for b in setup_bars)
+            low_pt = min(b['low'] for b in setup_bars)
+            tp_raw = sl_raw - ((sl_raw - low_pt) * fibo_krh2)
+
+    # 4. Apply Stage 2 Modifiers (Psychological Numbers VIP Rule)
+    if getattr(config, "S20_USE_PSYCHO_NUMBERS", True):
+        entry = _apply_psychological_number(entry, is_buy=(signal=="BUY"), is_tp=False)
+        tp_raw = _apply_psychological_number(tp_raw, is_buy=(signal=="BUY"), is_tp=True)
+
+    if signal == "BUY":
+        tp_raw = max(tp_raw, entry + atr)
+        sl = min(sl, entry - (atr*0.2))
+    else:
+        tp_raw = min(tp_raw, entry - atr)
+        sl = max(sl, entry + (atr*0.2))
 
     return {
         "signal": signal,
-        "entry": entry,
-        "sl": sl,
-        "tp": tp_raw,
-        "reason": f"{sub_pattern} {reason_map[sub_pattern]}",
+        "entry": round(entry, 2),
+        "sl": round(sl, 2),
+        "tp": round(tp_raw, 2),
+        "reason": f"S20 - {sub_pattern}",
         "pattern": sub_pattern,
         "sid": 20
     }
