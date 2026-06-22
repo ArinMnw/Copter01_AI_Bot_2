@@ -629,7 +629,7 @@ S16_KZ_ONE_SHOT          = True  # 1 order ต่อ (side, killzone) — runtim
 # default ปรับจาก backtest 30+60 วัน (sim_s17_backtest.py, 06/2026):
 #   M1 60 วัน: n=248 WR 91.1% P/L +$78.90 ต่อ 0.01 lot, แพ้ติดกันสูงสุด 2
 #   ทางเลือก TP 0.4 → WR 87.1% แต่กำไรมากกว่า (+$89.73)
-S17_ALLOWED_TFS         = ["M1"]  # ⚠️ เฉพาะ M1 — backtest: M5/M15/M30 ขาดทุนทุก combo
+S17_ALLOWED_TFS         = ["M1", "M5", "M15", "M30", "H1", "H4"]  # backtest 60d: M1 ดีสุด (+$60 WR93%), M5 ลบ, M30/H1 บวกแต่ n น้อย
 S17_LOOKBACK            = 60    # bars กรอบอ้างอิง sweep + fib zone
 S17_RSI_PERIOD          = 14
 S17_RSI_BUY_MAX         = 32    # BUY เข้าเฉพาะ RSI แท่ง signal ≤ นี้

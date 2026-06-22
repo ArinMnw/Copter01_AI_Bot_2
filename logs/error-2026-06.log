@@ -34,3 +34,9 @@
 [2026-06-21 10:55:33] TG_APP_ERROR | Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running | >... | ) | ^ | File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\telegram\_bot.py", line 733, in _do_post | result = await request.post( | ^^^^^^^^^^^^^^^^^^^ | ...<6 lines>... | ) | ^ | File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post | result = await self._request_wrapper( | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ | ...<7 lines>... | ) | ^ | File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper | raise exception | telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
 [2026-06-22 09:32:50] NEWS_FILTER_ERROR | fetch: ConnectTimeout:
 [2026-06-22 09:39:18] NEWS_FILTER_ERROR | fetch: ConnectTimeout:
+[2026-06-22 12:41:36] SAVE_STATE_ERROR | PermissionError: [WinError 5] Access is denied: 'bot_state.json.tmp' -> 'bot_state.json'
+[2026-06-22 12:50:36] SAVE_STATE_ERROR | PermissionError: [WinError 5] Access is denied: 'bot_state.json.tmp' -> 'bot_state.json'
+[2026-06-22 13:19:36] SAVE_STATE_ERROR | PermissionError: [WinError 5] Access is denied: 'bot_state.json.tmp' -> 'bot_state.json'
+[2026-06-22 13:45:52] SAVE_STATE_ERROR | PermissionError: [WinError 5] Access is denied: 'bot_state.json.tmp' -> 'bot_state.json'
+[2026-06-22 14:44:36] SAVE_STATE_ERROR | PermissionError: [WinError 5] Access is denied: 'bot_state.json.tmp' -> 'bot_state.json'
+[2026-06-22 16:37:25] NEWS_FILTER_ERROR | fetch: ConnectTimeout:

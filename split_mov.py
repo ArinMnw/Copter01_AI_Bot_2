@@ -1,6 +1,6 @@
 import os
 import sys
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import math
 
 def split_video(input_file, target_size_mb=18):
@@ -33,7 +33,7 @@ def split_video(input_file, target_size_mb=18):
         out_name = f"{base_name}_part{i+1}.mp4"
         print(f"Writing {out_name}...")
         
-        subclip = clip.subclip(start_time, end_time)
+        subclip = clip.subclipped(start_time, end_time)
         subclip.write_videofile(out_name, codec="libx264", audio_codec="aac")
         
         print(f"Saved {out_name}")

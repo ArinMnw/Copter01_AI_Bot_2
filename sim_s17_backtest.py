@@ -35,9 +35,13 @@ TF_MAP = {
     "M15": (mt5.TIMEFRAME_M15, 96),
     "M30": (mt5.TIMEFRAME_M30, 48),
     "H1":  (mt5.TIMEFRAME_H1, 24),
+    "H4":  (mt5.TIMEFRAME_H4, 6),
+    "H12": (mt5.TIMEFRAME_H12, 2),
+    "D1":  (mt5.TIMEFRAME_D1, 1),
 }
 
-TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600}
+TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600,
+           "H4": 14400, "H12": 43200, "D1": 86400}
 
 
 def s17_runtime_feature_coverage() -> list[dict]:
@@ -89,7 +93,7 @@ def s17_unreplayed_active_features() -> list[dict]:
 
 def fetch_bars(symbol, tf_name, days):
     tf_val, per_day = TF_MAP[tf_name]
-    count = days * per_day + 300
+    count = min(days * per_day + 300, 90000)  # cap: MT5 คืน None ถ้าขอเกิน ~90k
     rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, count)
     if rates is None or len(rates) == 0:
         return None

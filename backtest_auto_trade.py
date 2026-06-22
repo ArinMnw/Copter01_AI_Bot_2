@@ -922,6 +922,29 @@ def _parse_strategy_comment(comment: str) -> dict:
     return {}
 
 
+def _pattern_from_strategy_comment(comment: str) -> str:
+    text = str(comment or "").upper()
+    m = re.search(r"(?:^|[^A-Z0-9])(?:\[?[A-Z0-9_+-]+\]?)_S\d+_([^#\s]+)", text)
+    if not m:
+        return ""
+    return m.group(1).strip("_")
+
+
+def _s3_pattern_code(pattern: str, marubozu_source: str = "") -> str:
+    text = str(pattern or "").upper()
+    m = re.search(r"\[C1:([A-Z_]+)\]", text)
+    if m:
+        return m.group(1)
+    if text in {"G", "R", "G_DOJI", "R_DOJI"}:
+        return text
+    source = str(marubozu_source or "").upper()
+    if "NOENGULF" in source:
+        return "NOENGULF"
+    if "MARUBOZU" in source or "MARUBOZU" in text:
+        return "MARUBOZU"
+    return text
+
+
 def _s14_family_from_comment(comment: str) -> str:
     text = str(comment or "").upper()
     if "_S14_" not in text:
@@ -1044,6 +1067,7 @@ def load_mt5_history_orders(start_bkk: datetime, end_bkk: datetime, symbol: str,
             "source": "mt5_history",
             "comment": comment,
             "entry_comment": "",
+            "pattern": _pattern_from_strategy_comment(comment),
             "s14_family": "",
             "_out_volume": 0.0,
             "_out_value": 0.0,
@@ -1070,6 +1094,7 @@ def load_mt5_history_orders(start_bkk: datetime, end_bkk: datetime, symbol: str,
             row["_in_volume"] += volume
             if not row["entry_comment"]:
                 row["entry_comment"] = comment
+                row["pattern"] = _pattern_from_strategy_comment(comment)
             if int(row.get("sid", 0) or 0) == 14 and not row.get("s14_family"):
                 row["s14_family"] = _s14_family_from_comment(comment)
             ord_ = order_by_ticket.get(int(getattr(d, "order", 0) or 0)) or order_by_ticket.get(pos_id)
@@ -1157,6 +1182,10 @@ def _sim_live_rows(sim_trades: list[tuple[str, dict]]) -> list[dict]:
             "profit": float(t.get("pnl", 0.0) or 0.0),
             "reason": t.get("close_type", ""),
             "status": "CLOSED" if t.get("close_type") not in ("OPEN",) else "OPEN",
+            "pattern": t.get("pattern", ""),
+            "detect_ts": _naive_dt(t.get("detect_time")) or "",
+            "source_candle_ts": to_bkk(t.get("source_candle_time")).replace(tzinfo=None) if t.get("source_candle_time") else "",
+            "marubozu_source": t.get("marubozu_source", ""),
             "s14_family": _s14_family_from_pattern(t.get("signal", ""), t.get("pattern", ""), t.get("sub_pattern", "")) if sid == 14 else "",
             "bt_sl_guard_group": t.get("sl_guard_group", ""),
             "bt_sl_guard_trigger_tf": t.get("sl_guard_trigger_tf", ""),
@@ -1374,8 +1403,14 @@ def _compare_note(live: dict, sim: dict, match_quality: str = "") -> str:
             return "CLOSE_LIFECYCLE_SL_GUARD"
         if "FILL TREND" in live_reason:
             return "LIVE_CLOSE_TREND_RECHECK"
-        if "PD ZONE" in live_reason or "PD" in sim_reason:
+        live_pd_close = "PD ZONE" in live_reason
+        bt_pd_close = "PD" in sim_reason
+        if live_pd_close and bt_pd_close:
             return "CLOSE_LIFECYCLE_PD"
+        if live_pd_close:
+            return "LIVE_CLOSE_PD_BT_NON_PD"
+        if bt_pd_close:
+            return "BT_CLOSE_PD_LIVE_NON_PD"
         return "CLOSE_BUCKET_DIFF"
     live_trail = live.get("live_last_trail_sl")
     bt_trail = sim.get("bt_last_trail_sl")
@@ -1394,6 +1429,14 @@ def _compare_note(live: dict, sim: dict, match_quality: str = "") -> str:
     if abs(float(live.get("profit", 0.0) or 0.0) - float(sim.get("profit", 0.0) or 0.0)) > 1.0:
         if drift:
             return drift
+        if str(match_quality or "").upper() == "LOOSE":
+            return "LOOSE_MATCH_PNL_DIFF"
+        try:
+            close_diff = abs(float(live.get("close_price", 0.0) or 0.0) - float(sim.get("close_price", 0.0) or 0.0))
+            if close_diff > 1.0:
+                return "CLOSE_PRICE_DIFF_SAME_BUCKET"
+        except (TypeError, ValueError):
+            pass
         return "PNL_DIFF_SAME_BUCKET"
     return ""
 
@@ -1942,6 +1985,9 @@ def compare_result_rows(result: dict) -> list[dict]:
             "live_close_ts": live.get("close_ts", ""),
             "live_close_price": live.get("close_price", ""),
             "live_side": live["side"],
+            "live_tf": live.get("tf", ""),
+            "live_pattern": live.get("pattern", ""),
+            "live_s3_pattern_code": _s3_pattern_code(live.get("pattern", "")) if int(live.get("sid", 0) or 0) == 3 else "",
             "live_entry": live["entry"],
             "live_pnl": live.get("profit", 0.0),
             "live_reason": live.get("reason", ""),
@@ -1965,6 +2011,12 @@ def compare_result_rows(result: dict) -> list[dict]:
             "bt_close_ts": sim.get("close_ts", ""),
             "bt_close_price": sim.get("close_price", ""),
             "bt_side": sim.get("side", ""),
+            "bt_tf": sim.get("tf", ""),
+            "bt_pattern": sim.get("pattern", ""),
+            "bt_s3_pattern_code": _s3_pattern_code(sim.get("pattern", ""), sim.get("marubozu_source", "")) if int(sim.get("sid", 0) or 0) == 3 else "",
+            "bt_detect_ts": sim.get("detect_ts", ""),
+            "bt_source_candle_ts": sim.get("source_candle_ts", ""),
+            "bt_marubozu_source": sim.get("marubozu_source", ""),
             "bt_entry": sim["entry"],
             "bt_pnl": sim["profit"],
             "bt_reason": sim.get("reason", ""),
@@ -1989,7 +2041,7 @@ def compare_result_rows(result: dict) -> list[dict]:
         _add_bt_pd_diag(row, sim)
         rows.append(row)
     for live in result["live_only"]:
-        row = {"status": "LIVE_ONLY", "gap_reason": live.get("gap_reason", ""), "live_ticket": live["ticket"], "live_fill_ts": live["fill_ts"], "live_close_ts": live.get("close_ts", ""), "live_close_price": live.get("close_price", ""), "live_side": live["side"], "live_entry": live["entry"], "live_pnl": live.get("profit", 0.0), "live_reason": live.get("reason", ""), "live_entry_comment": live.get("entry_comment", live.get("comment", "")), "live_s14_family": live.get("s14_family", ""), "live_trail_count": live.get("live_trail_count", ""), "live_last_trail_ts": live.get("live_last_trail_ts", ""), "live_last_trail_sl": live.get("live_last_trail_sl", ""), "live_last_trail_source": live.get("live_last_trail_source", ""), "live_trail_path": live.get("live_trail_path", ""), "live_close_vs_trail_sl_diff": live.get("live_close_vs_trail_sl_diff", ""), "live_sl_guard_close_ts": live.get("live_sl_guard_close_ts", ""), "live_sl_guard_activate_ts": live.get("live_sl_guard_activate_ts", ""), "live_sl_guard_group": live.get("live_sl_guard_group", ""), "live_sl_guard_trigger_tf": live.get("live_sl_guard_trigger_tf", ""), "live_sl_guard_count": live.get("live_sl_guard_count", ""), "live_sl_guard_trigger_candidates": live.get("live_sl_guard_trigger_candidates", ""), "live_sl_guard_request_price": live.get("live_sl_guard_request_price", ""), "live_sl_guard_spread": live.get("live_sl_guard_spread", "")}
+        row = {"status": "LIVE_ONLY", "gap_reason": live.get("gap_reason", ""), "live_ticket": live["ticket"], "live_fill_ts": live["fill_ts"], "live_close_ts": live.get("close_ts", ""), "live_close_price": live.get("close_price", ""), "live_side": live["side"], "live_tf": live.get("tf", ""), "live_pattern": live.get("pattern", ""), "live_s3_pattern_code": _s3_pattern_code(live.get("pattern", "")) if int(live.get("sid", 0) or 0) == 3 else "", "live_entry": live["entry"], "live_pnl": live.get("profit", 0.0), "live_reason": live.get("reason", ""), "live_entry_comment": live.get("entry_comment", live.get("comment", "")), "live_s14_family": live.get("s14_family", ""), "live_trail_count": live.get("live_trail_count", ""), "live_last_trail_ts": live.get("live_last_trail_ts", ""), "live_last_trail_sl": live.get("live_last_trail_sl", ""), "live_last_trail_source": live.get("live_last_trail_source", ""), "live_trail_path": live.get("live_trail_path", ""), "live_close_vs_trail_sl_diff": live.get("live_close_vs_trail_sl_diff", ""), "live_sl_guard_close_ts": live.get("live_sl_guard_close_ts", ""), "live_sl_guard_activate_ts": live.get("live_sl_guard_activate_ts", ""), "live_sl_guard_group": live.get("live_sl_guard_group", ""), "live_sl_guard_trigger_tf": live.get("live_sl_guard_trigger_tf", ""), "live_sl_guard_count": live.get("live_sl_guard_count", ""), "live_sl_guard_trigger_candidates": live.get("live_sl_guard_trigger_candidates", ""), "live_sl_guard_request_price": live.get("live_sl_guard_request_price", ""), "live_sl_guard_spread": live.get("live_sl_guard_spread", "")}
         row.update(_scale_cols("live", live))
         for key in ("nearest_bt_fill_ts", "nearest_bt_entry", "nearest_bt_reason", "nearest_bt_time_diff_min", "nearest_bt_entry_diff"):
             row[key] = live.get(key, "")
@@ -2035,7 +2087,7 @@ def compare_result_rows(result: dict) -> list[dict]:
             row[key] = live.get(key, "")
         rows.append(row)
     for sim in result["backtest_only"]:
-        row = {"status": "BACKTEST_ONLY", "gap_reason": sim.get("gap_reason", ""), "bt_fill_ts": sim["fill_ts"], "bt_close_ts": sim.get("close_ts", ""), "bt_close_price": sim.get("close_price", ""), "bt_side": sim.get("side", ""), "bt_entry": sim["entry"], "bt_pnl": sim["profit"], "bt_reason": sim.get("reason", ""), "bt_s14_family": sim.get("s14_family", ""), "bt_trail_count": sim.get("bt_trail_count", ""), "bt_last_trail_ts": sim.get("bt_last_trail_ts", ""), "bt_last_trail_sl": sim.get("bt_last_trail_sl", ""), "bt_last_trail_source": sim.get("bt_last_trail_source", ""), "bt_trail_path": sim.get("bt_trail_path", ""), "bt_sl_guard_group": sim.get("bt_sl_guard_group", ""), "bt_sl_guard_trigger_tf": sim.get("bt_sl_guard_trigger_tf", "")}
+        row = {"status": "BACKTEST_ONLY", "gap_reason": sim.get("gap_reason", ""), "bt_fill_ts": sim["fill_ts"], "bt_close_ts": sim.get("close_ts", ""), "bt_close_price": sim.get("close_price", ""), "bt_side": sim.get("side", ""), "bt_tf": sim.get("tf", ""), "bt_pattern": sim.get("pattern", ""), "bt_s3_pattern_code": _s3_pattern_code(sim.get("pattern", ""), sim.get("marubozu_source", "")) if int(sim.get("sid", 0) or 0) == 3 else "", "bt_detect_ts": sim.get("detect_ts", ""), "bt_source_candle_ts": sim.get("source_candle_ts", ""), "bt_marubozu_source": sim.get("marubozu_source", ""), "bt_entry": sim["entry"], "bt_pnl": sim["profit"], "bt_reason": sim.get("reason", ""), "bt_s14_family": sim.get("s14_family", ""), "bt_trail_count": sim.get("bt_trail_count", ""), "bt_last_trail_ts": sim.get("bt_last_trail_ts", ""), "bt_last_trail_sl": sim.get("bt_last_trail_sl", ""), "bt_last_trail_source": sim.get("bt_last_trail_source", ""), "bt_trail_path": sim.get("bt_trail_path", ""), "bt_sl_guard_group": sim.get("bt_sl_guard_group", ""), "bt_sl_guard_trigger_tf": sim.get("bt_sl_guard_trigger_tf", "")}
         row.update(_scale_cols("bt", sim))
         _add_bt_pd_diag(row, sim)
         for key in ("nearest_live_fill_ts", "nearest_live_entry", "nearest_live_reason", "nearest_live_time_diff_min", "nearest_live_entry_diff"):
@@ -2195,13 +2247,13 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
 
     all_rows = compare_result_rows(result)
     preferred = [
-        "status", "gap_reason", "live_ticket", "live_fill_ts", "live_close_ts", "live_close_price", "live_side", "live_entry", "live_pnl",
+        "status", "gap_reason", "live_ticket", "live_fill_ts", "live_close_ts", "live_close_price", "live_side", "live_tf", "live_pattern", "live_s3_pattern_code", "live_entry", "live_pnl",
         "live_scale_out_1_pnl", "live_scale_out_2_pnl", "live_scale_out_3_pnl", "live_scale_out_4_pnl",
         "live_reason", "live_entry_comment",
         "live_trail_count", "live_last_trail_ts", "live_last_trail_sl", "live_last_trail_source", "live_trail_path", "live_close_vs_trail_sl_diff",
         "live_sl_guard_close_ts", "live_sl_guard_activate_ts", "live_sl_guard_group", "live_sl_guard_trigger_tf", "live_sl_guard_count",
         "live_sl_guard_trigger_candidates", "live_sl_guard_request_price", "live_sl_guard_spread",
-        "bt_fill_ts", "bt_close_ts", "bt_close_price", "bt_side", "bt_entry", "bt_pnl",
+        "bt_fill_ts", "bt_close_ts", "bt_close_price", "bt_side", "bt_tf", "bt_pattern", "bt_s3_pattern_code", "bt_detect_ts", "bt_source_candle_ts", "bt_marubozu_source", "bt_entry", "bt_pnl",
         "bt_scale_out_1_pnl", "bt_scale_out_2_pnl", "bt_scale_out_3_pnl", "bt_scale_out_4_pnl",
         "bt_reason", "match_quality", "match_score", "time_diff_min", "entry_diff", "close_price_diff", "pnl_diff",
         "bt_pd_h", "bt_pd_l", "bt_pd_fib_382", "bt_pd_fib_618", "bt_pd_fallback_used", "bt_pd_outside_range",
@@ -3582,6 +3634,7 @@ def main() -> None:
     parser.add_argument("--end", required=True, help="Bangkok end time, e.g. 2026-06-06 05:00")
     parser.add_argument("--tf", help="HTF/LTF to test. For S10, H1 maps to M1.")
     parser.add_argument("--strategies", default="active", help="active, all, or list/range like 10 or 1,9-10,15")
+    parser.add_argument("--context-strategies", help="Diagnostic only: run extra replay strategies for shared state while reporting/comparing only --strategies.")
     parser.add_argument("--symbol", help="Symbol. If omitted, uses bot_state.json then config.SYMBOL.")
     parser.add_argument("--since", help="Simulation start in Bangkok time. Defaults to sim module SINCE.")
     parser.add_argument("--exclude-cancelled", "--only-filled", action="store_true", dest="exclude_cancelled")
@@ -3687,7 +3740,11 @@ def main() -> None:
     sync_strategy10_runtime_config()
 
     strategies = parse_strategy_list(args.strategies)
-    unsupported = [sid for sid in strategies if sid not in SUPPORTED_STRATEGIES]
+    requested_context_strategies = parse_strategy_list(args.context_strategies) if args.context_strategies else []
+    context_strategies = [sid for sid in requested_context_strategies if config.active_strategies.get(sid, False)]
+    skipped_context_strategies = [sid for sid in requested_context_strategies if sid not in context_strategies]
+    replay_strategies = sorted(set(strategies) | set(context_strategies))
+    unsupported = [sid for sid in replay_strategies if sid not in SUPPORTED_STRATEGIES]
 
     print(f"Symbol   : {config.SYMBOL}")
     print(f"Restore  : {restore_info}")
@@ -3699,40 +3756,44 @@ def main() -> None:
         print(f"S3 Diagnostic Overrides: {', '.join(s3_diagnostic_overrides)}")
     print(f"Window   : {start_bkk} -> {end_bkk} (Bangkok timezone)")
     print(f"Strategy : {strategies}")
+    if requested_context_strategies:
+        print(f"Context  : {context_strategies or '-'} (requested: {requested_context_strategies}; replay set: {replay_strategies}; report stays: {strategies})")
+        if skipped_context_strategies:
+            print(f"Context skipped because OFF in restored config: {skipped_context_strategies}")
     print_feature_snapshot()
-    if 1 in strategies:
+    if 1 in replay_strategies:
         print_s1_coverage()
-    if 2 in strategies:
+    if 2 in replay_strategies:
         print_s2_coverage()
-    if 3 in strategies:
+    if 3 in replay_strategies:
         print_s3_coverage()
-    if 4 in strategies:
+    if 4 in replay_strategies:
         print_s4_coverage()
-    if 5 in strategies:
+    if 5 in replay_strategies:
         print_s5_coverage()
-    if 8 in strategies:
+    if 8 in replay_strategies:
         print_s8_coverage()
-    if 9 in strategies:
+    if 9 in replay_strategies:
         print_s9_coverage()
-    if 10 in strategies:
+    if 10 in replay_strategies:
         print_s10_coverage()
-    if 11 in strategies:
+    if 11 in replay_strategies:
         print_s11_coverage()
-    if 12 in strategies:
+    if 12 in replay_strategies:
         print_s12_coverage()
-    if 13 in strategies:
+    if 13 in replay_strategies:
         print_s13_coverage()
-    if 14 in strategies:
+    if 14 in replay_strategies:
         print_s14_coverage()
-    if 15 in strategies:
+    if 15 in replay_strategies:
         print_s15_coverage()
-    if 16 in strategies:
+    if 16 in replay_strategies:
         print_s16_coverage()
-    if 17 in strategies:
+    if 17 in replay_strategies:
         print_s17_coverage()
-    if 18 in strategies:
+    if 18 in replay_strategies:
         print_s18_coverage()
-    if 19 in strategies:
+    if 19 in replay_strategies:
         print_s19_coverage()
     if unsupported:
         print(f"\nNot implemented in this replay engine yet: {unsupported}")
@@ -3740,7 +3801,7 @@ def main() -> None:
 
     all_trades = []
     args._raw_replay_context_trades = []
-    strategy_set = set(strategies)
+    strategy_set = set(replay_strategies)
     unified_s458 = (
         strategy_set.issubset({1, 2, 3, 4, 5, 8})
         and (len(strategy_set) > 1 or bool(strategy_set & {1, 2, 3}))
@@ -3752,79 +3813,79 @@ def main() -> None:
                 progress(f"S{sid} selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s458_unified(args, window_start_utc, window_end_utc, strategy_set))
 
-    if not unified_s458 and 1 in strategies:
+    if not unified_s458 and 1 in replay_strategies:
         if not config.active_strategies.get(1, False):
             progress("S1 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s1(args, window_start_utc, window_end_utc))
-    if not unified_s458 and 2 in strategies:
+    if not unified_s458 and 2 in replay_strategies:
         if not config.active_strategies.get(2, False):
             progress("S2 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s2(args, window_start_utc, window_end_utc))
-    if not unified_s458 and 3 in strategies:
+    if not unified_s458 and 3 in replay_strategies:
         if not config.active_strategies.get(3, False):
             progress("S3 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s3(args, window_start_utc, window_end_utc))
-    if not unified_s458 and 4 in strategies:
+    if not unified_s458 and 4 in replay_strategies:
         if not config.active_strategies.get(4, False):
             progress("S4 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s4(args, window_start_utc, window_end_utc))
-    if not unified_s458 and 5 in strategies:
+    if not unified_s458 and 5 in replay_strategies:
         if not config.active_strategies.get(5, False):
             progress("S5 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s5(args, window_start_utc, window_end_utc))
-    if not unified_s458 and 8 in strategies:
+    if not unified_s458 and 8 in replay_strategies:
         if not config.active_strategies.get(8, False):
             progress("S8 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s8(args, window_start_utc, window_end_utc))
-    if not unified_s458 and 9 in strategies:
+    if not unified_s458 and 9 in replay_strategies:
         if not config.active_strategies.get(9, False):
             progress("S9 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s9(args, window_start_utc, window_end_utc))
-    if 10 in strategies:
+    if 10 in replay_strategies:
         if not config.active_strategies.get(10, False):
             progress("S10 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s10(args, window_start_utc, window_end_utc))
-    if 11 in strategies:
+    if 11 in replay_strategies:
         if not config.active_strategies.get(11, False):
             progress("S11 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s11(args, window_start_utc, window_end_utc))
-    if 12 in strategies:
+    if 12 in replay_strategies:
         if not config.active_strategies.get(12, False):
             progress("S12 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s12(args, window_start_utc, window_end_utc))
-    if 13 in strategies:
+    if 13 in replay_strategies:
         if not config.active_strategies.get(13, False):
             progress("S13 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s13(args, window_start_utc, window_end_utc))
-    if 14 in strategies:
+    if 14 in replay_strategies:
         if not config.active_strategies.get(14, False):
             progress("S14 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s14(args, window_start_utc, window_end_utc))
-    if 15 in strategies:
+    if 15 in replay_strategies:
         if not config.active_strategies.get(15, False):
             progress("S15 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s15(args, window_start_utc, window_end_utc))
-    if 16 in strategies:
+    if 16 in replay_strategies:
         if not config.active_strategies.get(16, False):
             progress("S16 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s16(args, window_start_utc, window_end_utc))
-    if 17 in strategies:
+    if 17 in replay_strategies:
         if not config.active_strategies.get(17, False):
             progress("S17 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s17(args, window_start_utc, window_end_utc))
-    if 18 in strategies:
+    if 18 in replay_strategies:
         if not config.active_strategies.get(18, False):
             progress("S18 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s18(args, window_start_utc, window_end_utc))
-    if 19 in strategies:
+    if 19 in replay_strategies:
         if not config.active_strategies.get(19, False):
             progress("S19 selected but OFF in restored config; replay still runs for requested strategy audit.")
         all_trades.extend(run_s19(args, window_start_utc, window_end_utc))
 
-    all_trades = apply_system_limit_guard_overlay(all_trades, set(strategies), exclude_cancelled=args.exclude_cancelled)
-    all_trades = apply_system_same_bar_duplicate_overlay(all_trades, set(strategies))
-    all_trades = apply_system_opposite_order_overlay(all_trades, set(strategies))
-    all_trades = apply_system_sl_guard_group_overlay(all_trades, set(strategies))
+    all_trades = apply_system_limit_guard_overlay(all_trades, set(replay_strategies), exclude_cancelled=args.exclude_cancelled)
+    all_trades = apply_system_same_bar_duplicate_overlay(all_trades, set(replay_strategies))
+    all_trades = apply_system_opposite_order_overlay(all_trades, set(replay_strategies))
+    all_trades = apply_system_sl_guard_group_overlay(all_trades, set(replay_strategies))
     all_trades = sorted(
         all_trades,
         key=lambda row: (
@@ -3835,6 +3896,10 @@ def main() -> None:
             float(row[1].get("entry", 0.0) or 0.0),
         ),
     )
+    report_strategy_set = set(strategies)
+    report_trades = [(tf, trade) for tf, trade in all_trades if int(trade.get("sid", 0) or 0) in report_strategy_set]
+    if context_strategies:
+        progress(f"Context strategy filter: replay rows {len(all_trades)} -> report rows {len(report_trades)} for S{','.join(str(s) for s in strategies)}.")
 
     report_variants = []
     if args.hybrid_live_guard_context:
@@ -3857,6 +3922,8 @@ def main() -> None:
         report_variants.append("s2_fill_before_cancel")
     if args.s3_disable_pd_fibo_plus:
         report_variants.append("s3_no_pd")
+    if context_strategies:
+        report_variants.append("ctx_" + "-".join(str(s) for s in context_strategies))
     report_variant = "_".join(report_variants) if report_variants else None
     default_report_name = default_compare_report_base(
         start_bkk,
@@ -3874,14 +3941,14 @@ def main() -> None:
             strategies,
         )
         progress(f"Writing raw replay trades CSV: {trades_path}")
-        written_trades_csv = write_trades_csv(trades_path, all_trades)
+        written_trades_csv = write_trades_csv(trades_path, report_trades)
         if written_trades_csv != trades_path:
             print(f"\nReplay Trades CSV: {written_trades_csv} (requested file was locked)")
         else:
             print(f"\nReplay Trades CSV: {written_trades_csv}")
 
     groups = defaultdict(list)
-    for htf, trade in all_trades:
+    for htf, trade in report_trades:
         groups[htf].append(trade)
 
     grand_total = 0.0
@@ -3915,7 +3982,7 @@ def main() -> None:
         enrich_rows_with_trail_logs(live_rows, trail_log_files)
         enrich_rows_with_sl_guard_logs(live_rows, trail_log_files)
         live_rows = filter_live_rows_for_request(live_rows, args.tf)
-        sim_rows = _sim_live_rows(all_trades)
+        sim_rows = _sim_live_rows(report_trades)
         progress(f"Comparing live={len(live_rows)} vs backtest={len(sim_rows)} filled order(s)...")
         compare = compare_live_vs_backtest(
             live_rows,
@@ -3949,6 +4016,7 @@ def main() -> None:
                     "symbol": config.SYMBOL,
                     "window": f"{start_bkk} -> {end_bkk}",
                     "strategies": ",".join(str(s) for s in strategies),
+                    "context_strategies": ",".join(str(s) for s in context_strategies),
                     "tf_filter": (args.tf or "ALL").upper(),
                     "match_minutes": args.match_minutes,
                     "match_entry_points": args.match_entry_points,

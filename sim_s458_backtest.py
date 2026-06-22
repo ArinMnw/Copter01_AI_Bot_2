@@ -470,6 +470,20 @@ def _adjacent_sid_blocked_sim(
     return False
 
 
+def _last_traded_time(order: dict, fallback_time: int) -> int:
+    return int(order.get("source_candle_time") or order.get("detect_time_raw") or fallback_time or 0)
+
+
+def _mark_last_traded_per_tf(last_traded_per_tf: dict, order: dict, tf_name: str, fallback_time: int) -> None:
+    traded_time = _last_traded_time(order, fallback_time)
+    if traded_time <= 0:
+        return
+    last_traded_per_tf[tf_name] = traded_time
+    for ptf in order.get("parallel_tfs") or []:
+        if ptf:
+            last_traded_per_tf[str(ptf)] = traded_time
+
+
 def _sweep_scan_state(
     tf_name: str,
     hist_data: dict,
@@ -675,8 +689,10 @@ def _scan_signals(
     tf_secs: int,
     fallback_start: dict,
     maru_pending: dict,
+    last_traded_per_tf: dict | None = None,
 ) -> list[tuple[int, dict]]:
     signals: list[tuple[int, dict]] = []
+    last_traded_per_tf = last_traded_per_tf if last_traded_per_tf is not None else {}
     if 1 in strategies:
         r1 = strategy_1(full_rates, tf=tf_name)
         if r1.get("signal") in ("BUY", "SELL"):
@@ -709,7 +725,9 @@ def _scan_signals(
             bull_next = float(bar["close"]) > float(bar["open"])
             direction = mp.get("direction")
             color_ok = (direction == "BUY" and bull_next) or (direction == "SELL" and not bull_next)
-            if color_ok and sim_s3_backtest._confirm_ok(full_rates, direction, tf_name, tf_secs, int(bar["time"]), fallback_start):
+            source_time = int(mp.get("candle_time", 0) or 0)
+            not_traded_source = last_traded_per_tf.get(tf_name) != source_time
+            if color_ok and not_traded_source and sim_s3_backtest._confirm_ok(full_rates, direction, tf_name, tf_secs, int(bar["time"]), fallback_start):
                 signals.append((3, {"_prebuilt_order": sim_s3_backtest._pending_from_maru(mp, tf_name, bar)}))
             maru_pending.pop(key, None)
 
@@ -717,7 +735,7 @@ def _scan_signals(
         mp = r3.get("marubozu_pending")
         if mp:
             key = f"{tf_name}_{mp['candle_time']}_s3maru"
-            if key not in maru_pending:
+            if key not in maru_pending and last_traded_per_tf.get(tf_name) != int(bar["time"]):
                 maru_pending[key] = mp
         if r3.get("signal") in ("BUY", "SELL") and sim_s3_backtest._confirm_ok(
             full_rates, r3.get("signal"), tf_name, tf_secs, int(bar["time"]), fallback_start
@@ -791,6 +809,7 @@ def backtest_tf(
     sl_guard = SimSLGuard(point)
     trail_focus_state: dict = {}
     last_sid_tf: dict = {}
+    last_traded_per_tf: dict = {}
     fallback_start: dict = {}
     maru_pending: dict = {}
     tf_secs = TF_SECONDS.get(tf_name, 60)
@@ -1004,7 +1023,7 @@ def backtest_tf(
         scan_results = []
         if scan_allowed:
             scan_results = _scan_signals(
-                strategies, scan_rates, full_rates, hist_data, tf_name, bt, bar, tf_secs, fallback_start, maru_pending
+                strategies, scan_rates, full_rates, hist_data, tf_name, bt, bar, tf_secs, fallback_start, maru_pending, last_traded_per_tf
             )
         if not hist_data and _post_signal_hhll_needed(strategies, scan_results):
             hist_data = _build_historical_hhll_data(full_rates)
@@ -1061,6 +1080,7 @@ def backtest_tf(
                 continue
             pending.append(order)
             last_sid_tf.setdefault(tf_name, {})[sid] = int(bar["time"])
+            _mark_last_traded_per_tf(last_traded_per_tf, order, tf_name, int(bar["time"]))
 
     for order in pending:
         trades.append({
@@ -1148,6 +1168,7 @@ def backtest_multi_tf(
     sl_guard = SimSLGuard(point)
     trail_focus_state: dict = {}
     last_sid_tf: dict = {}
+    last_traded_per_tf: dict = {}
 
     progress_every = max(1, len(events) // 20)
     for event_no, (event_time, _, tf_name, idx) in enumerate(events, start=1):
@@ -1339,6 +1360,7 @@ def backtest_multi_tf(
                 tf_secs,
                 state["fallback_start"],
                 state["maru_pending"],
+                last_traded_per_tf,
             )
         if not hist_data and _post_signal_hhll_needed(strategies, scan_results):
             hist_data = _build_historical_hhll_data(full_rates)
@@ -1395,6 +1417,7 @@ def backtest_multi_tf(
                 continue
             pending.append(order)
             last_sid_tf.setdefault(tf_name, {})[sid] = int(bar["time"])
+            _mark_last_traded_per_tf(last_traded_per_tf, order, tf_name, int(bar["time"]))
 
     for order in pending:
         trades.append({

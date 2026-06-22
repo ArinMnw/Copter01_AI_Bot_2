@@ -16,6 +16,7 @@ inject HTF rates ที่ slice ตามเวลาแท่ง → กัน
 """
 
 import argparse
+import bisect
 import csv
 import os
 from datetime import datetime, timezone
@@ -35,9 +36,12 @@ TF_MAP = {
     "M15": (mt5.TIMEFRAME_M15, 96),
     "M30": (mt5.TIMEFRAME_M30, 48),
     "H1":  (mt5.TIMEFRAME_H1, 24),
+    "H4":  (mt5.TIMEFRAME_H4, 6),
+    "D1":  (mt5.TIMEFRAME_D1, 1),
 }
 
-TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600}
+TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600,
+           "H4": 14400, "D1": 86400}
 
 
 def s19_runtime_feature_coverage() -> list[dict]:
@@ -89,7 +93,7 @@ def s19_unreplayed_active_features() -> list[dict]:
 
 def fetch_bars(symbol, tf_name, days, extra=300):
     tf_val, per_day = TF_MAP[tf_name]
-    count = days * per_day + extra
+    count = min(days * per_day + extra, 90000)  # cap: MT5 คืน None ถ้าขอเกิน ~90k
     rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, count)
     if rates is None or len(rates) == 0:
         return None
@@ -163,6 +167,8 @@ def replay_tf(bars, htf_bars, tf_name, spread):
     trades = []
     level_fired = {}
     n = len(bars)
+    # precompute HTF times (เรียงเวลาอยู่แล้ว) → bisect แทน list-comp ทุกแท่ง (กัน O(n²))
+    htf_times = [int(r["time"]) for r in htf_bars] if htf_bars is not None else None
     for j in range(lookback + 2, n - 1):
         entry_bar = bars[j + 1]
         live = {
@@ -176,11 +182,12 @@ def replay_tf(bars, htf_bars, tf_name, spread):
         window = list(bars[lo:j + 1]) + [live]
 
         sig_time = int(entry_bar["time"])
-        # slice HTF bars ที่ปิดก่อน/เท่ากับเวลาแท่ง signal (กัน look-ahead)
+        # slice HTF bars ที่ปิดก่อน/เท่ากับเวลาแท่ง signal (กัน look-ahead) — bisect O(log n)
         htf_slice = None
         if htf_bars is not None:
-            htf_slice = [r for r in htf_bars if int(r["time"]) <= sig_time]
-            htf_slice = htf_slice[-300:] if htf_slice else None
+            k = bisect.bisect_right(htf_times, sig_time)
+            if k > 0:
+                htf_slice = htf_bars[max(0, k - 300):k]
 
         dt_bkk = config.mt5_ts_to_bkk(sig_time)
         res = detect_s19(window, tf=tf_name, dt_bkk=dt_bkk, htf_rates=htf_slice)

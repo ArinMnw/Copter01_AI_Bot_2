@@ -1261,3 +1261,20 @@
 [2026-06-22 11:30:40] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
 [2026-06-22 11:30:40] Launching: python main.py
 [2026-06-22 11:30:40] main.py running (pid=60104)
+[2026-06-22 11:45:44] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
+[2026-06-22 11:45:44] Launching: python main.py
+[2026-06-22 11:45:44] main.py running (pid=15392)
+[2026-06-22 11:47:26] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
+[2026-06-22 11:47:26] Launching: python main.py
+[2026-06-22 11:47:26] main.py running (pid=43004)
+[2026-06-22 11:50:35] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='python')
+[2026-06-22 11:50:35] Launching: python main.py
+[2026-06-22 11:50:35] main.py running (pid=44528)
+[2026-06-22 16:35:21] STALL: heartbeat age=194s > 180s (loop hang) -> kill pid=44528 + restart
+[2026-06-22 16:35:24] Restarting in 5 s ...
+[2026-06-22 16:35:31] Launching: python main.py
+[2026-06-22 16:35:32] main.py running (pid=70348)
+[2026-06-22 16:39:33] STALL: heartbeat age=194s > 180s (loop hang) -> kill pid=70348 + restart
+[2026-06-22 16:39:33] Restarting in 5 s ...
+[2026-06-22 16:39:38] Launching: python main.py
+[2026-06-22 16:39:39] main.py running (pid=70236)
