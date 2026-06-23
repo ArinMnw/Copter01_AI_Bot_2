@@ -156,15 +156,37 @@ def strategy_20_6(rates, tf="M5", dt_bkk=None) -> dict:
         sub_pattern = fvg_pattern
         c_prev1 = rates[-2]
         
-        # Calculate SL / TP
+        # ── Calculate Entry, SL, TP (Mimicking old strategy20.py) ──
+        tf_max_wick = {"M1": 50.0, "M5": 310.0, "M15": 363.0, "M30": 621.0, "H1": 1200.0, "H4": 2100.0, "H12": 3500.0, "D1": 3390.0}
+        base_wick = 310.0
+        tf_scale = tf_max_wick.get(tf, base_wick) / base_wick
+        
+        entry_buffer = getattr(config, "S20_ENTRY_BUFFER", 0.0) * tf_scale * 0.01
+        sl_2l2h = atr * 1.5
+        
+        fibo_run = min(7.044, 3.097) # capped as in old logic for anchor size
+        
+        # S20.6 never has "Solid" in sub_pattern, so it uses the 'else' branch
         if signal == "BUY":
-            entry = rates[-1]['open']
-            sl = c_prev1['low'] - (atr * getattr(config, "SL_ATR_MULT", 2.0))
-            tp_raw = entry + ((entry - sl) * 1.5)
+            entry = c_prev1['low'] + entry_buffer
+            sl_raw = c_prev1['low'] - sl_2l2h
         else:
-            entry = rates[-1]['open']
-            sl = c_prev1['high'] + (atr * getattr(config, "SL_ATR_MULT", 2.0))
-            tp_raw = entry - ((sl - entry) * 1.5)
+            entry = c_prev1['high'] - entry_buffer
+            sl_raw = c_prev1['high'] + sl_2l2h
+            
+        sl = sl_raw
+        
+        low_pt = c_prev1['low']
+        high_pt = c_prev1['high']
+        
+        if signal == "BUY":
+            tp_raw = sl_raw + ((high_pt - sl_raw) * fibo_run)
+            tp_raw = max(tp_raw, entry + atr)
+            sl = min(sl, entry - (atr * 0.2))
+        else:
+            tp_raw = sl_raw - ((sl_raw - low_pt) * fibo_run)
+            tp_raw = min(tp_raw, entry - atr)
+            sl = max(sl, entry + (atr * 0.2))
                 
         res.update({
             "signal": signal,
