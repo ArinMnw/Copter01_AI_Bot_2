@@ -1209,6 +1209,17 @@ def _sim_live_rows(sim_trades: list[tuple[str, dict]]) -> list[dict]:
             "pd_pending_round2_changed",
         ):
             row[key] = t.get(key, "")
+        for key in (
+            "s3_prev_sid_time_raw",
+            "s3_prev_sid_gap_sec",
+            "s3_prev_sid_adjacent",
+            "s3_last_traded_time_raw",
+            "s3_last_traded_matches_source",
+            "s3_pending_same_sid_tf",
+            "s3_open_same_sid_tf",
+            "s3_active_same_sid_tf",
+        ):
+            row[key] = t.get(key, "")
         trail_events = list(t.get("trail_events") or [])
         if trail_events:
             last_trail = trail_events[-1]
@@ -1302,13 +1313,43 @@ def _nearest_candidate(row: dict, candidates: list[dict], prefix: str) -> dict:
             best_score = score
     if not best:
         return {}
+    try:
+        sid = int(best.get("sid", 0) or 0)
+    except (TypeError, ValueError):
+        sid = 0
     return {
         f"nearest_{prefix}_fill_ts": best.get("fill_ts"),
+        f"nearest_{prefix}_close_ts": best.get("close_ts", ""),
+        f"nearest_{prefix}_close_price": best.get("close_price", ""),
+        f"nearest_{prefix}_side": best.get("side", ""),
+        f"nearest_{prefix}_tf": best.get("tf", ""),
+        f"nearest_{prefix}_pattern": best.get("pattern", ""),
+        f"nearest_{prefix}_s3_pattern_code": _s3_pattern_code(best.get("pattern", ""), best.get("marubozu_source", "")) if sid == 3 else "",
+        f"nearest_{prefix}_marubozu_source": best.get("marubozu_source", ""),
         f"nearest_{prefix}_entry": best.get("entry"),
+        f"nearest_{prefix}_pnl": best.get("profit", ""),
         f"nearest_{prefix}_reason": best.get("reason", ""),
         f"nearest_{prefix}_time_diff_min": round(_minutes_abs(row["fill_ts"], best["fill_ts"]), 2),
         f"nearest_{prefix}_entry_diff": round(abs(float(row.get("entry", 0.0) or 0.0) - float(best.get("entry", 0.0) or 0.0)), 2),
     }
+
+
+def _nearest_compare_keys(prefix: str) -> tuple[str, ...]:
+    return (
+        f"nearest_{prefix}_fill_ts",
+        f"nearest_{prefix}_close_ts",
+        f"nearest_{prefix}_close_price",
+        f"nearest_{prefix}_side",
+        f"nearest_{prefix}_tf",
+        f"nearest_{prefix}_pattern",
+        f"nearest_{prefix}_s3_pattern_code",
+        f"nearest_{prefix}_marubozu_source",
+        f"nearest_{prefix}_entry",
+        f"nearest_{prefix}_pnl",
+        f"nearest_{prefix}_reason",
+        f"nearest_{prefix}_time_diff_min",
+        f"nearest_{prefix}_entry_diff",
+    )
 
 
 def _nearest_gap_reason(nearest: dict, prefix: str, time_tolerance_min: float, entry_tolerance: float) -> str:
@@ -1967,9 +2008,23 @@ def compare_result_rows(result: dict) -> list[dict]:
         "pd_pending_round2_l",
         "pd_pending_round2_changed",
     )
+    bt_s3_diag_keys = (
+        "s3_prev_sid_time_raw",
+        "s3_prev_sid_gap_sec",
+        "s3_prev_sid_adjacent",
+        "s3_last_traded_time_raw",
+        "s3_last_traded_matches_source",
+        "s3_pending_same_sid_tf",
+        "s3_open_same_sid_tf",
+        "s3_active_same_sid_tf",
+    )
 
     def _add_bt_pd_diag(prefix_row: dict, sim_row: dict) -> None:
         for key in bt_pd_diag_keys:
+            prefix_row[f"bt_{key}"] = sim_row.get(key, "")
+
+    def _add_bt_s3_diag(prefix_row: dict, sim_row: dict) -> None:
+        for key in bt_s3_diag_keys:
             prefix_row[f"bt_{key}"] = sim_row.get(key, "")
 
     rows = []
@@ -2039,11 +2094,12 @@ def compare_result_rows(result: dict) -> list[dict]:
         row.update(_scale_cols("live", live))
         row.update(_scale_cols("bt", sim))
         _add_bt_pd_diag(row, sim)
+        _add_bt_s3_diag(row, sim)
         rows.append(row)
     for live in result["live_only"]:
         row = {"status": "LIVE_ONLY", "gap_reason": live.get("gap_reason", ""), "live_ticket": live["ticket"], "live_fill_ts": live["fill_ts"], "live_close_ts": live.get("close_ts", ""), "live_close_price": live.get("close_price", ""), "live_side": live["side"], "live_tf": live.get("tf", ""), "live_pattern": live.get("pattern", ""), "live_s3_pattern_code": _s3_pattern_code(live.get("pattern", "")) if int(live.get("sid", 0) or 0) == 3 else "", "live_entry": live["entry"], "live_pnl": live.get("profit", 0.0), "live_reason": live.get("reason", ""), "live_entry_comment": live.get("entry_comment", live.get("comment", "")), "live_s14_family": live.get("s14_family", ""), "live_trail_count": live.get("live_trail_count", ""), "live_last_trail_ts": live.get("live_last_trail_ts", ""), "live_last_trail_sl": live.get("live_last_trail_sl", ""), "live_last_trail_source": live.get("live_last_trail_source", ""), "live_trail_path": live.get("live_trail_path", ""), "live_close_vs_trail_sl_diff": live.get("live_close_vs_trail_sl_diff", ""), "live_sl_guard_close_ts": live.get("live_sl_guard_close_ts", ""), "live_sl_guard_activate_ts": live.get("live_sl_guard_activate_ts", ""), "live_sl_guard_group": live.get("live_sl_guard_group", ""), "live_sl_guard_trigger_tf": live.get("live_sl_guard_trigger_tf", ""), "live_sl_guard_count": live.get("live_sl_guard_count", ""), "live_sl_guard_trigger_candidates": live.get("live_sl_guard_trigger_candidates", ""), "live_sl_guard_request_price": live.get("live_sl_guard_request_price", ""), "live_sl_guard_spread": live.get("live_sl_guard_spread", "")}
         row.update(_scale_cols("live", live))
-        for key in ("nearest_bt_fill_ts", "nearest_bt_entry", "nearest_bt_reason", "nearest_bt_time_diff_min", "nearest_bt_entry_diff"):
+        for key in _nearest_compare_keys("bt"):
             row[key] = live.get(key, "")
         for key in (
             "nearest_raw_replay_tf",
@@ -2090,7 +2146,8 @@ def compare_result_rows(result: dict) -> list[dict]:
         row = {"status": "BACKTEST_ONLY", "gap_reason": sim.get("gap_reason", ""), "bt_fill_ts": sim["fill_ts"], "bt_close_ts": sim.get("close_ts", ""), "bt_close_price": sim.get("close_price", ""), "bt_side": sim.get("side", ""), "bt_tf": sim.get("tf", ""), "bt_pattern": sim.get("pattern", ""), "bt_s3_pattern_code": _s3_pattern_code(sim.get("pattern", ""), sim.get("marubozu_source", "")) if int(sim.get("sid", 0) or 0) == 3 else "", "bt_detect_ts": sim.get("detect_ts", ""), "bt_source_candle_ts": sim.get("source_candle_ts", ""), "bt_marubozu_source": sim.get("marubozu_source", ""), "bt_entry": sim["entry"], "bt_pnl": sim["profit"], "bt_reason": sim.get("reason", ""), "bt_s14_family": sim.get("s14_family", ""), "bt_trail_count": sim.get("bt_trail_count", ""), "bt_last_trail_ts": sim.get("bt_last_trail_ts", ""), "bt_last_trail_sl": sim.get("bt_last_trail_sl", ""), "bt_last_trail_source": sim.get("bt_last_trail_source", ""), "bt_trail_path": sim.get("bt_trail_path", ""), "bt_sl_guard_group": sim.get("bt_sl_guard_group", ""), "bt_sl_guard_trigger_tf": sim.get("bt_sl_guard_trigger_tf", "")}
         row.update(_scale_cols("bt", sim))
         _add_bt_pd_diag(row, sim)
-        for key in ("nearest_live_fill_ts", "nearest_live_entry", "nearest_live_reason", "nearest_live_time_diff_min", "nearest_live_entry_diff"):
+        _add_bt_s3_diag(row, sim)
+        for key in _nearest_compare_keys("live"):
             row[key] = sim.get(key, "")
         rows.append(row)
     return rows
@@ -2259,10 +2316,13 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
         "bt_pd_h", "bt_pd_l", "bt_pd_fib_382", "bt_pd_fib_618", "bt_pd_fallback_used", "bt_pd_outside_range",
         "bt_pd_fill_h", "bt_pd_fill_l", "bt_pd_round2_h", "bt_pd_round2_l", "bt_pd_round2_changed",
         "bt_pd_pending_h", "bt_pd_pending_l", "bt_pd_pending_round2_h", "bt_pd_pending_round2_l", "bt_pd_pending_round2_changed",
+        "bt_s3_prev_sid_time_raw", "bt_s3_prev_sid_gap_sec", "bt_s3_prev_sid_adjacent",
+        "bt_s3_last_traded_time_raw", "bt_s3_last_traded_matches_source",
+        "bt_s3_pending_same_sid_tf", "bt_s3_open_same_sid_tf", "bt_s3_active_same_sid_tf",
         "bt_trail_count", "bt_last_trail_ts", "bt_last_trail_sl", "bt_last_trail_source", "bt_trail_path",
         "bt_sl_guard_group", "bt_sl_guard_trigger_tf",
         "live_window_first_fill_ts", "live_window_last_fill_ts",
-        "nearest_bt_fill_ts", "nearest_bt_entry", "nearest_bt_reason", "nearest_bt_time_diff_min", "nearest_bt_entry_diff",
+        *_nearest_compare_keys("bt"),
         "nearest_raw_replay_tf", "nearest_raw_replay_entry_ts", "nearest_raw_replay_entry",
         "nearest_raw_replay_close_type", "nearest_raw_replay_cancel_reason",
         "nearest_raw_replay_pattern", "nearest_raw_replay_parallel_tfs",
@@ -2283,7 +2343,7 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
         "nearest_raw_replay_sl_guard_count", "nearest_raw_replay_sl_guard_since",
         "nearest_raw_replay_sl_guard_swing_ref",
         "nearest_raw_replay_time_diff_min", "nearest_raw_replay_entry_diff",
-        "nearest_live_fill_ts", "nearest_live_entry", "nearest_live_reason", "nearest_live_time_diff_min", "nearest_live_entry_diff",
+        *_nearest_compare_keys("live"),
     ]
     add_rows_sheet("All Compare", all_rows, preferred)
     add_rows_sheet("Mismatches", [r for r in all_rows if r.get("status") == "MISMATCH"], preferred)

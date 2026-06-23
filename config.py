@@ -1630,14 +1630,32 @@ def save_runtime_state():
         from trailing import (
             fvg_order_tickets, pending_order_tf, position_tf, position_sid,
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
-            _focus_frozen_side, _fill_notified
+            _focus_frozen_side, _fill_notified,
+            _sl_guard_state, _sl_guard_combined, _sl_guard_group, _pdfiboplus_fill_state
         )
+        # SL Guard state — กัน restart (stall) ล้างความจำ guard ก่อนครบเงื่อนไข unblock
+        # _sl_guard_state key เป็น tuple (sym, tf, side) ต้องแปลงเป็น string ก่อนเก็บ JSON
+        sl_guard_state_serialized = {
+            f"{k[0]}|{k[1]}|{k[2]}": dict(v) for k, v in _sl_guard_state.items()
+        }
+        sl_guard_combined_serialized = copy.deepcopy(_sl_guard_combined)
+        sl_guard_group_serialized = copy.deepcopy(_sl_guard_group)
+        # PD Fibo Plus round 2 wait state — กัน restart ล้าง state ระหว่างรอ round 2
+        pdfiboplus_fill_state_serialized = {str(k): v for k, v in _pdfiboplus_fill_state.items()}
+
         # S10 MTF armed states (per HTF) — กัน restart ตอน armed อยู่
         try:
             from strategy10 import _armed_states as _s10_armed
             s10_armed_serialized = {k: dict(v) for k, v in _s10_armed.items()}
         except Exception:
             s10_armed_serialized = {}
+
+        # S10 last_fired_armed_at — กัน restart ทำให้ guard ป้องกัน duplicate fire หาย
+        try:
+            from strategy10 import _last_fired_armed_at as _s10_last_fired
+            s10_last_fired_serialized = dict(_s10_last_fired)
+        except Exception:
+            s10_last_fired_serialized = {}
 
         # S16 state (AMD x iFVG) — กัน restart ตอนคำนวณเอเชียได้แล้ว
         try:
@@ -1747,6 +1765,11 @@ def save_runtime_state():
             "sl_guard_combined_tfs": list(SL_GUARD_COMBINED_TFS),
             "sl_guard_group_enabled": SL_GUARD_GROUP_ENABLED,
             "sl_guard_group_count": SL_GUARD_GROUP_COUNT,
+            "sl_guard_state": sl_guard_state_serialized,
+            "sl_guard_combined_state": sl_guard_combined_serialized,
+            "sl_guard_group_state": sl_guard_group_serialized,
+            "pdfiboplus_fill_state": pdfiboplus_fill_state_serialized,
+            "s10_last_fired_armed_at": s10_last_fired_serialized,
             "last_traded_per_tf": last_traded_per_tf,
             "last_traded_sid_tf": last_traded_sid_tf,
             "pending_order_tf": pending_order_tf,
@@ -1829,6 +1852,47 @@ def restore_runtime_state():
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
             _focus_frozen_side, _fill_notified
         )
+
+        # SL Guard state — restore ตรงๆ (ไม่เช็ค staleness เพราะเงื่อนไข unblock
+        # ใช้ swing confirm ซึ่งกินเวลาได้หลายชั่วโมง ไม่ใช่ timer คงที่)
+        try:
+            import trailing as _trailing_mod
+            saved_sgs = state.get("sl_guard_state", {})
+            if isinstance(saved_sgs, dict):
+                _trailing_mod._sl_guard_state.clear()
+                for k, v in saved_sgs.items():
+                    parts = k.split("|")
+                    if len(parts) == 3 and isinstance(v, dict):
+                        _trailing_mod._sl_guard_state[(parts[0], parts[1], parts[2])] = v
+            saved_sgc = state.get("sl_guard_combined_state", {})
+            if isinstance(saved_sgc, dict):
+                _trailing_mod._sl_guard_combined.clear()
+                _trailing_mod._sl_guard_combined.update(saved_sgc)
+            saved_sgg = state.get("sl_guard_group_state", {})
+            if isinstance(saved_sgg, dict):
+                _trailing_mod._sl_guard_group.clear()
+                _trailing_mod._sl_guard_group.update(saved_sgg)
+            # PD Fibo Plus round 2 wait state — key ticket เก็บเป็น string ต้องแปลงกลับเป็น int
+            saved_pdfp = state.get("pdfiboplus_fill_state", {})
+            if isinstance(saved_pdfp, dict):
+                _trailing_mod._pdfiboplus_fill_state.clear()
+                for k, v in saved_pdfp.items():
+                    try:
+                        _trailing_mod._pdfiboplus_fill_state[int(k)] = v
+                    except (TypeError, ValueError):
+                        continue
+        except Exception:
+            pass
+
+        # S10 last_fired_armed_at — กัน duplicate fire ซ้ำ HTF bar เดิมหลัง restart
+        try:
+            from strategy10 import _last_fired_armed_at as _s10_last_fired
+            saved_s10_last_fired = state.get("s10_last_fired_armed_at", {})
+            if isinstance(saved_s10_last_fired, dict):
+                _s10_last_fired.clear()
+                _s10_last_fired.update(saved_s10_last_fired)
+        except Exception:
+            pass
 
         saved_symbol = state.get("symbol")
         if saved_symbol and saved_symbol != SYMBOL:

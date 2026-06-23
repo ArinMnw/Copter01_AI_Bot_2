@@ -240,7 +240,8 @@ def _confirm_ok(rates: list[dict], signal: str, tf_name: str, tf_secs: int, last
 
 def _pending_from_maru(mp: dict, tf_name: str, confirm_bar: dict) -> dict:
     direction = mp["direction"]
-    pattern = f"ท่าที่ 3 DM SP {'🟢 BUY' if direction == 'BUY' else '🔴 SELL'} — Marubozu"
+    c1_type = str(mp.get("c1_type", "R") or "R")
+    pattern = f"ท่าที่ 3 DM SP {'🟢 BUY' if direction == 'BUY' else '🔴 SELL'} [C1:{c1_type}]"
     return {
         "sid": 3,
         "tf": tf_name,

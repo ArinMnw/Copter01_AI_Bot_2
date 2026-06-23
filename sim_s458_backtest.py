@@ -484,6 +484,35 @@ def _mark_last_traded_per_tf(last_traded_per_tf: dict, order: dict, tf_name: str
             last_traded_per_tf[str(ptf)] = traded_time
 
 
+def _annotate_s3_place_context(
+    order: dict,
+    last_sid_tf: dict,
+    last_traded_per_tf: dict,
+    pending: list[dict],
+    open_trades: list[dict],
+    tf_name: str,
+    sid: int,
+    bar_time: int,
+    tf_secs: int,
+) -> None:
+    if int(sid or 0) != 3:
+        return
+    prev_sid_time = (last_sid_tf.get(tf_name) or {}).get(3)
+    last_traded_time = last_traded_per_tf.get(tf_name)
+    source_time = int(order.get("source_candle_time") or order.get("detect_time_raw") or 0)
+    pending_same = sum(1 for item in pending if str(item.get("tf")) == str(tf_name) and int(item.get("sid", 0) or 0) == 3)
+    open_same = sum(1 for item in open_trades if str(item.get("tf")) == str(tf_name) and int(item.get("sid", 0) or 0) == 3)
+    prev_gap = int(bar_time) - int(prev_sid_time) if prev_sid_time else ""
+    order["s3_prev_sid_time_raw"] = prev_sid_time or ""
+    order["s3_prev_sid_gap_sec"] = prev_gap
+    order["s3_prev_sid_adjacent"] = bool(prev_sid_time and tf_secs > 0 and prev_gap == int(tf_secs))
+    order["s3_last_traded_time_raw"] = last_traded_time or ""
+    order["s3_last_traded_matches_source"] = bool(last_traded_time and int(last_traded_time) == source_time)
+    order["s3_pending_same_sid_tf"] = pending_same
+    order["s3_open_same_sid_tf"] = open_same
+    order["s3_active_same_sid_tf"] = bool(pending_same or open_same)
+
+
 def _sweep_scan_state(
     tf_name: str,
     hist_data: dict,
@@ -1049,6 +1078,7 @@ def backtest_tf(
             fired.add(key)
             if _duplicate_pending(pending, order):
                 continue
+            _annotate_s3_place_context(order, last_sid_tf, last_traded_per_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs)
             if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
                 event = trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block")
                 event["sweep_scan_state"] = sweep_state or ""
@@ -1389,6 +1419,7 @@ def backtest_multi_tf(
             fired.add(key)
             if _duplicate_pending(pending, order):
                 continue
+            _annotate_s3_place_context(order, last_sid_tf, last_traded_per_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs)
             if _sweep_scan_blocked(sweep_state, sid, order["signal"]):
                 event = trend_cancel_event(order, order["detect_time"], "Sweep Filter scan block")
                 event["sweep_scan_state"] = sweep_state or ""
