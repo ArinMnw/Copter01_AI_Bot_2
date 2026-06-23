@@ -307,7 +307,7 @@ async def handle_callback(update, ctx):
 
     elif data.startswith("open_strategy_detail_"):
         try:
-            sid = int(data.replace("open_strategy_detail_", ""))
+            _sid_val = float(data.replace("open_strategy_detail_", "")); sid = int(_sid_val) if _sid_val.is_integer() else _sid_val
         except ValueError:
             await _qanswer(query)
             return
@@ -957,6 +957,17 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await _show_strategy_detail(query, 19, f"✅ ท่า19 Min R:R: {config.S19_MIN_RR}")
 
+    
+    elif data == "toggle_s20_5_enabled":
+        config.S20_5_ENABLED = not getattr(config, "S20_5_ENABLED", False)
+        save_runtime_state()
+        await _show_strategy_detail(query, 20.5)
+
+    elif data == "toggle_s20_6_enabled":
+        config.S20_6_FVG_ENABLED = not getattr(config, "S20_6_FVG_ENABLED", False)
+        save_runtime_state()
+        await _show_strategy_detail(query, 20.6)
+
     elif data == "toggle_s20_enabled":
         config.S20_ENABLED = not getattr(config, "S20_ENABLED", False)
         save_runtime_state()
@@ -968,8 +979,9 @@ async def handle_callback(update, ctx):
         key_map = {
             "defect": "S20_TRIGGER_DEFECT",
             "2l2h": "S20_TRIGGER_2L2H",
-            "solid": "S20_TRIGGER_SOLID",
-            "fvg": "S20_TRIGGER_FVG"
+            "solid": "S20_TRIGGER_SOLID_CLEAR",
+            "fvg": "S20_TRIGGER_FVG_OB",
+            "fibo": "S20_TRIGGER_FIBO_ENTRY"
         }
         key = key_map.get(trigger_id)
         if key:
@@ -1227,7 +1239,7 @@ async def handle_callback(update, ctx):
             await _qanswer(query,"Mode ไม่ถูกต้อง")
 
     elif data.startswith("toggle_strategy_"):
-        sid = int(data.split("_")[-1])
+        _sid_val = float(data.split("_")[-1]); sid = int(_sid_val) if _sid_val.is_integer() else _sid_val
         if sid in active_strategies:
             active_strategies[sid] = not active_strategies[sid]
             config.active_strategies[sid] = active_strategies[sid]
@@ -1780,7 +1792,8 @@ async def handle_callback(update, ctx):
             "defect": "S20_TRIGGER_DEFECT",
             "2l2h": "S20_TRIGGER_2L2H",
             "solid": "S20_TRIGGER_SOLID",
-            "fvg": "S20_TRIGGER_FVG"
+            "fvg": "S20_TRIGGER_FVG",
+            "fibo_entry": "S20_TRIGGER_FIBO_ENTRY"
         }
         key = key_map.get(trigger_id)
         if key:

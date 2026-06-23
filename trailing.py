@@ -1382,6 +1382,89 @@ def _tso_close_partial(pos, pos_type: str, volume: float, reason: str) -> bool:
     return ok
 
 
+_entry_state = {}
+_s6_state = {}
+_s6i_state = {}
+_s20_escape_state = {}  # Track max fibo level reached: {ticket: "RUN" or "3" or None}
+
+# ==========================================
+# 0) Helper Functions
+async def check_s20_escape(app):
+    """
+    S20 Fibo Escape Trailing System (ระบบหนีตาย)
+    พฤติกรรมความล้มเหลวตามคัมภีร์:
+    - ถ้าราคาวิ่งไปถึง Fibo 3 หรือ RUN แล้วร่วงลงมาหาด่าน 1 หรือ 2 แต่ไม่สามารถยืน 2 ได้ (ทะลุ 2 ลงมา)
+    - ราคาจะเกิดการเทขายอย่างหนักและร่วงทะลุจุด 0 ทันที
+    """
+    from trailing import position_zone_meta, _s20_escape_state, _close_position
+
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+
+    for pos in positions:
+        ticket = pos.ticket
+        comment = pos.comment
+        if "_S20_" not in comment:
+            continue
+
+        zmeta = position_zone_meta.get(ticket, {})
+        if not zmeta or "fibo_2" not in zmeta:
+            continue
+
+        fibo_2 = zmeta.get("fibo_2")
+        fibo_3 = zmeta.get("fibo_3")
+        fibo_run = zmeta.get("fibo_run")
+        if not fibo_2 or not fibo_3 or not fibo_run:
+            continue
+
+        pos_type = "BUY" if pos.type == 0 else "SELL"
+        current_price = mt5.symbol_info_tick(pos.symbol).bid if pos_type == "BUY" else mt5.symbol_info_tick(pos.symbol).ask
+        
+        # 1. Update max level reached
+        state = _s20_escape_state.get(ticket)
+        if pos_type == "BUY":
+            if current_price >= fibo_run:
+                _s20_escape_state[ticket] = "RUN"
+            elif current_price >= fibo_3 and _s20_escape_state.get(ticket) != "RUN":
+                _s20_escape_state[ticket] = "3"
+        else:
+            if current_price <= fibo_run:
+                _s20_escape_state[ticket] = "RUN"
+            elif current_price <= fibo_3 and _s20_escape_state.get(ticket) != "RUN":
+                _s20_escape_state[ticket] = "3"
+                
+        # 2. Check Escape Condition
+        reached = _s20_escape_state.get(ticket)
+        if not reached:
+            continue
+            
+        # ถ้าไปถึงเป้าหมายสูงๆ แล้ว (3 หรือ RUN)
+        # แล้วย่อลงมาทะลุ Fibo 2 (ยืน 2 ไม่ได้)
+        # We need the last closed candle
+        rates = mt5.copy_rates_from_pos(pos.symbol, mt5.TIMEFRAME_M1, 1, 1)
+        if not rates or len(rates) == 0:
+            continue
+        last_close = rates[0]['close']
+        
+        is_break_2 = False
+        if pos_type == "BUY":
+            if last_close < fibo_2:
+                is_break_2 = True
+        else:
+            if last_close > fibo_2:
+                is_break_2 = True
+                
+        if is_break_2:
+            reason = f"Fibo {reached} -> Break 2 (Escape)"
+            if _close_position(pos, pos_type, f"S20 Escape ({reached} to Break 2)"):
+                bot_log.log_trade("S20_ESCAPE", f"Ticket {ticket} Hit {reached} but broke Fibo 2! Escaping.")
+                from notifications import notify_limit_fill
+                await notify_limit_fill(app, pos, f"S20 Fibo Escape (Hit {reached}, Break 2)", "-", "-")
+                if ticket in _s20_escape_state:
+                    del _s20_escape_state[ticket]
+
+
 async def check_scale_out_partial(app):
     """
     ทยอยปิด lot ตาม TSO levels (เสมอ 4 steps × 0.01 = 0.04 lot):
@@ -3150,7 +3233,7 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19):
+        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5):
             continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design), S18 (TJR standalone), S19 (ICT SB standalone) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -3368,7 +3451,7 @@ async def check_fill_trend_recheck(app):
         ticket = pos.ticket
         sid = position_sid.get(ticket)
         # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone), S19 (ICT SB standalone)
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19):
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -3726,7 +3809,7 @@ async def check_pending_trend_approach(app):
                 sid = _pend.get("sid")
 
         # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck), S18/S19 standalone
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19):
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6):
             continue
 
         # Resolve TF
@@ -3995,7 +4078,8 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ())):
+        # Skip standalone strategies
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6):
             continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17/S18/S19 skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -4309,7 +4393,7 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5):
             continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง; S18 = TJR; S19 = ICT SB)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
@@ -5385,7 +5469,7 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5):
             continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL; S18 = TJR; S19 = ICT SB)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
@@ -7696,6 +7780,17 @@ async def check_cancel_pending_orders(app):
                         f"เหตุผล: {reason}"
                     ))
                 print(f"🗑️ [{now}] ยกเลิก {ot} {ticket} [{tf}]: {reason}")
+            else:
+                # order_send ไม่สำเร็จ (ticket อาจ fill/ถูกลบไปแล้วพอดี หรือ MT5 busy ชั่วคราว)
+                # เดิมไม่ log อะไรเลย → ตามรอยไม่ได้ว่า "ทำไม order หาย" (รอบถัดไปอาจ retry สำเร็จแล้ว log ปกติ)
+                log_event(
+                    "ORDER_CANCEL_FAILED",
+                    reason,
+                    ticket=ticket,
+                    tf=tf,
+                    retcode=(r.retcode if r else None),
+                    comment=(getattr(r, "comment", "") if r else ""),
+                )
 
 
 # -------------------------------------------------------------

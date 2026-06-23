@@ -370,6 +370,7 @@ _TF_MT5 = {
     "H1": 16385, "H4": 16388, "H12": 16396, "D1": 16408,
 }
 _UTC6 = timezone(timedelta(hours=6))
+_UTC7 = timezone(timedelta(hours=7))  # BKK จริง — log timestamp (_now_bkk()) ใช้ UTC+7 ไม่ใช่ chart time UTC+6
 
 
 def _fetch_ticket_metadata_from_mt5(ticket: int) -> dict | None:
@@ -548,7 +549,9 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             return ""
     else:
         try:
-            oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_UTC6)
+            # oc_time_str มาจาก prefix log ([YYYY-MM-DD HH:MM:SS]) ซึ่งเขียนด้วย _now_bkk()
+            # = เวลา BKK จริง (UTC+7) ไม่ใช่ chart time (UTC+6) — ห้ามใช้ _UTC6 ตรงนี้
+            oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_UTC7)
         except Exception:
             return ""
 

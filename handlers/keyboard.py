@@ -1272,12 +1272,32 @@ def build_strategy_detail_keyboard(sid: int):
             ),
         ])
 
+    
+    elif sid == 20.5:
+        s20_5_en = getattr(config, "S20_5_ENABLED", False)
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if s20_5_en else '🔴'} Fibo Standalone",
+                callback_data="toggle_s20_5_enabled"
+            )
+        ])
+
+    elif sid == 20.6:
+        s20_6_en = getattr(config, "S20_6_FVG_ENABLED", False)
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if s20_6_en else '🔴'} FVG Entry",
+                callback_data="toggle_s20_6_enabled"
+            )
+        ])
+
     elif sid == 20:
         s20_en     = getattr(config, "S20_ENABLED", False)
         t_defect   = getattr(config, "S20_TRIGGER_DEFECT", True)
         t_2l2h     = getattr(config, "S20_TRIGGER_2L2H", True)
-        t_solid    = getattr(config, "S20_TRIGGER_SOLID", True)
-        t_fvg      = getattr(config, "S20_TRIGGER_FVG", True)
+        t_solid    = getattr(config, "S20_TRIGGER_SOLID_CLEAR", True)
+        t_fvg      = getattr(config, "S20_TRIGGER_FVG_OB", True)
+        t_fibo     = getattr(config, "S20_TRIGGER_FIBO_ENTRY", True)
         trend_on   = getattr(config, "S20_TREND_FILTER", True)
         sess_on    = getattr(config, "S20_SESSION_FILTER", True)
 
@@ -1305,6 +1325,12 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(
                 f"{'🟢' if t_fvg else '⬜'} Trigger: FVG Retrace",
                 callback_data="toggle_s20_trigger_fvg"
+            )
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if t_fibo else '⬜'} Trigger: Fibo Entry",
+                callback_data="toggle_s20_trigger_fibo"
             )
         ])
         rows.append([
@@ -2408,9 +2434,13 @@ def build_s20_settings_keyboard():
     ])
     t_solid  = "🟢 Trigger: Solid" if getattr(config, "S20_TRIGGER_SOLID", True) else "🔴 Trigger: Solid"
     t_fvg    = "🟢 Trigger: FVG" if getattr(config, "S20_TRIGGER_FVG", True) else "🔴 Trigger: FVG"
+    t_fibo_entry = "🟢 Trigger: Fibo Entry" if getattr(config, "S20_TRIGGER_FIBO_ENTRY", True) else "🔴 Trigger: Fibo Entry"
     rows.append([
         InlineKeyboardButton(t_solid, callback_data="set_s20_trigger_solid"),
         InlineKeyboardButton(t_fvg, callback_data="set_s20_trigger_fvg")
+    ])
+    rows.append([
+        InlineKeyboardButton(t_fibo_entry, callback_data="set_s20_trigger_fibo_entry")
     ])
     
     m_magic   = "🟢 Mod: Magic 7" if getattr(config, "S20_MODIFIER_MAGIC_NUM", True) else "🔴 Mod: Magic 7"
@@ -2438,6 +2468,7 @@ async def show_s20_settings_menu(update_or_query, is_query=False):
     t_2l2h   = "🟢 ON" if getattr(config, "S20_TRIGGER_2L2H", True) else "🔴 OFF"
     t_solid  = "🟢 ON" if getattr(config, "S20_TRIGGER_SOLID", True) else "🔴 OFF"
     t_fvg    = "🟢 ON" if getattr(config, "S20_TRIGGER_FVG", True) else "🔴 OFF"
+    t_fibo_entry = "🟢 ON" if getattr(config, "S20_TRIGGER_FIBO_ENTRY", True) else "🔴 OFF"
     
     m_magic  = "🟢 ON" if getattr(config, "S20_MODIFIER_MAGIC_NUM", True) else "🔴 OFF"
     m_nobody = "🟢 ON" if getattr(config, "S20_MODIFIER_NO_BODY_BRK", True) else "🔴 OFF"
@@ -2451,7 +2482,8 @@ async def show_s20_settings_menu(update_or_query, is_query=False):
         f"- Defect Pullback: *{t_defect}*\n"
         f"- 2L/2H Trap: *{t_2l2h}*\n"
         f"- Solid Candle: *{t_solid}*\n"
-        f"- FVG Retrace: *{t_fvg}*\n\n"
+        f"- FVG Retrace: *{t_fvg}*\n"
+        f"- Fibo Entry: *{t_fibo_entry}*\n\n"
         f"🛡️ *Stage 2: Modifiers*\n"
         f"- Magic Number 7: *{m_magic}*\n"
         f"- No Body Close: *{m_nobody}*\n"

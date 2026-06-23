@@ -28,6 +28,10 @@ def fetch_active_fvgs(tf_name: str, symbol: str, lookback: int = 2000, current_b
             if _htf_fvg_last_fetch.get(f"{tf_name}_bar") == current_bar_time:
                 return True
 
+    # 🔴 CIRCUIT BREAKER: Record fetch time BEFORE the heavy MT5 call.
+    # If MT5 times out or returns None, we won't spam it again for 5 minutes.
+    _htf_fvg_last_fetch[tf_name] = now_ts
+
     rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, lookback)
     if rates is None or len(rates) < 5:
         return False
@@ -77,7 +81,6 @@ def fetch_active_fvgs(tf_name: str, symbol: str, lookback: int = 2000, current_b
                 })
 
     _htf_fvg_cache[tf_name] = all_fvgs
-    _htf_fvg_last_fetch[tf_name] = now_ts
     if current_bar_time is not None:
         _htf_fvg_last_fetch[f"{tf_name}_bar"] = current_bar_time
     
@@ -92,7 +95,7 @@ def is_price_in_htf_fvg(price: float, side: str, tf_names: list, at_time: int = 
     for tf in tf_names:
         # Auto fetch if empty or expired
         from config import SYMBOL
-        fetch_active_fvgs(tf, SYMBOL, lookback=2000)
+        fetch_active_fvgs(tf, SYMBOL, lookback=500)
         
         fvgs = _htf_fvg_cache.get(tf, [])
         

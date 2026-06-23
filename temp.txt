@@ -1,0 +1,20 @@
+        mode = data.replace("set_trend_filter_mode_", "")
+        if mode in ("basic", "breakout"):
+            config.TREND_FILTER_MODE = mode
+            save_runtime_state()
+            await show_trend_filter_menu(query, is_query=True)
+            await _qanswer(query,f"Trend Filter Mode: {mode}")
+        else:
+            await _qanswer(query,"Mode ไม่ถูกต้อง")
+
+    elif data.startswith("toggle_strategy_"):
+        sid = int(data.split("_")[-1])
+        if sid in active_strategies:
+            active_strategies[sid] = not active_strategies[sid]
+            config.active_strategies[sid] = active_strategies[sid]
+            save_runtime_state()
+            name      = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+            status_th = "เปิด " if active_strategies[sid] else "ปิด "
+            await _show_strategy_detail(query, sid, f"{name}: {status_th}")
+
+    elif data in ("strategy_all_on", "strategy_all_off"):

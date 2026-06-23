@@ -5,7 +5,8 @@
 ## Backtest Skill / Checklist
 
 - Checklist งาน backtest ราย strategy และ compare auto trade อยู่ที่ `docs/backtest_strategy_skill.md`
-- แนวทางปัจจุบัน: ทำ backtest ราย strategy ให้ครบก่อน แล้วค่อยกลับมา compare auto trade รวมทั้งระบบ เพื่อลดเวลาไล่ gap และทำให้รู้ว่า mismatch มาจาก strategy ไหนแน่ชัด
+- แนวทางปัจจุบัน: ทำ backtest ราย strategy ใน scope **S1-S14** ให้ครบก่อน แล้วค่อยกลับมา compare auto trade รวมทั้งระบบ เพื่อลดเวลาไล่ gap และทำให้รู้ว่า mismatch มาจาก strategy ไหนแน่ชัด
+- S15-S20 พับไว้ก่อน เป็น future work หลังจาก S1-S14 จบ/known gap ชัดเจนแล้ว
 - เมื่อทำ step ใดเสร็จ ให้ติ๊ก `[x]` ใน `docs/backtest_strategy_skill.md` และจด command/evidence ล่าสุดไว้ในไฟล์นั้น
 
 ---
@@ -44,7 +45,8 @@
 ### การรัน Auto Trade Backtest + เทียบ Order จริง
 *   **ไฟล์สคริปต์:** `backtest_auto_trade.py`
 *   **ใช้ทำอะไร:** backtest ระบบ auto trade ตาม `bot_state.json`/config จริงเท่าที่ engine รองรับ และสามารถเทียบผลกับ order จริงจาก log หรือ MT5 history ได้
-*   **Strategy ที่รองรับใน engine กลางตอนนี้:** S1, S2, S3, S4, S5, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18 และ S19
+*   **Strategy หลักใน scope ตอนนี้:** S1, S2, S3, S4, S5, S8, S9, S10, S11, S12, S13 และ S14
+*   **Strategy ที่ engine กลางมี baseline/future support:** S15, S16, S17, S18 และ S19 พับไว้ก่อน ไม่ใช้เป็น blocker ของรอบ S1-S14
 *   **หมายเหตุ S6/S6i:** S6 (`6`) และ S6i (`7`) ไม่ใช่ standalone order strategy ใน runtime ปัจจุบัน แต่เป็น lifecycle/trailing state ผ่าน `check_s6_trail()` จึงยังไม่มีคำสั่ง `--strategies 6` หรือ `--strategies 7` แยก ต้องรวมเป็น overlay ของ S2/S3/position lifecycle ใน step ถัดไป
 *   **ตัวอย่างรัน S1 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
@@ -100,16 +102,16 @@
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M15 --strategies 13 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
 
-*   **ตัวอย่างรัน S15 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+*   **Future work: ตัวอย่างรัน S15 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M15 --strategies 15 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
 
-*   **ตัวอย่างรัน S16 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+*   **Future work: ตัวอย่างรัน S16 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 16 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
-*   **ตัวอย่างรัน S17 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+*   **Future work: ตัวอย่างรัน S17 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 17 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
@@ -120,12 +122,12 @@
     ```
     *   `--mode/--tp/--slb/--rsib/--rsis/--wick` override config รายตัวได้, `--spread` ปรับ spread ต่อไม้ (default $0.20)
     *   CSV ออกที่ `excel_reports/backtest_compare/s17/`
-*   **ตัวอย่างรัน S18 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+*   **Future work: ตัวอย่างรัน S18 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 18 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M5 --strategies 18 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     ```
-*   **ตัวอย่างรัน S19 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
+*   **Future work: ตัวอย่างรัน S19 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M1 --strategies 19 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5
     python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00" --since "2026-05-28 00:00" --tf M5 --strategies 19 --exclude-cancelled --symbol XAUUSD.iux --compare-mt5-history --compare-csv --compare-xlsx --match-minutes 180 --match-entry-points 5

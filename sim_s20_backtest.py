@@ -66,8 +66,8 @@ def replay_tf(bars, tf_name, spread):
     # rates_slice เอาถึงแค่ j
     for j in range(5, n - 1):
         entry_bar = bars[j]
-        # rates สำหรับให้ strategy_20 มองเห็น ต้องดึงมาให้พอสำหรับคำนวณ ATR (16+) และ Trap (13+)
-        rates_slice = bars[max(0, j - 20):j + 1]
+        # rates สำหรับให้ strategy_20 มองเห็น ต้องดึงมาให้พอสำหรับคำนวณ ATR (16+) และ Trap (13+) และ Fibo (30+)
+        rates_slice = bars[max(0, j - 50):j + 1]
         
         # แปลง bar time เป็น BKK สำหรับ session filter
         bar_dt_bkk = config.mt5_ts_to_bkk(int(entry_bar["time"]))

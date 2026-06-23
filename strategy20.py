@@ -73,6 +73,11 @@ def _apply_psychological_number(price: float, is_buy: bool, is_tp: bool) -> floa
         
     return float(int_price + offset) + (price - int_price)
 
+
+
+
+
+
 def strategy_20(rates, tf="M5", dt_bkk=None) -> dict:
     if not _in_session(dt_bkk):
         return {"signal": "WAIT", "reason": "S20 - นอกเวลาทำการ", "pattern": "S20", "sid": 20}
@@ -156,6 +161,7 @@ def strategy_20(rates, tf="M5", dt_bkk=None) -> dict:
             if c_prev1['close'] > c_prev2['open']:
                 signal, sub_pattern, ref_bar = "SELL", "S20.4.Pullback80", c_prev1
 
+
     if not signal:
         return res
         
@@ -194,12 +200,14 @@ def strategy_20(rates, tf="M5", dt_bkk=None) -> dict:
         
     if "Small" in sub_pattern:
         fibo_run = 1.5  # Wick fill target
-
+        
     if getattr(config, "S20_DYNAMIC_FIBO", True):
         anchor_size = abs(ref_bar['high'] - ref_bar['low'])
         if anchor_size > (atr * 1.5):
             fibo_run = min(fibo_run, 3.097)  # Cap to KRH2 if anchor is too big
     
+    fibo_levels = {}
+
     # 1. Entry: For Defect & 2L/2H, entry is at the WICK of the anchor
     # For Solid, it's 50% retrace of the body
     if "Solid" in sub_pattern:
@@ -238,12 +246,17 @@ def strategy_20(rates, tf="M5", dt_bkk=None) -> dict:
         tp_raw = min(tp_raw, entry - atr)
         sl = max(sl, entry + (atr*0.2))
 
-    return {
+    res_out = {
         "signal": signal,
         "entry": round(entry, 2),
         "sl": round(sl, 2),
         "tp": round(tp_raw, 2),
         "reason": f"S20 - {sub_pattern}",
         "pattern": sub_pattern,
-        "sid": 20
+        "sid": 20.6 if sub_pattern and "S20.6" in sub_pattern else 20
     }
+    
+    if fibo_levels:
+        res_out["zone_meta"] = fibo_levels
+        
+    return res_out

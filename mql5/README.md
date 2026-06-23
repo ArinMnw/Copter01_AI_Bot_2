@@ -6,7 +6,9 @@
 
 ## ไฟล์ที่เกี่ยวข้อง
 
-- `TrendFilterLines.mq5` — source code ของ indicator
+- `TrendFilterLines.mq5`: ตีเส้นกำแพง Trend Filter แบบง่ายบนกราฟ M1/M5
+- `PremiumDiscount.mq5`: ตีเส้นแบ่งโซน Premium / Discount อัตโนมัติ (ใช้งานคู่กับ HHLLStrategy.mq5)
+- `AutoFVG.mq5`: เครื่องมือตีเส้น FVG อัตโนมัติสำหรับ D1 และ H4 (Visual Tool)
 - `RSIDivergencePane.mq5` — RSI แยกหน้าต่างล่างสำหรับท่าที่ 9
 - `SwingHLLevels.mq5` — วาดเส้น Pivot Swing High / Pivot Swing Low ล่าสุดของแต่ละ TF ไปทางขวาประมาณ 5 แท่ง แบบเส้นล้วน
 - `HHLLStrategy.mq5` — วาด HH/HL/LH/LL text labels บน chart ด้วย zigzag pivot detection

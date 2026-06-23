@@ -17,7 +17,7 @@ from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_cancel_pending_orders, check_s1_zone_rules, check_s1_forward_confirm_rules, check_s6_trail,
                       check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
                       check_fill_trend_recheck, check_pending_trend_approach, check_fill_pdfiboplus,
-                      check_s14_engulf_exits)
+                      check_s14_engulf_exits, check_s20_escape)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
@@ -403,6 +403,7 @@ def main():
             # PD Fibo Plus Fill Check — อิสระจาก ENTRY_CANDLE_ENABLED จับ case fill เร็วกว่า pending cycle
             await check_fill_pdfiboplus(app); _lap("fill_pdfiboplus")
             await check_s14_engulf_exits(app); _lap("s14_engulf_exits")
+            await check_s20_escape(app); _lap("s20_escape")
             await check_entry_candle_quality(app); _lap("entry_candle_quality")
             await check_sl_tp_hits(app); _lap("sl_tp_hits")
             await check_s1_zone_rules(app); _lap("s1_zone_rules")

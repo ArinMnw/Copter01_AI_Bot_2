@@ -4,6 +4,13 @@
 
 ให้อัปเดตไฟล์นี้ทุกครั้งที่ทำ step เสร็จ เพื่อให้ model ถัดไปทำต่อได้ทันทีถ้า context/token หมด
 
+## Current Scope
+
+- รอบงานปัจจุบันให้ทำให้จบถึง **S14** ก่อน: S1, S2, S3, S4, S5, S8, S9, S10, S11, S12, S13, S14
+- S6/S6i (`6`, `7`) เป็น lifecycle/trailing state ไม่ใช่ standalone order strategy จึงนับเป็น overlay/dependency ของ strategy อื่น
+- **S15-S20 พับไว้ก่อน** เป็น future work; ห้ามเอามาเป็น blocker ของรอบ S1-S14
+- หลัง S1-S14 จบ/known gap ชัดเจนแล้ว ค่อยกลับมาเปิด scope S15-S20 ใหม่
+
 ## กติกาหลัก
 
 - ยึด `AGENTS.md` เป็นหลักเสมอ
@@ -11,7 +18,7 @@
 - หลังแก้ Markdown/ข้อความไทย/emoji ให้รัน `python check_mojibake.py`
 - หลังแก้ Python ให้รัน `python -m py_compile <ไฟล์>` และถ้าทำได้ให้รัน `python verify_repo.py`
 - อย่าให้ diagnostic mode ทับ baseline report: ถ้าเพิ่ม flag diagnostic ต้องแยก suffix report อัตโนมัติ
-- ทำราย strategy ให้ครบก่อน แล้วค่อยกลับมา compare auto trade รวม
+- ทำราย strategy ให้ครบตาม scope ปัจจุบันก่อน แล้วค่อยกลับมา compare auto trade รวม
 
 ## Definition Of Done ต่อ Strategy
 
@@ -41,7 +48,7 @@
 - [x] เพิ่ม optional `--hybrid-live-guard-context` และ suffix `_hybrid_guard`
 - [x] เพิ่ม S14 normalized family diagnostics และ optional `--prefer-same-s14-family` พร้อม suffix `_s14_family`
 - [x] อัปเดต `commands_and_tips.md` สำหรับ command/report/diagnostic ล่าสุด
-- [ ] ทำ backtest ราย strategy ให้ครบทุกท่าก่อนกลับไป compare auto trade รวม
+- [ ] ทำ backtest ราย strategy ใน scope S1-S14 ให้ครบก่อนกลับไป compare auto trade รวม
 
 ## Next Actionable Steps
 
@@ -725,6 +732,10 @@ python backtest_auto_trade.py --start "2026-05-28 08:00" --end "2026-06-08 10:00
 ```
 
 ผล strict-family แย่กว่า baseline (`diff=-24.82`) จึงเก็บเป็น diagnostic เท่านั้น ไม่เปิด default
+
+## Future Scope: S15-S20
+
+S15-S20 พับไว้ก่อนตาม scope ล่าสุดของพี่ รอบนี้ไม่ใช้เป็น blocker ของการทำ S1-S14 ให้จบก่อน ข้อมูลด้านล่างเก็บไว้เป็นบันทึก/หลักฐานเดิม เผื่อกลับมาทำต่อภายหลัง
 
 ### S15
 

@@ -26,6 +26,8 @@ from strategy17 import strategy_17
 from strategy18 import strategy_18
 from strategy19 import strategy_19
 from strategy20 import strategy_20
+from strategy20_5 import strategy_20_5
+from strategy20_6 import strategy_20_6
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -2761,6 +2763,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r20 = strategy_20(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20, False) else {"signal": "WAIT", "reason": "S20 ปิด"}
     if r20.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20, r20["signal"], last_candle_time, r20)
+        
+    r20_5 = strategy_20_5(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_5_ENABLED", False) else {"signal": "WAIT", "reason": "S20.5 ปิด"}
+    if r20_5.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.5, r20_5["signal"], last_candle_time, r20_5)
+
+    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) else {"signal": "WAIT", "reason": "S20.6 ปิด"}
+    if r20_6.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.6, r20_6["signal"], last_candle_time, r20_6)
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -3163,7 +3173,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3686,6 +3696,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                             _pend_info["cancel_bars"] = result["cancel_bars"]
                         if sid == 1 and result.get("s1_zone_meta"):
                             _pend_info["s1_zone_meta"] = dict(result["s1_zone_meta"])
+                            
+                        if sid == 20 and result.get("zone_meta"):
+                            _pend_info["s20_zone_meta"] = dict(result["zone_meta"])
                         if sid == 1:
                             _pend_info["s1_forward_meta"] = _build_s1_forward_meta(signal, last_candle_time, 5)
                         if result.get("swing_price"):
@@ -4037,6 +4050,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     _pend_info["cancel_bars"] = result["cancel_bars"]
                 if sid == 1 and result.get("s1_zone_meta"):
                     _pend_info["s1_zone_meta"] = dict(result["s1_zone_meta"])
+                
+                if sid == 20 and result.get("zone_meta"):
+                    _pend_info["s20_zone_meta"] = dict(result["zone_meta"])
                 if sid == 1:
                     _pend_info["s1_forward_meta"] = _build_s1_forward_meta(signal, last_candle_time, 5)
                 if result.get("swing_price"):
