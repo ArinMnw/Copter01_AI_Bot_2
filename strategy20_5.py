@@ -234,28 +234,57 @@ def strategy_20_5(rates, tf="M5", dt_bkk=None) -> dict:
         sub_pattern = fb_pattern
         c_prev1 = rates[-2]
         
-        # Calculate SL / TP
+        # ── Calculate Entry, SL, TP (Mimicking old strategy20.py) ──
+        tf_max_wick = {"M1": 50.0, "M5": 310.0, "M15": 363.0, "M30": 621.0, "H1": 1200.0, "H4": 2100.0, "H12": 3500.0, "D1": 3390.0}
+        base_wick = 310.0
+        tf_scale = tf_max_wick.get(tf, base_wick) / base_wick
+        
+        entry_buffer = getattr(config, "S20_ENTRY_BUFFER", 0.0) * tf_scale * 0.01
+        sl_2l2h = atr * 1.5
+        
         if signal == "BUY":
-            entry = rates[-1]['open']
-            sl = c_prev1['low'] - (atr * getattr(config, "SL_ATR_MULT", 2.0))
-            tp_raw = entry + ((entry - sl) * 1.5)
+            entry = c_prev1['low'] + entry_buffer
+            sl_raw = c_prev1['low'] - sl_2l2h
+            
+            p0 = anc_candle['low']
+            p1 = anc_candle['high']
+            sz = abs(p1 - p0)
+            
+            target_level = 7.044
+            if "RunTest2" in sub_pattern:
+                target_level = 8.237 # higher than RUN
+            tp_raw = p0 + sz * target_level
+            
+            # Limit minimum RR
+            tp_raw = max(tp_raw, entry + atr)
+            sl = min(sl_raw, entry - (atr * 0.2))
+            
         else:
-            entry = rates[-1]['open']
-            sl = c_prev1['high'] + (atr * getattr(config, "SL_ATR_MULT", 2.0))
-            tp_raw = entry - ((sl - entry) * 1.5)
+            entry = c_prev1['high'] - entry_buffer
+            sl_raw = c_prev1['high'] + sl_2l2h
+            
+            p0 = anc_candle['high']
+            p1 = anc_candle['low']
+            sz = abs(p1 - p0)
+            
+            target_level = 7.044
+            if "RunTest2" in sub_pattern:
+                target_level = 8.237 # higher than RUN
+            tp_raw = p0 - sz * target_level
+            
+            # Limit minimum RR
+            tp_raw = min(tp_raw, entry - atr)
+            sl = max(sl_raw, entry + (atr * 0.2))
             
         fibo_levels = {}
         if anc_candle:
-            p0 = anc_candle['low'] if signal=="BUY" else anc_candle['high']
-            p1 = anc_candle['high'] if signal=="BUY" else anc_candle['low']
-            sz = abs(p1 - p0)
             if signal == "BUY":
                 fibo_levels = {
-                    "0": p0, "100": p1, "161.8": p0 + sz*1.618, "261.8": p0 + sz*2.618, "423.6": p0 + sz*4.236
+                    "0": p0, "100": p1, "161.7": p0 + sz*1.617, "309.7": p0 + sz*3.097, "516.5": p0 + sz*5.165, "704.4": p0 + sz*7.044
                 }
             else:
                 fibo_levels = {
-                    "0": p0, "100": p1, "161.8": p0 - sz*1.618, "261.8": p0 - sz*2.618, "423.6": p0 - sz*4.236
+                    "0": p0, "100": p1, "161.7": p0 - sz*1.617, "309.7": p0 - sz*3.097, "516.5": p0 - sz*5.165, "704.4": p0 - sz*7.044
                 }
                 
         res.update({
