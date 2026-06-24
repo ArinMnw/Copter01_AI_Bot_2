@@ -3233,7 +3233,7 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7):
+        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 21):
             continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design), S18 (TJR standalone), S19 (ICT SB standalone) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -3451,7 +3451,7 @@ async def check_fill_trend_recheck(app):
         ticket = pos.ticket
         sid = position_sid.get(ticket)
         # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone), S19 (ICT SB standalone)
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7):
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 21):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -3809,7 +3809,7 @@ async def check_pending_trend_approach(app):
                 sid = _pend.get("sid")
 
         # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck), S18/S19 standalone
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7):
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 21):
             continue
 
         # Resolve TF
@@ -4079,7 +4079,7 @@ async def check_fill_pdfiboplus(app):
             continue
         sid = position_sid.get(ticket)
         # Skip standalone strategies
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 21):
             continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17/S18/S19 skip
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -4393,7 +4393,7 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 21):
             continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง; S18 = TJR; S19 = ICT SB)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
@@ -5469,7 +5469,7 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 21):
             continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL; S18 = TJR; S19 = ICT SB)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
@@ -8327,22 +8327,26 @@ async def check_s14_engulf_exits(app):
         # Mark as checked
         _s14_engulf_exit_checked.add(ticket)
         
-        # Check color of exit bar
+        # Check color + body strength ของ exit bar
+        # body < 50% ของ range = แท่งสวนทางอ่อน (อาจเป็น doji/wick) ไม่ถือว่า reversal จริง → เปิดต่อ
         o = float(exit_bar["open"])
         c = float(exit_bar["close"])
+        h = float(exit_bar["high"])
+        l = float(exit_bar["low"])
+        body_pct = (abs(c - o) / (h - l) * 100.0) if h > l else 0.0
         is_buy = pos.type == mt5.ORDER_TYPE_BUY
-        
+
         should_close = False
         if is_buy: # BUY position (sweep_low)
-            if c < o: # closed RED
+            if c < o and body_pct >= 50.0: # closed RED ด้วย body แข็ง
                 should_close = True
         else: # SELL position (sweep_high)
-            if c > o: # closed GREEN
+            if c > o and body_pct >= 50.0: # closed GREEN ด้วย body แข็ง
                 should_close = True
-                
+
         if should_close:
             pos_type = "BUY" if is_buy else "SELL"
             ok, cp = _close_position(pos, pos_type, f"S14 {'sweep' if is_sweep else 'engulf'} exit color rule ({check_tf})")
             if ok:
-                log_event("S14_EXIT", f"Closed S14 {'sweep' if is_sweep else 'engulf'} position due to {check_tf} exit bar color rule", ticket=ticket)
+                log_event("S14_EXIT", f"Closed S14 {'sweep' if is_sweep else 'engulf'} position due to {check_tf} exit bar color rule (body={body_pct:.0f}%)", ticket=ticket)
                 await tg(app, f"⚡ *S14 {'Sweep' if is_sweep else 'Engulf'} ปิดตำแหน่งทันที*\nTicket: `{ticket}`\nเหตุผล: แท่งถัดจาก sweep ({check_tf}) จบ{'แดง' if is_buy else 'เขียว'} ขัดทิศทาง")

@@ -9,8 +9,16 @@ from datetime import datetime, timedelta, timezone
 TZ_OFFSET = 7
 LOG_DIR       = "logs"
 OLD_LOG_DIR   = os.path.join(LOG_DIR, "old_logs")   # archived monthly logs
-BOT_LOG_FILE  = os.path.join(LOG_DIR, "bot.log")
-ERROR_LOG_FILE = os.path.join(LOG_DIR, "error.log")  # error log ปัจจุบัน (ไม่มี -YYYY-MM แล้ว เหมือน bot.log)
+
+# สคริปต์ backtest/sim import โมดูล (scanner, strategy10, ...) ที่เรียก log_event()/log_error()
+# ตรงๆ เหมือนกัน — ถ้าไม่แยก ผลจาก backtest จะไปปนกับ log ของ bot ที่รันจริง (bot.log/error.log)
+# ตรวจจาก entry-point script: ถ้าไม่ใช่ main.py → ใช้ logs/backtest_bot.log แทน
+import sys as _sys
+_entry_script = os.path.basename(getattr(_sys.modules.get("__main__"), "__file__", "") or "")
+_IS_LIVE_BOT  = (_entry_script == "main.py")
+
+BOT_LOG_FILE  = os.path.join(LOG_DIR, "bot.log" if _IS_LIVE_BOT else "backtest_bot.log")
+ERROR_LOG_FILE = os.path.join(LOG_DIR, "error.log" if _IS_LIVE_BOT else "backtest_error.log")
 SYSTEM_LOG_DIR  = os.path.join(LOG_DIR, "system")
 SYSTEM_LOG_FILE = os.path.join(SYSTEM_LOG_DIR, "system.log")
 DEBUG_LOG_DIR   = os.path.join(LOG_DIR, "debug")
