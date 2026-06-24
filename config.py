@@ -498,6 +498,7 @@ active_strategies = {
     18: True,  # ท่าที่ 18: TJR ICT
     19: True,  # ท่าที่ 19: ICT Advanced (Silver Bullet/Breaker/BPR)
     20: False,  # ท่าที่ 20: All in 4s (Reversal & Retracement)
+    20.7: True, # ท่าที่ 20.7: ท่าไม้ตายอออิน4วิ 1 (Defect & Wick Fill Divergence)
     20.5: True, # S20.5: Fibo Standalone
     20.6: True,  # S20.6: FVG Standalone
 }
@@ -525,12 +526,14 @@ STRATEGY_NAMES = {
     20: "ท่าที่ 20: All in 4s",
     20.5: "S20.5: Fibo Standalone",
     20.6: "S20.6: FVG Standalone",
+    20.7: "S20.7: อออิน4วิ 1",
 }
 
 # ── Strategy 20: All in 4s (Reversal & Retracement) ─────────
 # "เนื้อคลุมเนื้อ" reversal + 50% retracement entry (หรือปลายไส้)
 # Cancel limit ถ้ารอเกิน S20_CANCEL_BARS, TP อัตโนมัติที่ Fibo 161.8%
 S20_ENABLED           = False
+S20_7_ENABLED         = False
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
 S20_CANCEL_BARS       = 5
 S20_FIBO_TP_LEVEL     = 1.618
@@ -1701,6 +1704,7 @@ def save_runtime_state():
             "s20_enabled": S20_ENABLED,
             "s20_5_enabled": S20_5_ENABLED,
             "s20_6_fvg_enabled": S20_6_FVG_ENABLED,
+            "s20_7_enabled": S20_7_ENABLED,
             "recheck_combined_mode": RECHECK_COMBINED_MODE,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
@@ -2011,6 +2015,7 @@ def restore_runtime_state():
         S20_ENABLED = bool(state.get("s20_enabled", True))
         S20_5_ENABLED = bool(state.get("s20_5_enabled", S20_5_ENABLED))
         S20_6_FVG_ENABLED = bool(state.get("s20_6_fvg_enabled", S20_6_FVG_ENABLED))
+        S20_7_ENABLED = bool(state.get("s20_7_enabled", getattr(config, "S20_7_ENABLED", False)))
         saved_s20_sub = state.get("s20_sub_config")
         if isinstance(saved_s20_sub, dict):
             S20_SUB_CONFIG.update(saved_s20_sub)

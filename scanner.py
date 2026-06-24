@@ -28,6 +28,7 @@ from strategy19 import strategy_19
 from strategy20 import strategy_20
 from strategy20_5 import strategy_20_5
 from strategy20_6 import strategy_20_6
+from strategy20_7 import strategy_20_7
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -2772,6 +2773,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_6.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.6, r20_6["signal"], last_candle_time, r20_6)
 
+    r20_7 = strategy_20_7(rates, tf=tf_name) if active_strategies.get(20.7, False) else {"signal": "WAIT", "reason": "S20.7 ปิด"}
+    if r20_7.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.7, r20_7["signal"], last_candle_time, r20_7)
+
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
         fvg     = r2["fvg"]
@@ -3173,7 +3178,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3549,7 +3554,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         if sid != 8 and not _pattern_allows_adjacent_order(sid, pattern):
             if _adjacent_sid_blocked(tf_name, sid, last_candle_time, tf_secs):
                 _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
+                if sid == 14:
+                    log_event("S14_DEBUG_BLOCK", "adjacent_sid_blocked", tf=tf_name, sid=sid, signal=signal,
+                               entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
                 continue
+        if sid == 14:
+            log_event("S14_DEBUG_CHECKPOINT", "passed_adjacent_check", tf=tf_name, sid=sid, signal=signal,
+                       entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
         # Market order ใช้ราคาปัจจุบัน — ไม่ต้องเช็ก "ราคาผ่าน entry แล้วหรือยัง"
         if result.get("order_mode") != "market" and not (sid == 10 and result.get("s10_model_orders")):
             cancel, cancel_reason = should_cancel_pending(rates, signal, entry)
@@ -3817,12 +3828,21 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             clear_ok = await _clear_opposite_s14_exposure(app, tf_name, signal)
             if not clear_ok:
                 await tg(app, f"⚠️ *[{tf_name}] S14*\nปิดฝั่งตรงข้ามไม่สำเร็จ เลยยังไม่เปิด `{signal}`")
+                log_event("S14_DEBUG_BLOCK", "flip_clear_failed", tf=tf_name, sid=sid, signal=signal,
+                           entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
                 continue
             # ผ่านแล้ว → fall through ไปเปิด market order ด้านล่าง
+        if sid == 14:
+            log_event("S14_DEBUG_CHECKPOINT", "passed_flip_check_entering_lock", tf=tf_name, sid=sid, signal=signal,
+                       entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
         async with _get_lock():
             _pos_now = mt5.positions_get(symbol=SYMBOL)
             if _pos_now and len(_pos_now) >= MAX_ORDERS:
                 print(f"⚠️ [{now}] {tf_label(tf_name)}: Order เต็ม ({len(_pos_now)}/{MAX_ORDERS})")
+                if sid == 14:
+                    log_event("S14_DEBUG_BLOCK", "max_orders_full", tf=tf_name, sid=sid, signal=signal,
+                               entry=entry, sl=sl, tp=tp, candle_time=last_candle_time,
+                               open_count=len(_pos_now) if _pos_now else 0)
                 continue
             # ── S9 double-check inside lock (race condition guard) ─────
             # ป้องกันกรณี 2 coroutines ผ่าน dup-check นอก lock พร้อมกัน
@@ -3831,6 +3851,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 dup_t = _last_strategy9_setup_by_key[setup_sig]
                 print(f"⚠️ [{now}] S9 dup-in-lock: {setup_sig} → #{dup_t} (skip)")
                 continue
+            if sid == 14:
+                log_event("S14_DEBUG_CHECKPOINT", "inside_lock_before_sl_guards", tf=tf_name, sid=sid, signal=signal,
+                           entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
 
             # ── SL Guard: บล็อก LIMIT order ใหม่ถ้า guard active ──────
             if config.SL_GUARD_ENABLED:
@@ -3974,6 +3997,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     pass
             # ─────────────────────────────────────────────────────────────────
 
+            if sid == 14:
+                log_event("S14_DEBUG_CHECKPOINT", "reached_pattern_found", tf=tf_name, sid=sid, signal=signal,
+                           entry=entry, sl=sl, tp=tp, candle_time=last_candle_time, order_mode=order_mode)
             log_event(
                 "PATTERN_FOUND",
                 pattern,
@@ -4015,12 +4041,19 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             use_delay_sl = (order_mode == "limit") and (sid == 8 or config.DELAY_SL_MODE != "off")
             order_sl = 0.0 if use_delay_sl else sl
 
-            if order_mode == "stop":
-                order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
-            elif order_mode == "market":
-                order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
-            else:
-                order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            try:
+                if order_mode == "stop":
+                    order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                elif order_mode == "market":
+                    order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
+                else:
+                    order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+            except Exception as _order_exc:
+                log_event("ORDER_PLACEMENT_EXCEPTION",
+                           f"{type(_order_exc).__name__}: {_order_exc}",
+                           tf=tf_name, sid=sid, signal=signal, entry=entry, sl=sl, tp=tp,
+                           order_mode=order_mode, flow_id=base_flow_id)
+                continue
             # ── อัปเดต S9 dedup key ทันทีหลังวาง order (ยังอยู่ใน lock) ──
             # ต้องทำในนี้เพื่อป้องกัน race condition กับ coroutine อื่น
             if order.get("success") and sid == 9 and setup_sig:

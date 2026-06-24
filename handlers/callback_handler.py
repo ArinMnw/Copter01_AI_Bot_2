@@ -1017,6 +1017,13 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await _show_strategy_detail(query, 20.6)
 
+    elif data == "toggle_s20_7_enabled":
+        config.S20_7_ENABLED = not getattr(config, "S20_7_ENABLED", False)
+        active_strategies[20.7] = config.S20_7_ENABLED
+        config.active_strategies[20.7] = config.S20_7_ENABLED
+        save_runtime_state()
+        await _show_strategy_detail(query, 20.7)
+
     elif data == "toggle_s20_enabled":
         config.S20_ENABLED = not getattr(config, "S20_ENABLED", False)
         save_runtime_state()
