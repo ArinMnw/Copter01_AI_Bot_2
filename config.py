@@ -498,11 +498,11 @@ active_strategies = {
     18: True,  # ท่าที่ 18: TJR ICT
     19: True,  # ท่าที่ 19: ICT Advanced (Silver Bullet/Breaker/BPR)
     20: False,  # ท่าที่ 20: All in 4s (Reversal & Retracement)
-    20.7: True, # ท่าที่ 20.7: ท่าไม้ตายอออิน4วิ 1 (Defect & Wick Fill Divergence)
+    20.7: False, # ท่าที่ 20.7: ท่าไม้ตายอออิน4วิ 1 (Defect & Wick Fill Divergence)
     20.5: True, # S20.5: Fibo Standalone
     20.6: True,  # S20.6: FVG Standalone
-    20.8: True, # ท่าที่ 20.8: อออิน4วิ 2 (Rejection)
-    20.9: True, # ท่าที่ 20.9: Candle Action
+    20.8: False, # ท่าที่ 20.8: อออิน4วิ 2 (Rejection)
+    20.9: False, # ท่าที่ 20.9: Candle Action
 }
 
 STRATEGY_NAMES = {

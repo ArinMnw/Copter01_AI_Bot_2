@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-06-24 18:10:51",
+  "saved_at": "2026-06-24 19:08:00",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -23,10 +23,11 @@
     "18": true,
     "19": true,
     "20": false,
-    "20.7": true,
+    "20.7": false,
     "20.5": true,
     "20.6": true,
-    "20.8": true
+    "20.8": false,
+    "20.9": false
   },
   "scan_interval": 1,
   "entry_candle_mode": "close_percentage",
@@ -115,35 +116,6 @@
   "s14_engulf_breakeven": true,
   "s14_rsi_div_enabled": true,
   "s10_armed_states": {
-    "M15": {
-      "direction": "BUY",
-      "sl_target": 4054.7,
-      "tp_target": 4066.34,
-      "armed_at": 1782301500,
-      "htf_tf": "M15",
-      "ltf_tf": "M1",
-      "candles": [
-        {
-          "open": 4064.62,
-          "high": 4066.34,
-          "low": 4059.08,
-          "close": 4061.09,
-          "time": 1782298800
-        },
-        {
-          "open": 4061.1,
-          "high": 4061.11,
-          "low": 4055.2,
-          "close": 4060.91,
-          "time": 1782299700
-        }
-      ],
-      "pattern_base": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
-      "pre_arm": false,
-      "fired_tickets": [],
-      "awaiting_choch": false,
-      "fire_count": 0
-    },
     "H4": {
       "direction": "BUY",
       "sl_target": 4090.44,
@@ -173,30 +145,30 @@
       "awaiting_choch": false,
       "fire_count": 0
     },
-    "M30": {
-      "direction": "SELL",
-      "sl_target": 4088.15,
-      "tp_target": 4073.23,
-      "armed_at": 1782300600,
-      "htf_tf": "M30",
+    "M15": {
+      "direction": "BUY",
+      "sl_target": 4054.7,
+      "tp_target": 4066.34,
+      "armed_at": 1782305100,
+      "htf_tf": "M15",
       "ltf_tf": "M1",
       "candles": [
         {
-          "open": 4074.89,
-          "high": 4080.76,
-          "low": 4073.23,
-          "close": 4080.61,
-          "time": 1782291600
+          "open": 4064.62,
+          "high": 4066.34,
+          "low": 4059.08,
+          "close": 4061.09,
+          "time": 1782298800
         },
         {
-          "open": 4080.54,
-          "high": 4087.65,
-          "low": 4075.6,
-          "close": 4076.33,
-          "time": 1782293400
+          "open": 4061.1,
+          "high": 4061.11,
+          "low": 4055.2,
+          "close": 4060.91,
+          "time": 1782299700
         }
       ],
-      "pattern_base": "ท่าที่ 10 CRT TBS 🔴 SELL — Sweep High (2bar)",
+      "pattern_base": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
       "pre_arm": false,
       "fired_tickets": [],
       "awaiting_choch": false,
@@ -214,12 +186,12 @@
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
     "date": "2026-06-24",
-    "realized": -647.53,
-    "wins": 38,
-    "losses": 92,
-    "count": 130,
-    "gross_win": 160.69,
-    "gross_loss": -808.22
+    "realized": -754.25,
+    "wins": 46,
+    "losses": 101,
+    "count": 147,
+    "gross_win": 212.64,
+    "gross_loss": -966.89
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -256,7 +228,7 @@
     "XAUUSD.IUX": {
       "SELL": {
         "M1+M5+M15": {
-          "count": 0,
+          "count": 1,
           "active": false,
           "tf_blocked": {},
           "tf_since": {},
@@ -266,2094 +238,13 @@
           "tf_retry_signals": {}
         },
         "M1+M5": {
-          "count": 5,
-          "active": true,
-          "tf_blocked": {
-            "M1": true,
-            "M5": false
-          },
-          "tf_since": {
-            "M1": 1782241264,
-            "M5": 1782241264
-          },
-          "tf_swing_ref": {
-            "M1": 4130.15,
-            "M5": 4129.62
-          },
+          "count": 0,
+          "active": false,
+          "tf_blocked": {},
+          "tf_since": {},
+          "tf_swing_ref": {},
           "tf_swing_bar_time": {},
-          "tf_blocked_signals": {
-            "M1": [
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4129.97,
-                "sl": 4134.07,
-                "tp": 4125.87,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
-                "candle_time": 1782241320,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4128.28,
-                "sl": 4131.82,
-                "tp": 4124.74,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782241440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4128.28,
-                "sl": 4131.82,
-                "tp": 4124.74,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782241440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4127.29,
-                "sl": 4130.74,
-                "tp": 4123.84,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782241560,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4127.29,
-                "sl": 4130.74,
-                "tp": 4123.84,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782241560,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4126.56,
-                "sl": 4130.78,
-                "tp": 4122.34,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782241620,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4126.56,
-                "sl": 4128.33,
-                "tp": 4112.29,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782241680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4125.12,
-                "sl": 4128.53,
-                "tp": 4121.71,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782241980,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4125.12,
-                "sl": 4128.53,
-                "tp": 4121.71,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782241980,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4125.07,
-                "sl": 4128.23,
-                "tp": 4121.91,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ใหม่ 4 แท่ง",
-                "candle_time": 1782242280,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4125.07,
-                "sl": 4125.83,
-                "tp": 4118.92,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782242340,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4124.59,
-                "sl": 4128.23,
-                "tp": 4120.95,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782242580,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4123.28,
-                "sl": 4126.61,
-                "tp": 4119.95,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782242700,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4123.28,
-                "sl": 4126.53,
-                "tp": 4120.03,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782242700,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4121.57,
-                "sl": 4125.23,
-                "tp": 4117.91,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782242940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4121.57,
-                "sl": 4125.23,
-                "tp": 4117.91,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782242940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4121.45,
-                "sl": 4125.24,
-                "tp": 4117.66,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782243000,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4122.34,
-                "sl": 4125.33,
-                "tp": 4119.35,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782243480,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4121.65,
-                "sl": 4125.36,
-                "tp": 4117.94,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782243540,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4121.65,
-                "sl": 4122.98,
-                "tp": 4110.92,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782243600,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4119.64,
-                "sl": 4122.89,
-                "tp": 4116.39,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782243660,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4119.82,
-                "sl": 4122.98,
-                "tp": 4110.92,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782243720,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4116.69,
-                "sl": 4120.06,
-                "tp": 4113.32,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782243900,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4116.69,
-                "sl": 4117.74,
-                "tp": 4108.25,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782243960,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4115.25,
-                "sl": 4117.74,
-                "tp": 4108.25,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782244020,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4116.65,
-                "sl": 4120.27,
-                "tp": 4112.85,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782244320,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4116.07,
-                "sl": 4120.26,
-                "tp": 4111.88,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782244380,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4125.55,
-                "sl": 4127.32,
-                "tp": 4117.46,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 4 (Run Engulfing)",
-                "candle_time": 1782245100,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4124.19,
-                "sl": 4129.59,
-                "tp": 4114.09,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782245220,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4121.81,
-                "sl": 4126.34,
-                "tp": 4114.09,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782246660,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4122.75,
-                "sl": 4126.45,
-                "tp": 4117.48,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
-                "candle_time": 1782246840,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4123.89,
-                "sl": 4127.16,
-                "tp": 4117.48,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782247080,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4121.25,
-                "sl": 4124.82,
-                "tp": 4117.48,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782247440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4121.25,
-                "sl": 4124.82,
-                "tp": 4117.48,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782247440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4115.15,
-                "sl": 4119.44,
-                "tp": 4110.86,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782248220,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4110.24,
-                "sl": 4113.8,
-                "tp": 4106.68,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782249720,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4110.24,
-                "sl": 4111.33,
-                "tp": 4101.4,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782249720,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4110.28,
-                "sl": 4112.78,
-                "tp": 4107.49,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782250560,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4110.91,
-                "sl": 4113.73,
-                "tp": 4108.06,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782250860,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4111.05,
-                "sl": 4113.02,
-                "tp": 4109.08,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782251280,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4111.05,
-                "sl": 4113.02,
-                "tp": 4109.08,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782251280,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4110.73,
-                "sl": 4113.14,
-                "tp": 4108.11,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782251580,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4110.73,
-                "sl": 4111.46,
-                "tp": 4104.84,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782251640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4107.29,
-                "sl": 4112.34,
-                "tp": 4102.24,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782256920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4107.29,
-                "sl": 4112.12,
-                "tp": 4102.46,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782256920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4106.35,
-                "sl": 4112.61,
-                "tp": 4100.09,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782257460,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4106.35,
-                "sl": 4112.61,
-                "tp": 4100.09,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782257460,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4105.36,
-                "sl": 4110.37,
-                "tp": 4100.35,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782257580,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4104.03,
-                "sl": 4111.0,
-                "tp": 4097.06,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782257640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4104.92,
-                "sl": 4110.68,
-                "tp": 4099.16,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782257640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4104.03,
-                "sl": 4107.03,
-                "tp": 4079.82,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782257640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4108.13,
-                "sl": 4113.94,
-                "tp": 4096.99,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
-                "candle_time": 1782258720,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4106.28,
-                "sl": 4112.03,
-                "tp": 4099.57,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R_DOJI]",
-                "candle_time": 1782258900,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4108.13,
-                "sl": 4109.81,
-                "tp": 4094.52,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782258900,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4105.84,
-                "sl": 4111.45,
-                "tp": 4096.99,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782259140,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4105.84,
-                "sl": 4107.79,
-                "tp": 4090.06,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782259200,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4103.14,
-                "sl": 4107.79,
-                "tp": 4090.06,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782259440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4100.2,
-                "sl": 4104.99,
-                "tp": 4095.41,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782259500,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4100.2,
-                "sl": 4104.99,
-                "tp": 4095.41,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782259500,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4099.32,
-                "sl": 4103.02,
-                "tp": 4095.02,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782260760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4099.32,
-                "sl": 4103.02,
-                "tp": 4095.02,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782260760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4097.91,
-                "sl": 4102.1,
-                "tp": 4093.72,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782260940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4097.7,
-                "sl": 4101.52,
-                "tp": 4093.88,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782261060,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4097.7,
-                "sl": 4101.07,
-                "tp": 4094.33,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782261060,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4096.8,
-                "sl": 4101.59,
-                "tp": 4092.01,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782261120,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4096.8,
-                "sl": 4099.25,
-                "tp": 4077.04,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782261420,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4096.8,
-                "sl": 4099.25,
-                "tp": 4077.04,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2)",
-                "candle_time": 1782261480,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4088.96,
-                "sl": 4099.25,
-                "tp": 4077.04,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 3 (KRH3) [Frame→KRH2]",
-                "candle_time": 1782261540,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4084.63,
-                "sl": 4092.24,
-                "tp": 4077.02,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R]",
-                "candle_time": 1782261780,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4099.16,
-                "sl": 4105.7,
-                "tp": 4080.96,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782262440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4105.54,
-                "sl": 4114.11,
-                "tp": 4080.96,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782263940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4105.54,
-                "sl": 4114.11,
-                "tp": 4095.94,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782263940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4104.43,
-                "sl": 4106.24,
-                "tp": 4089.77,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782264000,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4103.79,
-                "sl": 4110.44,
-                "tp": 4095.94,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R]",
-                "candle_time": 1782264120,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4101.93,
-                "sl": 4106.24,
-                "tp": 4089.77,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782264240,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4098.61,
-                "sl": 4106.24,
-                "tp": 4089.77,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 3 (KRH3) [Frame→KRH2]",
-                "candle_time": 1782264300,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4099.41,
-                "sl": 4105.96,
-                "tp": 4092.86,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782264780,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4099.41,
-                "sl": 4100.85,
-                "tp": 4087.83,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782264780,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4097.44,
-                "sl": 4100.85,
-                "tp": 4087.83,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782264840,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4097.4,
-                "sl": 4103.35,
-                "tp": 4091.45,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782265020,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 15,
-                "signal": "SELL",
-                "entry": 4101.05,
-                "sl": 4104.53,
-                "tp": 4097.51,
-                "pattern": "ท่าที่ 15 VP VAH 🔴 SELL — Absorption",
-                "candle_time": 1782265620,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4098.28,
-                "sl": 4104.41,
-                "tp": 4092.15,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782265920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4097.2,
-                "sl": 4098.71,
-                "tp": 4085.03,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782266040,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4094.98,
-                "sl": 4104.44,
-                "tp": 4085.52,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782266400,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4094.98,
-                "sl": 4104.44,
-                "tp": 4085.52,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782266400,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4094.22,
-                "sl": 4104.92,
-                "tp": 4083.52,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782266460,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4093.96,
-                "sl": 4103.93,
-                "tp": 4083.99,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782266460,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4094.22,
-                "sl": 4100.19,
-                "tp": 4046.0,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782266520,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4094.22,
-                "sl": 4100.19,
-                "tp": 4046.0,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2)",
-                "candle_time": 1782266580,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4072.91,
-                "sl": 4084.1,
-                "tp": 4061.72,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782266760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4088.07,
-                "sl": 4098.6,
-                "tp": 4068.54,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782267720,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4088.07,
-                "sl": 4098.6,
-                "tp": 4075.75,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782267720,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4098.44,
-                "sl": 4111.8,
-                "tp": 4083.57,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782268260,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4098.46,
-                "sl": 4109.5,
-                "tp": 4083.57,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782268500,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4098.46,
-                "sl": 4100.0,
-                "tp": 4086.03,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782268500,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4096.34,
-                "sl": 4100.0,
-                "tp": 4086.03,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782268680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4094.63,
-                "sl": 4104.69,
-                "tp": 4083.57,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782268800,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4096.09,
-                "sl": 4106.49,
-                "tp": 4083.57,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782268980,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4095.86,
-                "sl": 4106.29,
-                "tp": 4083.57,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782269040,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4095.86,
-                "sl": 4100.29,
-                "tp": 4060.06,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782269160,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4092.43,
-                "sl": 4103.22,
-                "tp": 4081.64,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782270120,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4092.26,
-                "sl": 4103.02,
-                "tp": 4081.5,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782270180,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4087.37,
-                "sl": 4094.88,
-                "tp": 4079.86,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782270300,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4086.03,
-                "sl": 4088.8,
-                "tp": 4063.65,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782270420,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4082.46,
-                "sl": 4090.86,
-                "tp": 4074.06,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782270480,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4057.75,
-                "sl": 4065.25,
-                "tp": 4050.25,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782274560,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4056.55,
-                "sl": 4065.24,
-                "tp": 4047.86,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782274620,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4056.55,
-                "sl": 4060.09,
-                "tp": 4027.96,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782274620,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4052.84,
-                "sl": 4060.63,
-                "tp": 4045.05,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782274680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4054.89,
-                "sl": 4062.21,
-                "tp": 4047.57,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782274980,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4060.05,
-                "sl": 4066.12,
-                "tp": 4050.41,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782277440,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4059.8,
-                "sl": 4066.27,
-                "tp": 4050.41,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782277500,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4059.8,
-                "sl": 4061.16,
-                "tp": 4048.81,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782277500,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4065.28,
-                "sl": 4066.72,
-                "tp": 4053.63,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782279840,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4065.86,
-                "sl": 4070.47,
-                "tp": 4055.06,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782280740,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4064.17,
-                "sl": 4068.62,
-                "tp": 4059.72,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R]",
-                "candle_time": 1782280920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4065.86,
-                "sl": 4067.79,
-                "tp": 4050.29,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782280920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4066.62,
-                "sl": 4071.19,
-                "tp": 4060.8,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782281940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4080.39,
-                "sl": 4087.07,
-                "tp": 4065.55,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782283020,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4079.13,
-                "sl": 4086.94,
-                "tp": 4065.55,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782283080,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4076.58,
-                "sl": 4084.91,
-                "tp": 4065.55,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782283200,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4075.99,
-                "sl": 4084.78,
-                "tp": 4065.55,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782283260,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4075.99,
-                "sl": 4078.26,
-                "tp": 4057.67,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782283320,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4077.5,
-                "sl": 4082.92,
-                "tp": 4070.42,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782283680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4077.5,
-                "sl": 4082.92,
-                "tp": 4070.42,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782283680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4076.5,
-                "sl": 4082.85,
-                "tp": 4068.71,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782283740,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4076.5,
-                "sl": 4078.09,
-                "tp": 4063.67,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782283740,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4073.85,
-                "sl": 4081.02,
-                "tp": 4065.58,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782283920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4073.85,
-                "sl": 4081.02,
-                "tp": 4065.58,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782283920,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4078.39,
-                "sl": 4085.72,
-                "tp": 4070.42,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782284640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4078.39,
-                "sl": 4085.72,
-                "tp": 4070.42,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782284640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4095.48,
-                "sl": 4104.27,
-                "tp": 4071.5,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782285360,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4095.48,
-                "sl": 4098.9,
-                "tp": 4067.79,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782285360,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4088.79,
-                "sl": 4096.5,
-                "tp": 4076.45,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782286080,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4088.79,
-                "sl": 4096.5,
-                "tp": 4076.45,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G_DOJI]",
-                "candle_time": 1782286080,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4089.0,
-                "sl": 4095.45,
-                "tp": 4076.45,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782286680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4089.0,
-                "sl": 4095.16,
-                "tp": 4076.45,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782286680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4093.41,
-                "sl": 4099.79,
-                "tp": 4083.45,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
-                "candle_time": 1782287280,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4093.41,
-                "sl": 4095.4,
-                "tp": 4077.31,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782287280,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4090.66,
-                "sl": 4095.4,
-                "tp": 4077.31,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782287400,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 19,
-                "signal": "SELL",
-                "entry": 4092.52,
-                "sl": 4097.27,
-                "tp": 4083.02,
-                "pattern": "ท่าที่ 19 ICT SB 🔴 SELL",
-                "candle_time": 1782287400,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 19,
-                "signal": "SELL",
-                "entry": 4090.79,
-                "sl": 4097.55,
-                "tp": 4077.27,
-                "pattern": "ท่าที่ 19 ICT SB 🔴 SELL",
-                "candle_time": 1782287520,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4090.22,
-                "sl": 4094.69,
-                "tp": 4080.19,
-                "pattern": "S20.5.Fibo_Entry_Hit2_Deep",
-                "candle_time": 1782288540,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4088.34,
-                "sl": 4095.76,
-                "tp": 4080.92,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782288600,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4088.34,
-                "sl": 4089.56,
-                "tp": 4078.45,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782288780,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4086.4,
-                "sl": 4092.28,
-                "tp": 4080.52,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782288960,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4086.59,
-                "sl": 4091.65,
-                "tp": 4081.53,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782289200,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4085.16,
-                "sl": 4089.96,
-                "tp": 4080.36,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782289620,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4085.34,
-                "sl": 4089.89,
-                "tp": 4080.79,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782289680,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4085.34,
-                "sl": 4086.54,
-                "tp": 4075.58,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782289740,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4081.72,
-                "sl": 4085.58,
-                "tp": 4068.0,
-                "pattern": "S20.5.Fibo_Entry_Hit2_Deep",
-                "candle_time": 1782290640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4082.99,
-                "sl": 4086.83,
-                "tp": 4068.0,
-                "pattern": "S20.5.Fibo_Entry_Hit2_Deep",
-                "candle_time": 1782290700,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4081.88,
-                "sl": 4085.66,
-                "tp": 4071.17,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782290760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4083.5,
-                "sl": 4087.22,
-                "tp": 4075.58,
-                "pattern": "S20.5.Fibo_Entry_3Test1",
-                "candle_time": 1782290880,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4082.66,
-                "sl": 4086.48,
-                "tp": 4069.02,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782291120,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4078.63,
-                "sl": 4083.94,
-                "tp": 4073.32,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
-                "candle_time": 1782291360,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4078.63,
-                "sl": 4079.7,
-                "tp": 4069.99,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782291360,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4076.03,
-                "sl": 4083.16,
-                "tp": 4068.9,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782291420,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4077.16,
-                "sl": 4079.7,
-                "tp": 4069.99,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
-                "candle_time": 1782291420,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4078.02,
-                "sl": 4082.14,
-                "tp": 4060.9,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782291420,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4075.12,
-                "sl": 4079.13,
-                "tp": 4064.45,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782291480,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4075.06,
-                "sl": 4078.91,
-                "tp": 4062.87,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782291600,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4084.44,
-                "sl": 4088.52,
-                "tp": 4067.79,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782294120,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4082.74,
-                "sl": 4088.09,
-                "tp": 4075.6,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782294300,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4082.16,
-                "sl": 4088.02,
-                "tp": 4075.6,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-                "candle_time": 1782294360,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4082.84,
-                "sl": 4086.66,
-                "tp": 4068.71,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782294360,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4080.51,
-                "sl": 4084.28,
-                "tp": 4069.36,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782294420,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4079.89,
-                "sl": 4083.77,
-                "tp": 4063.98,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782294480,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4078.9,
-                "sl": 4082.44,
-                "tp": 4071.74,
-                "pattern": "S20.5.Fibo_Entry_Hit1",
-                "candle_time": 1782294780,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4078.9,
-                "sl": 4082.44,
-                "tp": 4069.83,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782294780,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4074.41,
-                "sl": 4078.06,
-                "tp": 4069.95,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R]",
-                "candle_time": 1782296760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4071.81,
-                "sl": 4076.49,
-                "tp": 4067.13,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782296940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4071.81,
-                "sl": 4076.49,
-                "tp": 4067.13,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
-                "candle_time": 1782296940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 3,
-                "signal": "SELL",
-                "entry": 4065.0,
-                "sl": 4068.9,
-                "tp": 4061.1,
-                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R]",
-                "candle_time": 1782298800,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4061.04,
-                "sl": 4064.44,
-                "tp": 4052.78,
-                "pattern": "S20.5.Fibo_Entry_Hit1",
-                "candle_time": 1782299340,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4060.92,
-                "sl": 4064.33,
-                "tp": 4049.87,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782299400,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4061.53,
-                "sl": 4064.86,
-                "tp": 4052.78,
-                "pattern": "S20.5.Fibo_Entry_Hit1",
-                "candle_time": 1782299580,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4061.89,
-                "sl": 4065.71,
-                "tp": 4058.07,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
-                "candle_time": 1782299640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4061.89,
-                "sl": 4062.6,
-                "tp": 4056.2,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
-                "candle_time": 1782299640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4061.7,
-                "sl": 4064.93,
-                "tp": 4054.18,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782299640,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4061.89,
-                "sl": 4062.6,
-                "tp": 4056.2,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2)",
-                "candle_time": 1782299700,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4061.35,
-                "sl": 4064.52,
-                "tp": 4053.13,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782299700,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 4,
-                "signal": "SELL",
-                "entry": 4059.58,
-                "sl": 4064.76,
-                "tp": 4054.4,
-                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
-                "candle_time": 1782299760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 11,
-                "signal": "SELL",
-                "entry": 4059.64,
-                "sl": 4062.6,
-                "tp": 4056.2,
-                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 3 (KRH3) [Frame→KRH2]",
-                "candle_time": 1782299760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4060.48,
-                "sl": 4063.71,
-                "tp": 4048.59,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782299760,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.6,
-                "signal": "SELL",
-                "entry": 4058.66,
-                "sl": 4062.03,
-                "tp": 4044.23,
-                "pattern": "S20.6.FVG_Entry",
-                "candle_time": 1782299820,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 20.5,
-                "signal": "SELL",
-                "entry": 4059.74,
-                "sl": 4063.33,
-                "tp": 4055.16,
-                "pattern": "S20.5.Fibo_Entry_RunTest2",
-                "candle_time": 1782300060,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              },
-              {
-                "sid": 1,
-                "signal": "SELL",
-                "entry": 4052.33,
-                "sl": 4058.29,
-                "tp": 4046.37,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "candle_time": 1782302940,
-                "order_mode": "limit",
-                "use_delay_sl": false
-              }
-            ],
-            "M5": []
-          },
+          "tf_blocked_signals": {},
           "tf_retry_signals": {}
         },
         "M5+M15+M30": {
@@ -2460,7 +351,7 @@
       },
       "BUY": {
         "M1+M5+M15": {
-          "count": 19,
+          "count": 27,
           "active": true,
           "tf_blocked": {
             "M1": false,
@@ -2478,7 +369,7 @@
             "M15": 4065.55
           },
           "tf_swing_bar_time": {
-            "M15": 1782301500
+            "M15": 1782303300
           },
           "tf_blocked_signals": {
             "M1": [],
@@ -2555,17 +446,29 @@
           "tf_retry_signals": {}
         },
         "M1+M5": {
-          "count": 0,
-          "active": false,
-          "tf_blocked": {},
-          "tf_since": {},
-          "tf_swing_ref": {},
+          "count": 5,
+          "active": true,
+          "tf_blocked": {
+            "M1": true,
+            "M5": true
+          },
+          "tf_since": {
+            "M1": 1782302869,
+            "M5": 1782302869
+          },
+          "tf_swing_ref": {
+            "M1": 4039.48,
+            "M5": 4042.54
+          },
           "tf_swing_bar_time": {},
-          "tf_blocked_signals": {},
+          "tf_blocked_signals": {
+            "M1": [],
+            "M5": []
+          },
           "tf_retry_signals": {}
         },
         "M5+M15+M30": {
-          "count": 3,
+          "count": 4,
           "active": true,
           "tf_blocked": {
             "M5": false,
@@ -2583,8 +486,8 @@
             "M30": 4071.5
           },
           "tf_swing_bar_time": {
-            "M15": 1782301500,
-            "M30": 1782300600
+            "M15": 1782303300,
+            "M30": 1782302400
           },
           "tf_blocked_signals": {
             "M5": [],
@@ -2722,45 +625,46 @@
     "M30": 1782291600
   },
   "last_traded_per_tf": {
-    "H1": 1782298800,
+    "H1": 1782302400,
     "H12": 1782216000,
     "D1": 1782172800,
     "H4": 1782259200,
     "M30": 1782284400,
-    "M1": 1782299880,
-    "M5": 1782302700,
-    "M15": 1782301500
+    "M1": 1782306420,
+    "M15": 1782302400,
+    "M5": 1782306000
   },
   "last_traded_sid_tf": {
     "M1": {
       "10": 1782295140,
-      "3": 1782298140,
-      "1": 1782298320,
+      "3": 1782305700,
+      "1": 1782305700,
       "14": 1782299400,
       "15": 1782270000,
-      "11": 1782293460,
-      "2": 1782299820,
-      "20.5": 1782288960,
-      "20.6": 1782296340,
-      "17": 1782299880
+      "11": 1782306360,
+      "2": 1782306360,
+      "20.5": 1782306120,
+      "20.6": 1782306120,
+      "17": 1782299880,
+      "4": 1782304680,
+      "2": 1782306420
     },
     "M5": {
       "10": 1782231300,
-      "1": 1782297300,
+      "1": 1782306000,
       "11": 1782296700,
       "3": 1782294300,
-      "2": 1782298800,
+      "2": 1782306360,
       "4": 1782239400,
       "14": 1782274800,
-      "2": 1782302700
+      "1": 1782306000,
+      "2": 1782306420
     },
     "M15": {
-      "1": 1782288900,
-      "11": 1782289800,
-      "2": 1782295200,
-      "3": 1782280800,
-      "1": 1782301500,
-      "2": 1782298800
+      "1": 1782302400,
+      "11": 1782302400,
+      "2": 1782302400,
+      "3": 1782280800
     },
     "M30": {
       "1": 1782232200,
@@ -2770,10 +674,9 @@
     },
     "H1": {
       "1": 1782288000,
-      "2": 1782284400,
+      "2": 1782302400,
       "11": 1782252000,
-      "3": 1782252000,
-      "2": 1782298800
+      "3": 1782252000
     },
     "H4": {
       "1": 1782244800,
@@ -2787,87 +690,150 @@
     }
   },
   "pending_order_tf": {
-    "550567052": {
-      "tf": "M5",
-      "gap_bot": 4053.62,
-      "gap_top": 4054.74,
-      "final_gap_bot": 4053.62,
-      "final_gap_top": 4054.74,
-      "detect_bar_time": 1782302700,
+    "550618633": {
+      "tf": "M1",
+      "entry": 4054.37,
+      "sl": 4062.01,
+      "tp": 4043.49,
+      "gap_bot": 4046.73,
+      "gap_top": 4062.01,
+      "detect_bar_time": 1782305700,
+      "signal": "SELL",
+      "sid": 3,
+      "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
+      "trend_filter": "sideway",
+      "flow_id": "M1|S3|SELL|T1782305700|E4054.37|SL4062.01|TP4043.49"
+    },
+    "550621423": {
+      "tf": "M1",
+      "entry": 4052.41,
+      "sl": 4056.13,
+      "tp": 4039.22,
+      "gap_bot": 4048.69,
+      "gap_top": 4056.13,
+      "detect_bar_time": 1782305880,
+      "signal": "SELL",
+      "sid": 11,
+      "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
+      "trend_filter": "sideway",
+      "flow_id": "M1|S11|SELL|T1782305880|E4052.41|SL4056.13|TP4039.22"
+    },
+    "550633361": {
+      "tf": "M1",
+      "gap_bot": 4041.78,
+      "gap_top": 4042.69,
+      "final_gap_bot": 4041.78,
+      "final_gap_top": 4042.69,
+      "detect_bar_time": 1782306420,
       "signal": "SELL",
       "sid": 2,
       "pattern": "ท่าที่ 2 FVG 🔴 SELL — แดงกลืนกิน",
       "c3_type": "แดงกลืนกิน",
-      "trend_filter": "bear_weak"
+      "trend_filter": "sideway"
     },
-    "550567056": {
-      "tf": "M15",
-      "entry": 4061.02,
-      "sl": 4085.2,
-      "tp": 4036.84,
-      "gap_bot": 4036.84,
-      "gap_top": 4085.2,
-      "detect_bar_time": 1782301500,
+    "550633370": {
+      "tf": "M5",
+      "entry": 4050.22,
+      "sl": 4069.31,
+      "tp": 4031.13,
+      "gap_bot": 4031.13,
+      "gap_top": 4069.31,
+      "detect_bar_time": 1782306000,
       "signal": "SELL",
       "sid": 1,
-      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
+      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
       "trend_filter": "bear_strong",
-      "cancel_bars": 1,
       "s1_zone_meta": {
         "enabled": true,
         "signal": "SELL",
-        "zone_price": 4066.91,
-        "swing_price": 4097.59,
+        "zone_price": 4056.18,
+        "swing_price": 4066.91,
         "zone_ok_initial": true
       },
       "s1_forward_meta": {
         "enabled": true,
         "signal": "SELL",
-        "detect_bar_time": 1782301500,
+        "detect_bar_time": 1782306000,
         "forward_bars": 5,
         "confirmed": false,
         "confirmed_sid": 0,
         "confirmed_bar_time": 0
       },
-      "flow_id": "M15|S1|SELL|T1782301500|E4061.02|SL4085.20|TP4036.84"
+      "flow_id": "M5|S1|SELL|T1782306000|E4050.22|SL4069.31|TP4031.13"
     }
   },
   "position_tf": {
-    "550566990": "M15",
-    "550567000": "M15",
-    "550567052": "M5",
-    "550567056": "M15"
+    "550610708": "M1",
+    "550618147": "M5",
+    "550618633": "M1",
+    "550619446": "M1",
+    "550621423": "M1",
+    "550626909": "M1",
+    "550626911": "M1",
+    "550631625": "M1",
+    "550631628": "M1",
+    "550631937": "M5",
+    "550633361": "M1",
+    "550633370": "M5"
   },
   "position_sid": {
-    "550566990": 1,
-    "550567000": 2,
-    "550567052": 2,
-    "550567056": 1
+    "550618147": 1,
+    "550618633": 3,
+    "550619446": 2,
+    "550621423": 11,
+    "550610708": 3,
+    "550626909": 20.5,
+    "550626911": 20.6,
+    "550631625": 2,
+    "550631628": 11,
+    "550631937": 1,
+    "550633361": 2,
+    "550633370": 1
   },
   "position_pattern": {
-    "550566990": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-    "550567000": "ท่าที่ 2 FVG SELL [M15+H1]",
-    "550567052": "ท่าที่ 2 FVG SELL [M5]",
-    "550567056": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน"
+    "550610708": "ท่าที่ 3 DM SP — Marubozu BUY",
+    "550618147": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern F 2 แท่งกลืนกิน",
+    "550618633": "ท่าที่ 3 DM SP 🔴 SELL [C1:G]",
+    "550619446": "ท่าที่ 2 FVG SELL [M1]",
+    "550621423": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
+    "550626909": "S20.5.Fibo_Entry_Hit2",
+    "550626911": "S20.6.FVG_Entry",
+    "550631625": "ท่าที่ 2 FVG SELL [M1+M5]",
+    "550631628": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 2 (KRH2) [Frame→KRH1]",
+    "550631937": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
+    "550633361": "ท่าที่ 2 FVG SELL [M1+M5]",
+    "550633370": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง"
   },
   "position_trend_filter": {
-    "550566990": "bear_strong",
-    "550567000": "bear_strong",
-    "550567052": "bear_weak",
-    "550567056": "bear_strong"
+    "550618147": "bear_strong",
+    "550618633": "sideway",
+    "550619446": "sideway",
+    "550621423": "sideway",
+    "550626909": "sideway",
+    "550626911": "sideway",
+    "550631625": "sideway",
+    "550631628": "sideway",
+    "550631937": "bear_strong",
+    "550633361": "sideway",
+    "550633370": "bear_strong"
   },
   "position_zone_meta": {},
   "position_forward_meta": {},
   "entry_state": {},
   "trail_state": {},
   "fvg_order_tickets": {
-    "550567000": {
-      "tf": "M15",
+    "550619446": {
+      "tf": "M1",
       "signal": "SELL",
       "checked": false
     },
-    "550567052": {
-      "tf": "M5",
+    "550631625": {
+      "tf": "M1",
+      "signal": "SELL",
+      "checked": false
+    },
+    "550633361": {
+      "tf": "M1",
       "signal": "SELL",
       "checked": false
     }
@@ -3013,9 +979,9 @@
       "sid": "20.5",
       "tp_original": 4028.03
     },
-    "550567052": {
+    "550618633": {
       "direction": "SELL",
-      "entry": 4053.64,
+      "entry": 4054.37,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -3023,16 +989,16 @@
         2.0,
         3.0,
         6.0,
-        14.929999999999836
+        10.88000000000011
       ],
       "step": 0,
       "is_pending": true,
-      "sid": "2",
-      "tp_original": 4038.71
+      "sid": "3",
+      "tp_original": 4043.49
     },
-    "550567056": {
+    "550621423": {
       "direction": "SELL",
-      "entry": 4061.02,
+      "entry": 4052.41,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -3040,12 +1006,63 @@
         2.0,
         3.0,
         6.0,
-        24.179999999999836
+        13.190000000000055
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "11",
+      "tp_original": 4039.22
+    },
+    "550631937": {
+      "direction": "SELL",
+      "entry": 4050.22,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        19.08999999999969
       ],
       "step": 0,
       "is_pending": true,
       "sid": "1",
-      "tp_original": 4036.84
+      "tp_original": 4031.13
+    },
+    "550633361": {
+      "direction": "SELL",
+      "entry": 4041.8,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        8.420000000000073
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "2",
+      "tp_original": 4033.38
+    },
+    "550633370": {
+      "direction": "SELL",
+      "entry": 4050.22,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        19.08999999999969
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "1",
+      "tp_original": 4031.13
     }
   },
   "s15_use_val_vah": true,
@@ -3060,7 +1077,7 @@
     "asian_low": 4050.41,
     "range_date": "2026-06-24",
     "swept_high": false,
-    "swept_low": false,
+    "swept_low": true,
     "fired": {}
   },
   "s20_trigger_defect": true,
@@ -3079,5 +1096,11 @@
   "s20_session_filter": true,
   "s20_entry_buffer": 390.0,
   "s20_sl_2l2h": 100.0,
-  "fill_notified": []
+  "fill_notified": [
+    550619446,
+    550618147,
+    550610708,
+    550626909,
+    550626911
+  ]
 }
