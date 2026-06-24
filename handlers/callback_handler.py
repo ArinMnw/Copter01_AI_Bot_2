@@ -238,6 +238,14 @@ _STRATEGY_DESC = {
         "5️⃣ *S20.5 LQ Sweep*: ทะลุหลอกกวาด Liquidity แล้วถูกตบกลับเข้า FVG\n\n"
         "🎯 Entry: LIMIT ครึ่งแท่ง (50%) | TP: Fibo 1.618 | SL: Extreme Wick + ATR Buffer\n"
         "⚠️ แนะนำเปิด Trend Filter และ Session Filter เสมอ",
+
+    20.8: "🎯 *S20.8 ท่าไม้ตายอออิน4วิ 2 (Rejection 2L/2H)*\n\n"
+          "เน้นจับแท่ง Rejection บริเวณ High/Low (แท่งตัน ไส้น้อยกว่า 10%)\n"
+          "1️⃣ *BUY*: ราคาอยู่ที่ Local Low และปิดเป็นแท่งตัน (ไม่มีไส้ล่าง)\n"
+          "2️⃣ *SELL*: ราคาอยู่ที่ Local High และปิดเป็นแท่งตัน (ไม่มีไส้บน)\n\n"
+          "🎯 Entry: LIMIT กินไส้ (Buffer 390 จุด)\n"
+          "🛑 SL: 100 จุด (หนีท่าผีเสื้อ Trap)\n"
+          "🎯 TP: กลับไปที่ปลายไส้ (~150 จุด)",
 }
 
 
@@ -560,6 +568,12 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_opposite_menu(query, is_query=True)
         await _qanswer(query,"Opposite Order: ตั้ง SL Protect")
+
+    elif data == "toggle_s20_8_enabled":
+        config.S20_8_ENABLED = not config.S20_8_ENABLED
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await _qanswer(query,f"S20_8: {'ON' if config.S20_8_ENABLED else 'OFF'}")
 
     elif data == "toggle_trail_sl_enabled":
         config.TRAIL_SL_ENABLED = not config.TRAIL_SL_ENABLED
@@ -1023,6 +1037,14 @@ async def handle_callback(update, ctx):
         config.active_strategies[20.7] = config.S20_7_ENABLED
         save_runtime_state()
         await _show_strategy_detail(query, 20.7)
+
+    elif data == "toggle_s20_8_enabled":
+        # S20.8 uses active_strategies directly since it's a standard strategy
+        current_val = active_strategies.get(20.8, False)
+        active_strategies[20.8] = not current_val
+        config.active_strategies[20.8] = not current_val
+        save_runtime_state()
+        await _show_strategy_detail(query, 20.8)
 
     elif data == "toggle_s20_enabled":
         config.S20_ENABLED = not getattr(config, "S20_ENABLED", False)
