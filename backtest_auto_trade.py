@@ -270,8 +270,28 @@ def load_state_symbol() -> str:
 
 
 def default_log_files() -> list[str]:
-    from log_sources import bot_log_files
-    return bot_log_files()
+    from log_sources import backtest_log_files
+    return backtest_log_files()
+
+
+def validate_backtest_log_files(paths: list[str]) -> None:
+    forbidden = []
+    for path in paths or []:
+        name = os.path.basename(str(path)).lower()
+        if name in {"bot.log", "system.log", "error.log"}:
+            forbidden.append(path)
+            continue
+        if (
+            (name.startswith("bot-") or name.startswith("system-") or name.startswith("error-"))
+            and not name.startswith("backtest_")
+        ):
+            forbidden.append(path)
+    if forbidden:
+        raise SystemExit(
+            "Backtest must not use live bot logs. Use logs/backtest_bot.log, "
+            "logs/backtest_system.log, logs/backtest_error.log instead. "
+            f"Forbidden log file(s): {', '.join(map(str, forbidden))}"
+        )
 
 
 def default_compare_report_base(
@@ -1616,11 +1636,16 @@ def enrich_compare_with_raw_replay_context(result: dict, all_trades: list[tuple[
             continue
         _, report_tf, trade, time_diff, entry_diff = best
         live["nearest_raw_replay_tf"] = report_tf
+        live["nearest_raw_replay_sid"] = trade.get("sid", "")
+        live["nearest_raw_replay_side"] = trade.get("signal", trade.get("side", ""))
         live["nearest_raw_replay_entry_ts"] = _excel_dt(trade.get("entry_time"))
         live["nearest_raw_replay_entry"] = trade.get("entry", "")
         live["nearest_raw_replay_close_type"] = trade.get("close_type", "")
         live["nearest_raw_replay_cancel_reason"] = trade.get("cancel_reason", trade.get("reason", ""))
         live["nearest_raw_replay_pattern"] = trade.get("pattern", "")
+        live["nearest_raw_replay_s3_pattern_code"] = _s3_pattern_code(trade.get("pattern", ""), trade.get("marubozu_source", "")) if int(trade.get("sid", 0) or 0) == 3 else ""
+        live["nearest_raw_replay_marubozu_source"] = trade.get("marubozu_source", "")
+        live["nearest_raw_replay_source_candle_ts"] = to_bkk(trade.get("source_candle_time")).replace(tzinfo=None) if trade.get("source_candle_time") else ""
         live["nearest_raw_replay_parallel_tfs"] = "|".join(str(tf) for tf in (trade.get("parallel_tfs") or []) if tf)
         live["nearest_raw_replay_gap_bot"] = trade.get("gap_bot", "")
         live["nearest_raw_replay_gap_top"] = trade.get("gap_top", "")
@@ -2103,11 +2128,16 @@ def compare_result_rows(result: dict) -> list[dict]:
             row[key] = live.get(key, "")
         for key in (
             "nearest_raw_replay_tf",
+            "nearest_raw_replay_sid",
+            "nearest_raw_replay_side",
             "nearest_raw_replay_entry_ts",
             "nearest_raw_replay_entry",
             "nearest_raw_replay_close_type",
             "nearest_raw_replay_cancel_reason",
             "nearest_raw_replay_pattern",
+            "nearest_raw_replay_s3_pattern_code",
+            "nearest_raw_replay_marubozu_source",
+            "nearest_raw_replay_source_candle_ts",
             "nearest_raw_replay_parallel_tfs",
             "nearest_raw_replay_gap_bot",
             "nearest_raw_replay_gap_top",
@@ -2323,9 +2353,12 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
         "bt_sl_guard_group", "bt_sl_guard_trigger_tf",
         "live_window_first_fill_ts", "live_window_last_fill_ts",
         *_nearest_compare_keys("bt"),
-        "nearest_raw_replay_tf", "nearest_raw_replay_entry_ts", "nearest_raw_replay_entry",
+        "nearest_raw_replay_tf", "nearest_raw_replay_sid", "nearest_raw_replay_side",
+        "nearest_raw_replay_entry_ts", "nearest_raw_replay_entry",
         "nearest_raw_replay_close_type", "nearest_raw_replay_cancel_reason",
-        "nearest_raw_replay_pattern", "nearest_raw_replay_parallel_tfs",
+        "nearest_raw_replay_pattern", "nearest_raw_replay_s3_pattern_code",
+        "nearest_raw_replay_marubozu_source", "nearest_raw_replay_source_candle_ts",
+        "nearest_raw_replay_parallel_tfs",
         "nearest_raw_replay_gap_bot", "nearest_raw_replay_gap_top",
         "nearest_raw_replay_final_gap_bot", "nearest_raw_replay_final_gap_top",
         "nearest_raw_replay_cancel_age_bars", "nearest_raw_replay_cancel_bars",
@@ -3701,7 +3734,7 @@ def main() -> None:
     parser.add_argument("--compare-live", action="store_true", help="Compare backtest filled trades with ENTRY_FILL/POSITION_CLOSED logs.")
     parser.add_argument("--compare-mt5-history", action="store_true", help="Compare backtest filled trades with MT5 history deals/orders.")
     parser.add_argument("--compare-source", choices=("log", "mt5", "both"), default="log", help="Source used when --compare-live is set.")
-    parser.add_argument("--log-files", nargs="*", help="Log files to compare. Defaults to old May/June logs plus logs/bot.log.")
+    parser.add_argument("--log-files", nargs="*", help="Log files to compare. Defaults to logs/backtest_bot.log and backtest archives; never reads live bot.log unless explicitly passed.")
     parser.add_argument("--match-minutes", type=float, default=180.0, help="Max fill-time difference for live/backtest matching.")
     parser.add_argument("--match-entry-points", type=float, default=1.0, help="Max entry price difference for live/backtest matching.")
     parser.add_argument("--max-match-quality", choices=("exact", "near", "loose"), default="loose", help="Highest match quality allowed. Use near/exact to avoid loose matches.")
@@ -3720,7 +3753,9 @@ def main() -> None:
     parser.add_argument("--compare-xlsx", nargs="?", const="", help="Optional Excel .xlsx path/name for compare detail. Defaults under excel_reports/backtest_compare.")
     parser.add_argument("--dump-trades-csv", nargs="?", const="", help="Optional raw replay events CSV, including cancelled/open events. Defaults under excel_reports/backtest_compare.")
     parser.add_argument("--hybrid-live-guard-context", action="store_true", help="Apply live SL Guard Group activations from logs as compare-time overlay for replay trades.")
+    parser.add_argument("--allow-restore-fail", action="store_true", help="Diagnostic only: continue even when bot_state/config restore fails.")
     args = parser.parse_args()
+    validate_backtest_log_files(args.log_files or [])
 
     start_bkk = parse_bkk_dt(args.start)
     end_bkk = parse_bkk_dt(args.end)
@@ -3757,6 +3792,11 @@ def main() -> None:
 
     progress("Restoring bot_state/config...")
     restore_info = config.restore_runtime_state()
+    if not restore_info.get("restored") and not args.allow_restore_fail:
+        print(f"Restore failed: {restore_info.get('reason', restore_info)}")
+        print("Refusing to run backtest because restored bot_state/config is required for real-bot parity.")
+        mt5.shutdown()
+        raise SystemExit(2)
     s14_diagnostic_overrides = []
     if args.s14_disable_rsi_div:
         config.S14_RSI_DIV_ENABLED = False
@@ -3779,6 +3819,11 @@ def main() -> None:
         s3_diagnostic_overrides.append("PDFIBOPLUS_SKIP_SIDS+=S3")
     selected_symbol = args.symbol or load_state_symbol() or config.SYMBOL
     config.set_runtime_symbol(selected_symbol)
+    try:
+        from log_sources import ensure_backtest_log_files
+        ensure_backtest_log_files()
+    except Exception:
+        pass
     sim_s1_backtest.SYMBOL = selected_symbol
     sim_s2_backtest.SYMBOL = selected_symbol
     sim_s3_backtest.SYMBOL = selected_symbol

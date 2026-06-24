@@ -16,19 +16,26 @@ OLD_LOG_DIR   = os.path.join(LOG_DIR, "old_logs")   # archived monthly logs
 import sys as _sys
 _entry_script = os.path.basename(getattr(_sys.modules.get("__main__"), "__file__", "") or "")
 _IS_LIVE_BOT  = (_entry_script == "main.py")
+_BOT_LOG_PREFIX = "bot" if _IS_LIVE_BOT else "backtest_bot"
+_ERROR_LOG_PREFIX = "error" if _IS_LIVE_BOT else "backtest_error"
+_SYSTEM_LOG_PREFIX = "system" if _IS_LIVE_BOT else "backtest_system"
 
-BOT_LOG_FILE  = os.path.join(LOG_DIR, "bot.log" if _IS_LIVE_BOT else "backtest_bot.log")
-ERROR_LOG_FILE = os.path.join(LOG_DIR, "error.log" if _IS_LIVE_BOT else "backtest_error.log")
+BOT_LOG_FILE  = os.path.join(LOG_DIR, f"{_BOT_LOG_PREFIX}.log")
+ERROR_LOG_FILE = os.path.join(LOG_DIR, f"{_ERROR_LOG_PREFIX}.log")
 SYSTEM_LOG_DIR  = os.path.join(LOG_DIR, "system")
-SYSTEM_LOG_FILE = os.path.join(SYSTEM_LOG_DIR, "system.log")
+SYSTEM_LOG_FILE = (
+    os.path.join(SYSTEM_LOG_DIR, "system.log")
+    if _IS_LIVE_BOT
+    else os.path.join(LOG_DIR, "backtest_system.log")
+)
 DEBUG_LOG_DIR   = os.path.join(LOG_DIR, "debug")
 LOG_RETENTION_DAYS = 15
 _MAX_BOT_LOG_BYTES = 100 * 1024 * 1024  # 100 MB
 
 _TS_LINE_RE          = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
-_MONTHLY_LOG_RE      = re.compile(r"^bot-\d{4}-\d{2}\.log$")
-_ERROR_MONTHLY_LOG_RE = re.compile(r"^error-\d{4}-\d{2}\.log$")
-_SYSTEM_MONTHLY_LOG_RE = re.compile(r"^system-\d{4}-\d{2}\.log$")
+_MONTHLY_LOG_RE      = re.compile(rf"^{re.escape(_BOT_LOG_PREFIX)}-\d{{4}}-\d{{2}}\.log$")
+_ERROR_MONTHLY_LOG_RE = re.compile(rf"^{re.escape(_ERROR_LOG_PREFIX)}-\d{{4}}-\d{{2}}\.log$")
+_SYSTEM_MONTHLY_LOG_RE = re.compile(rf"^{re.escape(_SYSTEM_LOG_PREFIX)}-\d{{4}}-\d{{2}}\.log$")
 
 # ── Rotation state ─────────────────────────────────────────────
 _last_bot_log_month: tuple = (0, 0)   # (year, month) ที่ bot.log ถูกเขียนล่าสุด
@@ -99,11 +106,19 @@ def _ensure_log_dir() -> None:
     os.makedirs(OLD_LOG_DIR, exist_ok=True)
     os.makedirs(SYSTEM_LOG_DIR, exist_ok=True)
     os.makedirs(DEBUG_LOG_DIR, exist_ok=True)
+    if not _IS_LIVE_BOT:
+        for path in (BOT_LOG_FILE, SYSTEM_LOG_FILE, ERROR_LOG_FILE):
+            try:
+                if not os.path.exists(path):
+                    with open(path, "a", encoding="utf-8"):
+                        pass
+            except OSError:
+                pass
 
 
 def get_monthly_bot_log_file(year: int, month: int) -> str:
     """archive path สำหรับ bot log เดือนนั้น (อยู่ใน old_logs/)"""
-    return os.path.join(OLD_LOG_DIR, f"bot-{year:04d}-{month:02d}.log")
+    return os.path.join(OLD_LOG_DIR, f"{_BOT_LOG_PREFIX}-{year:04d}-{month:02d}.log")
 
 
 def get_monthly_bot_log_file_for_dt(dt: datetime) -> str:
@@ -112,14 +127,14 @@ def get_monthly_bot_log_file_for_dt(dt: datetime) -> str:
 
 def get_monthly_error_log_file(year: int, month: int) -> str:
     """archive path สำหรับ error log เดือนนั้น (old_logs/ ถ้าไม่ใช่เดือนนี้)"""
-    return os.path.join(OLD_LOG_DIR, f"error-{year:04d}-{month:02d}.log")
+    return os.path.join(OLD_LOG_DIR, f"{_ERROR_LOG_PREFIX}-{year:04d}-{month:02d}.log")
 
 
 
 
 def get_monthly_system_log_file(year: int, month: int) -> str:
     """archive path สำหรับ system log เดือนนั้น (อยู่ใน old_logs/)"""
-    return os.path.join(OLD_LOG_DIR, f"system-{year:04d}-{month:02d}.log")
+    return os.path.join(OLD_LOG_DIR, f"{_SYSTEM_LOG_PREFIX}-{year:04d}-{month:02d}.log")
 
 
 # ── Bot log rotation ───────────────────────────────────────────
@@ -157,7 +172,7 @@ def _rotate_bot_log_by_size(now_dt: datetime) -> None:
             return
         date_str = now_dt.strftime("%Y-%m-%d")
         for seq in range(100):
-            archive = os.path.join(OLD_LOG_DIR, f"bot-{date_str}-{seq:02d}.log")
+            archive = os.path.join(OLD_LOG_DIR, f"{_BOT_LOG_PREFIX}-{date_str}-{seq:02d}.log")
             if not os.path.exists(archive):
                 os.rename(BOT_LOG_FILE, archive)
                 return
@@ -226,7 +241,7 @@ def _check_error_log_on_startup() -> None:
     cur = (now_dt.year, now_dt.month)
 
     # migrate ไฟล์เดือนนี้จากสกีมเก่า (error-YYYY-MM.log อยู่ใน logs/) มาเป็น error.log
-    legacy_cur = os.path.join(LOG_DIR, f"error-{cur[0]:04d}-{cur[1]:02d}.log")
+    legacy_cur = os.path.join(LOG_DIR, f"{_ERROR_LOG_PREFIX}-{cur[0]:04d}-{cur[1]:02d}.log")
     if os.path.exists(legacy_cur) and not os.path.exists(ERROR_LOG_FILE):
         try:
             os.rename(legacy_cur, ERROR_LOG_FILE)

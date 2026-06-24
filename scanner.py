@@ -30,7 +30,11 @@ from strategy20_5 import strategy_20_5
 from strategy20_6 import strategy_20_6
 from strategy20_7 import strategy_20_7
 from strategy20_8 import strategy_20_8
-from strategy21 import strategy_21
+try:
+    from strategy21 import strategy_21
+except ModuleNotFoundError:
+    def strategy_21(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S21 module not found"}
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
