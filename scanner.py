@@ -30,6 +30,7 @@ from strategy20_5 import strategy_20_5
 from strategy20_6 import strategy_20_6
 from strategy20_7 import strategy_20_7
 from strategy20_8 import strategy_20_8
+from strategy20_9 import strategy_20_9
 try:
     from strategy21 import strategy_21
 except ModuleNotFoundError:
@@ -2787,6 +2788,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_8.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.8, r20_8["signal"], last_candle_time, r20_8)
 
+    r20_9 = strategy_20_9(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20.9, False) else {"signal": "WAIT", "reason": "S20.9 ปิด"}
+    if r20_9.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.9, r20_9["signal"], last_candle_time, r20_9)
+
     r21 = strategy_21(rates, tf_name=tf_name, config=config) if active_strategies.get(21, False) else {"signal": "WAIT", "reason": "S21 ปิด"}
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
@@ -3224,7 +3229,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (21, r21)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (21, r21)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")

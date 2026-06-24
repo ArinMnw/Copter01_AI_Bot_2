@@ -502,6 +502,7 @@ active_strategies = {
     20.5: True, # S20.5: Fibo Standalone
     20.6: True,  # S20.6: FVG Standalone
     20.8: True, # ท่าที่ 20.8: อออิน4วิ 2 (Rejection)
+    20.9: True, # ท่าที่ 20.9: Candle Action
 }
 
 STRATEGY_NAMES = {
@@ -529,6 +530,7 @@ STRATEGY_NAMES = {
     20.6: "S20.6: FVG Standalone",
     20.7: "S20.7: อออิน4วิ 1",
     20.8: "S20.8: อออิน4วิ 2",
+    20.9: "S20.9: Candle Action",
 }
 
 # ── Strategy 20: All in 4s (Reversal & Retracement) ─────────
@@ -537,6 +539,7 @@ STRATEGY_NAMES = {
 S20_ENABLED           = False
 S20_7_ENABLED         = False
 S20_8_ENABLED         = False
+S20_9_ENABLED         = False
 S20_8_SL_POINTS       = 100.0
 S20_8_POINTS_MULTIPLIER = 0.01
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
