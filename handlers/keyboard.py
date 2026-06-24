@@ -6,6 +6,15 @@ from bot_log import BOT_LOG_FILE, get_monthly_bot_log_file
 import re
 import os
 
+def _log_kb_error(tag, e):
+    """บันทึก error ของเมนู Telegram ลง logs/error-YYYY-MM.log"""
+    try:
+        from bot_log import log_error as _lerr
+        _lerr("CALLBACK_ERROR", f"{tag}: {type(e).__name__}: {e}")
+    except Exception:
+        pass
+
+
 def _get_active_tfs():
     tfs = [tf for tf, on in TF_ACTIVE.items() if on]
     if SYMBOL and "BTCUSD" in SYMBOL:
@@ -155,8 +164,8 @@ async def show_main_settings_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_main_settings_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -213,8 +222,8 @@ async def show_risk_health_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_risk_health_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -308,8 +317,8 @@ async def show_trail_focus_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_trail_focus_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -342,8 +351,8 @@ async def show_debug_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_debug_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -384,8 +393,8 @@ async def show_limit_guard_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_limit_guard_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -431,8 +440,8 @@ async def show_limit_break_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_limit_break_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -469,8 +478,8 @@ async def show_engulf_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_engulf_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -502,8 +511,8 @@ async def show_opposite_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_opposite_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -576,8 +585,8 @@ async def show_entry_focus_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_entry_focus_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -608,8 +617,8 @@ async def show_entry_candle_mode_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_entry_candle_mode_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -880,10 +889,18 @@ async def show_settings_menu(update):
 
 def build_strategy_keyboard():
     """สร้าง keyboard สำหรับเลือก Strategy (กดเพื่อเข้าหน้า detail ของแต่ละตัว)"""
+    # S20.5/S20.6 ใช้ flag แยก (S20_5_ENABLED/S20_6_FVG_ENABLED) ไม่ใช่ active_strategies
+    def _strat_on(sid):
+        if sid == 20.5:
+            return getattr(config, "S20_5_ENABLED", False)
+        if sid == 20.6:
+            return getattr(config, "S20_6_FVG_ENABLED", False)
+        return active_strategies.get(sid, False)
+
     rows = []
     row = []
     for sid, name in STRATEGY_NAMES.items():
-        is_on = active_strategies.get(sid, False)
+        is_on = _strat_on(sid)
         label = f"{'✅' if is_on else '⬜'} {name}"
         row.append(InlineKeyboardButton(label, callback_data=f"open_strategy_detail_{sid}"))
         if len(row) == 2:
@@ -892,7 +909,7 @@ def build_strategy_keyboard():
     if row:
         rows.append(row)
 
-    all_on = all(active_strategies.values())
+    all_on = all(_strat_on(s) for s in STRATEGY_NAMES)
     ctrl = [
         InlineKeyboardButton(
             "⬜ ยกเลิกทุก Strategy" if all_on else "🟢 เลือกทุก Strategy",
@@ -906,10 +923,19 @@ def build_strategy_keyboard():
 
 def build_strategy_detail_keyboard(sid: int):
     """สร้าง keyboard สำหรับ detail ของ strategy แต่ละตัว"""
-    is_on = active_strategies.get(sid, False)
     name  = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
+    # S20.5/S20.6 ใช้ flag แยก (S20_5_ENABLED/S20_6_FVG_ENABLED) ไม่ใช่ active_strategies
+    if sid == 20.5:
+        is_on = getattr(config, "S20_5_ENABLED", False)
+        toggle_cb = "toggle_s20_5_enabled"
+    elif sid == 20.6:
+        is_on = getattr(config, "S20_6_FVG_ENABLED", False)
+        toggle_cb = "toggle_s20_6_enabled"
+    else:
+        is_on = active_strategies.get(sid, False)
+        toggle_cb = f"toggle_strategy_{sid}"
     toggle_label = f"🟢 เปิดใช้งาน {name}" if is_on else f"🔴 ปิดใช้งาน {name}"
-    rows = [[InlineKeyboardButton(toggle_label, callback_data=f"toggle_strategy_{sid}")]]
+    rows = [[InlineKeyboardButton(toggle_label, callback_data=toggle_cb)]]
 
     if sid == 1:
         zone_mode = config.S1_ZONE_MODE
@@ -1273,23 +1299,9 @@ def build_strategy_detail_keyboard(sid: int):
         ])
 
     
-    elif sid == 20.5:
-        s20_5_en = getattr(config, "S20_5_ENABLED", False)
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if s20_5_en else '🔴'} Fibo Standalone",
-                callback_data="toggle_s20_5_enabled"
-            )
-        ])
-
-    elif sid == 20.6:
-        s20_6_en = getattr(config, "S20_6_FVG_ENABLED", False)
-        rows.append([
-            InlineKeyboardButton(
-                f"{'🟢' if s20_6_en else '🔴'} FVG Entry",
-                callback_data="toggle_s20_6_enabled"
-            )
-        ])
+    elif sid == 20.5 or sid == 20.6:
+        # ปุ่มเปิด/ปิดอยู่ที่ row บนสุดแล้ว (ชี้ไป S20_5_ENABLED/S20_6_FVG_ENABLED ตัวจริง)
+        pass
 
     elif sid == 20:
         s20_en     = getattr(config, "S20_ENABLED", False)
@@ -1860,8 +1872,8 @@ async def show_profit_summary(update_or_query, year: int, month: int, trend_filt
         if is_query:
             try:
                 await update_or_query.edit_message_text(text)
-            except Exception:
-                pass
+            except Exception as e:
+                _log_kb_error("show_profit_summary", e)
         else:
             await update_or_query.message.reply_text(text, reply_markup=main_keyboard())
         return
@@ -1875,8 +1887,8 @@ async def show_profit_summary(update_or_query, year: int, month: int, trend_filt
             await update_or_query.edit_message_text(chunks[0], parse_mode="Markdown", reply_markup=keyboard)
             for extra in chunks[1:]:
                 await update_or_query.message.reply_text(extra, parse_mode="Markdown")
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_profit_summary", e)
     else:
         await update_or_query.message.reply_text(chunks[0], parse_mode="Markdown", reply_markup=keyboard)
         for extra in chunks[1:]:
@@ -1890,8 +1902,8 @@ async def show_profit_strategy_detail(update_or_query, year: int, month: int, si
         if is_query:
             try:
                 await update_or_query.edit_message_text(text)
-            except Exception:
-                pass
+            except Exception as e:
+                _log_kb_error("show_profit_strategy_detail", e)
         else:
             await update_or_query.message.reply_text(text, reply_markup=main_keyboard())
         return
@@ -1905,8 +1917,8 @@ async def show_profit_strategy_detail(update_or_query, year: int, month: int, si
             await update_or_query.edit_message_text(chunks[0], parse_mode="Markdown", reply_markup=keyboard)
             for extra in chunks[1:]:
                 await update_or_query.message.reply_text(extra, parse_mode="Markdown")
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_profit_strategy_detail", e)
     else:
         await update_or_query.message.reply_text(chunks[0], parse_mode="Markdown", reply_markup=keyboard)
         for extra in chunks[1:]:
@@ -2267,8 +2279,8 @@ async def show_sl_guard_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_sl_guard_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -2290,8 +2302,8 @@ async def show_sl_guard_per_tf_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_sl_guard_per_tf_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -2314,8 +2326,8 @@ async def show_sl_guard_combined_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_sl_guard_combined_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -2340,8 +2352,8 @@ async def show_sl_guard_group_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_sl_guard_group_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -2419,8 +2431,8 @@ async def show_trend_filter_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_trend_filter_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -2495,7 +2507,7 @@ async def show_s20_settings_menu(update_or_query, is_query=False):
     if is_query:
         try:
             await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            pass
+        except Exception as e:
+            _log_kb_error("show_s20_settings_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)

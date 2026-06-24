@@ -10,6 +10,7 @@ TZ_OFFSET = 7
 LOG_DIR       = "logs"
 OLD_LOG_DIR   = os.path.join(LOG_DIR, "old_logs")   # archived monthly logs
 BOT_LOG_FILE  = os.path.join(LOG_DIR, "bot.log")
+ERROR_LOG_FILE = os.path.join(LOG_DIR, "error.log")  # error log ปัจจุบัน (ไม่มี -YYYY-MM แล้ว เหมือน bot.log)
 SYSTEM_LOG_DIR  = os.path.join(LOG_DIR, "system")
 SYSTEM_LOG_FILE = os.path.join(SYSTEM_LOG_DIR, "system.log")
 DEBUG_LOG_DIR   = os.path.join(LOG_DIR, "debug")
@@ -23,6 +24,7 @@ _SYSTEM_MONTHLY_LOG_RE = re.compile(r"^system-\d{4}-\d{2}\.log$")
 
 # ── Rotation state ─────────────────────────────────────────────
 _last_bot_log_month: tuple = (0, 0)   # (year, month) ที่ bot.log ถูกเขียนล่าสุด
+_last_error_log_month: tuple = (0, 0) # (year, month) ที่ error.log ถูกเขียนล่าสุด
 
 # ── _now_bkk() throttle ─────────────────────────────────────────
 # log_event()/log_error() เรียก _now_bkk() ทุกบรรทัด (หลายร้อยครั้ง/รอบ scan)
@@ -105,9 +107,6 @@ def get_monthly_error_log_file(year: int, month: int) -> str:
     return os.path.join(OLD_LOG_DIR, f"error-{year:04d}-{month:02d}.log")
 
 
-def get_monthly_error_log_file_for_dt(dt: datetime) -> str:
-    """เขียน error log เดือนปัจจุบันที่ logs/ (ยังไม่ archived)"""
-    return os.path.join(LOG_DIR, f"error-{dt.year:04d}-{dt.month:02d}.log")
 
 
 def get_monthly_system_log_file(year: int, month: int) -> str:
@@ -186,6 +185,60 @@ def _check_bot_log_on_startup() -> None:
         except Exception:
             pass
     _last_bot_log_month = cur
+
+
+def _rotate_error_log(old_year: int, old_month: int) -> None:
+    """rename error.log → old_logs/error-YYYY-MM.log"""
+    archive = get_monthly_error_log_file(old_year, old_month)
+    if os.path.exists(ERROR_LOG_FILE) and not os.path.exists(archive):
+        try:
+            os.rename(ERROR_LOG_FILE, archive)
+        except OSError:
+            pass
+
+
+def _rotate_error_log_if_needed(now_dt: datetime) -> None:
+    """เช็คทุกครั้งที่เขียน error log — ถ้าเดือนเปลี่ยน → rotate ไป old_logs/"""
+    global _last_error_log_month
+    cur = (now_dt.year, now_dt.month)
+    if _last_error_log_month == (0, 0):
+        _last_error_log_month = cur
+        return
+    if cur == _last_error_log_month:
+        return
+    _rotate_error_log(*_last_error_log_month)
+    _last_error_log_month = cur
+
+
+def _check_error_log_on_startup() -> None:
+    """ตรวจ error.log ตอน start — ถ้าเป็นเดือนก่อน → rotate ทันที
+    + migrate ไฟล์เก่าสกีม error-YYYY-MM.log ของเดือนนี้ใน logs/ → error.log"""
+    global _last_error_log_month
+    now_dt = _now_bkk()
+    cur = (now_dt.year, now_dt.month)
+
+    # migrate ไฟล์เดือนนี้จากสกีมเก่า (error-YYYY-MM.log อยู่ใน logs/) มาเป็น error.log
+    legacy_cur = os.path.join(LOG_DIR, f"error-{cur[0]:04d}-{cur[1]:02d}.log")
+    if os.path.exists(legacy_cur) and not os.path.exists(ERROR_LOG_FILE):
+        try:
+            os.rename(legacy_cur, ERROR_LOG_FILE)
+        except OSError:
+            pass
+
+    if os.path.exists(ERROR_LOG_FILE):
+        try:
+            last_line = None
+            with open(ERROR_LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if line.strip():
+                        last_line = line
+            if last_line:
+                ts = _parse_log_line_ts(last_line)
+                if ts and (ts.year, ts.month) != cur:
+                    _rotate_error_log(ts.year, ts.month)
+        except Exception:
+            pass
+    _last_error_log_month = cur
 
 
 def _check_system_log_on_startup() -> None:
@@ -304,7 +357,7 @@ class _MonthlyRotatingFileHandler(logging.FileHandler):
 
 
 def log_error(kind: str, message: str = "", **fields) -> None:
-    """เขียน error ลง error-YYYY-MM.log แยกต่างหาก"""
+    """เขียน error ลง error.log แยกต่างหาก (rotate เป็น old_logs/error-YYYY-MM.log ทุกต้นเดือน)"""
     try:
         _ensure_log_dir()
         now_dt = _now_bkk()
@@ -315,14 +368,14 @@ def log_error(kind: str, message: str = "", **fields) -> None:
             line += f" | {_sanitize(message)}"
         if flat_fields:
             line += " | " + " | ".join(flat_fields)
-        error_log = get_monthly_error_log_file_for_dt(now_dt)
-        _write_line_with_retry(error_log, line)
+        _rotate_error_log_if_needed(now_dt)
+        _write_line_with_retry(ERROR_LOG_FILE, line)
     except Exception:
         pass
 
 
 class _ErrorLogHandler(logging.Handler):
-    """Catch Python ERROR-level logs → เขียนลง error-YYYY-MM.log"""
+    """Catch Python ERROR-level logs → เขียนลง error.log"""
     def emit(self, record: logging.LogRecord) -> None:
         try:
             msg = self.format(record)
@@ -334,6 +387,7 @@ class _ErrorLogHandler(logging.Handler):
 def setup_python_logging() -> None:
     _ensure_log_dir()
     _check_bot_log_on_startup()      # rotate bot.log ถ้าเป็นเดือนก่อน
+    _check_error_log_on_startup()    # rotate error.log ถ้าเป็นเดือนก่อน + migrate สกีมเก่า
     _check_system_log_on_startup()   # rotate system.log ถ้าเป็นเดือนก่อน (ก่อน handler เปิดไฟล์)
     _move_old_logs_on_startup()      # ย้าย monthly เก่าใน logs/ → old_logs/
     root = logging.getLogger()

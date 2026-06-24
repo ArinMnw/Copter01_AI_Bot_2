@@ -750,7 +750,14 @@ def main():
     app.post_init = post_init
     # bootstrap_retries=3 กัน process ตายตอนสตาร์ท ถ้า delete_webhook timeout (เน็ต VPS สะดุด)
     # ค่า default=0 = ไม่ retry เลย -> TimedOut หลุดออกมาทำให้ทั้ง process exit เงียบ ๆ
-    app.run_polling(bootstrap_retries=3)
+    # allowed_updates=ALL_TYPES: บังคับขอรับทุก update type (รวม callback_query ของปุ่ม inline)
+    #   override ค่า allowed_updates เก่าที่อาจค้างฝั่ง Telegram จาก webhook ของ instance เดิม
+    #   drop_pending_updates=True: ล้าง update เก่าค้างคิว (รวม callback เก่า) ตอนเริ่ม
+    app.run_polling(
+        bootstrap_retries=3,
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,
+    )
 
 
 if __name__ == '__main__':

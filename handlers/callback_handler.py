@@ -26,6 +26,24 @@ async def _qanswer(query, text=""):
         pass
 
 
+def _log_cb_error(tag, e):
+    """บันทึก error ของปุ่ม callback ลง logs/error-YYYY-MM.log"""
+    try:
+        from bot_log import log_error as _lerr
+        _lerr("CALLBACK_ERROR", f"{tag}: {type(e).__name__}: {e}")
+    except Exception:
+        pass
+
+
+def _strategy_is_on(sid):
+    """สถานะเปิด/ปิดจริงของ strategy — S20.5/S20.6 ใช้ flag แยก ไม่ใช่ active_strategies"""
+    if sid == 20.5:
+        return getattr(config, "S20_5_ENABLED", False)
+    if sid == 20.6:
+        return getattr(config, "S20_6_FVG_ENABLED", False)
+    return active_strategies.get(sid, False)
+
+
 _STRATEGY_DESC = {
     1:  "📐 *Pattern A* — กลืนกินซ้อน 3 แท่ง\n"
         "BUY: [2]🔴 [1]🟢Close>High[2]+gap [0]🟢Close>High[1]+gap body≥35%\n"
@@ -226,7 +244,13 @@ _STRATEGY_DESC = {
 async def _show_strategy_detail(query, sid: int, answer_text: str = ""):
     """แสดงหน้า detail ของ strategy แต่ละตัว และ answer query"""
     name   = STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
-    is_on  = active_strategies.get(sid, False)
+    # S20.5/S20.6 ใช้ flag แยก (S20_5_ENABLED/S20_6_FVG_ENABLED) ไม่ใช่ active_strategies
+    if sid == 20.5:
+        is_on = getattr(config, "S20_5_ENABLED", False)
+    elif sid == 20.6:
+        is_on = getattr(config, "S20_6_FVG_ENABLED", False)
+    else:
+        is_on = active_strategies.get(sid, False)
     status = "🟢 เปิดอยู่" if is_on else "🔴 ปิดอยู่"
     desc   = _STRATEGY_DESC.get(sid, "")
     text   = (
@@ -241,15 +265,18 @@ async def _show_strategy_detail(query, sid: int, answer_text: str = ""):
     try:
         await query.edit_message_text(text, parse_mode="Markdown",
                                       reply_markup=build_strategy_detail_keyboard(sid))
-    except Exception:
-        pass
+    except Exception as e:
+        if "not modified" not in str(e).lower():
+            _log_cb_error("show_strategy_detail", e)
     await _qanswer(query, answer_text)
 
 
 async def handle_callback(update, ctx):
     global SCAN_INTERVAL, TF_CURRENT, TF_ACTIVE, active_strategies
     query = update.callback_query
-    if update.effective_user.id != MY_USER_ID:
+    _uid = update.effective_user.id if update.effective_user else None
+    if _uid != MY_USER_ID:
+        _log_cb_error("auth_blocked", RuntimeError(f"uid={_uid} != MY_USER_ID={MY_USER_ID}"))
         await _qanswer(query)
         return
     data = query.data
@@ -281,12 +308,13 @@ async def handle_callback(update, ctx):
                     InlineKeyboardButton("⏸️ หยุด" if config.auto_active else "▶️ เปิด", callback_data="toggle_auto")
                 ]])
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("toggle_auto", e)
         await _qanswer(query,f"{'เปิด' if config.auto_active else 'หยุด'} Auto แล้ว")
 
     elif data == "open_strategy_menu":
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"
         new_text = (
             "📋 *เลือก Strategy*\n"
@@ -302,7 +330,11 @@ async def handle_callback(update, ctx):
             )
         except Exception as e:
             if "not modified" not in str(e).lower():
-                pass
+                try:
+                    from bot_log import log_error as _lerr
+                    _lerr("CALLBACK_ERROR", f"open_strategy_menu: {type(e).__name__}: {e}")
+                except Exception:
+                    pass
         await _qanswer(query)
 
     elif data.startswith("open_strategy_detail_"):
@@ -328,8 +360,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=kb
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("reset_config_prompt", e)
         await _qanswer(query)
 
     elif data == "confirm_reset_config":
@@ -349,8 +382,9 @@ async def handle_callback(update, ctx):
                 "_(ขั้นต่ำ 0.01 สูงสุด 10.0)_",
                 parse_mode="Markdown"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("lot_custom_input", e)
         await _qanswer(query,"พิมพ์ lot size ใน chat ได้เลย")
 
     elif data.startswith("lot_manual_"):
@@ -369,8 +403,9 @@ async def handle_callback(update, ctx):
                 "_(ขั้นต่ำ 0.01 สูงสุด 10.0)_",
                 parse_mode="Markdown"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("lot_manual", e)
         await _qanswer(query,"พิมพ์ lot size ใน chat ได้เลย")
 
     elif data == "open_lot_menu":
@@ -381,8 +416,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_lot_keyboard()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("open_lot_menu", e)
         await _qanswer(query)
 
     elif data.startswith("set_lot_"):
@@ -398,8 +434,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_lot_keyboard()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("set_lot", e)
         await _qanswer(query,f"✅ Lot Auto = {config.AUTO_VOLUME}")
 
     elif data == "open_scan_menu":
@@ -409,8 +446,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_scan_keyboard_with_back()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("open_scan_menu", e)
         await _qanswer(query)
 
     elif data == "open_trail_menu":
@@ -425,8 +463,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_trail_menu()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("open_trail_menu", e)
         await _qanswer(query)
 
     elif data == "open_trail_engulf_menu":
@@ -442,8 +481,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_trail_engulf_keyboard()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("open_trail_engulf_menu", e)
         await _qanswer(query)
 
     elif data == "open_tf_menu":
@@ -455,8 +495,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_tf_keyboard_with_back()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("open_tf_menu", e)
         await _qanswer(query)
 
     elif data == "back_to_settings":
@@ -535,8 +576,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_trail_menu()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("toggle_trail_sl_enabled", e)
         await _qanswer(query,f"Trail SL: {'ON' if config.TRAIL_SL_ENABLED else 'OFF'}")
 
     elif data == "toggle_trail_reversal_override":
@@ -599,8 +641,8 @@ async def handle_callback(update, ctx):
     elif data == "close_settings":
         try:
             await query.message.delete()
-        except Exception:
-            pass
+        except Exception as e:
+            _log_cb_error("close_settings", e)
         await _qanswer(query,"ปิดเมนูแล้ว")
 
     elif data.startswith("set_interval_"):
@@ -628,8 +670,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_scan_keyboard_with_back()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("set_interval", e)
         await _qanswer(query,f"✅ Scan ทุก {config.SCAN_INTERVAL} นาที")
 
     elif data.startswith("set_tf_"):
@@ -666,8 +709,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_tf_keyboard_with_back()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("set_tf", e)
         save_runtime_state()
         await _qanswer(query,msg_answer)
 
@@ -960,11 +1004,16 @@ async def handle_callback(update, ctx):
     
     elif data == "toggle_s20_5_enabled":
         config.S20_5_ENABLED = not getattr(config, "S20_5_ENABLED", False)
+        # sync active_strategies ให้ตรงกับ flag จริง (สำหรับ display ในรายการ Strategy)
+        active_strategies[20.5] = config.S20_5_ENABLED
+        config.active_strategies[20.5] = config.S20_5_ENABLED
         save_runtime_state()
         await _show_strategy_detail(query, 20.5)
 
     elif data == "toggle_s20_6_enabled":
         config.S20_6_FVG_ENABLED = not getattr(config, "S20_6_FVG_ENABLED", False)
+        active_strategies[20.6] = config.S20_6_FVG_ENABLED
+        config.active_strategies[20.6] = config.S20_6_FVG_ENABLED
         save_runtime_state()
         await _show_strategy_detail(query, 20.6)
 
@@ -1050,8 +1099,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_trail_engulf_keyboard()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("set_trail_engulf_mode", e)
         save_runtime_state()
         await _qanswer(query,f"✅ Trail SL Engulf: {trail_mode_label}")
 
@@ -1070,8 +1120,9 @@ async def handle_callback(update, ctx):
                 parse_mode="Markdown",
                 reply_markup=build_trail_menu()
             )
-        except Exception:
-            pass
+        except Exception as e:
+            if "not modified" not in str(e).lower():
+                _log_cb_error("toggle_trail_immediate", e)
         await _qanswer(query,f"Trail ทันที: {imm_status}")
 
     elif data == "open_trail_focus_menu":
@@ -1201,7 +1252,7 @@ async def handle_callback(update, ctx):
         else:
             await _qanswer(query,"TF ไม่ถูกต้อง")
 
-    elif data == "noop_trend_filter":
+    elif data in ("noop_trend_filter", "noop_sl_atr"):
         await _qanswer(query)
 
     elif data == "toggle_trend_filter_higher_tf":
@@ -1254,8 +1305,11 @@ async def handle_callback(update, ctx):
         for sid in active_strategies:
             active_strategies[sid] = turn_on
             config.active_strategies[sid] = turn_on
+        # S20.5/S20.6 ใช้ flag แยก — sync ตามด้วยเพื่อให้ execution ตรงกับที่กด
+        config.S20_5_ENABLED = turn_on
+        config.S20_6_FVG_ENABLED = turn_on
         save_runtime_state()
-        active_list = [STRATEGY_NAMES[s] for s, on in active_strategies.items() if on]
+        active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"
         new_text = (
             "📋 *เลือก Strategy*\n"
@@ -1407,8 +1461,8 @@ async def handle_callback(update, ctx):
         try:
             config.DAILY_LOSS_LIMIT_USD = float(int(data.replace("set_dll_usd_", "")))
             save_runtime_state()
-        except Exception:
-            pass
+        except Exception as e:
+            _log_cb_error("set_dll_usd", e)
         await show_risk_health_menu(query, is_query=True)
         await _qanswer(query, f"เพดานขาดทุน: ${config.DAILY_LOSS_LIMIT_USD:.0f}")
 
@@ -1422,8 +1476,8 @@ async def handle_callback(update, ctx):
         connect_mt5()
         try:
             await query.message.reply_text(config.build_daily_summary_text(), parse_mode="Markdown")
-        except Exception:
-            pass
+        except Exception as e:
+            _log_cb_error("send_daily_summary_now", e)
         await _qanswer(query, "ส่งสรุปแล้ว")
 
     elif data == "toggle_risk_percent":
@@ -1436,8 +1490,8 @@ async def handle_callback(update, ctx):
         try:
             config.RISK_PERCENT = float(data.replace("set_risk_pct_", ""))
             save_runtime_state()
-        except Exception:
-            pass
+        except Exception as e:
+            _log_cb_error("set_risk_pct", e)
         await show_risk_health_menu(query, is_query=True)
         await _qanswer(query, f"Risk: {config.RISK_PERCENT}%")
 
@@ -1830,4 +1884,9 @@ async def handle_callback(update, ctx):
         msg = await query.message.reply_text("✏️ พิมพ์จำนวนจุดสำหรับ **SL 2L/2H** (เช่น 100):")
         ctx.user_data['awaiting_input'] = 's20_sl_2l2h'
         ctx.user_data['prompt_msg_id'] = msg.message_id
+        await _qanswer(query)
+
+    else:
+        # catch-all: ปิด spinner กันค้าง + log callback_data ที่ไม่มี handler รองรับ
+        _log_cb_error("unhandled_callback", RuntimeError(f"no handler for data={data!r}"))
         await _qanswer(query)
