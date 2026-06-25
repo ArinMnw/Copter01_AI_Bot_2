@@ -20,9 +20,13 @@ param(
     # "python" เฉยๆ อาจ resolve ผ่าน PATH ไปโดน interpreter อื่นที่ไม่มี
     # MetaTrader5/telegram/apscheduler ติดตั้งอยู่ (เคยเกิดจริง: ไปโดน venv ของ
     # เครื่องมืออื่นที่ไม่เกี่ยวกับ bot นี้ ทำให้ main.py ขึ้น ModuleNotFoundError
-    # แล้ว crash-loop ทุก ~30s) — ระบุ path เต็มของ interpreter ที่ลง dependency
-    # ของ bot นี้ไว้ตรงๆ กัน PATH เปลี่ยนแล้วพังเงียบๆ
-    [string]$Python  = "C:\Users\Copter\AppData\Local\Programs\Python\Python313\python.exe"
+    # แล้ว crash-loop ทุก ~30s) — ใช้ "py" (Python Launcher อย่างเป็นทางการ ติดตั้ง
+    # คู่กับ python.org installer เสมอ ไม่ถูก venv อื่นแย่ง PATH) แทน path เต็ม
+    # ที่ hardcode ตรงเครื่อง เพราะ path แบบนั้นพังทันทีถ้าย้ายไปรันเครื่องอื่น/VPS
+    # ที่ลง Python ไว้คนละที่ (เคสจริง: hardcode path เครื่อง local แล้วเอาไปรัน
+    # บน VPS ขึ้น "system cannot find the file specified" ทันที)
+    [string]$Python  = "py",
+    [string]$PythonArgs = "-3"
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,9 +61,9 @@ while ($true) {
     # ลบ heartbeat เก่าก่อน start เพื่อไม่ให้อ่าน ts ค้างจากรอบก่อนมาตัดสินผิด
     if (Test-Path $HeartbeatFile) { Remove-Item $HeartbeatFile -Force -ErrorAction SilentlyContinue }
 
-    Write-Log "Launching: $Python main.py"
+    Write-Log "Launching: $Python $PythonArgs main.py"
     try {
-        $proc = Start-Process -FilePath $Python -ArgumentList "main.py" -PassThru -NoNewWindow
+        $proc = Start-Process -FilePath $Python -ArgumentList @($PythonArgs, "main.py") -PassThru -NoNewWindow
     } catch {
         Write-Log "ERROR launching python: $_  — retry in $RestartGap s"
         Start-Sleep -Seconds $RestartGap
