@@ -121,16 +121,24 @@ def now_bkk() -> datetime:
                 best_ts = ts
 
         if best_ts is not None:
-            dt = mt5_ts_to_bkk(best_ts)
-            if dt is not None:
-                return dt
+            dt_bkk = mt5_ts_to_bkk(best_ts)  # side effect: refresh MT5_SERVER_TZ
+            if dt_bkk is not None:
+                # เช็คความสดของ tick ก่อนเชื่อ — tick.time เข้ารหัสเป็น broker-local
+                # clock (เทียบเท่า OS UTC now + MT5_SERVER_TZ ชม. ถ้าสด) ถ้า tick ค้าง
+                # (เช่น ตอน reconnect ได้ tick เก่าจากก่อนหน้า) ห้ามเชื่อ ไม่งั้น "now"
+                # จะผิดไปตามความ stale นั้น (เคสจริง: ผิดไปเกือบ 1 ชม.ตอน restart)
+                actual = datetime.fromtimestamp(int(best_ts), tz=timezone.utc)
+                expected = datetime.now(timezone.utc) + timedelta(hours=MT5_SERVER_TZ)
+                if abs((actual - expected).total_seconds()) <= 30:
+                    return dt_bkk
     except Exception:
         pass
-    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET - MT5_SERVER_TZ)
+    return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET)
 
 
 def mt5_ts_to_bkk(ts: int | float | None) -> datetime | None:
-    """แปลง MT5 server timestamp เป็นเวลา Bangkok ตามส่วนต่าง server -> BKK"""
+    """แปลง MT5 server timestamp (bar/sweep/deal/tick time) เป็นเวลา Bangkok จริง
+    (UTC+7, ตรงกับหน้าจอ MT5 terminal) ตามส่วนต่าง server -> BKK"""
     try:
         if ts is None:
             return None

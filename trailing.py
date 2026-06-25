@@ -1972,8 +1972,6 @@ async def check_s1_zone_rules(app):
         return
 
     from strategy1 import evaluate_s1_zone_status
-    from datetime import datetime, timezone, timedelta
-    BKK = timezone(timedelta(hours=7))
 
     now = now_bkk().strftime("%H:%M:%S")
     orders = mt5.orders_get(symbol=SYMBOL) or []
@@ -2069,8 +2067,8 @@ async def check_s1_zone_rules(app):
 
             deadline_bars = int(zone_meta.get("deadline_bars", 4) or 4)
             if t_last_closed >= t_detect + deadline_bars * tf_secs:
-                detect_str = datetime.fromtimestamp(t_detect, tz=BKK).strftime("%H:%M")
-                deadline_str = datetime.fromtimestamp(t_detect + deadline_bars * tf_secs, tz=BKK).strftime("%H:%M")
+                detect_str = mt5_ts_to_bkk(t_detect).strftime("%H:%M")
+                deadline_str = mt5_ts_to_bkk(t_detect + deadline_bars * tf_secs).strftime("%H:%M")
                 reason = f"S1 Swing Cancel [{tf}]: no swing {sig} confirmed in {deadline_bars} bars | detect:{detect_str} | deadline:{deadline_str}"
             else:
                 continue
@@ -2184,8 +2182,8 @@ async def check_s1_zone_rules(app):
 
             deadline_bars = int(zone_meta.get("deadline_bars", 4) or 4)
             if t_last_closed >= t_detect + deadline_bars * tf_secs:
-                detect_str = datetime.fromtimestamp(t_detect, tz=BKK).strftime("%H:%M")
-                deadline_str = datetime.fromtimestamp(t_detect + deadline_bars * tf_secs, tz=BKK).strftime("%H:%M")
+                detect_str = mt5_ts_to_bkk(t_detect).strftime("%H:%M")
+                deadline_str = mt5_ts_to_bkk(t_detect + deadline_bars * tf_secs).strftime("%H:%M")
                 reason = f"S1 Swing Exit [{tf}]: no swing {pos_type} confirmed in {deadline_bars} bars | detect:{detect_str} | deadline:{deadline_str}"
             else:
                 continue

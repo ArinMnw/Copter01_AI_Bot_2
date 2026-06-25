@@ -17,7 +17,12 @@ param(
     [int]$CheckEvery = 30,    # คาบ monitor (วินาที)
     [int]$GraceSec   = 90,    # ผ่อนผันหลัง start ก่อนเริ่มเช็ค heartbeat (รอ MT5 connect/restore)
     [int]$RestartGap = 5,     # หน่วงก่อน relaunch (วินาที)
-    [string]$Python  = "python"
+    # "python" เฉยๆ อาจ resolve ผ่าน PATH ไปโดน interpreter อื่นที่ไม่มี
+    # MetaTrader5/telegram/apscheduler ติดตั้งอยู่ (เคยเกิดจริง: ไปโดน venv ของ
+    # เครื่องมืออื่นที่ไม่เกี่ยวกับ bot นี้ ทำให้ main.py ขึ้น ModuleNotFoundError
+    # แล้ว crash-loop ทุก ~30s) — ระบุ path เต็มของ interpreter ที่ลง dependency
+    # ของ bot นี้ไว้ตรงๆ กัน PATH เปลี่ยนแล้วพังเงียบๆ
+    [string]$Python  = "C:\Users\Copter\AppData\Local\Programs\Python\Python313\python.exe"
 )
 
 $ErrorActionPreference = "Stop"

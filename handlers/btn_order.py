@@ -296,13 +296,12 @@ def _read_ticket_logs(ticket: int, all_lines: list) -> list[tuple[str, str, str,
                 pairs.append(f"{k}=`{v}`")
         # TREND_RECHECK: merge sh_t/sl_t timestamp เข้ากับ sh/sl → "4485.12 @HH:MM DD-Mon"
         if event == "TREND_RECHECK":
-            UTC6 = timezone(timedelta(hours=6))
             for price_key, time_key in (("sh", "sh_t"), ("sl", "sl_t")):
                 t_raw = _fld(line, time_key)
                 if not t_raw or t_raw in ("0", "None", "-"):
                     continue
                 try:
-                    dt_bkk = datetime.fromtimestamp(int(t_raw), UTC6)
+                    dt_bkk = mt5_ts_to_bkk(int(t_raw))
                     time_str = dt_bkk.strftime("%H:%M %d-%b")
                     # หา index ของ pair ที่เป็น price_key แล้วต่อท้าย @time
                     pairs = [

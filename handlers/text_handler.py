@@ -168,9 +168,8 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
         )
         return
 
-    # แปลงเวลาของแท่งราคากลับเป็น BKK สำหรับแสดงผล (+1h เพราะ mt5_ts_to_bkk คืน UTC+6)
+    # แปลงเวลาของแท่งราคากลับเป็น BKK สำหรับแสดงผล
     bar_bkk = config.mt5_ts_to_bkk(matching_bar['time'])
-    bar_bkk = (bar_bkk + timedelta(hours=1)) if bar_bkk else None
     bar_bkk_str = bar_bkk.strftime("%d-%m-%Y %H:%M") if bar_bkk else "-"
     
     color = "🟢" if matching_bar['close'] >= matching_bar['open'] else "🔴"

@@ -58,6 +58,7 @@ def _now_bkk() -> datetime:
     if _now_bkk_cache_offset is not None and (nowt - _now_bkk_cache_at) < _NOW_BKK_REFRESH_SEC:
         return datetime.now(timezone.utc) + _now_bkk_cache_offset
 
+    offset = timedelta(hours=TZ_OFFSET)
     try:
         import config as _config
         symbols = []
@@ -79,19 +80,25 @@ def _now_bkk() -> datetime:
                 best_ts = ts
 
         if best_ts is not None:
-            dt = _config.mt5_ts_to_bkk(best_ts)
-            if dt is not None:
-                _now_bkk_cache_offset = dt - datetime.now(timezone.utc)
-                _now_bkk_cache_at = nowt
-                return dt
+            dt_bkk = _config.mt5_ts_to_bkk(best_ts)  # side effect: refresh MT5_SERVER_TZ
+            if dt_bkk is not None:
+                # เช็คความสดของ tick ก่อนเชื่อ — tick.time เข้ารหัสเป็น broker-local
+                # clock (เทียบเท่า OS UTC now + MT5_SERVER_TZ ชม. ถ้าสด) ถ้า tick ค้าง
+                # (เช่น ตอน restart/reconnect ได้ tick เก่าจากก่อนหน้า ~1h) ห้ามเชื่อ
+                # ไม่งั้น cache window ทั้ง 15s จะ freeze เวลาผิดไว้ (เคสจริง: APP_START
+                # bracket ช้ากว่าเวลาจริง 1h ตอน restart)
+                now_utc = datetime.now(timezone.utc)
+                server_tz = getattr(_config, "MT5_SERVER_TZ", 1)
+                actual = datetime.fromtimestamp(int(best_ts), tz=timezone.utc)
+                expected = now_utc + timedelta(hours=server_tz)
+                if abs((actual - expected).total_seconds()) <= 30:
+                    offset = dt_bkk - now_utc
     except Exception:
         pass
 
-    server_tz = getattr(locals().get("_config", None), "MT5_SERVER_TZ", 1) if "_config" in locals() else 1
-    fallback_offset = timedelta(hours=TZ_OFFSET - server_tz)
-    _now_bkk_cache_offset = fallback_offset
+    _now_bkk_cache_offset = offset
     _now_bkk_cache_at = nowt
-    return datetime.now(timezone.utc) + fallback_offset
+    return datetime.now(timezone.utc) + offset
 
 
 def _sanitize(value) -> str:

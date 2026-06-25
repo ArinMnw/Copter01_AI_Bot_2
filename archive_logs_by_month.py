@@ -8,7 +8,8 @@ logs/error.log ถ้ามี) ไปต่อในไฟล์รายเด
 
     logs/bot.log              -> logs/old_logs/bot-YYYY-MM.log
     logs/system/system.log    -> logs/old_logs/system-YYYY-MM.log
-    logs/error.log            -> logs/error-YYYY-MM.log  (เดือนนี้)  / old_logs (เดือนก่อน)
+    logs/error.log            -> logs/error.log (เดือนนี้, เขียนทับ/รวมใหม่)  /
+                                  logs/old_logs/error-YYYY-MM.log (เดือนก่อน)
 
 คุณสมบัติ:
 - อ่านแบบ streaming (รองรับไฟล์หลายร้อย MB โดยไม่กิน RAM)
@@ -60,13 +61,14 @@ def _month_of(line: str):
 def _target_path(prefix: str, ym: tuple, cur_ym: tuple) -> str:
     """
     path ปลายทางของไฟล์รายเดือน
-    - error เดือนปัจจุบัน -> logs/error-YYYY-MM.log
+    - error เดือนปัจจุบัน -> logs/error.log (ตรงกับ scheme ของ bot_log.py — ไฟล์
+      เดือนปัจจุบันไม่มี suffix วันที่ ต่างจาก scheme เก่า error-YYYY-MM.log)
     - ที่เหลือ            -> logs/old_logs/<prefix>-YYYY-MM.log
     """
     year, month = ym
-    name = f"{prefix}-{year}-{month}.log"
     if prefix == "error" and ym == cur_ym:
-        return os.path.join(LOG_DIR, name)
+        return os.path.join(LOG_DIR, "error.log")
+    name = f"{prefix}-{year}-{month}.log"
     return os.path.join(OLD_DIR, name)
 
 
