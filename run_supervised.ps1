@@ -17,20 +17,62 @@ param(
     [int]$CheckEvery = 30,    # คาบ monitor (วินาที)
     [int]$GraceSec   = 90,    # ผ่อนผันหลัง start ก่อนเริ่มเช็ค heartbeat (รอ MT5 connect/restore)
     [int]$RestartGap = 5,     # หน่วงก่อน relaunch (วินาที)
-    # "python" เฉยๆ อาจ resolve ผ่าน PATH ไปโดน interpreter อื่นที่ไม่มี
-    # MetaTrader5/telegram/apscheduler ติดตั้งอยู่ (เคยเกิดจริง: ไปโดน venv ของ
-    # เครื่องมืออื่นที่ไม่เกี่ยวกับ bot นี้ ทำให้ main.py ขึ้น ModuleNotFoundError
-    # แล้ว crash-loop ทุก ~30s) — ใช้ "py" (Python Launcher อย่างเป็นทางการ ติดตั้ง
-    # คู่กับ python.org installer เสมอ ไม่ถูก venv อื่นแย่ง PATH) แทน path เต็ม
-    # ที่ hardcode ตรงเครื่อง เพราะ path แบบนั้นพังทันทีถ้าย้ายไปรันเครื่องอื่น/VPS
-    # ที่ลง Python ไว้คนละที่ (เคสจริง: hardcode path เครื่อง local แล้วเอาไปรัน
-    # บน VPS ขึ้น "system cannot find the file specified" ทันที)
-    [string]$Python  = "py",
-    [string]$PythonArgs = "-3"
+    # ปล่อยว่างไว้ = auto-detect (ดู Resolve-Python ด้านล่าง) — ระบุเองได้ถ้าต้องการ
+    # บังคับ interpreter ตัวใดตัวหนึ่งเจาะจง (เช่น -Python "py" -PythonArgs "-3.11")
+    [string]$Python,
+    [string]$PythonArgs
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
+
+function Test-PythonCandidate([string]$exe, [string[]]$extraArgs) {
+    # คืน $true ถ้า interpreter ตัวนี้เรียกได้จริง และมี dependency หลักของบอทครบ
+    # (MetaTrader5/telegram/apscheduler) — กัน false positive จากแค่ "เจอ exe"
+    # แต่ดันเป็น venv ของเครื่องมืออื่นที่ไม่เกี่ยวกับบอทนี้
+    try {
+        $argList = @($extraArgs) + @("-c", "import MetaTrader5, telegram, apscheduler")
+        & $exe @argList *>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+function Resolve-Python {
+    # ลองหลาย candidate ตามลำดับ เพราะเครื่องต่างกัน (local PC vs VPS) อาจมี
+    # "python"/"py" ผูกกับ environment ที่ลง dependency ของบอทไว้คนละตัวกัน —
+    # เคยพังมาแล้วทั้ง 2 ทาง (hardcode path เครื่องเดียวพังข้ามเครื่อง, เปลี่ยนเป็น
+    # "py -3" ตายตัวก็พังกับเครื่องที่ dependency อยู่ใน "python" PATH ธรรมดา)
+    # จึงต้อง "ทดสอบจริง" แทนเดาเฉยๆ ว่าตัวไหนของเครื่องนี้ใช้ได้
+    $candidates = @(
+        @{ Exe = "python"; Args = @() },
+        @{ Exe = "py";      Args = @("-3") },
+        @{ Exe = "py";      Args = @() }
+    )
+    foreach ($c in $candidates) {
+        if (Test-PythonCandidate $c.Exe $c.Args) {
+            # resolve ไปเป็น python.exe ตัวจริง (sys.executable) แทนคืนแค่
+            # "py"/"-3" ตรงๆ — ถ้าใช้ "py" เป็น $Python ตอน Start-Process, py.exe
+            # จะเป็น parent process แล้ว spawn python.exe ตัวจริงเป็น child แยก PID
+            # ทำให้ตอน kill-on-stall (Stop-Process -Id $proc.Id) ฆ่าได้แค่ py.exe
+            # ตัว python.exe ที่รัน main.py จริง (ค้างอยู่) จะรอดเป็น orphan แล้ว
+            # supervisor ไป spawn อีกตัวซ้อน เกิด process ซ้ำ (เคสจริง: Telegram
+            # getUpdates Conflict) — ต้อง resolve ให้ $proc.Id ตรงกับ python.exe จริง
+            try {
+                $checkArgs = @($c.Args) + @("-c", "import sys; print(sys.executable)")
+                $realExe = (& $c.Exe @checkArgs 2>$null | Select-Object -Last 1)
+                if ($realExe) { $realExe = $realExe.Trim() }
+                if ($realExe -and (Test-Path $realExe)) {
+                    return @{ Exe = $realExe; Args = @() }
+                }
+            } catch {}
+            return $c   # fallback เผื่อ resolve sys.executable ไม่ได้ (ไม่ควรเกิด)
+        }
+    }
+    Write-Log "WARN: ไม่มี python candidate ไหนผ่านการเช็ค dependency เลย — ใช้ 'python' เป็น fallback (จะ error ชัดเจนใน log ถ้าผิดจริง)"
+    return $candidates[0]
+}
 
 $HeartbeatFile = Join-Path $PSScriptRoot "bot_heartbeat.txt"
 $LogDir        = Join-Path $PSScriptRoot "logs"
@@ -55,15 +97,23 @@ function Read-HeartbeatTs {
     return $null
 }
 
-Write-Log "Supervisor started (stale=$StaleSec s, check=$CheckEvery s, grace=$GraceSec s, python='$Python')"
+if (-not $PSBoundParameters.ContainsKey('Python')) {
+    $resolved   = Resolve-Python
+    $Python     = $resolved.Exe
+    $PythonArgs = $resolved.Args -join ' '
+}
+$PythonArgList = @($PythonArgs -split ' ' | Where-Object { $_ -ne '' })
+$PythonCmdLabel = (@($Python) + $PythonArgList) -join ' '
+
+Write-Log "Supervisor started (stale=$StaleSec s, check=$CheckEvery s, grace=$GraceSec s, python='$PythonCmdLabel')"
 
 while ($true) {
     # ลบ heartbeat เก่าก่อน start เพื่อไม่ให้อ่าน ts ค้างจากรอบก่อนมาตัดสินผิด
     if (Test-Path $HeartbeatFile) { Remove-Item $HeartbeatFile -Force -ErrorAction SilentlyContinue }
 
-    Write-Log "Launching: $Python $PythonArgs main.py"
+    Write-Log "Launching: $PythonCmdLabel main.py"
     try {
-        $proc = Start-Process -FilePath $Python -ArgumentList @($PythonArgs, "main.py") -PassThru -NoNewWindow
+        $proc = Start-Process -FilePath $Python -ArgumentList ($PythonArgList + @("main.py")) -PassThru -NoNewWindow
     } catch {
         Write-Log "ERROR launching python: $_  — retry in $RestartGap s"
         Start-Sleep -Seconds $RestartGap
