@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-06-25 21:40:19",
+  "saved_at": "2026-06-25 22:45:47",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -121,7 +121,7 @@
       "direction": "SELL",
       "sl_target": 4034.55,
       "tp_target": 3978.92,
-      "armed_at": 1782396000,
+      "armed_at": 1782399600,
       "htf_tf": "H1",
       "ltf_tf": "M1",
       "candles": [
@@ -144,7 +144,7 @@
       "pre_arm": false,
       "fired_tickets": [],
       "awaiting_choch": false,
-      "fire_count": 4
+      "fire_count": 0
     }
   },
   "rsi9_plot_bullish": true,
@@ -158,12 +158,12 @@
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
     "date": "2026-06-25",
-    "realized": -257.3,
-    "wins": 24,
-    "losses": 54,
-    "count": 78,
-    "gross_win": 93.93,
-    "gross_loss": -351.23
+    "realized": -253.3,
+    "wins": 26,
+    "losses": 56,
+    "count": 82,
+    "gross_win": 100.65,
+    "gross_loss": -353.95
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -489,7 +489,17 @@
       }
     }
   },
-  "pdfiboplus_fill_state": {},
+  "pdfiboplus_fill_state": {
+    "551981100": {
+      "tf": "M5",
+      "signal": "SELL",
+      "fill_h": 4040.63,
+      "fill_l": 4005.03,
+      "gap_bot": 0.0,
+      "gap_top": 0.0,
+      "pending_close": false
+    }
+  },
   "s10_last_fired_armed_at": {
     "M30": 1782383400,
     "H1": 1782396000,
@@ -501,19 +511,19 @@
     "D1": 1782259200,
     "H4": 1782316800,
     "M30": 1782388800,
-    "M5": 1782387900,
-    "M1": 1782401820,
-    "M15": 1782387900
+    "M1": 1782405480,
+    "M15": 1782405000,
+    "M5": 1782405600
   },
   "last_traded_sid_tf": {
     "M1": {
       "10": 1782387000,
       "3": 1782401820,
-      "1": 1782389460,
+      "1": 1782405480,
       "14": 1782380340,
       "15": 1782382260,
-      "11": 1782388740,
-      "2": 1782401760,
+      "11": 1782405240,
+      "2": 1782405240,
       "20.5": 1782315000,
       "20.6": 1782381960,
       "17": 1782379380,
@@ -524,22 +534,26 @@
     },
     "M5": {
       "10": 1782231300,
-      "1": 1782379800,
+      "1": 1782405000,
       "11": 1782379200,
       "3": 1782353100,
       "2": 1782387900,
       "4": 1782239400,
       "14": 1782374400,
       "19": 1782316200,
-      "15": 1782375600
+      "15": 1782375600,
+      "19": 1782405300,
+      "14": 1782405600,
+      "2": 1782405000
     },
     "M15": {
-      "1": 1782385200,
+      "1": 1782404100,
       "11": 1782369000,
       "2": 1782387900,
       "3": 1782362700,
       "14": 1782327600,
-      "15": 1782383400
+      "15": 1782383400,
+      "2": 1782405000
     },
     "M30": {
       "1": 1782388800,
@@ -569,21 +583,126 @@
       "11": 1782259200
     }
   },
-  "pending_order_tf": {},
-  "position_tf": {},
-  "position_sid": {},
-  "position_pattern": {},
-  "position_trend_filter": {},
+  "pending_order_tf": {
+    "551974962": {
+      "tf": "M5",
+      "entry": 4032.17,
+      "sl": 4060.99,
+      "tp": 3999.17,
+      "gap_bot": 4003.35,
+      "gap_top": 4060.99,
+      "detect_bar_time": 1782405000,
+      "signal": "SELL",
+      "sid": 1,
+      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
+      "trend_filter": "sideway",
+      "s1_zone_meta": {
+        "enabled": true,
+        "signal": "SELL",
+        "zone_price": 4040.63,
+        "swing_price": 4028.42,
+        "zone_ok_initial": true,
+        "deadline_bars": 3
+      },
+      "s1_forward_meta": {
+        "enabled": true,
+        "signal": "SELL",
+        "detect_bar_time": 1782405000,
+        "forward_bars": 5,
+        "confirmed": false,
+        "confirmed_sid": 0,
+        "confirmed_bar_time": 0
+      },
+      "flow_id": "M5|S1|SELL|T1782405000|E4032.17|SL4060.99|TP3999.17"
+    }
+  },
+  "position_tf": {
+    "551974772": "M15",
+    "551974962": "M5",
+    "551978275": "M1",
+    "551980478": "M5",
+    "551981100": "M5",
+    "551981103": "M5",
+    "551981156": "M5"
+  },
+  "position_sid": {
+    "551974772": 1,
+    "551974962": 1,
+    "551978275": 1,
+    "551980478": 19,
+    "551981100": 14,
+    "551981103": 2
+  },
+  "position_pattern": {
+    "551974772": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern F 2 แท่งกลืนกิน",
+    "551974962": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ย้อนโครงสร้าง",
+    "551978275": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน",
+    "551980478": "ท่าที่ 19 ICT SB 🟢 BUY",
+    "551981100": "ท่าที่ 14 Sweep RSI 🔴 SELL — Engulf Swing (M15)",
+    "551981103": "ท่าที่ 2 FVG BUY [M5+M15]"
+  },
+  "position_trend_filter": {
+    "551974772": "bull_strong",
+    "551974962": "sideway",
+    "551978275": "bull_weak",
+    "551980478": "sideway",
+    "551981100": "bull_weak",
+    "551981103": "bull_strong",
+    "551981211": "bull_weak"
+  },
   "position_zone_meta": {},
   "position_forward_meta": {},
-  "entry_state": {},
+  "entry_state": {
+    "551978275": "done"
+  },
   "trail_state": {},
-  "fvg_order_tickets": {},
+  "fvg_order_tickets": {
+    "551981103": {
+      "tf": "M5",
+      "signal": "BUY",
+      "checked": false
+    }
+  },
   "s8_fill_sl": {},
   "trail_sl_frozen_side": "SELL",
   "entry_candle_frozen_side": null,
   "scale_out_enabled": true,
-  "scale_out_state": {},
+  "scale_out_state": {
+    "551974962": {
+      "direction": "SELL",
+      "entry": 4032.17,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        33.0
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "1",
+      "tp_original": 3999.17
+    },
+    "551981100": {
+      "direction": "SELL",
+      "entry": 4028.14,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        39.70000000000027
+      ],
+      "step": 0,
+      "is_pending": false,
+      "sid": "14",
+      "tp_original": 3988.6
+    }
+  },
   "s15_use_val_vah": true,
   "s15_lookback": 100,
   "s15_min_rr": 1.0,
@@ -621,5 +740,7 @@
   "s20_session_filter": true,
   "s20_entry_buffer": 390.0,
   "s20_sl_2l2h": 100.0,
-  "fill_notified": []
+  "fill_notified": [
+    551981100
+  ]
 }
