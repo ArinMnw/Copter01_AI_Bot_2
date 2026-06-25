@@ -2086,6 +2086,14 @@ def build_trend_filter_keyboard():
     rows.append([InlineKeyboardButton("━ Premium/Discount Zone ━", callback_data="noop_trend_filter")])
     rows.append([InlineKeyboardButton(pd_zone_label, callback_data="toggle_pdfiboplus")])
 
+    # === Shared TP ===
+    shared_tp_label = (
+        "🟢 Shared TP: ON"
+        if getattr(config, "SHARED_TP_ENABLED", True)
+        else "🔴 Shared TP: OFF"
+    )
+    rows.append([InlineKeyboardButton(shared_tp_label, callback_data="toggle_shared_tp")])
+
     # === Sideway HHLL Filter ===
     _sideway_hhll = getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)
     sideway_hhll_label = (

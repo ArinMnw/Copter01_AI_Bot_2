@@ -539,9 +539,15 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             sid = parsed_sid
             signal = meta["type"]
             
-            # meta["time_setup"] = true UTC Unix timestamp → แสดงเป็น UTC+6 (chart time)
-            oc_dt = datetime.fromtimestamp(int(meta["time_setup"]), tz=_UTC6)
-            oc_time_str = oc_dt.strftime("%Y-%m-%d %H:%M:%S")
+            # meta["time_setup"] = MT5 server timestamp → แปลงเป็น BKK จริง (UTC+7)
+            # ด้วย MT5_SERVER_TZ ของ "วันนั้น" จาก history กัน server tz เปลี่ยนข้ามวัน
+            # แล้วแสดงผลผิด (เคยใช้ _UTC6 ตรงๆ ทำให้ ticket เก่าที่ไม่มี ORDER_CREATED
+            # ใน log ให้ grep เจอ แสดงเวลาช้าไป 1h จากความเป็นจริง)
+            # re-tag เป็น _UTC7 (แบบเดียวกับ branch ล่างที่ใช้ oc_time_str จาก log)
+            # เพื่อให้ .timestamp() ด้านล่างคืนค่า true UTC instant ถูกต้องเหมือนกัน
+            _oc_dt_hist = mt5_ts_to_bkk_hist(int(meta["time_setup"]))
+            oc_time_str = _oc_dt_hist.strftime("%Y-%m-%d %H:%M:%S")
+            oc_dt = datetime.strptime(oc_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_UTC7)
             
             if sid == '10' and ("_" in clean_tf or "-" in clean_tf):
                 htf_ltf = clean_tf.replace("-", "_")
@@ -580,9 +586,12 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             end   = oc_dt - timedelta(seconds=1)
             raw = mt5.copy_rates_range(symbol, tf_id, start, end)
             if raw is not None and len(raw) >= count:
-                # r['time'] = server-local encoded (unix ของ server time)
-                # oc_dt.timestamp() = TRUE UTC → ต้องบวก MT5_SERVER_TZ เพื่อให้เทียบกัน
-                oc_ts = int(oc_dt.timestamp()) + MT5_SERVER_TZ * 3600
+                # r['time'] = server-local encoded (unix ของ server time) ของ "วันนั้น"
+                # oc_dt.timestamp() = TRUE UTC → ต้องบวก MT5_SERVER_TZ ของวันนั้น (ไม่ใช่
+                # ค่าปัจจุบัน) เพื่อให้เทียบกับ r['time'] ถูกต้อง แม้ broker เปลี่ยน
+                # server tz ไปแล้วตั้งแต่วันที่ order นี้สร้าง
+                _oc_true_ts = int(oc_dt.timestamp())
+                oc_ts = _oc_true_ts + mt5_server_tz_for_ts(_oc_true_ts) * 3600
                 if closed_only:
                     # เอาเฉพาะแท่งที่ปิดสมบูรณ์ก่อน order (กัน bar ที่เพิ่งเปิด เข้ามาแทน CRT bars)
                     filtered = [r for r in raw if int(r["time"]) + tf_secs <= oc_ts]
@@ -592,7 +601,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
             return raw
 
         def _fmt_bar(r, idx, tf_str):
-            bar_dt = mt5_ts_to_bkk(r['time'])  # UTC+6 (chart time)
+            bar_dt = mt5_ts_to_bkk_hist(r['time'])  # BKK จริง ใช้ MT5_SERVER_TZ ของวันนั้น
             bar_str = bar_dt.strftime("%H:%M %d-%b-%Y")
             color = "🟢" if r['close'] >= r['open'] else "🔴"
             return (f"{color} แท่ง[{idx}]: "

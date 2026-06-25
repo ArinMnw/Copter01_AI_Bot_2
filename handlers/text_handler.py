@@ -591,7 +591,7 @@ async def _handle_lot_input(update, context, text, waiting):
 
 def _fmt_dt(ts):
     try:
-        return fmt_mt5_bkk_ts(ts, "%d/%m %H:%M:%S")
+        return fmt_mt5_bkk_ts_hist(ts, "%d/%m %H:%M:%S")
     except Exception:
         return "-"
 

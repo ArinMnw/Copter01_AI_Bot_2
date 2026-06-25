@@ -39,12 +39,15 @@ def _get_s1_structure(rates, tf=""):
 
 
 def _attach_s1_zone_meta(payload: dict, use_zone: bool, signal: str, zone_price: float, swing_price: float, zone_ok: bool):
+    n_candles = len(payload.get("candles") or [])
+    deadline_bars = 4 if n_candles <= 2 else 3
     payload["s1_zone_meta"] = {
         "enabled": (S1_ZONE_MODE in ("zone", "swing")),
         "signal": str(signal or ""),
         "zone_price": round(float(zone_price), 2),
         "swing_price": round(float(swing_price), 2),
         "zone_ok_initial": bool(zone_ok),
+        "deadline_bars": deadline_bars,
     }
     return payload
 

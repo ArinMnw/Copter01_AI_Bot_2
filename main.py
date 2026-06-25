@@ -627,6 +627,18 @@ def main():
     )
 
     async def post_init(application):
+        # ลบ webhook ค้างก่อน start_polling ของ library เอง (bootstrap_retries=3
+        # ของ run_polling ไม่พอถ้าเน็ต VPS สะดุดตอน startup — webhook เก่าจะค้าง
+        # ฝั่ง Telegram แล้ว getUpdates ชนกันยาว (Conflict) จนกว่า process จะ
+        # restart รอบหน้า ลอง retry หนักกว่านี้ตรงนี้กันไว้ก่อน)
+        for _attempt in range(5):
+            try:
+                await application.bot.delete_webhook(drop_pending_updates=True)
+                break
+            except Exception as _e:
+                log_error("DELETE_WEBHOOK_RETRY", f"attempt={_attempt+1}/5: {type(_e).__name__}: {_e}")
+                await asyncio.sleep(2)
+
         wrap_bot(application)   # ← เพิ่มเวลานำหน้าทุก Telegram message
         application.bot_data["scheduler"] = scheduler
         application.bot_data["check_symbol_switch"] = check_symbol_switch

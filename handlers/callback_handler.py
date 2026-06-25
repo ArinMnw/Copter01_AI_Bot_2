@@ -1613,6 +1613,12 @@ async def handle_callback(update, ctx):
         await show_trend_filter_menu(query, is_query=True)
         await _qanswer(query, f"PD Fibo Plus: {'ON' if config.PDFIBOPLUS_ENABLED else 'OFF'}")
 
+    elif data == "toggle_shared_tp":
+        config.SHARED_TP_ENABLED = not getattr(config, "SHARED_TP_ENABLED", True)
+        save_runtime_state()
+        await show_trend_filter_menu(query, is_query=True)
+        await _qanswer(query, f"Shared TP: {'ON' if config.SHARED_TP_ENABLED else 'OFF'}")
+
     elif data == "toggle_sideway_hhll_filter":
         config.TREND_FILTER_SIDEWAY_HHLL = not getattr(config, "TREND_FILTER_SIDEWAY_HHLL", True)
         save_runtime_state()

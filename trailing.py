@@ -2067,10 +2067,11 @@ async def check_s1_zone_rules(app):
             if has_valid_swing:
                 continue
 
-            if t_last_closed > t_detect + 4 * tf_secs:
+            deadline_bars = int(zone_meta.get("deadline_bars", 4) or 4)
+            if t_last_closed >= t_detect + deadline_bars * tf_secs:
                 detect_str = datetime.fromtimestamp(t_detect, tz=BKK).strftime("%H:%M")
-                deadline_str = datetime.fromtimestamp(t_detect + 4 * tf_secs, tz=BKK).strftime("%H:%M")
-                reason = f"S1 Swing Cancel [{tf}]: no swing {sig} confirmed in 4 bars | detect:{detect_str} | deadline:{deadline_str}"
+                deadline_str = datetime.fromtimestamp(t_detect + deadline_bars * tf_secs, tz=BKK).strftime("%H:%M")
+                reason = f"S1 Swing Cancel [{tf}]: no swing {sig} confirmed in {deadline_bars} bars | detect:{detect_str} | deadline:{deadline_str}"
             else:
                 continue
 
@@ -2181,10 +2182,11 @@ async def check_s1_zone_rules(app):
                 save_runtime_state()
                 continue
 
-            if t_last_closed > t_detect + 4 * tf_secs:
+            deadline_bars = int(zone_meta.get("deadline_bars", 4) or 4)
+            if t_last_closed >= t_detect + deadline_bars * tf_secs:
                 detect_str = datetime.fromtimestamp(t_detect, tz=BKK).strftime("%H:%M")
-                deadline_str = datetime.fromtimestamp(t_detect + 4 * tf_secs, tz=BKK).strftime("%H:%M")
-                reason = f"S1 Swing Exit [{tf}]: no swing {pos_type} confirmed in 4 bars | detect:{detect_str} | deadline:{deadline_str}"
+                deadline_str = datetime.fromtimestamp(t_detect + deadline_bars * tf_secs, tz=BKK).strftime("%H:%M")
+                reason = f"S1 Swing Exit [{tf}]: no swing {pos_type} confirmed in {deadline_bars} bars | detect:{detect_str} | deadline:{deadline_str}"
             else:
                 continue
 

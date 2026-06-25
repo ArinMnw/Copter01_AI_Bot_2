@@ -3600,9 +3600,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     print(f"⚠️ [{now}] {tf_label(tf_name)}: Order เต็ม ({len(_pos_now)}/{MAX_ORDERS})")
                     continue
 
-                existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid)
+                existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid) if getattr(config, "SHARED_TP_ENABLED", True) else 0.0
                 if existing_tp > 0:
                     print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
+                    _old_tp_str = str(tp)
+                    _new_tp_str = str(existing_tp)
+                    if _old_tp_str in raw_reason:
+                        raw_reason = raw_reason.replace(_old_tp_str, _new_tp_str)
+                        reason_flat = " | ".join(line.strip() for line in raw_reason.splitlines() if line.strip())
                     tp = existing_tp
                     base_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, entry, sl, tp)
                     rr = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
@@ -3984,9 +3989,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             # ── Shared TP: ถ้ามี Order ทิศเดียวกันอยู่แล้ว ──────────
             # BUY → TP = Swing High ย่อย ร่วมกัน
             # SELL → TP = Swing Low ย่อย ร่วมกัน
-            existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid)
+            existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid) if getattr(config, "SHARED_TP_ENABLED", True) else 0.0
             if existing_tp > 0:
                 print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
+                # ข้อความ "เหตุผล" ที่ strategy คืนมาฝัง TP เดิม (ก่อนถูก override) ไว้แล้ว
+                # (เช่น "Swing High:4017.57") ต้องแทนที่ด้วยค่าใหม่ ไม่งั้น Telegram จะ
+                # โชว์ TP ขัดกันเอง 2 ค่าในข้อความเดียว (เคสจริง ticket 550701639)
+                _old_tp_str = str(tp)
+                _new_tp_str = str(existing_tp)
+                if _old_tp_str in raw_reason:
+                    raw_reason = raw_reason.replace(_old_tp_str, _new_tp_str)
+                    reason_flat = " | ".join(line.strip() for line in raw_reason.splitlines() if line.strip())
                 tp = existing_tp
                 base_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, entry, sl, tp)
                 rr = round(abs(tp - entry) / risk, 2) if risk > 0 else 0
