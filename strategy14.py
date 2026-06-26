@@ -336,6 +336,9 @@ def _get_next_std_tf(tf_name: str) -> str:
     return "M5"
 
 def _is_sec_htf_currently_sweep(rates, tf_name: str, sec_htf_name: str, ref_level: float, is_buy: bool) -> bool:
+    """ต้องเป็น sweep จริง (ทะลุ ref แล้วปิดกลับ) ไม่ใช่แค่ high/low ทะลุ ref เฉยๆ
+    (ของเดิมเช็คแค่ high/low ทะลุ ref — เกือบจะ True เสมอเมื่อ HTF ปิดทะลุ ref ไปแล้ว
+    เพราะ sec_htf ที่ครอบ HTF แท่งนั้นไว้ก็ทะลุไปด้วยโดยอัตโนมัติ ไม่ได้ยืนยัน sweep จริง)"""
     tf_secs = TF_SECONDS.get(tf_name, 60)
     sec_htf_secs = TF_SECONDS.get(sec_htf_name, 1800)
     next_bar_time = int(rates[-1]["time"]) + tf_secs
@@ -343,12 +346,13 @@ def _is_sec_htf_currently_sweep(rates, tf_name: str, sec_htf_name: str, ref_leve
     sub_rates = [r for r in rates if int(r["time"]) >= sec_htf_start_time]
     if not sub_rates:
         return False
+    last_close = float(sub_rates[-1]["close"])
     if is_buy:
         lowest_low = min(float(r["low"]) for r in sub_rates)
-        return lowest_low < ref_level
+        return lowest_low < ref_level and last_close > ref_level
     else:
         highest_high = max(float(r["high"]) for r in sub_rates)
-        return highest_high > ref_level
+        return highest_high > ref_level and last_close < ref_level
 
 def _get_htf_bar(tf_name: str, target_time: int, htf_rates_lookup: dict = None):
     """

@@ -339,6 +339,21 @@ def _strategy_10_2bar(rates):
                         f"(depth:{sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)"
                     )
                     continue
+                if getattr(_config, "CRT_SWEEP_CONTAIN_ENABLED", True) and s_high > p_high:
+                    last_reason = (
+                        f"[2bar BUY] Sweep {sweep_ts} high ทะลุ parent high "
+                        f"(sweep H:{s_high:.2f} > parent H:{p_high:.2f})"
+                    )
+                    continue
+                p_mid = (p_high + p_low) / 2.0
+                close_max_pct = float(getattr(_config, "CRT_SWEEP_CLOSE_MAX_PCT", 0.50))
+                close_cap = p_low + p_range * close_max_pct
+                if s_close > close_cap:
+                    last_reason = (
+                        f"[2bar BUY] Sweep {sweep_ts} ปิดเกิน {close_max_pct*100:.0f}% ของ parent "
+                        f"(close:{s_close:.2f} > cap:{close_cap:.2f} mid:{p_mid:.2f})"
+                    )
+                    continue
                 entry = round(s_close, 2)
                 sl    = round(s_low - buffer, 2)
                 tp    = round(p_high, 2)
@@ -379,6 +394,21 @@ def _strategy_10_2bar(rates):
                     last_reason = (
                         f"[2bar SELL] Sweep {sweep_ts} ตื้นไป "
                         f"(depth:{sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)"
+                    )
+                    continue
+                if getattr(_config, "CRT_SWEEP_CONTAIN_ENABLED", True) and s_low < p_low:
+                    last_reason = (
+                        f"[2bar SELL] Sweep {sweep_ts} low ทะลุ parent low "
+                        f"(sweep L:{s_low:.2f} < parent L:{p_low:.2f})"
+                    )
+                    continue
+                p_mid = (p_high + p_low) / 2.0
+                close_max_pct = float(getattr(_config, "CRT_SWEEP_CLOSE_MAX_PCT", 0.50))
+                close_cap = p_high - p_range * close_max_pct
+                if s_close < close_cap:
+                    last_reason = (
+                        f"[2bar SELL] Sweep {sweep_ts} ปิดต่ำกว่า {close_max_pct*100:.0f}% ของ parent "
+                        f"(close:{s_close:.2f} < cap:{close_cap:.2f} mid:{p_mid:.2f})"
                     )
                     continue
                 entry = round(s_close, 2)
@@ -474,6 +504,18 @@ def _strategy_10_3bar(rates):
                 "signal": "WAIT",
                 "reason": f"[3bar BUY] Sweep ตื้นไป ({sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)",
             }
+        if getattr(_config, "CRT_SWEEP_CONTAIN_ENABLED", True) and s_high > p_high:
+            return {
+                "signal": "WAIT",
+                "reason": f"[3bar BUY] Sweep high ทะลุ parent high (sweep H:{s_high:.2f} > parent H:{p_high:.2f})",
+            }
+        close_max_pct = float(getattr(_config, "CRT_SWEEP_CLOSE_MAX_PCT", 0.50))
+        close_cap = p_low + p_range * close_max_pct
+        if c_close > close_cap:
+            return {
+                "signal": "WAIT",
+                "reason": f"[3bar BUY] Confirm ปิดเกิน {close_max_pct*100:.0f}% ของ parent (close:{c_close:.2f} > cap:{close_cap:.2f})",
+            }
         entry = round(c_close, 2)
         sl    = round(s_low - buffer, 2)
         tp    = round(p_high, 2)
@@ -507,6 +549,18 @@ def _strategy_10_3bar(rates):
             return {
                 "signal": "WAIT",
                 "reason": f"[3bar SELL] Sweep ตื้นไป ({sweep_depth:.2f} < {min_depth:.2f} = {CRT_SWEEP_DEPTH_PCT*100:.0f}% ของ range)",
+            }
+        if getattr(_config, "CRT_SWEEP_CONTAIN_ENABLED", True) and s_low < p_low:
+            return {
+                "signal": "WAIT",
+                "reason": f"[3bar SELL] Sweep low ทะลุ parent low (sweep L:{s_low:.2f} < parent L:{p_low:.2f})",
+            }
+        close_max_pct = float(getattr(_config, "CRT_SWEEP_CLOSE_MAX_PCT", 0.50))
+        close_cap = p_high - p_range * close_max_pct
+        if c_close < close_cap:
+            return {
+                "signal": "WAIT",
+                "reason": f"[3bar SELL] Confirm ปิดต่ำกว่า {close_max_pct*100:.0f}% ของ parent (close:{c_close:.2f} < cap:{close_cap:.2f})",
             }
         entry = round(c_close, 2)
         sl    = round(s_high + buffer, 2)
@@ -587,19 +641,27 @@ def is_s10_htf_sweep_valid(parent, sweep, signal: str, mode: str = "") -> bool:
     if p_body_pct < min_body_pct:
         return False
     min_depth = p_range * float(CRT_SWEEP_DEPTH_PCT)
+    contain_ok = getattr(_config, "CRT_SWEEP_CONTAIN_ENABLED", True)
+    close_max_pct = float(getattr(_config, "CRT_SWEEP_CLOSE_MAX_PCT", 0.50))
     if signal == "BUY":
         sweep_depth = p_low - s_low
+        close_cap = p_low + p_range * close_max_pct
         return (
             s_low < p_low
             and s_close > p_low
             and sweep_depth >= min_depth
+            and (not contain_ok or s_high <= p_high)
+            and s_close <= close_cap
         )
 
     sweep_depth = s_high - p_high
+    close_cap = p_high - p_range * close_max_pct
     return (
         s_high > p_high
         and s_close < p_high
         and sweep_depth >= min_depth
+        and (not contain_ok or s_low >= p_low)
+        and s_close >= close_cap
     )
 
 

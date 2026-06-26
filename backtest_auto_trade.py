@@ -1662,6 +1662,7 @@ def enrich_compare_with_raw_replay_context(result: dict, all_trades: list[tuple[
         live["nearest_raw_replay_pd_fib_618"] = trade.get("pd_fib_618", "")
         live["nearest_raw_replay_pd_fallback_used"] = trade.get("pd_fallback_used", "")
         live["nearest_raw_replay_pd_outside_range"] = trade.get("pd_outside_range", "")
+        live["nearest_raw_replay_pd_stage"] = ""
         live["nearest_raw_replay_detect_time_raw"] = trade.get("detect_time_raw", "")
         live["nearest_raw_replay_sweep_scan_state"] = trade.get("sweep_scan_state", "")
         live["nearest_raw_replay_sweep_scan_tf"] = trade.get("sweep_scan_tf", "")
@@ -1679,9 +1680,12 @@ def enrich_compare_with_raw_replay_context(result: dict, all_trades: list[tuple[
         live["nearest_raw_replay_entry_diff"] = round(entry_diff, 2)
         raw_reason = str(trade.get("cancel_reason", trade.get("reason", "")) or "").upper()
         if "PD FIBO PLUS" in raw_reason:
+            pd_stage = "pending_round1"
+            live["nearest_raw_replay_pd_stage"] = pd_stage
             current_gap = str(live.get("gap_reason", "") or "")
-            if not current_gap.startswith("REPLAY_PD_REJECTED:"):
-                live["gap_reason"] = f"REPLAY_PD_REJECTED:{current_gap or 'NEAREST_RAW_PD_FAIL'}"
+            prefix = "REPLAY_PD_PRECREATE_REJECTED"
+            if not current_gap.startswith(f"{prefix}:"):
+                live["gap_reason"] = f"{prefix}:{current_gap or 'NEAREST_RAW_PD_FAIL'}"
 
 
 def _dedupe_live_rows(rows: list[dict]) -> list[dict]:
@@ -2154,6 +2158,7 @@ def compare_result_rows(result: dict) -> list[dict]:
             "nearest_raw_replay_pd_fib_618",
             "nearest_raw_replay_pd_fallback_used",
             "nearest_raw_replay_pd_outside_range",
+            "nearest_raw_replay_pd_stage",
             "nearest_raw_replay_detect_time_raw",
             "nearest_raw_replay_sweep_scan_state",
             "nearest_raw_replay_sweep_scan_tf",
@@ -2367,7 +2372,7 @@ def write_compare_xlsx(path: str, result: dict, meta: dict | None = None) -> str
         "nearest_raw_replay_pd_h", "nearest_raw_replay_pd_l",
         "nearest_raw_replay_pd_fib_382", "nearest_raw_replay_pd_fib_618",
         "nearest_raw_replay_pd_fallback_used", "nearest_raw_replay_pd_outside_range",
-        "nearest_raw_replay_detect_time_raw",
+        "nearest_raw_replay_pd_stage", "nearest_raw_replay_detect_time_raw",
         "nearest_raw_replay_sweep_scan_state", "nearest_raw_replay_sweep_scan_tf",
         "nearest_raw_replay_sweep_scan_price", "nearest_raw_replay_sweep_scan_time",
         "nearest_raw_replay_sweep_scan_ts", "nearest_raw_replay_sweep_scan_age_min",
@@ -3734,7 +3739,7 @@ def main() -> None:
     parser.add_argument("--compare-live", action="store_true", help="Compare backtest filled trades with ENTRY_FILL/POSITION_CLOSED logs.")
     parser.add_argument("--compare-mt5-history", action="store_true", help="Compare backtest filled trades with MT5 history deals/orders.")
     parser.add_argument("--compare-source", choices=("log", "mt5", "both"), default="log", help="Source used when --compare-live is set.")
-    parser.add_argument("--log-files", nargs="*", help="Log files to compare. Defaults to logs/backtest_bot.log and backtest archives; never reads live bot.log unless explicitly passed.")
+    parser.add_argument("--log-files", nargs="*", help="Log files to compare. Defaults to logs/backtest_bot.log and backtest archives; live bot/system/error logs are rejected.")
     parser.add_argument("--match-minutes", type=float, default=180.0, help="Max fill-time difference for live/backtest matching.")
     parser.add_argument("--match-entry-points", type=float, default=1.0, help="Max entry price difference for live/backtest matching.")
     parser.add_argument("--max-match-quality", choices=("exact", "near", "loose"), default="loose", help="Highest match quality allowed. Use near/exact to avoid loose matches.")

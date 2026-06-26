@@ -7263,18 +7263,20 @@ async def check_cancel_pending_orders(app):
 
     Main swing high/low means max/min from the TF lookback window.
     """
-    orders = mt5.orders_get(symbol=SYMBOL)
-    if not orders:
+    orders = mt5.orders_get(symbol=SYMBOL) or []
+    now = now_bkk().strftime("%H:%M:%S")
+    open_tickets = {o.ticket for o in orders}
+    # tickets ที่กลายเป็น position แล้ว (filled) → ไม่ pop position_tf ออก
+    # หมายเหตุ: ห้าม clear pending_order_tf ทั้งหมดแค่เพราะ orders ว่าง — ticket ที่ fill
+    # กลายเป็น position (เช่น market order ของ S14) ก็ไม่อยู่ใน orders_get() เหมือนกัน
+    # แต่ยังต้องการ info (flow_id, s14_ref_bar_time, intended_sl ฯลฯ) ไปใช้ตอนประมวลผล fill
+    _open_pos_tickets = {p.ticket for p in (mt5.positions_get(symbol=SYMBOL) or [])}
+    if not orders and not _open_pos_tickets:
         pending_order_tf.clear()
         _pdfiboplus_state.clear()
         _pdfiboplus_pending_passed.clear()
         _triple_check_state.clear()
         return
-
-    now = now_bkk().strftime("%H:%M:%S")
-    open_tickets = {o.ticket for o in orders}
-    # tickets ที่กลายเป็น position แล้ว (filled) → ไม่ pop position_tf ออก
-    _open_pos_tickets = {p.ticket for p in (mt5.positions_get(symbol=SYMBOL) or [])}
 
     # Cleanup PD zone state for tickets that no longer exist
     for t in list(_pdfiboplus_state.keys()):

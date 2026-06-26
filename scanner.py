@@ -758,6 +758,33 @@ def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
     return None, ""
 
 
+def _find_duplicate_market_position(tf_name: str, sid: int, signal: str, candle_time: int) -> tuple:
+    """หา position ที่ fill ไปแล้ว (order_mode=market) ของ setup เดียวกัน (tf+sid+signal)
+    ที่เปิดในแท่งนี้หรือหลังจากนั้น — กัน sid ที่ใช้ market order (เช่น S14) ยิงซ้ำ
+    เพราะปกติ _find_duplicate_pending_setup เช็กแค่ pending order (limit/stop) เท่านั้น
+    ส่วน market order เป็น position ทันทีจึงไม่เคยถูกเช็กจุดนี้มาก่อน — รวมถึงกรณี
+    restart แล้ว in-memory state (pending_order_tf/last_traded_per_tf) ไม่ทันอัปเดต
+    ก่อนแท่งถูกเทรดไปแล้วโดย process เดิม"""
+    try:
+        positions = mt5.positions_get(symbol=SYMBOL) or []
+    except Exception:
+        return None, ""
+    want_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
+    comment_sid_token = f"_S{sid}"
+    for pos in positions:
+        if pos.type != want_type:
+            continue
+        comment = getattr(pos, "comment", "") or ""
+        if comment_sid_token not in comment:
+            continue
+        if tf_name not in comment:
+            continue
+        if int(getattr(pos, "time", 0) or 0) < int(candle_time):
+            continue
+        return pos.ticket, "mt5_position"
+    return None, ""
+
+
 def _find_previous_swing_info(rates, current_info, finder):
     """หา swing ก่อนหน้าของ swing ปัจจุบัน เพื่อใช้แสดงผล"""
     if not current_info:
@@ -3579,6 +3606,28 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     ),
                     tf_name=tf_name,
                     log_message=f"sid={sid} duplicate setup ticket={dup_ticket} source={dup_source} signal={signal} entry={entry} sl={sl} tp={tp}",
+                )
+                continue
+        elif sid == 14:
+            # S14 ใช้ market order เสมอ (order_mode="market") เลย skip dup-check ด้านบนไปทั้งหมด
+            # เช็กแยกกับ position ที่ fill ไปแล้วจริงใน MT5 — กันยิงซ้ำตอน in-memory state
+            # หลุด/ไม่ทันอัปเดต (เช่น restart กลางแท่ง) ที่เคยทำให้ออก order ซ้ำแท่งเดียวกัน
+            dup_ticket, dup_source = _find_duplicate_market_position(tf_name, sid, signal, last_candle_time)
+            if dup_ticket:
+                _print_skip_once(
+                    tf_name,
+                    f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: setup เดิมถูกใช้แล้ว ticket={dup_ticket} source={dup_source} entry={entry}"
+                )
+                await _notify_skip_once(
+                    app,
+                    f"{tf_name}|sid{sid}|{signal}|dup_position|{entry:.2f}|{sl:.2f}|{tp:.2f}",
+                    (
+                        f"⏭️ *[{tf_name}] ท่า{sid} setup เดิมถูกใช้แล้ว*\n"
+                        f"Ticket:`{dup_ticket}` source:`{dup_source}`\n"
+                        f"Entry:`{entry:.2f}` | SL:`{sl:.2f}` | TP:`{tp:.2f}`"
+                    ),
+                    tf_name=tf_name,
+                    log_message=f"sid={sid} duplicate market position ticket={dup_ticket} source={dup_source} signal={signal} entry={entry} sl={sl} tp={tp}",
                 )
                 continue
         # adjacent bar check per-sid (ท่า 8 ข้ามเช็กนี้ — ตั้งแท่งติดกันได้)

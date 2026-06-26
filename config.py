@@ -1334,7 +1334,14 @@ CRT_ENTRY_MODE = "mtf"
 #                False (default) = หาจุดเข้าบน LTF ทันทีที่ HTF เกิด pre-sweep (กำลัง sweep อยู่แต่ยังไม่ปิดแท่ง)
 CRT_WAIT_HTF_CLOSE = True
 # Min parent body percentage (สัดส่วนเนื้อเทียนขั้นต่ำของแท่งตั้งต้น อิงตามทฤษฎี CRT เพื่อกรองแท่ง Doji)
-CRT_PARENT_MIN_BODY_PCT = 0.35  # 35% ของกรอบราคา (Range) ของแท่งตั้งต้น
+CRT_PARENT_MIN_BODY_PCT = 0.60  # 60% ของกรอบราคา (Range) ของแท่งตั้งต้น
+# Sweep containment: แท่ง sweep ต้องไม่ทะลุฝั่งตรงข้ามของ parent ไปด้วย
+#   BUY (sweep low):  sweep high ต้องไม่เกิน parent high
+#   SELL (sweep high): sweep low ต้องไม่ต่ำกว่า parent low
+CRT_SWEEP_CONTAIN_ENABLED = True
+# Sweep close max %: แท่ง sweep (2bar) / แท่ง confirm (3bar) ต้องปิดไม่เกิน X% ของ parent range
+#   BUY: close ต้องอยู่ครึ่งล่าง (<=mid) | SELL: close ต้องอยู่ครึ่งบน (>=mid)
+CRT_SWEEP_CLOSE_MAX_PCT = 0.50  # 50% = จุดกึ่งกลางของ parent range
 # Retry after SL: True = เก็บ arm ไว้หลัง SL hit (retry ได้บน HTF bar ถัดไป)
 #   ถ้า HTF bar ปิดผ่าน parent low/high → invalidate arm ทันที
 S10_RETRY_AFTER_SL = True
@@ -1553,6 +1560,8 @@ _RUNTIME_DEFAULTS = {
     "CRT_ENTRY_MODE": CRT_ENTRY_MODE,
     "CRT_WAIT_HTF_CLOSE": CRT_WAIT_HTF_CLOSE,
     "CRT_PARENT_MIN_BODY_PCT": CRT_PARENT_MIN_BODY_PCT,
+    "CRT_SWEEP_CONTAIN_ENABLED": CRT_SWEEP_CONTAIN_ENABLED,
+    "CRT_SWEEP_CLOSE_MAX_PCT": CRT_SWEEP_CLOSE_MAX_PCT,
     "RSI9_PLOT_BULLISH": RSI9_PLOT_BULLISH,
     "RSI9_PLOT_HIDDEN_BULLISH": RSI9_PLOT_HIDDEN_BULLISH,
     "RSI9_PLOT_BEARISH": RSI9_PLOT_BEARISH,
@@ -1809,18 +1818,24 @@ def save_runtime_state():
         )
         # SL Guard state — กัน restart (stall) ล้างความจำ guard ก่อนครบเงื่อนไข unblock
         # _sl_guard_state key เป็น tuple (sym, tf, side) ต้องแปลงเป็น string ก่อนเก็บ JSON
+        # snapshot ก่อน iterate ทุกตัว — กัน RuntimeError: dictionary changed size during iteration
+        # (trailing.py อาจแก้ dict พร้อมกับ save_runtime_state ที่รัน ทุก 15s)
+        _sl_guard_state_snap    = copy.deepcopy(_sl_guard_state)
+        _pdfiboplus_fill_snap   = copy.deepcopy(_pdfiboplus_fill_state)
         sl_guard_state_serialized = {
-            f"{k[0]}|{k[1]}|{k[2]}": dict(v) for k, v in _sl_guard_state.items()
+            f"{k[0]}|{k[1]}|{k[2]}": dict(v) for k, v in _sl_guard_state_snap.items()
         }
         sl_guard_combined_serialized = copy.deepcopy(_sl_guard_combined)
-        sl_guard_group_serialized = copy.deepcopy(_sl_guard_group)
+        sl_guard_group_serialized    = copy.deepcopy(_sl_guard_group)
         # PD Fibo Plus round 2 wait state — กัน restart ล้าง state ระหว่างรอ round 2
-        pdfiboplus_fill_state_serialized = {str(k): v for k, v in _pdfiboplus_fill_state.items()}
+        pdfiboplus_fill_state_serialized = {str(k): v for k, v in _pdfiboplus_fill_snap.items()}
 
         # S10 MTF armed states (per HTF) — กัน restart ตอน armed อยู่
+        # snapshot ก่อน iterate — _armed_states ถูก pop/set บ่อยมากทุกรอบ scan (เหมือนจุดอื่นด้านบน)
         try:
             from strategy10 import _armed_states as _s10_armed
-            s10_armed_serialized = {k: dict(v) for k, v in _s10_armed.items()}
+            _s10_armed_snap = copy.deepcopy(_s10_armed)
+            s10_armed_serialized = {k: dict(v) for k, v in _s10_armed_snap.items()}
         except Exception:
             s10_armed_serialized = {}
 
@@ -1907,6 +1922,8 @@ def save_runtime_state():
             "crt_entry_mode": CRT_ENTRY_MODE,
             "crt_wait_htf_close": CRT_WAIT_HTF_CLOSE,
             "crt_parent_min_body_pct": CRT_PARENT_MIN_BODY_PCT,
+            "crt_sweep_contain_enabled": CRT_SWEEP_CONTAIN_ENABLED,
+            "crt_sweep_close_max_pct": CRT_SWEEP_CLOSE_MAX_PCT,
             "s10_retry_after_sl": S10_RETRY_AFTER_SL,
             "s14_sweep_swing":      S14_SWEEP_SWING,
             "s14_engulf_swing":     S14_ENGULF_SWING,
@@ -1954,23 +1971,24 @@ def save_runtime_state():
             "sl_guard_group_state": sl_guard_group_serialized,
             "pdfiboplus_fill_state": pdfiboplus_fill_state_serialized,
             "s10_last_fired_armed_at": s10_last_fired_serialized,
-            "last_traded_per_tf": last_traded_per_tf,
-            "last_traded_sid_tf": last_traded_sid_tf,
-            "pending_order_tf": pending_order_tf,
-            "position_tf": position_tf,
-            "position_sid": position_sid,
-            "position_pattern": position_pattern,
-            "position_trend_filter": position_trend_filter,
-            "position_zone_meta": position_zone_meta,
-            "position_forward_meta": position_forward_meta,
-            "entry_state": _entry_state,
-            "trail_state": _trail_state,
-            "fvg_order_tickets": fvg_order_tickets,
-            "s8_fill_sl": _s8_fill_sl,
-            "trail_sl_frozen_side": _focus_frozen_side.get("trail_sl"),
+            # snapshot shared dicts ก่อน serialize — กัน race กับ trailing.py
+            "last_traded_per_tf":     copy.deepcopy(last_traded_per_tf),
+            "last_traded_sid_tf":     copy.deepcopy(last_traded_sid_tf),
+            "pending_order_tf":       copy.deepcopy(pending_order_tf),
+            "position_tf":            copy.deepcopy(position_tf),
+            "position_sid":           copy.deepcopy(position_sid),
+            "position_pattern":       copy.deepcopy(position_pattern),
+            "position_trend_filter":  copy.deepcopy(position_trend_filter),
+            "position_zone_meta":     copy.deepcopy(position_zone_meta),
+            "position_forward_meta":  copy.deepcopy(position_forward_meta),
+            "entry_state":            copy.deepcopy(_entry_state),
+            "trail_state":            copy.deepcopy(_trail_state),
+            "fvg_order_tickets":      copy.deepcopy(fvg_order_tickets),
+            "s8_fill_sl":             copy.deepcopy(_s8_fill_sl),
+            "trail_sl_frozen_side":   _focus_frozen_side.get("trail_sl"),
             "entry_candle_frozen_side": _focus_frozen_side.get("entry_candle"),
-            "scale_out_enabled": SCALE_OUT_ENABLED,
-            "scale_out_state": {str(k): v for k, v in scale_out_state.items()},
+            "scale_out_enabled":      SCALE_OUT_ENABLED,
+            "scale_out_state":        {str(k): v for k, v in copy.deepcopy(scale_out_state).items()},
             # S15 Volume Profile POC
             "s15_use_val_vah":          S15_USE_VAL_VAH,
             "s15_lookback":             S15_LOOKBACK,
@@ -2131,6 +2149,7 @@ def restore_runtime_state():
         global SWING_SUMMARY_MODE, SWING_PIVOT_LEFT, SWING_PIVOT_RIGHT
         global S1_ZONE_MODE, S1_REJECTION_ENTRY_ENABLED
         global CRT_BAR_MODE, CRT_SWEEP_DEPTH_PCT, CRT_ENTRY_MODE, CRT_WAIT_HTF_CLOSE, CRT_PARENT_MIN_BODY_PCT
+        global CRT_SWEEP_CONTAIN_ENABLED, CRT_SWEEP_CLOSE_MAX_PCT
         global S10_RETRY_AFTER_SL
         global S14_SWEEP_SWING, S14_ENGULF_SWING, S14_SWEEP_RETURN, S14_ENGULF_BREAKEVEN, S14_RSI_DIV_ENABLED
         global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
@@ -2315,6 +2334,13 @@ def restore_runtime_state():
             saved_crt_body = float(state.get("crt_parent_min_body_pct", CRT_PARENT_MIN_BODY_PCT))
             if 0.0 <= saved_crt_body <= 1.0:
                 CRT_PARENT_MIN_BODY_PCT = saved_crt_body
+        except Exception:
+            pass
+        CRT_SWEEP_CONTAIN_ENABLED = bool(state.get("crt_sweep_contain_enabled", CRT_SWEEP_CONTAIN_ENABLED))
+        try:
+            saved_crt_close_pct = float(state.get("crt_sweep_close_max_pct", CRT_SWEEP_CLOSE_MAX_PCT))
+            if 0.0 <= saved_crt_close_pct <= 1.0:
+                CRT_SWEEP_CLOSE_MAX_PCT = saved_crt_close_pct
         except Exception:
             pass
         # S10 MTF armed states — restore in-place เพื่อให้ strategy10 module เห็นข้อมูลเดียวกัน
