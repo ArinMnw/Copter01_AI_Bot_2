@@ -77,6 +77,7 @@ function Resolve-Python {
 $HeartbeatFile = Join-Path $PSScriptRoot "bot_heartbeat.txt"
 $LogDir        = Join-Path $PSScriptRoot "logs"
 $LogFile       = Join-Path $LogDir "supervisor.log"
+$LockFile      = Join-Path $PSScriptRoot "supervisor.lock"
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
 
@@ -86,6 +87,28 @@ function Write-Log($msg) {
     Write-Host $line
     try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 } catch {}
 }
+
+# ── Single-instance lock ──────────────────────────────────────────
+# เคยมี supervisor 2 ตัวรันพร้อมกัน (คนละ Windows user account ก็ได้ — เช่น
+# Copter + Administrator) ทำให้ main.py spawn ขึ้นมา 2 instance พร้อมกัน แล้ว
+# Telegram getUpdates ชนกัน (Conflict: terminated by other getUpdates request)
+# กันด้วย lock file เก็บ PID ของ supervisor.ps1 ตัวเอง — ถ้ามีไฟล์ lock อยู่แล้ว
+# และ PID นั้นยังมี process จริงรันอยู่ (ไม่ใช่ lock ค้างจากตัวที่ตายไปแล้ว) ให้
+# ปฏิเสธการ start ซ้ำ ไม่ว่าจะรันจาก user ไหนก็ตาม (อ่านไฟล์ได้ก็เห็น lock เดียวกัน)
+if (Test-Path $LockFile) {
+    try {
+        $lockPid = [int](Get-Content $LockFile -TotalCount 1 -ErrorAction Stop)
+        $existing = Get-Process -Id $lockPid -ErrorAction SilentlyContinue
+        if ($existing -and $existing.ProcessName -match 'powershell') {
+            Write-Log "ERROR: พบ supervisor ตัวอื่นรันอยู่แล้ว (pid=$lockPid) — เลิกรัน ตัวนี้เพื่อกัน main.py ซ้อน 2 instance (Telegram getUpdates Conflict)"
+            exit 1
+        }
+        Write-Log "WARN: lock file ค้างจาก pid=$lockPid (ตายไปแล้ว) — เคลียร์แล้วรันต่อ"
+    } catch {
+        Write-Log "WARN: อ่าน lock file ไม่ได้ ($_) — เคลียร์แล้วรันต่อ"
+    }
+}
+try { Set-Content -Path $LockFile -Value $PID -Encoding ASCII } catch {}
 
 function Read-HeartbeatTs {
     # คืน epoch (long) จากบรรทัด ts=... ของ heartbeat; คืน $null ถ้าอ่านไม่ได้
@@ -107,6 +130,7 @@ $PythonCmdLabel = (@($Python) + $PythonArgList) -join ' '
 
 Write-Log "Supervisor started (stale=$StaleSec s, check=$CheckEvery s, grace=$GraceSec s, python='$PythonCmdLabel')"
 
+try {
 while ($true) {
     # ลบ heartbeat เก่าก่อน start เพื่อไม่ให้อ่าน ts ค้างจากรอบก่อนมาตัดสินผิด
     if (Test-Path $HeartbeatFile) { Remove-Item $HeartbeatFile -Force -ErrorAction SilentlyContinue }
@@ -152,4 +176,9 @@ while ($true) {
 
     Write-Log "Restarting in $RestartGap s ..."
     Start-Sleep -Seconds $RestartGap
+}
+} finally {
+    # คืน lock เสมอไม่ว่าจะออกจาก loop ด้วย Ctrl+C หรือ error ใดๆ
+    # กันรอบถัดไป start ไม่ติดเพราะเจอ lock ค้างของตัวเองที่ตายไปแล้ว
+    try { if ((Get-Content $LockFile -ErrorAction SilentlyContinue) -eq "$PID") { Remove-Item $LockFile -Force -ErrorAction SilentlyContinue } } catch {}
 }

@@ -22,6 +22,9 @@ from datetime import datetime, timezone, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+import pybootstrap
+pybootstrap.ensure_mt5()
+
 import config
 from mt5_utils import connect_mt5
 import mt5_worker as mt5

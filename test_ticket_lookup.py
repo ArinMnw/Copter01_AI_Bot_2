@@ -10,6 +10,9 @@ import os
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+import pybootstrap
+pybootstrap.ensure_mt5()
+
 # Windows terminal อาจใช้ cp874 ซึ่ง encode emoji ไม่ได้ → force UTF-8
 if sys.stdout.encoding != "utf-8":
     import io

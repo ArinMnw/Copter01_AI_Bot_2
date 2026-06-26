@@ -39,8 +39,24 @@ def _get_s1_structure(rates, tf=""):
 
 
 def _attach_s1_zone_meta(payload: dict, use_zone: bool, signal: str, zone_price: float, swing_price: float, zone_ok: bool):
-    n_candles = len(payload.get("candles") or [])
-    deadline_bars = 4 if n_candles <= 2 else 3
+    # deadline ผูกกับ "แท่งไหนใน pattern เป็นจุด swing จริง" (low ต่ำสุดฝั่ง BUY /
+    # high สูงสุดฝั่ง SELL) ไม่ใช่แค่จำนวนแท่ง pattern เฉยๆ — ยิ่ง swing เกิดย้อนไป
+    # ไกลจากแท่ง detect เท่าไหร่ (bracket index N สูง) ก็มีเวลาสร้าง progress ไปทาง
+    # HHLL_RIGHT confirm มาก่อนแล้ว เหลือรอน้อยลง: deadline = (HHLL_RIGHT-1) - N
+    # เช่น 2 แท่ง: swing@[1] (N=1)→deadline=3, swing@[0] (N=0)→deadline=4
+    #     4 แท่ง: swing@[3] (N=3)→deadline=1, swing@[2]→2, swing@[1]→3
+    candles = payload.get("candles") or []
+    hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+    n_candles = len(candles)
+    if n_candles > 0:
+        if str(signal or "").upper() == "BUY":
+            extreme_idx = min(range(n_candles), key=lambda k: float(candles[k]["low"]))
+        else:
+            extreme_idx = max(range(n_candles), key=lambda k: float(candles[k]["high"]))
+        bracket_n = (n_candles - 1) - extreme_idx   # [0]=detect → N=0, [1]→N=1, ...
+        deadline_bars = max(1, (hhll_right - 1) - bracket_n)
+    else:
+        deadline_bars = max(1, hhll_right - 1)
     payload["s1_zone_meta"] = {
         "enabled": (S1_ZONE_MODE in ("zone", "swing")),
         "signal": str(signal or ""),
