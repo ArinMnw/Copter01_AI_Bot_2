@@ -4012,3 +4012,34 @@ Thread 0x00001528 (most recent call first):
   File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\site-packages\telegram\ext\_application.py", line 839 in run_polling
   File "D:\Project\Copter01_AI_Bot_2\main.py", line 768 in main
   File "D:\Project\Copter01_AI_Bot_2\main.py", line 776 in <module>
+Timeout (0:02:30)!
+Thread 0x00008e84 (most recent call first):
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 995 in run
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1044 in _bootstrap_inner
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1015 in _bootstrap
+
+Thread 0x0000d4b4 (most recent call first):
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 359 in wait
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\queue.py", line 199 in get
+  File "D:\Project\Copter01_AI_Bot_2\mt5_worker.py", line 55 in _worker_loop
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 995 in run
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1044 in _bootstrap_inner
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1015 in _bootstrap
+
+Thread 0x0000d4a8 (most recent call first):
+  File "D:\Project\Copter01_AI_Bot_2\mt5_worker.py", line 140 in _call_direct
+  File "D:\Project\Copter01_AI_Bot_2\mt5_worker.py", line 146 in initialize
+  File "D:\Project\Copter01_AI_Bot_2\mt5_utils.py", line 504 in connect_mt5
+  File "D:\Project\Copter01_AI_Bot_2\notifications.py", line 132 in check_sl_tp_hits
+  File "D:\Project\Copter01_AI_Bot_2\scanner.py", line 2070 in _auto_scan_inner
+  File "D:\Project\Copter01_AI_Bot_2\scanner.py", line 2056 in auto_scan
+  File "D:\Project\Copter01_AI_Bot_2\main.py", line 184 in run_scan
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\site-packages\apscheduler\executors\base.py", line 181 in run_coroutine_job
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89 in _run
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 2050 in _run_once
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 683 in run_forever
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\site-packages\telegram\ext\_application.py", line 1062 in __run
+  File "C:\Users\Copter\AppData\Local\Programs\Python\Python313\Lib\site-packages\telegram\ext\_application.py", line 839 in run_polling
+  File "D:\Project\Copter01_AI_Bot_2\main.py", line 771 in main
+  File "D:\Project\Copter01_AI_Bot_2\main.py", line 779 in <module>
