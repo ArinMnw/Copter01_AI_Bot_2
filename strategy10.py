@@ -647,6 +647,15 @@ def _strategy_10_mtf(rates, tf_name: str):
                 _armed_states.pop(tf_name, None)
                 _last_fired_armed_at.pop(tf_name, None)
                 return {"signal": "WAIT", "reason": broken_reason}
+            # ราคาไปถึง TP แล้วตั้งแต่ก่อนจะมี order (ยังไม่ทัน LTF trigger) — เคลียร์ arm
+            # เพราะ armed_at ถูกรีเฟรชใหม่ทุกรอบ (ดู _arm_htf_state) ทำให้แท่งที่แตะ TP
+            # กลายเป็น armed_at ของตัวเองพอดี เช็คแบบ "หลัง armed_at" ใน
+            # _arm_target_hit_reason เลยมองไม่เห็นมันอีกเลยถ้าไม่เช็คตรงนี้ก่อน re-arm
+            target_hit_reason = _arm_target_hit_reason(existing_arm, rates, tf_name)
+            if target_hit_reason:
+                _armed_states.pop(tf_name, None)
+                _last_fired_armed_at.pop(tf_name, None)
+                return {"signal": "WAIT", "reason": target_hit_reason}
         htf_result = _strategy_10_htf(rates)
         sig = htf_result.get("signal")
         if sig in ("BUY", "SELL"):

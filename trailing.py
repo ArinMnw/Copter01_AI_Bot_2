@@ -52,6 +52,17 @@ _pdfiboplus_fill_state:   dict     = {}     # {ticket: {tf, signal, fill_h, fill
 # {ticket: {"round": int, "rounds_total": int, "cur_h": float, "cur_l": float, "signal": str}}
 _trend_recheck_state: dict = {}
 
+# S2/S3 Chain Link — group ของ pending order ฝั่งเดียวกัน (sid 2/3) บน TF เดียวกัน
+# ที่ค้างอยู่พร้อมกัน (ไม่ต้องติดแท่งกัน) ใช้ตอน S2_ADJACENT_BLOCK_ENABLED/
+# S3_ADJACENT_BLOCK_ENABLED ปิดทั้งคู่ — sync SL/TP ข้ามกันหลัง fill ครบ + cancel
+# pending ที่เหลือถ้าราคาปิดทะลุ swing ก่อนหน้าไปแล้ว
+_s2s3_chain_groups: dict = {}   # {group_id: {"tf", "signal", "tickets": [...], "filled": [...], "sl_locked"}}
+_s2s3_ticket_group: dict = {}   # {ticket: group_id}
+
+# S1 Rejection Entry — เช็คแท่ง entry (แท่งที่ fill) ของ position S1 หลังแท่งนั้นปิด
+# ถ้าไม่ผ่านเงื่อนไข (body/ไส้) ปิดทันที + ปิด S11 ที่ผูกกับ TF เดียวกันด้วย
+_s1_rejection_checked: set = set()  # tickets ที่เช็คแท่ง entry ไปแล้ว (ผ่านหรือถูกปิดไปแล้ว)
+
 # Pending Trend Check on Approach: state per pending order (pre-fill)
 # {ticket: {"tf": str, "signal": str,
 #            "round1_sh": float|None, "round1_sl": float|None,
@@ -1966,6 +1977,186 @@ def _evaluate_s1_forward_confirm(rates, signal: str, detect_bar_time: int, tf_se
     }
 
 
+def s2s3_chain_try_join(new_ticket: int, tf_name: str, signal: str) -> None:
+    """เรียกทันทีหลังสร้าง pending order ของ S2/S3 ใหม่ — ถ้าเปิด chain-link
+    (และ S2/S3 adjacent-block ปิดทั้งคู่) แล้วยังมี pending S2/S3 ฝั่งเดียวกัน
+    บน TF เดียวกันค้างอยู่ ให้รวมกลุ่มกัน ไม่จำกัดจำนวน (กี่ตัวก็ได้ตามที่ค้างอยู่จริง)
+    """
+    if not getattr(config, "S2_S3_CHAIN_LINK_ENABLED", False):
+        return
+    if getattr(config, "S2_ADJACENT_BLOCK_ENABLED", True) or getattr(config, "S3_ADJACENT_BLOCK_ENABLED", True):
+        return
+    try:
+        orders = mt5.orders_get(symbol=SYMBOL) or []
+    except Exception:
+        return
+    pending_tickets = {int(o.ticket) for o in orders}
+    signal = str(signal or "").upper()
+    siblings = []
+    for t in pending_tickets:
+        if t == new_ticket:
+            continue
+        info = pending_order_tf.get(t)
+        if not isinstance(info, dict) or int(info.get("sid", 0) or 0) not in (2, 3):
+            continue
+        if info.get("tf") != tf_name or str(info.get("signal", "")).upper() != signal:
+            continue
+        siblings.append(t)
+    if not siblings:
+        return
+
+    group_id = None
+    for s in siblings:
+        gid = _s2s3_ticket_group.get(s)
+        if gid and gid in _s2s3_chain_groups:
+            group_id = gid
+            break
+    if group_id is None:
+        group_id = f"{tf_name}_{signal}_{new_ticket}"
+        _s2s3_chain_groups[group_id] = {
+            "tf": tf_name, "signal": signal,
+            "tickets": list(siblings), "filled": [], "sl_locked": None,
+        }
+        for s in siblings:
+            _s2s3_ticket_group[s] = group_id
+
+    group = _s2s3_chain_groups[group_id]
+    if new_ticket not in group["tickets"]:
+        group["tickets"].append(new_ticket)
+    _s2s3_ticket_group[new_ticket] = group_id
+    log_event(
+        "S2S3_CHAIN_JOIN",
+        f"ticket={new_ticket} เข้ากลุ่ม {group_id} (สมาชิก {len(group['tickets'])} ตัว)",
+        tf=tf_name, signal=signal,
+    )
+
+
+async def check_s2_s3_chain_groups(app):
+    """Sync SL/TP ข้ามกันระหว่าง S2/S3 pending order ฝั่งเดียวกันที่ค้างอยู่พร้อมกัน
+    หลัง fill ครบทุกตัวในกลุ่ม (ตัวที่ fill ก่อน → SL ใช้ร่วมกัน, ตัวที่ fill ทีหลังสุด
+    → TP ใช้ร่วมกัน) และยกเลิก pending ที่เหลือถ้าราคาปิดทะลุ swing ก่อนหน้าไปแล้ว
+    (เช็คด้วย HHLL swing ของ TF เดียวกับ order นั้นๆ เหมือนท่าอื่นๆ)
+    """
+    if not getattr(config, "S2_S3_CHAIN_LINK_ENABLED", False):
+        return
+    if not _s2s3_chain_groups:
+        return
+    try:
+        orders = mt5.orders_get(symbol=SYMBOL) or []
+        positions = mt5.positions_get(symbol=SYMBOL) or []
+    except Exception:
+        return
+    pending_tickets = {int(o.ticket) for o in orders}
+    pos_by_ticket = {int(p.ticket): p for p in positions}
+
+    import hhll_swing
+
+    for group_id in list(_s2s3_chain_groups.keys()):
+        group = _s2s3_chain_groups[group_id]
+        tickets = [t for t in group["tickets"] if t in pending_tickets or t in pos_by_ticket]
+        group["tickets"] = tickets
+        group["filled"] = [t for t in group["filled"] if t in tickets]
+        if len(tickets) < 2:
+            for t in tickets:
+                _s2s3_ticket_group.pop(t, None)
+            _s2s3_chain_groups.pop(group_id, None)
+            continue
+
+        newly_filled = [t for t in tickets if t in pos_by_ticket and t not in group["filled"]]
+        for t in newly_filled:
+            group["filled"].append(t)
+            pos = pos_by_ticket[t]
+            if len(group["filled"]) == 1:
+                group["sl_locked"] = float(pos.sl)
+                log_event(
+                    "S2S3_CHAIN_LOCK_SL",
+                    f"ticket={t} fill ตัวแรกในกลุ่ม — lock SL กลุ่ม = {pos.sl}",
+                    tf=group["tf"], signal=group["signal"], ticket=t,
+                )
+                continue
+            new_sl = float(group["sl_locked"])
+            new_tp = float(pos.tp)
+            for ft in group["filled"]:
+                fpos = pos_by_ticket.get(ft)
+                if fpos is None:
+                    continue
+                target_sl = new_sl if ft == t else float(fpos.sl)
+                target_tp = float(fpos.tp) if ft == t else new_tp
+                if abs(target_sl - float(fpos.sl)) <= 1e-6 and abs(target_tp - float(fpos.tp)) <= 1e-6:
+                    continue
+                r = mt5.order_send({
+                    "action": mt5.TRADE_ACTION_SLTP,
+                    "position": ft,
+                    "symbol": SYMBOL,
+                    "sl": round(target_sl, 2),
+                    "tp": round(target_tp, 2),
+                })
+                if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                    log_event(
+                        "S2S3_CHAIN_SYNC",
+                        f"sync ticket={ft} -> SL:{target_sl:.2f} TP:{target_tp:.2f}",
+                        tf=group["tf"], signal=group["signal"], ticket=ft,
+                    )
+                    await tg(app, (
+                        f"🔗 *[{group['tf']}] S2/S3 Chain Sync*\n"
+                        f"Ticket `{ft}` → SL:`{target_sl:.2f}` | TP:`{target_tp:.2f}`"
+                    ))
+
+        still_pending = [t for t in tickets if t in pending_tickets]
+        swing_cancel_on = (
+            getattr(config, "S2_S3_CHAIN_SWING_CANCEL_ENABLED", True)
+            and config.S2_S3_CHAIN_SWING_CANCEL_TF.get(group["tf"], False)
+        )
+        # ไม่ต้องรอให้มีตัวไหน fill ก่อน — ถ้าราคาปิดทะลุ swing ไปแล้วจริง
+        # pending ที่เหลือในกลุ่มก็ไม่มีประโยชน์ต่อแล้วไม่ว่า filled กี่ตัว
+        if still_pending and swing_cancel_on:
+            tf = group["tf"]
+            tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+            rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, 3)
+            if rates is not None and len(rates) > 0:
+                last_close = float(rates[-1]["close"])
+                hhll_swing.fetch_hhll(tf)
+                sh_pt, sl_pt = hhll_swing.get_swing_hl_pts(tf)
+                breached = False
+                swing_price = None
+                swing_label = ""
+                if group["signal"] == "SELL" and sl_pt:
+                    swing_price = float(sl_pt["price"])
+                    breached = last_close < swing_price
+                    swing_label = "low"
+                elif group["signal"] == "BUY" and sh_pt:
+                    swing_price = float(sh_pt["price"])
+                    breached = last_close > swing_price
+                    swing_label = "high"
+                if breached:
+                    for t in still_pending:
+                        r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": t})
+                        if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                            pending_order_tf.pop(t, None)
+                            position_tf.pop(t, None)
+                            position_sid.pop(t, None)
+                            position_pattern.pop(t, None)
+                            _s2s3_ticket_group.pop(t, None)
+                            group["tickets"] = [x for x in group["tickets"] if x != t]
+                            log_event(
+                                "S2S3_CHAIN_CANCEL",
+                                f"cancel ticket={t} เพราะราคาปิดทะลุ swing {swing_label} ก่อนหน้า "
+                                f"({swing_price:.2f}) close={last_close:.2f}",
+                                tf=tf, signal=group["signal"], ticket=t,
+                            )
+                            await tg(app, (
+                                f"🚫 *[{tf}] S2/S3 Chain Cancel*\n"
+                                f"Ticket `{t}` ถูกยกเลิก — ราคาปิด"
+                                f"{'ต่ำกว่า' if swing_label == 'low' else 'สูงกว่า'} swing {swing_label} "
+                                f"ก่อนหน้า (`{swing_price:.2f}`) close=`{last_close:.2f}`"
+                            ))
+
+        if not group["tickets"]:
+            for t in group["tickets"]:
+                _s2s3_ticket_group.pop(t, None)
+            _s2s3_chain_groups.pop(group_id, None)
+
+
 async def check_s1_zone_rules(app):
     _mode = getattr(config, "S1_ZONE_MODE", "")
     if _mode not in ("zone", "swing"):
@@ -2200,6 +2391,89 @@ async def check_s1_zone_rules(app):
             ))
             print(f"⚠️ [{now}] S1 {_mode} exit {ticket} [{tf}] close={close_price:.2f} | {reason}")
             await _close_linked_s11_for_tf(app, tf, f"S1 closed by {_mode} exit [{tf}]")
+
+
+async def check_s1_rejection_entry(app):
+    """S1 Rejection Entry — เช็คแท่งที่ order S1 fill เข้าไป (entry candle) หลังจาก
+    แท่งนั้นปิดสมบูรณ์แล้ว ถ้าไม่เข้าเงื่อนไข (เนื้อเทียน/ไส้) ให้ปิด position ทันที
+    + ปิด S11 ที่ผูกกับ TF เดียวกันด้วย (เหมือน S1 Zone/Swing Exit)
+
+    BUY:  body% <= 40% และ ไส้ล่าง > ไส้บน และ ต้องมีไส้บน (upper_wick > 0)
+    SELL: body% <= 40% และ ไส้บน > ไส้ล่าง และ ต้องมีไส้ล่าง (lower_wick > 0)
+    """
+    if not getattr(config, "S1_REJECTION_ENTRY_ENABLED", True):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL) or []
+    open_tickets = {int(p.ticket) for p in positions}
+    for t in list(_s1_rejection_checked):
+        if t not in open_tickets:
+            _s1_rejection_checked.discard(t)
+
+    now = now_bkk().strftime("%H:%M:%S")
+    for pos in positions:
+        ticket = int(pos.ticket)
+        if int(position_sid.get(ticket, 0) or 0) != 1:
+            continue
+        if ticket in _s1_rejection_checked:
+            continue
+        tf = position_tf.get(ticket)
+        if not tf:
+            continue
+        tf_val = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
+        tf_secs = TF_SECONDS_MAP.get(tf, 60)
+        rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, 5)
+        if rates is None or len(rates) == 0:
+            continue
+
+        fill_time = int(pos.time)
+        entry_bar = None
+        for r in rates:
+            bt = int(r["time"])
+            if bt <= fill_time < bt + tf_secs:
+                entry_bar = r
+                break
+        if entry_bar is None:
+            # แท่ง entry ยังไม่ปิด (ยังเป็นแท่งที่กำลังวิ่งอยู่ตอน fill) — รอรอบหน้า
+            continue
+
+        o, h, l, c = (float(entry_bar[k]) for k in ("open", "high", "low", "close"))
+        rng = h - l
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+
+        if rng <= 0:
+            _s1_rejection_checked.add(ticket)
+            continue
+
+        body_pct = abs(c - o) / rng
+        upper_wick = h - max(o, c)
+        lower_wick = min(o, c) - l
+
+        if pos_type == "BUY":
+            ok = (body_pct <= 0.40) and (lower_wick > upper_wick) and (upper_wick > 0)
+        else:
+            ok = (body_pct <= 0.40) and (upper_wick > lower_wick) and (lower_wick > 0)
+
+        _s1_rejection_checked.add(ticket)
+        if ok:
+            continue
+
+        reason = (
+            f"S1 Rejection Entry [{tf}]: body={body_pct*100:.1f}% "
+            f"upper_wick={upper_wick:.2f} lower_wick={lower_wick:.2f}"
+        )
+        ok_close, close_price = _close_position(pos, pos_type, f"s1 rejection entry [{tf}]")
+        if ok_close:
+            sig_e = "🟢" if pos_type == "BUY" else "🔴"
+            await tg(app, (
+                f"⚠️ *S1 Rejection Entry*\n"
+                f"{sig_e} Ticket:`{ticket}` [{pos_type}] [{tf}]\n"
+                f"Profit:`{float(pos.profit):.2f}`\n"
+                f"ปิดที่:`{close_price:.2f}`\n"
+                f"เหตุผล: {reason}"
+            ))
+            log_event("S1_REJECTION_ENTRY_CLOSE", reason, tf=tf, sid=1, signal=pos_type, ticket=ticket)
+            print(f"⚠️ [{now}] S1 rejection entry {ticket} [{tf}] close={close_price:.2f} | {reason}")
+            await _close_linked_s11_for_tf(app, tf, f"S1 closed by rejection entry [{tf}]")
 
 
 async def check_s1_forward_confirm_rules(app):

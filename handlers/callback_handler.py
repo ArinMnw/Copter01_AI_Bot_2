@@ -9,7 +9,7 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     build_trail_menu, build_trail_engulf_keyboard,
     show_main_settings_menu, show_debug_menu, build_debug_keyboard,
     show_entry_candle_mode_menu, show_profit_summary, show_profit_strategy_detail,
-    show_limit_break_menu, show_engulf_menu,
+    show_limit_break_menu, show_engulf_menu, show_s2cs_menu,
     show_limit_guard_menu, show_opposite_menu,
     show_trail_focus_menu, show_entry_focus_menu,
     show_trend_filter_menu,
@@ -749,6 +749,12 @@ async def handle_callback(update, ctx):
             label = "ปกติ (ไม่สนใจ Zone)"
         await _show_strategy_detail(query, 1, f"✅ ท่า 1: {label}")
 
+    elif data == "toggle_s1_rejection_entry":
+        config.S1_REJECTION_ENTRY_ENABLED = not getattr(config, "S1_REJECTION_ENTRY_ENABLED", False)
+        save_runtime_state()
+        status = "ON" if config.S1_REJECTION_ENTRY_ENABLED else "OFF"
+        await _show_strategy_detail(query, 1, f"✅ ท่า 1 Rejection Entry: {status}")
+
     elif data in ("toggle_rsi9_regular", "toggle_rsi9_hidden"):
         if data == "toggle_rsi9_regular":
             currently_on = config.RSI9_PLOT_BULLISH and config.RSI9_PLOT_BEARISH
@@ -809,6 +815,55 @@ async def handle_callback(update, ctx):
             parts.append("Parallel")
         label = "+".join(parts) if parts else "(ปิดหมด)"
         await _show_strategy_detail(query, 2, f"✅ ท่า 2: {label}")
+
+    elif data == "toggle_s2_adjacent_block":
+        config.S2_ADJACENT_BLOCK_ENABLED = not getattr(config, "S2_ADJACENT_BLOCK_ENABLED", True)
+        save_runtime_state()
+        status = "ON (กันยิงซ้อนแท่งติดกัน)" if config.S2_ADJACENT_BLOCK_ENABLED else "OFF (ยิงซ้อนแท่งติดกันได้)"
+        await _show_strategy_detail(query, 2, f"✅ ท่า 2 กันยิงซ้อนแท่งติดกัน: {status}")
+
+    elif data == "toggle_s3_adjacent_block":
+        config.S3_ADJACENT_BLOCK_ENABLED = not getattr(config, "S3_ADJACENT_BLOCK_ENABLED", True)
+        save_runtime_state()
+        status = "ON (กันยิงซ้อนแท่งติดกัน)" if config.S3_ADJACENT_BLOCK_ENABLED else "OFF (ยิงซ้อนแท่งติดกันได้)"
+        await _show_strategy_detail(query, 3, f"✅ ท่า 3 กันยิงซ้อนแท่งติดกัน: {status}")
+
+    elif data == "toggle_s2_s3_chain_link":
+        if getattr(config, "S2_ADJACENT_BLOCK_ENABLED", True) or getattr(config, "S3_ADJACENT_BLOCK_ENABLED", True):
+            await _qanswer(query, "❌ ต้องปิด Adjacent Block ของทั้ง S2 และ S3 ก่อน")
+        else:
+            config.S2_S3_CHAIN_LINK_ENABLED = not getattr(config, "S2_S3_CHAIN_LINK_ENABLED", False)
+            save_runtime_state()
+            status = "ON (sync SL/TP ข้ามกัน)" if config.S2_S3_CHAIN_LINK_ENABLED else "OFF"
+            await _show_strategy_detail(query, 2, f"✅ S2/S3 Chain Link: {status}")
+
+    elif data == "open_s2cs_menu":
+        await show_s2cs_menu(query, is_query=True)
+        await _qanswer(query)
+
+    elif data == "toggle_s2cs_master":
+        config.S2_S3_CHAIN_SWING_CANCEL_ENABLED = not getattr(config, "S2_S3_CHAIN_SWING_CANCEL_ENABLED", True)
+        save_runtime_state()
+        await show_s2cs_menu(query, is_query=True)
+        await _qanswer(query, f"Chain Swing-Cancel: {'ON' if config.S2_S3_CHAIN_SWING_CANCEL_ENABLED else 'OFF'}")
+
+    elif data == "toggle_s2cs_tf_ALL":
+        all_on = all(config.S2_S3_CHAIN_SWING_CANCEL_TF.values())
+        for tf_name in config.S2_S3_CHAIN_SWING_CANCEL_TF:
+            config.S2_S3_CHAIN_SWING_CANCEL_TF[tf_name] = not all_on
+        save_runtime_state()
+        await show_s2cs_menu(query, is_query=True)
+        await _qanswer(query, "เลือกทุก TF แล้ว" if not all_on else "ยกเลิกทุก TF แล้ว")
+
+    elif data.startswith("toggle_s2cs_tf_"):
+        tf_name = data.replace("toggle_s2cs_tf_", "")
+        if tf_name in config.S2_S3_CHAIN_SWING_CANCEL_TF:
+            config.S2_S3_CHAIN_SWING_CANCEL_TF[tf_name] = not config.S2_S3_CHAIN_SWING_CANCEL_TF[tf_name]
+            save_runtime_state()
+            await show_s2cs_menu(query, is_query=True)
+            await _qanswer(query, f"Chain Swing-Cancel TF {tf_name}: {'ON' if config.S2_S3_CHAIN_SWING_CANCEL_TF[tf_name] else 'OFF'}")
+        else:
+            await _qanswer(query, "ไม่พบ TF นี้")
 
     elif data == "toggle_s14_sweep_swing":
         config.S14_SWEEP_SWING = not getattr(config, "S14_SWEEP_SWING", True)

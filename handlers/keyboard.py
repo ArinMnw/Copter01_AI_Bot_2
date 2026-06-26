@@ -446,6 +446,56 @@ async def show_limit_break_menu(update_or_query, is_query=False):
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
 
+def build_s2cs_keyboard():
+    toggle_label = (
+        "🟢 เปิด Chain Swing-Cancel" if getattr(config, "S2_S3_CHAIN_SWING_CANCEL_ENABLED", True)
+        else "⬜ ปิด Chain Swing-Cancel"
+    )
+    rows = [[InlineKeyboardButton(toggle_label, callback_data="toggle_s2cs_master")]]
+    tf_buttons = []
+    tf_row = []
+    for tf_name in config.S2_S3_CHAIN_SWING_CANCEL_TF.keys():
+        is_on = config.S2_S3_CHAIN_SWING_CANCEL_TF.get(tf_name, False)
+        label = ("✅ " if is_on else "⬜ ") + tf_name
+        tf_row.append(InlineKeyboardButton(label, callback_data=f"toggle_s2cs_tf_{tf_name}"))
+        if len(tf_row) == 4:
+            tf_buttons.append(tf_row)
+            tf_row = []
+    if tf_row:
+        tf_buttons.append(tf_row)
+    rows.extend(tf_buttons)
+    all_on = all(config.S2_S3_CHAIN_SWING_CANCEL_TF.values())
+    rows.append([InlineKeyboardButton("⬜ ยกเลิกทุก TF" if all_on else "🟢 เลือกทุก TF", callback_data="toggle_s2cs_tf_ALL")])
+    rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_detail_2")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def show_s2cs_menu(update_or_query, is_query=False):
+    active_tfs = [tf for tf, on in config.S2_S3_CHAIN_SWING_CANCEL_TF.items() if on]
+    tf_desc = ", ".join(active_tfs) if active_tfs else "ยังไม่ได้เลือก"
+    status = "ON" if getattr(config, "S2_S3_CHAIN_SWING_CANCEL_ENABLED", True) else "OFF"
+    text = (
+        "🧭 *S2/S3 Chain Swing-Cancel*\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"สถานะ: *{status}*\n"
+        f"TF ที่ใช้: *{tf_desc}*\n\n"
+        "ถ้าราคาปิดทะลุ swing (HHLL) ก่อนหน้าไปแล้ว แต่ pending order ใน\n"
+        "chain group ของ TF ที่เลือกยังไม่ fill เลยสักตัว → ยกเลิก pending\n"
+        "ที่เหลือทั้งหมดในกลุ่มทันที (ไม่ต้องรอให้มีตัวไหน fill ก่อน)\n"
+        "BUY: ราคาปิดสูงกว่า swing high ก่อนหน้า | SELL: ต่ำกว่า swing low\n"
+        "*หมายเหตุ: M1 default ปิดไว้ก่อน — เปิดเองได้ถ้าต้องการ*\n\n"
+        "เลือกเปิด/ปิด และ TF ที่ต้องการ:"
+    )
+    keyboard = build_s2cs_keyboard()
+    if is_query:
+        try:
+            await update_or_query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception as e:
+            _log_kb_error("show_s2cs_menu", e)
+    else:
+        await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+
 def build_engulf_keyboard():
     row1_opts = [50, 100, 150]
     row2_opts = [200, 300, 500, 1000]
@@ -960,6 +1010,12 @@ def build_strategy_detail_keyboard(sid: int):
                 callback_data="set_s1_zone_mode_normal"
             ),
         ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢ON' if getattr(config, 'S1_REJECTION_ENTRY_ENABLED', True) else '🔴OFF'} Rejection Entry",
+                callback_data="toggle_s1_rejection_entry"
+            ),
+        ])
 
     elif sid == 2:
         rows.append([
@@ -970,6 +1026,34 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(
                 f"{'🟢' if config.FVG_PARALLEL else '⬜'} Parallel",
                 callback_data="toggle_fvg_parallel"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢ON' if getattr(config, 'S2_ADJACENT_BLOCK_ENABLED', True) else '🔴OFF'} กันยิงซ้อนแท่งติดกัน",
+                callback_data="toggle_s2_adjacent_block"
+            ),
+        ])
+        # Chain Link โผล่เฉพาะตอนปิด adjacent-block ทั้ง S2 และ S3 แล้วเท่านั้น
+        if not getattr(config, "S2_ADJACENT_BLOCK_ENABLED", True) and not getattr(config, "S3_ADJACENT_BLOCK_ENABLED", True):
+            rows.append([
+                InlineKeyboardButton(
+                    f"{'🟢ON' if getattr(config, 'S2_S3_CHAIN_LINK_ENABLED', False) else '🔴OFF'} S2/S3 Chain Link (sync SL/TP)",
+                    callback_data="toggle_s2_s3_chain_link"
+                ),
+            ])
+            rows.append([
+                InlineKeyboardButton(
+                    "🧭 Chain Swing-Cancel ตั้งค่า TF",
+                    callback_data="open_s2cs_menu"
+                ),
+            ])
+
+    elif sid == 3:
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢ON' if getattr(config, 'S3_ADJACENT_BLOCK_ENABLED', True) else '🔴OFF'} กันยิงซ้อนแท่งติดกัน",
+                callback_data="toggle_s3_adjacent_block"
             ),
         ])
 

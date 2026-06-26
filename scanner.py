@@ -1726,7 +1726,8 @@ async def check_s3_maru_pending(app):
             if bull_next:
                 # ✅ จบเขียว → ตั้ง Limit
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
-                _s3_adj = _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
+                _s3_adj = getattr(config, "S3_ADJACENT_BLOCK_ENABLED", True) and \
+                    _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
                 # Sweep Filter Block S3 BUY — independent of TREND_FILTER_SCAN_BLOCK
                 _s3_sweep_blocked = False
                 try:
@@ -1747,7 +1748,7 @@ async def check_s3_maru_pending(app):
                     print(f"⏳ [{now}] ท่า3 BUY Maru [{tf}] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน {lookback_bars} แท่งย้อนหลัง")
                     _log_confirm_lookback_block(tf, 3, direction, lookback_bars, "ท่าที่ 3 DM SP 🟢 BUY — Marubozu")
                 elif _s3_adj:
-                    print(f"⏭️ [{now}] ท่า3 BUY Maru [{tf}] ข้าม: แท่งติดกับ order ท่าเดียวกัน")
+                    _print_skip_once(tf, f"⏭️ [{now}] {tf_label(tf)} ท่า3 BUY Maru: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
                 elif last_traded_per_tf.get(tf) != candle_time:
                     order = open_order(direction, get_volume(), sl, tp, entry_price=entry, tf=tf, sid=3, pattern=f"ท่าที่ 3 DM SP 🟢 BUY [C1:{c1_type}]")
                     if order["success"]:
@@ -1759,6 +1760,8 @@ async def check_s3_maru_pending(app):
                             "tf": tf, "signal": "BUY", "sid": 3,
                             "pattern": "ท่าที่ 3 DM SP — Marubozu BUY",
                         }
+                        from trailing import s2s3_chain_try_join
+                        s2s3_chain_try_join(order["ticket"], tf, "BUY")
                         tick = mt5.symbol_info_tick(SYMBOL)
                         cur_price = (tick.ask if direction == "BUY" else tick.bid) if tick else 0
                         risk = abs(entry - sl)
@@ -1801,7 +1804,8 @@ async def check_s3_maru_pending(app):
             if not bull_next:
                 # ✅ จบแดง → ตั้ง Limit
                 _s3_ok, _s3_why = trend_allows_signal(tf, direction)
-                _s3_adj = _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
+                _s3_adj = getattr(config, "S3_ADJACENT_BLOCK_ENABLED", True) and \
+                    _adjacent_sid_blocked(tf, 3, candle_time, TF_SECONDS_MAP.get(tf, 0)) and has_previous_bar_trade(tf, candle_time)
                 # Sweep Filter Block S3 SELL — independent of TREND_FILTER_SCAN_BLOCK
                 _s3_sweep_blocked = False
                 try:
@@ -1822,7 +1826,7 @@ async def check_s3_maru_pending(app):
                     print(f"⏳ [{now}] ท่า3 SELL Maru [{tf}] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน {lookback_bars} แท่งย้อนหลัง")
                     _log_confirm_lookback_block(tf, 3, direction, lookback_bars, "ท่าที่ 3 DM SP 🔴 SELL — Marubozu")
                 elif _s3_adj:
-                    print(f"⏭️ [{now}] ท่า3 SELL Maru [{tf}] ข้าม: แท่งติดกับ order ท่าเดียวกัน")
+                    _print_skip_once(tf, f"⏭️ [{now}] {tf_label(tf)} ท่า3 SELL Maru: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
                 elif last_traded_per_tf.get(tf) != candle_time:
                     order = open_order(direction, get_volume(), sl, tp, entry_price=entry, tf=tf, sid=3, pattern=f"ท่าที่ 3 DM SP 🔴 SELL [C1:{c1_type}]")
                     if order["success"]:
@@ -1834,6 +1838,8 @@ async def check_s3_maru_pending(app):
                             "tf": tf, "signal": "SELL", "sid": 3,
                             "pattern": "ท่าที่ 3 DM SP — Marubozu SELL",
                         }
+                        from trailing import s2s3_chain_try_join
+                        s2s3_chain_try_join(order["ticket"], tf, "SELL")
                         tick = mt5.symbol_info_tick(SYMBOL)
                         cur_price = (tick.ask if direction == "BUY" else tick.bid) if tick else 0
                         risk = abs(entry - sl)
@@ -2829,7 +2835,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             )
             return False
         # adjacent bar check per-sid
-        _s2_adjacent = _adjacent_sid_blocked(tf_name, 2, last_candle_time, tf_secs)
+        _s2_adjacent = getattr(config, "S2_ADJACENT_BLOCK_ENABLED", True) and \
+            _adjacent_sid_blocked(tf_name, 2, last_candle_time, tf_secs)
+        if _s2_adjacent and fvg_key not in fvg_pending and last_traded_per_tf.get(tf_name) != last_candle_time:
+            _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า2: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
+            return False
         if fvg_key not in fvg_pending and last_traded_per_tf.get(tf_name) != last_candle_time and not _s2_adjacent:
             tp_swing = find_swing_tp(rates, fvg["signal"], fvg["entry"], fvg["sl"], tf=tf_name)
             tp = tp_swing if tp_swing else round(
@@ -2991,6 +3001,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     position_tf[order["ticket"]] = check_tf
                     position_sid[order["ticket"]] = 2
                     position_pattern[order["ticket"]] = f"ท่าที่ 2 FVG {fvg['signal']} [{tf_label_str}]"
+                    from trailing import s2s3_chain_try_join
+                    s2s3_chain_try_join(order["ticket"], check_tf, fvg["signal"])
                     if _trend_keys:
                         from trailing import position_trend_filter as _pos_trend
                         _pos_trend[order["ticket"]] = ",".join(_trend_keys)
