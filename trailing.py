@@ -968,6 +968,7 @@ _sweep_last_bar: dict = {}  # {ticket: last_checked_bar_time}
 # "entry_candle" -> used by check_entry_candle_quality
 # value: "BUY" | "SELL" | None
 _focus_frozen_side: dict = {"trail_sl": None, "entry_candle": None}
+_focus_suppress_until_flat: dict = {"trail_sl": False, "entry_candle": False}
 
 
 def _get_s6_prev_swing_high(rates, lookback=100, tf=""):
@@ -2896,7 +2897,9 @@ def _focus_update_frozen_side(feature: str, positions, pending_orders):
     - if no buy/sell orders remain, reset marker to None
     - if marker is None and only one side exists, freeze to that side
     - if marker is None and both sides exist, wait until one side disappears first
-    - if marker already exists, keep it
+    - if marker already exists and that side still exists, keep it
+    - if marker side disappears while the other side remains, treat it as stale and
+      suppress re-arming until both sides are flat
 
     Returns the marker after update.
     """
@@ -2904,12 +2907,40 @@ def _focus_update_frozen_side(feature: str, positions, pending_orders):
     has_buy, has_sell = _focus_side_presence(positions, pending_orders)
 
     if not has_buy and not has_sell:
+        changed = current is not None or _focus_suppress_until_flat.get(feature, False)
         if current is not None:
             _focus_frozen_side[feature] = None
+        _focus_suppress_until_flat[feature] = False
+        if changed:
             try:
                 save_runtime_state()
             except Exception:
                 pass
+        return None
+
+    if current is not None:
+        current_present = has_buy if current == "BUY" else has_sell
+        if not current_present:
+            _focus_frozen_side[feature] = None
+            _focus_suppress_until_flat[feature] = True
+            try:
+                save_runtime_state()
+            except Exception:
+                pass
+            try:
+                log_event(
+                    "FOCUS_OPPOSITE",
+                    "stale_marker_reset",
+                    feature=feature,
+                    stale_side=current,
+                    has_buy=has_buy,
+                    has_sell=has_sell,
+                )
+            except Exception:
+                pass
+            return None
+
+    if _focus_suppress_until_flat.get(feature, False):
         return None
 
     if current is None:
@@ -3130,8 +3161,12 @@ def _reversal_trail_override(pos_type: str, order_tf: str, current_sl: float, po
 
 def reset_focus_frozen_side(feature: str):
     """Call this when the user toggles Focus Opposite from OFF back to ON."""
-    if feature in _focus_frozen_side and _focus_frozen_side[feature] is not None:
+    if feature in _focus_frozen_side and (
+        _focus_frozen_side[feature] is not None
+        or _focus_suppress_until_flat.get(feature, False)
+    ):
         _focus_frozen_side[feature] = None
+        _focus_suppress_until_flat[feature] = False
         try:
             save_runtime_state()
         except Exception:

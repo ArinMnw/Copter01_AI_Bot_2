@@ -211,6 +211,8 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
                     cap_base = float(config.get_volume())
                     if getattr(config, "RISK_PERCENT_ENABLED", False):
                         cap_base = max(cap_base, float(getattr(config, "RISK_MAX_LOT", cap_base)))
+                    if str(sid) == "20.8" and getattr(config, "S20_8_COMPOUNDING_ENABLED", False):
+                        cap_base = max(cap_base, float(getattr(config, "S20_8_MAX_LOT", 50.0)))
                     max_vol = round(cap_base * 4.0, 2) + 1e-9
                     if float(send_volume) > max_vol:
                         reason = (f"volume-symbol mismatch: send_volume={send_volume} > cap "

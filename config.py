@@ -1847,7 +1847,7 @@ def save_runtime_state():
         from trailing import (
             fvg_order_tickets, pending_order_tf, position_tf, position_sid,
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
-            _focus_frozen_side, _fill_notified,
+            _focus_frozen_side, _focus_suppress_until_flat, _fill_notified,
             _sl_guard_state, _sl_guard_combined, _sl_guard_group, _pdfiboplus_fill_state
         )
         # SL Guard state — กัน restart (stall) ล้างความจำ guard ก่อนครบเงื่อนไข unblock
@@ -2025,6 +2025,8 @@ def save_runtime_state():
             "s8_fill_sl":             copy.deepcopy(_s8_fill_sl),
             "trail_sl_frozen_side":   _focus_frozen_side.get("trail_sl"),
             "entry_candle_frozen_side": _focus_frozen_side.get("entry_candle"),
+            "trail_sl_focus_suppress_until_flat": bool(_focus_suppress_until_flat.get("trail_sl", False)),
+            "entry_candle_focus_suppress_until_flat": bool(_focus_suppress_until_flat.get("entry_candle", False)),
             "scale_out_enabled":      SCALE_OUT_ENABLED,
             "scale_out_state":        {str(k): v for k, v in copy.deepcopy(scale_out_state).items()},
             # S15 Volume Profile POC
@@ -2090,7 +2092,7 @@ def restore_runtime_state():
         from trailing import (
             fvg_order_tickets, pending_order_tf, position_tf, position_sid,
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
-            _focus_frozen_side, _fill_notified
+            _focus_frozen_side, _focus_suppress_until_flat, _fill_notified
         )
 
         # SL Guard state — restore ตรงๆ (ไม่เช็ค staleness เพราะเงื่อนไข unblock
@@ -2617,6 +2619,11 @@ def restore_runtime_state():
         ):
             saved_side = state.get(state_key)
             _focus_frozen_side[feature_key] = saved_side if saved_side in ("BUY", "SELL") else None
+        for feature_key, state_key in (
+            ("trail_sl", "trail_sl_focus_suppress_until_flat"),
+            ("entry_candle", "entry_candle_focus_suppress_until_flat"),
+        ):
+            _focus_suppress_until_flat[feature_key] = bool(state.get(state_key, False))
 
         return {
             "restored": True,

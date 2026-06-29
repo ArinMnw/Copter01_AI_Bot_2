@@ -427,7 +427,9 @@ def main():
             await check_s1_zone_rules(app); _lap("s1_zone_rules")
             await check_s1_rejection_entry(app); _lap("s1_rejection_entry")
             await check_s2_s3_chain_groups(app); _lap("s2_s3_chain_groups")
-            await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
+            # Disabled per user request (2026-06-29): keep S1 pending/position
+            # even when no same-side S2/S3 appears within the forward window.
+            # await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
             await check_cancel_pending_orders(app); _lap("cancel_pending_orders")
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
             await check_opposite_order_tp(app); _lap("opposite_order_tp")
