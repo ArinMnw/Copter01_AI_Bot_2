@@ -77,9 +77,7 @@ def main():
                 
         sim_config = SimConfig()
         sim_config.S20_8_ENABLED = True
-        sim_config.S20_8_SL_POINTS = 100.0
-        sim_config.S20_8_TP_POINTS = 700.0
-        sim_config.S20_8_ENTRY_BUFFER_POINTS = 300.0
+
         sim_config.S20_8_POINTS_MULTIPLIER = 0.01
         
         tf_trades = 0
@@ -154,7 +152,7 @@ def main():
                 
         win_rate = (tf_win / tf_trades * 100) if tf_trades > 0 else 0.0
         
-        print(f"| {tf_name:<8} | {tf_trades:<32} | {tf_win:<15} | {tf_loss:<16} | {win_rate:>20.2f}% | Small 2L/2H Rejection | ${tf_pnl:>22.2f} |")
+        print(f"| {tf_name:<8} | {tf_trades:<32,} | {tf_win:<15,} | {tf_loss:<16,} | {win_rate:>20.2f}% | Small 2L/2H Rejection | ${tf_pnl:>22,.2f} |")
         
         total_trades += tf_trades
         total_win += tf_win
@@ -165,7 +163,7 @@ def main():
     
     total_win_rate = (total_win / total_trades * 100) if total_trades > 0 else 0.0
     print("=========================================================================================")
-    print(f"| สรุปรวมทุก TF | {total_trades:<32} | {total_win:<15} | {total_loss:<16} | {total_win_rate:>20.2f}% | Small 2L/2H Rejection | ${total_pnl:>22.2f} |")
+    print(f"| สรุปรวมทุก TF | {total_trades:<32,} | {total_win:<15,} | {total_loss:<16,} | {total_win_rate:>20.2f}% | Small 2L/2H Rejection | ${total_pnl:>22,.2f} |")
     print("=========================================================================================")
 
 if __name__ == "__main__":

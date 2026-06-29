@@ -514,6 +514,15 @@ async def _handle_custom_input(update, context, text, awaiting):
         )
         from handlers.keyboard import show_s20_settings_menu
         await show_s20_settings_menu(update, is_query=False)
+    elif awaiting == "s20_8_risk_pct":
+        config.S20_8_RISK_PCT = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20.8 Risk %** เป็น {val}% เรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.keyboard import show_s20_settings_menu
+        await show_s20_settings_menu(update, is_query=False)
 
 async def _handle_lot_input(update, context, text, waiting):
     """รับ lot size จาก user input"""

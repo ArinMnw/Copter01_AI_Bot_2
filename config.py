@@ -670,10 +670,11 @@ STRATEGY_NAMES = {
 S20_ENABLED           = False
 S20_7_ENABLED         = False
 S20_8_ENABLED         = False
+S20_8_COMPOUNDING_ENABLED = False
+S20_8_RISK_PCT        = 2.0
+S20_8_MAX_LOT         = 50.0
 S20_9_ENABLED         = False
-S20_8_SL_POINTS       = 100.0
-S20_8_TP_POINTS       = 150.0
-S20_8_ENTRY_BUFFER_POINTS = 390.0
+
 S20_8_POINTS_MULTIPLIER = 0.01
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
 S20_CANCEL_BARS       = 5
@@ -1923,6 +1924,9 @@ def save_runtime_state():
             "s20_6_fvg_enabled": S20_6_FVG_ENABLED,
             "s20_7_enabled": S20_7_ENABLED,
             "s20_8_enabled": S20_8_ENABLED,
+            "s20_8_compounding_enabled": S20_8_COMPOUNDING_ENABLED,
+            "s20_8_risk_pct": S20_8_RISK_PCT,
+            "s20_8_max_lot": S20_8_MAX_LOT,
             "recheck_combined_mode": RECHECK_COMBINED_MODE,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
@@ -2189,6 +2193,7 @@ def restore_runtime_state():
         global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
         global S20_ENABLED, S20_SUB_CONFIG, S20_MIN_BODY_ATR_PCT, S20_SL_BUFFER, S20_FIBO_TP_LEVEL, S20_TREND_FILTER, S20_SESSION_FILTER, S20_ENTRY_BUFFER, S20_SL_2L2H
         global S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED, S20_8_ENABLED
+        global S20_8_COMPOUNDING_ENABLED, S20_8_RISK_PCT, S20_8_MAX_LOT
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
@@ -2248,6 +2253,9 @@ def restore_runtime_state():
         S20_6_FVG_ENABLED = bool(state.get("s20_6_fvg_enabled", S20_6_FVG_ENABLED))
         S20_7_ENABLED = bool(state.get("s20_7_enabled", S20_7_ENABLED))
         S20_8_ENABLED = bool(state.get("s20_8_enabled", S20_8_ENABLED))
+        S20_8_COMPOUNDING_ENABLED = bool(state.get("s20_8_compounding_enabled", getattr(config, 'S20_8_COMPOUNDING_ENABLED', False)))
+        S20_8_RISK_PCT = float(state.get("s20_8_risk_pct", getattr(config, 'S20_8_RISK_PCT', 2.0)))
+        S20_8_MAX_LOT = float(state.get("s20_8_max_lot", getattr(config, 'S20_8_MAX_LOT', 50.0)))
         saved_s20_sub = state.get("s20_sub_config")
         if isinstance(saved_s20_sub, dict):
             S20_SUB_CONFIG.update(saved_s20_sub)

@@ -112,6 +112,36 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
             sl = entry + (sl_pts * pt_mult)
             tp = entry - (tp_pts * pt_mult)
     if signal != "WAIT":
+        lot_multiplier = 1.0
+        if getattr(config, "S20_8_COMPOUNDING_ENABLED", False):
+            try:
+                import mt5_worker as mt5
+                acc = mt5.account_info()
+                if acc is not None:
+                    balance = acc.balance
+                    risk_pct = getattr(config, "S20_8_RISK_PCT", 2.0)
+                    max_lot = getattr(config, "S20_8_MAX_LOT", 50.0)
+                    sl_dist = abs(entry - sl)
+                    
+                    if sl_dist > 0:
+                        symbol_info = mt5.symbol_info(getattr(config, "SYMBOL", "XAUUSD"))
+                        contract_size = symbol_info.trade_contract_size if symbol_info else 100.0
+                        
+                        risk_usd = balance * (risk_pct / 100.0)
+                        calculated_lot = risk_usd / (sl_dist * contract_size)
+                        target_lot = round(calculated_lot, 2)
+                        target_lot = max(0.01, min(target_lot, max_lot))
+                        
+                        base_lot = config.get_volume()
+                        if base_lot > 0:
+                            lot_multiplier = target_lot / base_lot
+            except Exception as e:
+                try:
+                    from bot_log import log_error
+                    log_error("S20_8_COMPOUNDING", f"Error calculating lot: {e}")
+                except:
+                    pass
+
         return {
             "signal": signal,
             "pattern": "S20.8 Small2L2H",
@@ -119,7 +149,8 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
             "sl": round(sl, 5),
             "tp": round(tp, 5),
             "reason": f"S20.8 {signal} at Local {'Low (2L)' if signal == 'BUY' else 'High (2H)'}",
-            "sid": 20.8
+            "sid": 20.8,
+            "quant_lot_multiplier": lot_multiplier
         }
         
     reason = locals().get("reason_override", "S20.8 No valid small 2L/2H structure")
