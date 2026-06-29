@@ -585,11 +585,6 @@ async def handle_callback(update, ctx):
         await show_opposite_menu(query, is_query=True)
         await _qanswer(query,"Opposite Order: ตั้ง SL Protect")
 
-    elif data == "toggle_s20_8_enabled":
-        config.S20_8_ENABLED = not config.S20_8_ENABLED
-        save_runtime_state()
-        await show_main_settings_menu(query, is_query=True)
-        await _qanswer(query,f"S20_8: {'ON' if config.S20_8_ENABLED else 'OFF'}")
 
     elif data == "toggle_trail_sl_enabled":
         config.TRAIL_SL_ENABLED = not config.TRAIL_SL_ENABLED
@@ -1399,29 +1394,6 @@ async def handle_callback(update, ctx):
             status_th = "เปิด ✅" if active_strategies[sid] else "ปิด ❌"
             await _show_strategy_detail(query, sid, f"{name}: {status_th}")
 
-    elif data == "toggle_s20_5_enabled":
-        config.S20_5_ENABLED = not getattr(config, "S20_5_ENABLED", False)
-        save_runtime_state()
-        status_th = "เปิด ✅" if config.S20_5_ENABLED else "ปิด ❌"
-        await _show_strategy_detail(query, 20.5, f"S20.5: {status_th}")
-
-    elif data == "toggle_s20_6_enabled":
-        config.S20_6_FVG_ENABLED = not getattr(config, "S20_6_FVG_ENABLED", False)
-        save_runtime_state()
-        status_th = "เปิด ✅" if config.S20_6_FVG_ENABLED else "ปิด ❌"
-        await _show_strategy_detail(query, 20.6, f"S20.6: {status_th}")
-
-    elif data == "toggle_s20_7_enabled":
-        config.S20_7_ENABLED = not getattr(config, "S20_7_ENABLED", False)
-        save_runtime_state()
-        status_th = "เปิด ✅" if config.S20_7_ENABLED else "ปิด ❌"
-        await _show_strategy_detail(query, 20.7, f"S20.7: {status_th}")
-
-    elif data == "toggle_s20_8_enabled":
-        config.S20_8_ENABLED = not getattr(config, "S20_8_ENABLED", False)
-        save_runtime_state()
-        status_th = "เปิด ✅" if config.S20_8_ENABLED else "ปิด ❌"
-        await _show_strategy_detail(query, 20.8, f"S20.8: {status_th}")
 
     elif data == "toggle_s20_9_enabled":
         config.S20_9_ENABLED = not getattr(config, "S20_9_ENABLED", False)

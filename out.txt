@@ -1,35 +1,59 @@
-672: S20_8_ENABLED         = False
+10:     show_main_settings_menu, show_debug_menu, build_debug_keyboard,
 
-673: S20_8_COMPOUNDING_ENABLED = False
+394:         await show_main_settings_menu(query, is_query=True)
 
-674: S20_8_RISK_PCT        = 2.0
+528:         await show_main_settings_menu(query, is_query=True)
 
-675: S20_8_MAX_LOT         = 50.0
+534:         await show_main_settings_menu(query, is_query=True)
 
-677: S20_8_SL_POINTS       = 100.0
+588:     elif data == "toggle_s20_8_enabled":
 
-678: S20_8_TP_POINTS       = 150.0
+591:         await show_main_settings_menu(query, is_query=True)
 
-679: S20_8_ENTRY_BUFFER_POINTS = 390.0
+617:         await show_main_settings_menu(query, is_query=True)
 
-680: S20_8_POINTS_MULTIPLIER = 0.01
+1090:     elif data == "toggle_s20_5_enabled":
 
-1928:             "s20_8_enabled": S20_8_ENABLED,
+1098:     elif data == "toggle_s20_6_enabled":
 
-1929:             "s20_8_compounding_enabled": S20_8_COMPOUNDING_ENABLED,
+1105:     elif data == "toggle_s20_7_enabled":
 
-1930:             "s20_8_risk_pct": S20_8_RISK_PCT,
+1112:     elif data == "toggle_s20_8_enabled":
 
-1931:             "s20_8_max_lot": S20_8_MAX_LOT,
+1120:     elif data == "toggle_s20_enabled":
 
-2197:         global S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED, S20_8_ENABLED
+1126:     elif data.startswith("toggle_s20_trigger_"):
 
-2198:         global S20_8_COMPOUNDING_ENABLED, S20_8_RISK_PCT, S20_8_MAX_LOT
+1127:         trigger_id = data.replace("toggle_s20_trigger_", "")
 
-2257:         S20_8_ENABLED = bool(state.get("s20_8_enabled", S20_8_ENABLED))
+1145:     elif data.startswith("toggle_s20_mod_"):
 
-2258:         S20_8_COMPOUNDING_ENABLED = bool(state.get("s20_8_compounding_enabled", getattr(config, 'S20_8_COMPOUNDING_ENABLED', False)))
+1146:         mod_id = data.replace("toggle_s20_mod_", "")
 
-2259:         S20_8_RISK_PCT = float(state.get("s20_8_risk_pct", getattr(config, 'S20_8_RISK_PCT', 2.0)))
+1162:     elif data == "toggle_s20_trend":
 
-2260:         S20_8_MAX_LOT = float(state.get("s20_8_max_lot", getattr(config, 'S20_8_MAX_LOT', 50.0)))
+1168:     elif data == "toggle_s20_session":
+
+1402:     elif data == "toggle_s20_5_enabled":
+
+1408:     elif data == "toggle_s20_6_enabled":
+
+1414:     elif data == "toggle_s20_7_enabled":
+
+1420:     elif data == "toggle_s20_8_enabled":
+
+1426:     elif data == "toggle_s20_9_enabled":
+
+1536:         await show_main_settings_menu(query, is_query=True)
+
+1558:         await show_main_settings_menu(query, is_query=True)
+
+1570:         await show_main_settings_menu(query, is_query=True)
+
+1577:         await show_main_settings_menu(query, is_query=True)
+
+1584:         await show_main_settings_menu(query, is_query=True)
+
+1642:         await show_main_settings_menu(query, is_query=True)
+
+2028:     elif data == 'toggle_s20_8_compounding':
