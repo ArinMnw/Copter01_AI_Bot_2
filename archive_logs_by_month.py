@@ -42,12 +42,16 @@ ROOT       = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR    = os.path.join(ROOT, "logs")
 OLD_DIR    = os.path.join(LOG_DIR, "old_logs")
 SYS_DIR    = os.path.join(LOG_DIR, "system")
+MAX_ARCHIVE_BYTES = 80 * 1024 * 1024
 
 # timestamp ที่ต้นบรรทัด:  [2026-05-27 01:29:04]  หรือ  2026-05-27 01:29:04,123
 _TS_RE = re.compile(r"^\[?(\d{4})-(\d{2})-(\d{2})[ T]\d{2}:\d{2}:\d{2}")
 
 DRY = "--dry-run" in sys.argv
 RUN_TS = datetime.now().strftime("%Y%m%d-%H%M%S")
+_ARCHIVE_NAME_RE = re.compile(
+    r"^(bot|error|system)-(\d{4})-(\d{2})(?:-(\d{2})-\d{2})?\.log(?:\.bak-\d{8}-\d{6})?$"
+)
 
 
 def _month_of(line: str):
@@ -83,6 +87,92 @@ def _backup_if_exists(path: str) -> str | None:
     os.rename(path, bak)
     print(f"   backup {os.path.basename(path)} -> {os.path.basename(bak)}")
     return bak
+
+
+def _split_base_name(filename: str) -> str | None:
+    m = _ARCHIVE_NAME_RE.match(filename)
+    if not m:
+        return None
+    prefix, year, month, day = m.group(1), m.group(2), m.group(3), m.group(4)
+    return f"{prefix}-{year}-{month}-{day or '01'}"
+
+
+def _next_split_path(base_name: str, used: set[str]) -> str:
+    seq = 0
+    while True:
+        candidate = os.path.join(OLD_DIR, f"{base_name}-{seq:02d}.log")
+        if candidate not in used and not os.path.exists(candidate):
+            used.add(candidate)
+            return candidate
+        seq += 1
+
+
+def split_large_old_logs() -> list[tuple[str, list[str]]]:
+    """Split archived logs in old_logs that are still larger than 100 MB."""
+    if not os.path.isdir(OLD_DIR):
+        return []
+
+    results: list[tuple[str, list[str]]] = []
+    for name in sorted(os.listdir(OLD_DIR)):
+        path = os.path.join(OLD_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue
+        if size <= MAX_ARCHIVE_BYTES:
+            continue
+
+        base_name = _split_base_name(name)
+        if not base_name:
+            print(f"  [WARN] skip large archive with unknown name: {name} ({size/1024/1024:.1f} MB)")
+            continue
+
+        print(f"  [SPLIT] {name} ({size/1024/1024:.1f} MB) -> <={MAX_ARCHIVE_BYTES/1024/1024:.0f}MB chunks")
+        if DRY:
+            results.append((path, []))
+            continue
+
+        work_path = path + f".splitting-{RUN_TS}"
+        try:
+            os.rename(path, work_path)
+        except PermissionError:
+            print(f"    [WARN] cannot split locked file: {name}")
+            continue
+
+        chunks: list[str] = []
+        used: set[str] = set()
+        out = None
+        out_size = 0
+        try:
+            with open(work_path, "r", encoding="utf-8", errors="replace", newline="") as fin:
+                for line in fin:
+                    encoded_len = len(line.encode("utf-8", errors="replace"))
+                    if out is None or (out_size > 0 and out_size + encoded_len > MAX_ARCHIVE_BYTES):
+                        if out:
+                            out.close()
+                        chunk_path = _next_split_path(base_name, used)
+                        chunks.append(chunk_path)
+                        out = open(chunk_path, "w", encoding="utf-8", newline="")
+                        out_size = 0
+                    out.write(line)
+                    out_size += encoded_len
+        finally:
+            if out:
+                out.close()
+
+        try:
+            os.remove(work_path)
+        except PermissionError:
+            print(f"    [WARN] cannot remove {os.path.basename(work_path)} -- archived chunks were written")
+
+        for chunk_path in chunks:
+            chunk_size = os.path.getsize(chunk_path)
+            print(f"    -> {os.path.relpath(chunk_path, ROOT)} ({chunk_size/1024/1024:.1f} MB)")
+        results.append((path, chunks))
+
+    return results
 
 
 def process_source(src_path: str, prefix: str, cur_ym: tuple) -> dict:
@@ -124,7 +214,7 @@ def process_source(src_path: str, prefix: str, cur_ym: tuple) -> dict:
     last_ym = None
 
     try:
-        with open(work_path, "r", encoding="utf-8", errors="replace") as fin:
+        with open(work_path, "r", encoding="utf-8", errors="replace", newline="") as fin:
             for line in fin:
                 result["lines"] += 1
                 ym = _month_of(line) or last_ym
@@ -142,7 +232,7 @@ def process_source(src_path: str, prefix: str, cur_ym: tuple) -> dict:
                         writers[ym] = None
                     else:
                         os.makedirs(os.path.dirname(tgt), exist_ok=True)
-                        writers[ym] = open(tgt, "a", encoding="utf-8")
+                        writers[ym] = open(tgt, "a", encoding="utf-8", newline="")
                     result["months"].setdefault(ym, 0)
 
                 result["months"][ym] += 1
@@ -195,6 +285,7 @@ def main():
     for src, prefix in sources:
         r = process_source(src, prefix, cur_ym)
         grand += r["lines"]
+    split_results = split_large_old_logs()
 
     print("=" * 70)
     print(f"รวมทั้งหมด {grand} บรรทัด {'(dry-run ไม่ได้เขียนไฟล์)' if DRY else 'ย้ายเสร็จ'}")

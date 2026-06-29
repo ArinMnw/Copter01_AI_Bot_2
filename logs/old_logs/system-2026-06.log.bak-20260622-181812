@@ -1,0 +1,72 @@
+2026-06-22 11:36:36,449 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:41 +07)" (scheduled at 2026-06-22 11:36:36.440867+07:00)
+2026-06-22 11:36:36,492 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:41 +07)" (scheduled at 2026-06-22 11:36:36.441017+07:00)
+2026-06-22 11:36:36,506 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:41 +07)" executed successfully
+2026-06-22 11:36:36,506 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:41 +07)" (scheduled at 2026-06-22 11:36:36.441081+07:00)
+2026-06-22 11:36:36,538 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:41 +07)" executed successfully
+2026-06-22 11:36:37,047 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:41 +07)" executed successfully
+2026-06-22 11:36:37,478 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:38,595 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:41,449 INFO apscheduler.executors.default: Running job "main.<locals>.check_symbol_switch (trigger: interval[0:01:00], next run at: 2026-06-22 11:37:41 +07)" (scheduled at 2026-06-22 11:36:41.437711+07:00)
+2026-06-22 11:36:41,464 INFO apscheduler.executors.default: Job "main.<locals>.check_symbol_switch (trigger: interval[0:01:00], next run at: 2026-06-22 11:37:41 +07)" executed successfully
+2026-06-22 11:36:41,464 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:46 +07)" (scheduled at 2026-06-22 11:36:41.440867+07:00)
+2026-06-22 11:36:41,507 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:46 +07)" (scheduled at 2026-06-22 11:36:41.441017+07:00)
+2026-06-22 11:36:41,522 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:46 +07)" executed successfully
+2026-06-22 11:36:41,522 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:46 +07)" (scheduled at 2026-06-22 11:36:41.441081+07:00)
+2026-06-22 11:36:41,584 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:46 +07)" executed successfully
+2026-06-22 11:36:41,584 INFO apscheduler.executors.default: Running job "main.<locals>.save_bot_state_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:36:56 +07)" (scheduled at 2026-06-22 11:36:41.441132+07:00)
+2026-06-22 11:36:41,590 INFO apscheduler.executors.default: Job "main.<locals>.save_bot_state_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:36:56 +07)" executed successfully
+2026-06-22 11:36:41,590 INFO apscheduler.executors.default: Running job "main.<locals>.run_watchdog (trigger: interval[0:01:00], next run at: 2026-06-22 11:37:41 +07)" (scheduled at 2026-06-22 11:36:41.447394+07:00)
+2026-06-22 11:36:41,612 INFO apscheduler.executors.default: Job "main.<locals>.run_watchdog (trigger: interval[0:01:00], next run at: 2026-06-22 11:37:41 +07)" executed successfully
+2026-06-22 11:36:41,613 INFO apscheduler.executors.default: Running job "main.<locals>.write_heartbeat_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:36:56 +07)" (scheduled at 2026-06-22 11:36:41.447448+07:00)
+2026-06-22 11:36:41,614 INFO apscheduler.executors.default: Job "main.<locals>.write_heartbeat_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:36:56 +07)" executed successfully
+2026-06-22 11:36:42,176 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:46 +07)" executed successfully
+2026-06-22 11:36:42,572 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:42,742 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getUpdates "HTTP/1.1 200 OK"
+2026-06-22 11:36:43,714 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:46,448 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:51 +07)" (scheduled at 2026-06-22 11:36:46.440867+07:00)
+2026-06-22 11:36:46,534 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:51 +07)" (scheduled at 2026-06-22 11:36:46.441017+07:00)
+2026-06-22 11:36:46,569 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:51 +07)" executed successfully
+2026-06-22 11:36:46,569 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:51 +07)" (scheduled at 2026-06-22 11:36:46.441081+07:00)
+2026-06-22 11:36:46,648 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:51 +07)" executed successfully
+2026-06-22 11:36:47,033 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:51 +07)" executed successfully
+2026-06-22 11:36:47,433 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:48,539 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:51,447 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:56 +07)" (scheduled at 2026-06-22 11:36:51.440867+07:00)
+2026-06-22 11:36:51,479 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:56 +07)" (scheduled at 2026-06-22 11:36:51.441017+07:00)
+2026-06-22 11:36:51,492 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:56 +07)" executed successfully
+2026-06-22 11:36:51,492 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:56 +07)" (scheduled at 2026-06-22 11:36:51.441081+07:00)
+2026-06-22 11:36:51,521 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:56 +07)" executed successfully
+2026-06-22 11:36:51,832 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:36:56 +07)" executed successfully
+2026-06-22 11:36:52,229 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:52,938 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getUpdates "HTTP/1.1 200 OK"
+2026-06-22 11:36:53,344 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:56,448 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:01 +07)" (scheduled at 2026-06-22 11:36:56.440867+07:00)
+2026-06-22 11:36:56,536 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:01 +07)" (scheduled at 2026-06-22 11:36:56.441017+07:00)
+2026-06-22 11:36:56,570 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:01 +07)" executed successfully
+2026-06-22 11:36:56,571 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:01 +07)" (scheduled at 2026-06-22 11:36:56.441081+07:00)
+2026-06-22 11:36:56,648 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:01 +07)" executed successfully
+2026-06-22 11:36:56,649 INFO apscheduler.executors.default: Running job "main.<locals>.save_bot_state_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:37:11 +07)" (scheduled at 2026-06-22 11:36:56.441132+07:00)
+2026-06-22 11:36:56,653 INFO apscheduler.executors.default: Job "main.<locals>.save_bot_state_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:37:11 +07)" executed successfully
+2026-06-22 11:36:56,654 INFO apscheduler.executors.default: Running job "main.<locals>.write_heartbeat_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:37:11 +07)" (scheduled at 2026-06-22 11:36:56.447448+07:00)
+2026-06-22 11:36:56,655 INFO apscheduler.executors.default: Job "main.<locals>.write_heartbeat_job (trigger: interval[0:00:15], next run at: 2026-06-22 11:37:11 +07)" executed successfully
+2026-06-22 11:36:57,381 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:01 +07)" executed successfully
+2026-06-22 11:36:57,780 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:36:58,899 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:37:01,446 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:06 +07)" (scheduled at 2026-06-22 11:37:01.440867+07:00)
+2026-06-22 11:37:01,497 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:06 +07)" (scheduled at 2026-06-22 11:37:01.441017+07:00)
+2026-06-22 11:37:01,513 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:06 +07)" executed successfully
+2026-06-22 11:37:01,514 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:06 +07)" (scheduled at 2026-06-22 11:37:01.441081+07:00)
+2026-06-22 11:37:01,559 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:06 +07)" executed successfully
+2026-06-22 11:37:02,624 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:06 +07)" executed successfully
+2026-06-22 11:37:03,018 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:37:03,146 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getUpdates "HTTP/1.1 200 OK"
+2026-06-22 11:37:04,149 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:37:05,272 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:37:06,388 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
+2026-06-22 11:37:06,442 INFO apscheduler.executors.default: Running job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:11 +07)" (scheduled at 2026-06-22 11:37:06.440867+07:00)
+2026-06-22 11:37:06,486 INFO apscheduler.executors.default: Running job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:11 +07)" (scheduled at 2026-06-22 11:37:06.441017+07:00)
+2026-06-22 11:37:06,520 INFO apscheduler.executors.default: Job "main.<locals>.run_trail_sl (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:11 +07)" executed successfully
+2026-06-22 11:37:06,520 INFO apscheduler.executors.default: Running job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:11 +07)" (scheduled at 2026-06-22 11:37:06.441081+07:00)
+2026-06-22 11:37:06,575 INFO apscheduler.executors.default: Job "main.<locals>.run_position_check (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:11 +07)" executed successfully
+2026-06-22 11:37:07,292 INFO apscheduler.executors.default: Job "main.<locals>.run_scan (trigger: interval[0:00:05], next run at: 2026-06-22 11:37:11 +07)" executed successfully
+2026-06-22 11:37:07,696 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/sendMessage "HTTP/1.1 200 OK"
