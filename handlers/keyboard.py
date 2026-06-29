@@ -1450,6 +1450,16 @@ def build_strategy_detail_keyboard(sid: int):
             )
         ])
 
+    elif sid == 20.8:
+        c_s20_8 = "🟢 S20.8 Compounding (On)" if getattr(config, "S20_8_COMPOUNDING_ENABLED", False) else "🔴 S20.8 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_8, callback_data="toggle_s20_8_compounding")
+        ])
+        r_pct = getattr(config, "S20_8_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.8 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_8_risk_pct")
+        ])
+
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
     return InlineKeyboardMarkup(rows)
 
@@ -2569,17 +2579,6 @@ def build_s20_settings_keyboard():
         InlineKeyboardButton(m_fibo, callback_data="set_s20_mod_fibo")
     ])
 
-    # S20.8 Compounding
-    c_s20_8 = "🟢 S20.8 Compounding (On)" if getattr(config, "S20_8_COMPOUNDING_ENABLED", False) else "🔴 S20.8 Compounding (Off)"
-    rows.append([
-        InlineKeyboardButton(c_s20_8, callback_data="toggle_s20_8_compounding")
-    ])
-    
-    r_pct = getattr(config, "S20_8_RISK_PCT", 2.0)
-    rows.append([
-        InlineKeyboardButton(f"S20.8 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_8_risk_pct")
-    ])
-
     rows.append([
         InlineKeyboardButton("✏️ ปรับ Entry Buffer", callback_data="prompt_s20_entry_buffer"),
         InlineKeyboardButton("✏️ ปรับ SL 2L/2H", callback_data="prompt_s20_sl_2l2h")
@@ -2615,9 +2614,7 @@ async def show_s20_settings_menu(update_or_query, is_query=False):
         f"- Fibo Confluence: *{m_fibo}*\n\n"
         f"📏 Entry Buffer: *{getattr(config, 'S20_ENTRY_BUFFER', 0)} จุด*\n"
         f"🛑 SL 2L/2H: *{getattr(config, 'S20_SL_2L2H', 100)} จุด*\n\n"
-        f"📈 *S20.8 Compounding*\n"
-        f"- สถานะ: *{'🟢 ON' if getattr(config, 'S20_8_COMPOUNDING_ENABLED', False) else '🔴 OFF'}*\n"
-        f"- Risk per Trade: *{getattr(config, 'S20_8_RISK_PCT', 2.0)}%*"
+
     )
     keyboard = build_s20_settings_keyboard()
     if is_query:

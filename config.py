@@ -2253,9 +2253,9 @@ def restore_runtime_state():
         S20_6_FVG_ENABLED = bool(state.get("s20_6_fvg_enabled", S20_6_FVG_ENABLED))
         S20_7_ENABLED = bool(state.get("s20_7_enabled", S20_7_ENABLED))
         S20_8_ENABLED = bool(state.get("s20_8_enabled", S20_8_ENABLED))
-        S20_8_COMPOUNDING_ENABLED = bool(state.get("s20_8_compounding_enabled", getattr(config, 'S20_8_COMPOUNDING_ENABLED', False)))
-        S20_8_RISK_PCT = float(state.get("s20_8_risk_pct", getattr(config, 'S20_8_RISK_PCT', 2.0)))
-        S20_8_MAX_LOT = float(state.get("s20_8_max_lot", getattr(config, 'S20_8_MAX_LOT', 50.0)))
+        S20_8_COMPOUNDING_ENABLED = bool(state.get("s20_8_compounding_enabled", S20_8_COMPOUNDING_ENABLED))
+        S20_8_RISK_PCT = float(state.get("s20_8_risk_pct", S20_8_RISK_PCT))
+        S20_8_MAX_LOT = float(state.get("s20_8_max_lot", S20_8_MAX_LOT))
         saved_s20_sub = state.get("s20_sub_config")
         if isinstance(saved_s20_sub, dict):
             S20_SUB_CONFIG.update(saved_s20_sub)

@@ -521,8 +521,15 @@ async def _handle_custom_input(update, context, text, awaiting):
             f"✅ ตั้งค่า **S20.8 Risk %** เป็น {val}% เรียบร้อย",
             parse_mode="Markdown"
         )
-        from handlers.keyboard import show_s20_settings_menu
-        await show_s20_settings_menu(update, is_query=False)
+        from handlers.callback_handler import _show_strategy_detail
+        # Mocking query-like object since it's a message update
+        class MockQuery:
+            def __init__(self, msg):
+                self.message = msg
+            async def edit_message_text(self, *args, **kwargs):
+                await self.message.reply_text(*args, **kwargs)
+        
+        await _show_strategy_detail(MockQuery(update.effective_message), 20.8)
 
 async def _handle_lot_input(update, context, text, waiting):
     """รับ lot size จาก user input"""

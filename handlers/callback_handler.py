@@ -277,7 +277,15 @@ async def _show_strategy_detail(query, sid: int, answer_text: str = ""):
         f"📋 *{name}*\n"
         f"━━━━━━━━━━━━━━━━━\n"
         f"สถานะ: *{status}*\n\n"
-    ) + "เลือกตัวเลือกด้านล่าง:"
+    )
+    if sid == 20.8:
+        c_status = "🟢 ON" if getattr(config, 'S20_8_COMPOUNDING_ENABLED', False) else "🔴 OFF"
+        text += (
+            f"📈 *S20.8 Compounding*\n"
+            f"- สถานะ: *{c_status}*\n"
+            f"- Risk per Trade: *{getattr(config, 'S20_8_RISK_PCT', 2.0)}%*\n\n"
+        )
+    text += "เลือกตัวเลือกด้านล่าง:"
     try:
         await query.edit_message_text(text, parse_mode="Markdown",
                                       reply_markup=build_strategy_detail_keyboard(sid))
@@ -2020,8 +2028,7 @@ async def handle_callback(update, ctx):
     elif data == 'toggle_s20_8_compounding':
         config.S20_8_COMPOUNDING_ENABLED = not getattr(config, 'S20_8_COMPOUNDING_ENABLED', False)
         config.save_runtime_state()
-        from handlers.keyboard import show_s20_settings_menu
-        await show_s20_settings_menu(query, is_query=True)
+        await _show_strategy_detail(query, 20.8)
 
     elif data == 'prompt_s20_8_risk_pct':
         msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S20.8 (เช่น 2.0):")
