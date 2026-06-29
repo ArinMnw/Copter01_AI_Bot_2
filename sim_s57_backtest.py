@@ -1,0 +1,215 @@
+"""
+sim_s57_backtest.py — Backtest S57 (Previous-Month High/Low Bounce)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ RESEARCH / BACKTEST-ONLY — ไม่แก้ S1-S56, ไม่ wire เข้า live
+"""
+
+import argparse
+import bisect
+import csv
+import os
+from datetime import datetime
+
+import MetaTrader5 as mt5
+
+import config
+from strategy57 import S57_DEFAULTS, detect_s57
+import sim_s30_backtest as s30sim
+import sim_s31_backtest as s31sim
+
+START_EQUITY = 1000.0
+
+
+def _cfg_get(cfg, key):
+    return cfg[key] if (cfg and key in cfg) else S57_DEFAULTS[key]
+
+
+def _build_month_levels(days):
+    """fetch W1 bars แล้วคืน (sorted list ของ week_start_ts, dict {week_start_ts: (high, low)})"""
+    weeks = days // 30 + 6
+    w1 = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_MN1, 0, weeks)
+    if w1 is None or len(w1) == 0:
+        return None, None
+    starts = []
+    hl = {}
+    for b in w1:
+        ts = int(b["time"])
+        starts.append(ts)
+        hl[ts] = (float(b["high"]), float(b["low"]))
+    starts.sort()
+    return starts, hl
+
+
+def _prev_month_hl(ts, month_starts, month_hl):
+    """หา high/low ของสัปดาห์ก่อนหน้า ณ เวลา ts (สัปดาห์ที่จบไปแล้วก่อนสัปดาห์ปัจจุบันของ ts)"""
+    # index ของสัปดาห์ปัจจุบัน = W1 bar ล่าสุดที่ start <= ts
+    idx = bisect.bisect_right(month_starts, ts) - 1
+    if idx <= 0:
+        return None  # ไม่มีสัปดาห์ก่อนหน้า
+    prev_start = month_starts[idx - 1]
+    return month_hl[prev_start]
+
+
+def replay57(bars, htf_series, spread, cfg, month_starts, month_hl):
+    conf_type = cfg["CONFIRMATION_TYPE"]
+    min_gap_bars = int(_cfg_get(cfg, "MIN_GAP_BARS"))
+    win_size = 40
+
+    all_dt = [config.mt5_ts_to_bkk(int(b["time"])) for b in bars]
+
+    trades = []
+    last_fire_idx = -10
+    n = len(bars)
+    start_j = win_size + 5
+    for j in range(start_j, n - 1):
+        if j - last_fire_idx < min_gap_bars:
+            continue
+        entry_bar = bars[j + 1]
+        ts = int(entry_bar["time"])
+        live = {"time": ts, "open": float(entry_bar["open"]),
+                "high": float(entry_bar["open"]), "low": float(entry_bar["open"]),
+                "close": float(entry_bar["open"])}
+        lo = max(0, j + 1 - win_size)
+        window = list(bars[lo:j + 1]) + [live]
+        dt_bkk = all_dt[j + 1]
+        htf_ctx = s30sim.htf_lookup(htf_series, ts) if conf_type != "none" else None
+        pwhl = _prev_month_hl(ts, month_starts, month_hl)
+
+        res = detect_s57(window, tf=cfg["ENTRY_TF"], dt_bkk=dt_bkk, cfg=cfg, htf_ctx=htf_ctx,
+                          prev_month_hl=pwhl)
+        sig = res.get("signal")
+        if sig not in ("BUY", "SELL"):
+            continue
+        last_fire_idx = j
+
+        entry, tp, sl = float(res["entry"]), float(res["tp"]), float(res["sl"])
+        fill_idx = j + 1
+        outcome, exit_price, exit_idx = "OPEN", None, None
+        for m in range(fill_idx, n):
+            hi, lw = float(bars[m]["high"]), float(bars[m]["low"])
+            if sig == "BUY":
+                if lw <= sl:
+                    outcome, exit_price = "SL", sl
+                elif hi >= tp:
+                    outcome, exit_price = "TP", tp
+            else:
+                if hi >= sl:
+                    outcome, exit_price = "SL", sl
+                elif lw <= tp:
+                    outcome, exit_price = "TP", tp
+            if outcome != "OPEN":
+                exit_idx = m
+                break
+        if outcome == "OPEN":
+            continue
+        risk_distance = abs(entry - sl)
+        diff = (exit_price - entry) if sig == "BUY" else (entry - exit_price)
+        trades.append({
+            "signal": sig, "outcome": outcome, "signal_time_ts": ts,
+            "fill_time_ts": int(bars[fill_idx]["time"]), "exit_time_ts": int(bars[exit_idx]["time"]),
+            "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2),
+            "exit_price": round(exit_price, 2), "risk_distance": round(risk_distance, 4),
+            "diff_usd_per_001lot": round(diff, 4), "spread": spread,
+        })
+    return trades
+
+
+def run_single(entry_bars, htf_bars, cfg, days, spread):
+    htf_series = s30sim.build_htf_series(htf_bars, cfg) if cfg["CONFIRMATION_TYPE"] != "none" else None
+    month_starts, month_hl = _build_month_levels(days)
+    if month_starts is None:
+        return []
+    return replay57(entry_bars, htf_series, spread, cfg, month_starts, month_hl)
+
+
+def run_backtest(cfg, days, spread, label, verbose=True):
+    if not mt5.initialize():
+        print(f"MT5 initialize ล้มเหลว: {mt5.last_error()}")
+        return None
+    symbol = config.SYMBOL
+    entry_bars = s30sim.fetch_bars(symbol, cfg["ENTRY_TF"], days, extra_bars=100)
+    htf_bars = s30sim.fetch_bars(symbol, cfg["HTF_TF"], days,
+                                  extra_bars=max(int(cfg["HTF_EMA_PERIOD"]), 28) + 60) if cfg["CONFIRMATION_TYPE"] != "none" else None
+    if entry_bars is None:
+        print("! fetch entry bars fail"); mt5.shutdown(); return None
+    raw = run_single(entry_bars, htf_bars, cfg, days, spread)
+    if verbose:
+        print(f"  signals(after fill+SL/TP resolved): {len(raw)}")
+    twp, eq = s31sim.simulate_equity_substream(raw, cfg, START_EQUITY)
+    if not twp:
+        if verbose:
+            print("no trades")
+        mt5.shutdown()
+        return None
+    s = s30sim.summarize(twp, eq, cfg["RISK_PCT"], days)
+    by_day = s31sim.daily_series_from_trades(twp)
+    c = s31sim.consistency_metrics(by_day)
+    if verbose:
+        print(f"n={s['trades']:>4} WR={s['wr']:>5.1f}% $/d={s['avg_per_day_span']:>7.2f} "
+              f"$/mo={s['avg_per_day_span']*30:>8.1f} DD={s['max_dd_pct']:>5.1f}% PF={s['profit_factor']:>4.2f} "
+              f"posDay={c['pct_pos_days']:>5.1f}% maxStreak={c['max_losing_day_streak']:>2}d "
+              f"sharpe={c['sharpe_like']:>6.3f}")
+    s.update(c)
+    append_summary_csv(label, s, cfg)
+    mt5.shutdown()
+    return s
+
+
+def append_summary_csv(label, s, cfg):
+    path = os.path.join(os.path.dirname(__file__), "s57_backtest_summary.csv")
+    is_new = not os.path.exists(path)
+    fields = ["timestamp", "label", "entry_tf", "touch_atr_mult", "reject_atr_mult",
+              "sl_atr_mult", "tp_rr", "confirmation_type", "risk_pct", "trades", "wr",
+              "avg_per_day_span", "avg_per_month", "max_dd_pct", "profit_factor", "pct_pos_days",
+              "max_losing_day_streak", "sharpe_like", "final_equity"]
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fields)
+        if is_new:
+            w.writeheader()
+        w.writerow({
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "label": label,
+            "entry_tf": cfg["ENTRY_TF"], "touch_atr_mult": cfg["TOUCH_ATR_MULT"],
+            "reject_atr_mult": cfg["REJECT_ATR_MULT"], "sl_atr_mult": cfg["SL_ATR_MULT"],
+            "tp_rr": cfg["TP_RR"], "confirmation_type": cfg["CONFIRMATION_TYPE"], "risk_pct": cfg["RISK_PCT"],
+            "trades": s["trades"], "wr": s["wr"], "avg_per_day_span": s["avg_per_day_span"],
+            "avg_per_month": round(s["avg_per_day_span"] * 30, 2), "max_dd_pct": s["max_dd_pct"],
+            "profit_factor": s["profit_factor"], "pct_pos_days": s["pct_pos_days"],
+            "max_losing_day_streak": s["max_losing_day_streak"], "sharpe_like": s["sharpe_like"],
+            "final_equity": s["final_equity"],
+        })
+    print(f"  -> appended to {path}")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--days", type=int, default=90)
+    ap.add_argument("--spread", type=float, default=0.20)
+    ap.add_argument("--risk", type=float, default=S57_DEFAULTS["RISK_PCT"])
+    ap.add_argument("--touch", type=float, default=None)
+    ap.add_argument("--reject", type=float, default=None)
+    ap.add_argument("--slmult", type=float, default=None)
+    ap.add_argument("--rr", type=float, default=None)
+    ap.add_argument("--conftype", default=None)
+    ap.add_argument("--label", default="baseline")
+    args = ap.parse_args()
+
+    cfg = dict(S57_DEFAULTS)
+    cfg["RISK_PCT"] = args.risk
+    if args.touch is not None:
+        cfg["TOUCH_ATR_MULT"] = args.touch
+    if args.reject is not None:
+        cfg["REJECT_ATR_MULT"] = args.reject
+    if args.slmult is not None:
+        cfg["SL_ATR_MULT"] = args.slmult
+    if args.rr is not None:
+        cfg["TP_RR"] = args.rr
+    if args.conftype is not None:
+        cfg["CONFIRMATION_TYPE"] = args.conftype
+
+    print(f"S57 backtest | days={args.days} | risk={cfg['RISK_PCT']}% | touch={cfg['TOUCH_ATR_MULT']} "
+          f"reject={cfg['REJECT_ATR_MULT']} sl={cfg['SL_ATR_MULT']} rr={cfg['TP_RR']} conf={cfg['CONFIRMATION_TYPE']}")
+    run_backtest(cfg, args.days, args.spread, args.label)
+
+
+if __name__ == "__main__":
+    main()
