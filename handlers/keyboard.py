@@ -947,6 +947,8 @@ def build_strategy_keyboard():
             return getattr(config, "S20_6_FVG_ENABLED", False)
         if sid == 20.7:
             return getattr(config, "S20_7_ENABLED", False)
+        if sid == 20.8:
+            return getattr(config, "S20_8_ENABLED", False)
         return active_strategies.get(sid, False)
 
     rows = []
@@ -986,6 +988,9 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.7:
         is_on = getattr(config, "S20_7_ENABLED", False)
         toggle_cb = "toggle_s20_7_enabled"
+    elif sid == 20.8:
+        is_on = getattr(config, "S20_8_ENABLED", False)
+        toggle_cb = "toggle_s20_8_enabled"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"

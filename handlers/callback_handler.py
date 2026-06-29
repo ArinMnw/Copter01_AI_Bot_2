@@ -1102,12 +1102,12 @@ async def handle_callback(update, ctx):
         await _show_strategy_detail(query, 20.7)
 
     elif data == "toggle_s20_8_enabled":
-        # S20.8 uses active_strategies directly since it's a standard strategy
-        current_val = active_strategies.get(20.8, False)
-        active_strategies[20.8] = not current_val
-        config.active_strategies[20.8] = not current_val
+        config.S20_8_ENABLED = not getattr(config, "S20_8_ENABLED", False)
+        active_strategies[20.8] = config.S20_8_ENABLED
+        config.active_strategies[20.8] = config.S20_8_ENABLED
         save_runtime_state()
         await _show_strategy_detail(query, 20.8)
+
 
     elif data == "toggle_s20_enabled":
         config.S20_ENABLED = not getattr(config, "S20_ENABLED", False)

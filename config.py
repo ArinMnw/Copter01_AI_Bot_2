@@ -659,6 +659,8 @@ S20_7_ENABLED         = False
 S20_8_ENABLED         = False
 S20_9_ENABLED         = False
 S20_8_SL_POINTS       = 100.0
+S20_8_TP_POINTS       = 150.0
+S20_8_ENTRY_BUFFER_POINTS = 390.0
 S20_8_POINTS_MULTIPLIER = 0.01
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
 S20_CANCEL_BARS       = 5
@@ -1889,6 +1891,7 @@ def save_runtime_state():
             "s20_5_enabled": S20_5_ENABLED,
             "s20_6_fvg_enabled": S20_6_FVG_ENABLED,
             "s20_7_enabled": S20_7_ENABLED,
+            "s20_8_enabled": S20_8_ENABLED,
             "recheck_combined_mode": RECHECK_COMBINED_MODE,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
@@ -2154,7 +2157,7 @@ def restore_runtime_state():
         global S14_SWEEP_SWING, S14_ENGULF_SWING, S14_SWEEP_RETURN, S14_ENGULF_BREAKEVEN, S14_RSI_DIV_ENABLED
         global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
         global S20_ENABLED, S20_SUB_CONFIG, S20_MIN_BODY_ATR_PCT, S20_SL_BUFFER, S20_FIBO_TP_LEVEL, S20_TREND_FILTER, S20_SESSION_FILTER, S20_ENTRY_BUFFER, S20_SL_2L2H
-        global S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED
+        global S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED, S20_8_ENABLED
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
@@ -2213,6 +2216,7 @@ def restore_runtime_state():
         S20_5_ENABLED = bool(state.get("s20_5_enabled", S20_5_ENABLED))
         S20_6_FVG_ENABLED = bool(state.get("s20_6_fvg_enabled", S20_6_FVG_ENABLED))
         S20_7_ENABLED = bool(state.get("s20_7_enabled", S20_7_ENABLED))
+        S20_8_ENABLED = bool(state.get("s20_8_enabled", S20_8_ENABLED))
         saved_s20_sub = state.get("s20_sub_config")
         if isinstance(saved_s20_sub, dict):
             S20_SUB_CONFIG.update(saved_s20_sub)

@@ -82,10 +82,11 @@ def main():
         entry_prices = []
 
         # สแกนทีละแท่ง (Walk-forward จำลอง)
-        for i in range(20, len(formatted_rates)):
-            slice_rates = formatted_rates[i-20:i]
-            # เรียกใช้งาน strategy_20_7
+        for i in range(50, len(formatted_rates)):
+            slice_rates = formatted_rates[i-50:i]
             res = strategy_20_7(slice_rates, tf=tf, dt_bkk=to_bkk(slice_rates[-1]['time']))
+            if i == 50:
+                print(f"Debug [TF {tf}]: Signal={res['signal']}, Reason={res['reason']}")
             
             if res.get("signal") in ("BUY", "SELL"):
                 # เจอสัญญานแล้ว จำลองการตั้ง Pending Order ที่ปลายไส้ และรอราคาชน
