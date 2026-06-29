@@ -3232,7 +3232,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     f"รอแท่งถัดไป..."
                 ))
 
-    # ── เลือก result ที่ดีที่สุดสำหรับ execute order ──────────────
+    # ── News Filter Bypass Application ──
+    if getattr(config, "news_pause_active", False):
+        _n_skip = getattr(config, "NEWS_FILTER_SKIP_SIDS", set())
+        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (21,r21)]:
+            if _s not in _n_skip and _r.get("signal") not in ("WAIT", None):
+                _r["signal"] = "WAIT"
+                _r["reason"] = "📰 ติด News Filter Embargo"
+
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
@@ -3477,6 +3484,34 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     tf=tf_name, sid=sid, signal=signal,
                 )
                 continue
+        # ── QUANT ENGINE INTERCEPT (Central Gateway) ────────────────────
+        try:
+            import quant_engine
+            from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+            _BKK = _tz(_td(hours=7))
+            _time_bkk = _dt.fromtimestamp(last_candle_time, tz=_BKK)
+            
+            _tick = mt5.symbol_info_tick(config.SYMBOL)
+            _c_price = (_tick.ask if signal == "BUY" else _tick.bid) if _tick else result.get("entry", 0)
+            
+            quant_res = quant_engine.evaluate_signal(tf_name, sid, result, rates, _c_price, _time_bkk)
+            if quant_res.get("status") == "REJECTED":
+                _print_skip_once(
+                    tf_name,
+                    f"🛑 [{now}] {tf_label(tf_name)} ท่า{sid}: Quant Block ({quant_res.get('reason')})"
+                )
+                continue
+                
+            # Apply Modifications
+            if quant_res.get("adjusted_sl"):
+                result["sl"] = quant_res["adjusted_sl"]
+            if quant_res.get("adjusted_tp"):
+                result["tp"] = quant_res["adjusted_tp"]
+            if quant_res.get("adjusted_lot_multiplier", 1.0) != 1.0:
+                result["quant_lot_multiplier"] = quant_res["adjusted_lot_multiplier"]
+        except Exception as e:
+            _log_err("QUANT_ENGINE", e, f"sid={sid} tf={tf_name}")
+            
         # Pattern B pending
         if "Pattern B" in pattern:
             pb_key = f"{tf_name}_{last_candle_time}_{sid}"
@@ -3719,12 +3754,15 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     place_model = int(spec.get("model", 0) or 0)
                     place_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, place_entry, sl, tp, place_model)
                     order_sl = 0.0 if use_delay_sl else sl
+                    # Apply Quant Lot Multiplier
+                    final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
+                    
                     if order_mode == "stop":
-                        order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
+                        order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
                     elif order_mode == "market":
-                        order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=place_pattern)
+                        order = open_order_market(signal, final_volume, order_sl, tp, tf=tf_name, sid=sid, pattern=place_pattern)
                     else:
-                        order = open_order(signal, get_volume(), order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
+                        order = open_order(signal, final_volume, order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
                     order["_entry"] = place_entry
                     order["_pattern"] = place_pattern
                     order["_entry_label"] = place_label
@@ -3941,7 +3979,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                            entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
 
             # ── SL Guard: บล็อก LIMIT order ใหม่ถ้า guard active ──────
-            if config.SL_GUARD_ENABLED:
+            if config.SL_GUARD_ENABLED and sid not in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
                 from trailing import _sl_guard_state as _sgs, _sl_guard_check_unblock as _sgu
                 _sg_order_mode = result.get("order_mode", "limit")
                 if _sg_order_mode == "limit":
@@ -3978,7 +4016,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
 
             # ── SL Guard Combined: บล็อก LIMIT order ใหม่ถ้า combined guard active ──
-            if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            if getattr(config, "SL_GUARD_COMBINED_ENABLED", False) and sid not in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
                 from trailing import _combined_guard_is_blocked, _combined_guard_check_unblock
                 from trailing import _sl_guard_combined as _cgstate
                 _cg_order_mode = result.get("order_mode", "limit")
@@ -4014,7 +4052,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
 
             # ── SL Guard Group: บล็อก order ใหม่ (ทั้ง LIMIT และ MARKET) ถ้า group guard active ──
-            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in (10, 14):
+            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in getattr(config, "SL_GUARD_SKIP_SIDS", {10, 14}):
                 from trailing import (_group_guard_is_blocked, _group_guard_check_unblock,
                                       _group_guard_get_blocked_groups, _sl_guard_group)
                 _gg_order_mode = result.get("order_mode", "limit")
@@ -4135,12 +4173,15 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             order_sl = 0.0 if use_delay_sl else sl
 
             try:
+                # Apply Quant Lot Multiplier
+                final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
+                
                 if order_mode == "stop":
-                    order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
                 elif order_mode == "market":
-                    order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order_market(signal, final_volume, order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
                 else:
-                    order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
             except Exception as _order_exc:
                 log_event("ORDER_PLACEMENT_EXCEPTION",
                            f"{type(_order_exc).__name__}: {_order_exc}",

@@ -2300,7 +2300,16 @@ async def check_s1_zone_rules(app):
             continue
         zone_meta = position_zone_meta.get(ticket) or {}
         if not zone_meta.get("enabled"):
-            continue
+            # fallback: ลอง recover จาก pending_order_tf (กรณี meta ยังไม่ถูกโอน)
+            _pend_fb = pending_order_tf.get(ticket)
+            if isinstance(_pend_fb, dict) and _pend_fb.get("s1_zone_meta", {}).get("enabled"):
+                zone_meta = dict(_pend_fb["s1_zone_meta"])
+                position_zone_meta[ticket] = zone_meta
+                if _pend_fb.get("s1_forward_meta") and ticket not in position_forward_meta:
+                    position_forward_meta[ticket] = dict(_pend_fb["s1_forward_meta"])
+                print(f"🔧 [{now}] S1 zone_meta recovered from pending_order_tf for {ticket}")
+            else:
+                continue
 
         tf = position_tf.get(ticket)
         if not tf:
@@ -3344,6 +3353,22 @@ async def check_limit_fill_notify(app):
         fvg_info = fvg_order_tickets.get(ticket)
         pattern_name = position_pattern.get(ticket, "") or ""
         reverse_tag = " [Reverse]" if pattern_name.startswith("Reverse ") else ""
+
+        # ── S1 meta transfer (zone_meta / forward_meta) ──────────────────
+        # ต้องรันที่นี่เพราะ check_entry_candle_quality ถูก skip เมื่อ
+        # ENTRY_CANDLE_ENABLED=False ทำให้ meta ไม่ถูกโอนจาก pending → position
+        # → check_s1_zone_rules (swing exit) ไม่ทำงาน
+        _pend_fill = pending_order_tf.get(ticket)
+        if isinstance(_pend_fill, dict):
+            if ticket not in position_zone_meta and _pend_fill.get("s1_zone_meta"):
+                position_zone_meta[ticket] = dict(_pend_fill["s1_zone_meta"])
+            if ticket not in position_forward_meta and _pend_fill.get("s1_forward_meta"):
+                position_forward_meta[ticket] = dict(_pend_fill["s1_forward_meta"])
+        if fvg_info:
+            if ticket not in position_zone_meta and fvg_info.get("s1_zone_meta"):
+                position_zone_meta[ticket] = dict(fvg_info["s1_zone_meta"])
+            if ticket not in position_forward_meta and fvg_info.get("s1_forward_meta"):
+                position_forward_meta[ticket] = dict(fvg_info["s1_forward_meta"])
 
         # ── resolve _fill_tf (3-tier fallback) ──
         _fill_tf = position_tf.get(ticket)

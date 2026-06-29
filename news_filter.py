@@ -24,14 +24,18 @@ async def fetch_news_loop(app=None):
         try:
             await _fetch_news()
         except Exception as e:
-            print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] ⚠️ [News Filter] Error fetching news: {e}")
-            log_error("NEWS_FILTER_ERROR", f"fetch: {type(e).__name__}: {e}")
+            if isinstance(e, httpx.RequestError):
+                print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] [News Filter] transient fetch issue: {type(e).__name__}: {e}")
+                log_event("NEWS_FILTER_TRANSIENT", f"fetch: {type(e).__name__}: {e}")
+            else:
+                print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] [News Filter] Error fetching news: {e}")
+                log_error("NEWS_FILTER_ERROR", f"fetch: {type(e).__name__}: {e}")
         
         await asyncio.sleep(6 * 3600)  # Sleep for 6 hours
 
 async def _fetch_news():
     global _news_events, _last_fetch_time
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(NEWS_URL)
         response.raise_for_status()
         data = response.json()

@@ -43,17 +43,40 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
     sl = 0.0
     tp = 0.0
     
-    buffer_pts = getattr(config, "S20_8_ENTRY_BUFFER_POINTS", 300.0) 
-    sl_pts = getattr(config, "S20_8_SL_POINTS", 100.0)
-    tp_pts = getattr(config, "S20_8_TP_POINTS", 700.0)
     pt_mult = getattr(config, "S20_8_POINTS_MULTIPLIER", 0.01)
     
-    # เงื่อนไข Rejection (Pa BUY หลอก / Pa SELL หลอก หรือแท่งตัน)
-    valid_buy_rejection = (is_red and lower_wick_pct <= 0.15) or (is_green and body_pct >= 0.70 and lower_wick_pct <= 0.15)
-    valid_sell_rejection = (is_green and upper_wick_pct <= 0.15) or (is_red and body_pct >= 0.70 and upper_wick_pct <= 0.15)
+    # Calculate Dynamic ATR
+    tr_list = []
+    for i in range(1, min(15, len(rates))):
+        c0 = rates[-i]
+        c1 = rates[-(i+1)]
+        hl = float(c0["high"]) - float(c0["low"])
+        hc = abs(float(c0["high"]) - float(c1["close"]))
+        lc = abs(float(c0["low"]) - float(c1["close"]))
+        tr_list.append(max(hl, hc, lc))
+    atr_price = sum(tr_list) / len(tr_list) if tr_list else range_total
+    atr_pts = atr_price / pt_mult
+    
+    # 🔥 Dynamic Risk Management for Consistent 1:1.5 RR Growth
+    # ปรับใช้ ATR เพื่อให้ยืดหยุ่นตามสภาวะตลาด
+    buffer_pts = max(150.0, atr_pts * 0.5) 
+    sl_pts = max(150.0, atr_pts * 1.0)
+    tp_pts = sl_pts * 1.5 # RR 1:1.5
+
+    # 🛡️ Institutional Momentum Filter
+    # ป้องกันการเข้าสวนเทรนด์ที่สถาบันกำลังทุบ/ดันอย่างรุนแรง (Displacement)
+    prev_candle = rates[-2]
+    prev_body = abs(float(prev_candle["close"]) - float(prev_candle["open"]))
+    if prev_body > (atr_price * 2.0):
+        return {"signal": "WAIT", "reason": "Institutional Displacement Block", "pattern": "S20.8", "sid": 20.8}
+
+    # 🔬 เงื่อนไข Rejection & Sweep Confirmation
+    # ปรับแก้จากเดิมที่ห้ามทะลุ เป็นอนุญาตให้ทะลุเพื่อกวาด SL (Sweep) ได้ แต่บังคับว่าต้องทิ้งหางกลับมาปิด (Failure to Close)
+    valid_buy_rejection = (lower_wick_pct >= 0.25) or (is_green and body_pct >= 0.60 and lower_wick_pct >= 0.15)
+    valid_sell_rejection = (upper_wick_pct >= 0.25) or (is_red and body_pct >= 0.60 and upper_wick_pct >= 0.15)
     
     if valid_buy_rejection:
-        # หาโครงสร้าง Small 2L: ก่อนหน้ามีแท่งเขียวดันขึ้น 2-3 แท่ง แล้วแท่งปัจจุบัน(แดง) กดลงมาไม่หลุด Low ของชุดเขียว
+        # หาโครงสร้าง Small 2L: ก่อนหน้ามีแท่งเขียวดันขึ้น 2-3 แท่ง
         green_push = 0
         prev_low = float('inf')
         for i in range(2, 6):
@@ -64,14 +87,14 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
             else:
                 break
                 
-        if green_push >= 1 and _low >= (prev_low - 0.5): # ไม่หลุด Low เดิม
+        # Liquidity Sweep Rule: ยอมให้ _low หลุด prev_low ได้เพื่อตวัดกินไส้ แต่ _close ต้องเด้งกลับมาปิดเหนือฐาน หรือห่างไม่เกินนิดเดียว
+        if green_push >= 1 and _close >= (prev_low - 0.2): 
             signal = "BUY"
             entry = _low - (buffer_pts * pt_mult) # เผื่อระยะกินไส้
             sl = entry - (sl_pts * pt_mult)
             tp = entry + (tp_pts * pt_mult)
-            
     elif valid_sell_rejection:
-        # หาโครงสร้าง Small 2H: ก่อนหน้ามีแท่งแดงกดลง 2-3 แท่ง แล้วแท่งปัจจุบัน(เขียว) ดันขึ้นไม่ทะลุ High ของชุดแดง
+        # หาโครงสร้าง Small 2H: ก่อนหน้ามีแท่งแดงกดลง 2-3 แท่ง
         red_push = 0
         prev_high = float('-inf')
         for i in range(2, 6):
@@ -82,21 +105,22 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
             else:
                 break
                 
-        if red_push >= 1 and _high <= (prev_high + 0.5): # ไม่ทะลุ High เดิม
+        # Liquidity Sweep Rule: ยอมให้ _high ทะลุ prev_high ได้เพื่อกวาด SL แต่ _close ต้องโดนตบกลับมาปิดใต้แนว
+        if red_push >= 1 and _close <= (prev_high + 0.2): 
             signal = "SELL"
             entry = _high + (buffer_pts * pt_mult)
             sl = entry + (sl_pts * pt_mult)
             tp = entry - (tp_pts * pt_mult)
-
     if signal != "WAIT":
         return {
             "signal": signal,
             "pattern": "S20.8 Small2L2H",
-            "entry": round(entry, 2),
-            "sl": round(sl, 2),
-            "tp": round(tp, 2),
+            "entry": round(entry, 5),
+            "sl": round(sl, 5),
+            "tp": round(tp, 5),
             "reason": f"S20.8 {signal} at Local {'Low (2L)' if signal == 'BUY' else 'High (2H)'}",
             "sid": 20.8
         }
         
-    return {"signal": "WAIT", "reason": "S20.8 No valid small 2L/2H structure", "pattern": "S20.8", "sid": 20.8}
+    reason = locals().get("reason_override", "S20.8 No valid small 2L/2H structure")
+    return {"signal": "WAIT", "reason": reason, "pattern": "S20.8", "sid": 20.8}

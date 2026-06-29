@@ -1391,15 +1391,48 @@ async def handle_callback(update, ctx):
             status_th = "เปิด ✅" if active_strategies[sid] else "ปิด ❌"
             await _show_strategy_detail(query, sid, f"{name}: {status_th}")
 
+    elif data == "toggle_s20_5_enabled":
+        config.S20_5_ENABLED = not getattr(config, "S20_5_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_5_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.5, f"S20.5: {status_th}")
+
+    elif data == "toggle_s20_6_enabled":
+        config.S20_6_FVG_ENABLED = not getattr(config, "S20_6_FVG_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_6_FVG_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.6, f"S20.6: {status_th}")
+
+    elif data == "toggle_s20_7_enabled":
+        config.S20_7_ENABLED = not getattr(config, "S20_7_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_7_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.7, f"S20.7: {status_th}")
+
+    elif data == "toggle_s20_8_enabled":
+        config.S20_8_ENABLED = not getattr(config, "S20_8_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_8_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.8, f"S20.8: {status_th}")
+
+    elif data == "toggle_s20_9_enabled":
+        config.S20_9_ENABLED = not getattr(config, "S20_9_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_9_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.9, f"S20.9: {status_th}")
+
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
         turn_on = (data == "strategy_all_on")
         for sid in active_strategies:
             active_strategies[sid] = turn_on
             config.active_strategies[sid] = turn_on
-        # S20.5/S20.6 ใช้ flag แยก — sync ตามด้วยเพื่อให้ execution ตรงกับที่กด
+        # S20.5-S20.9 ใช้ flag แยก — sync ตามด้วยเพื่อให้ execution ตรงกับที่กด
         config.S20_5_ENABLED = turn_on
         config.S20_6_FVG_ENABLED = turn_on
+        config.S20_7_ENABLED = turn_on
+        config.S20_8_ENABLED = turn_on
+        config.S20_9_ENABLED = turn_on
         save_runtime_state()
         active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"

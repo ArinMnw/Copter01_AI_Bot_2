@@ -261,7 +261,7 @@ def _note_orders_limit_hit():
     import time
     _orders_limit_until[0] = time.time() + float(getattr(config, "ORDERS_LIMIT_COOLDOWN_SEC", 60) or 60)
 
-def _pending_limit_blocked() -> tuple:
+def _pending_limit_blocked(sid=None) -> tuple:
     """กันยิง pending order ตอนใกล้/เต็ม broker limit (retcode 10033)
     คืน (blocked: bool, reason: str)
       - อยู่ใน cooldown หลังเพิ่งโดน 10033 → block
@@ -269,6 +269,8 @@ def _pending_limit_blocked() -> tuple:
     fail-safe: error ใดๆ → ไม่ block (คืน False)
     """
     if not getattr(config, "PENDING_LIMIT_GUARD_ENABLED", True):
+        return False, ""
+    if sid is not None and sid in getattr(config, "PENDING_LIMIT_GUARD_SKIP_SIDS", set()):
         return False, ""
     try:
         import time
@@ -285,10 +287,10 @@ def _pending_limit_blocked() -> tuple:
         return False, ""
     return False, ""
 
-def _pending_limit_skip_result():
+def _pending_limit_skip_result(sid=None):
     """ผลลัพธ์ skip มาตรฐานเมื่อ guard บล็อก — throttle log เป็น SYMBOL-style 1 ครั้ง/cooldown
     return dict (success=False, skipped=True, silent=True) ให้ caller เข้า branch skipped"""
-    blocked, reason = _pending_limit_blocked()
+    blocked, reason = _pending_limit_blocked(sid)
     if not blocked:
         return None
     try:
@@ -729,7 +731,7 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
     )
     is_scaled = bool(effective_steps)
 
-    _plim = _pending_limit_skip_result()
+    _plim = _pending_limit_skip_result(sid=sid)
     if _plim:
         return _plim
 
@@ -847,7 +849,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     )
     is_scaled = bool(effective_steps)
 
-    _plim = _pending_limit_skip_result()
+    _plim = _pending_limit_skip_result(sid=sid)
     if _plim:
         return _plim
 
@@ -960,7 +962,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     )
     is_scaled = bool(effective_steps)
 
-    _plim = _pending_limit_skip_result()
+    _plim = _pending_limit_skip_result(sid=sid)
     if _plim:
         return _plim
 

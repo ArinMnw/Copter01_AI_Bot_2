@@ -129,6 +129,22 @@ def main():
 
             result = strategy_20_8(current_rates, tf=tf_name, config=sim_config)
             if result.get("signal") in ("BUY", "SELL"):
+                # --- Quant Engine Intercept ---
+                # import quant_engine
+                # last_candle_time = curr_bar["time"]
+                # time_bkk = datetime.fromtimestamp(last_candle_time, tz=BKK)
+                # curr_price = float(curr_bar["close"])
+                
+                # quant_res = quant_engine.evaluate_signal(tf_name, 20.8, result, current_rates, curr_price, time_bkk)
+                # if quant_res.get("status") == "REJECTED":
+                #     continue
+                    
+                # if quant_res.get("adjusted_sl"):
+                #     result["sl"] = quant_res["adjusted_sl"]
+                # if quant_res.get("adjusted_tp"):
+                #     result["tp"] = quant_res["adjusted_tp"]
+                # ------------------------------
+                
                 in_position = True
                 pos_type = result["signal"]
                 pos_entry = result["entry"]
