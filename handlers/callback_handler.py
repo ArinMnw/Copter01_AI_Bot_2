@@ -2017,6 +2017,18 @@ async def handle_callback(update, ctx):
         ctx.user_data['prompt_msg_id'] = msg.message_id
         await _qanswer(query)
 
+    elif data == 'toggle_s20_8_compounding':
+        config.S20_8_COMPOUNDING_ENABLED = not getattr(config, 'S20_8_COMPOUNDING_ENABLED', False)
+        config.save_runtime_state()
+        from handlers.keyboard import show_s20_settings_menu
+        await show_s20_settings_menu(query, is_query=True)
+
+    elif data == 'prompt_s20_8_risk_pct':
+        msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S20.8 (เช่น 2.0):")
+        ctx.user_data['awaiting_input'] = 's20_8_risk_pct'
+        ctx.user_data['prompt_msg_id'] = msg.message_id
+        await _qanswer(query)
+
     else:
         # catch-all: ปิด spinner กันค้าง + log callback_data ที่ไม่มี handler รองรับ
         _log_cb_error("unhandled_callback", RuntimeError(f"no handler for data={data!r}"))
