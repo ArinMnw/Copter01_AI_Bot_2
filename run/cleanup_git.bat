@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  cleanup_git.bat — Manual cleanup สำหรับ .git folder
+REM  run\cleanup_git.bat — Manual cleanup สำหรับ .git folder
 REM  ใช้เมื่อ .git บวมเกินที่ auto-gc จัดการได้
 REM  - ลบ reflog entries ทั้งหมด
 REM  - pack objects แบบ aggressive
@@ -8,7 +8,7 @@ REM  - prune unreachable blobs
 REM ============================================================
 
 setlocal enabledelayedexpansion
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 echo.
 echo ============================================================

@@ -247,4 +247,4 @@ section header: `━ Premium/Discount Zone ━`
 **พฤติกรรม:**
 - ระบบจะใช้โมเดล AI (RandomForest) ประเมินความน่าจะเป็น (Probability) ของ Signal ว่าจะชนะหรือไม่
 - ถ้าเปิดใช้ ระบบจะบล็อก Signal ที่มีคะแนนต่ำกว่า `ML_PROB_THRESHOLD`
-- การเรียนรู้/สอนโมเดล (Train) ทำงานแยกต่างหากผ่าน `run_optimize.bat` (Walk-Forward Optimization)
+- การเรียนรู้/สอนโมเดล (Train) ทำงานแยกต่างหากผ่าน `run\run_optimize.bat` (Walk-Forward Optimization)

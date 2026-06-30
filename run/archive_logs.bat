@@ -1,9 +1,9 @@
 @echo off
-REM archive_logs.bat -- archive bot/system/error logs to monthly files
-REM Usage: archive_logs.bat [--dry-run]
+REM run\archive_logs.bat -- archive bot/system/error logs to monthly files
+REM Usage: run\archive_logs.bat [--dry-run]
 REM Stop the bot first to avoid file-lock errors
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 echo.
 echo [archive_logs] Archiving logs to monthly files...
 echo.

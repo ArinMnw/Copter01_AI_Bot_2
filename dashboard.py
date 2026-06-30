@@ -411,7 +411,7 @@ with tab_health:
             st.metric("PID", hb.get("pid", "—"))
         if age >= 90:
             st.error("Heartbeat stale — bot process may be hung or stopped. "
-                     "Supervisor (run_supervised.bat) should auto-restart it.")
+                     "Supervisor (run\\run_supervised.bat) should auto-restart it.")
     else:
         st.warning("No heartbeat file (bot_heartbeat.txt). Bot not running, "
                    "or started without heartbeat_job.")

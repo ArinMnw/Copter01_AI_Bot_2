@@ -17,7 +17,7 @@ python main.py
 บน Windows:
 
 ```bash
-run.bat
+run\run.bat
 ```
 
 ## ไฟล์สำคัญ
@@ -51,4 +51,3 @@ run.bat
 - เวลาใน `bot.log` เป็น BKK (UTC+7) — ใช้เป็นแหล่งอ้างอิงหลัก
 - เวลาใน MT5 chart, order time, history เป็น broker time
 - ถ้าตามรอย order ระหว่าง bot.log กับ MT5 ให้ปรับ offset ด้วยเสมอ
-
