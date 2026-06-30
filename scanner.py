@@ -1,6 +1,8 @@
 from config import *
 import config
 import asyncio
+import importlib.util as _importlib_util
+from pathlib import Path as _Path
 import time as _time
 from bot_log import log_block, log_event
 from mt5_utils import connect_mt5, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
@@ -29,7 +31,11 @@ from strategy20 import strategy_20
 from strategy20_5 import strategy_20_5
 from strategy20_6 import strategy_20_6
 from strategy20_7 import strategy_20_7
-from strategy20_8 import strategy_20_8
+_s20_8_path = _Path(__file__).resolve().parent / "strategy" / "s20.8" / "strategy20_8.py"
+_s20_8_spec = _importlib_util.spec_from_file_location("strategy20_8", _s20_8_path)
+_s20_8_module = _importlib_util.module_from_spec(_s20_8_spec)
+_s20_8_spec.loader.exec_module(_s20_8_module)
+strategy_20_8 = _s20_8_module.strategy_20_8
 from strategy20_9 import strategy_20_9
 try:
     from strategy21 import strategy_21
