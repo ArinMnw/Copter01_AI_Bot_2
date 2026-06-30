@@ -1415,6 +1415,12 @@ async def handle_callback(update, ctx):
         status_th = "เปิด ✅" if config.S20_10_ENABLED else "ปิด ❌"
         await _show_strategy_detail(query, 20.10, f"S20.10: {status_th}")
 
+    elif data == "toggle_s20_11_enabled":
+        config.S20_11_ENABLED = not getattr(config, "S20_11_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_11_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.11, f"S20.11: {status_th}")
+
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
         turn_on = (data == "strategy_all_on")
@@ -1428,6 +1434,7 @@ async def handle_callback(update, ctx):
         config.S20_8_ENABLED = turn_on
         config.S20_9_ENABLED = turn_on
         config.S20_10_ENABLED = turn_on
+        config.S20_11_ENABLED = turn_on
         save_runtime_state()
         active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"
@@ -1843,6 +1850,8 @@ async def handle_callback(update, ctx):
         except (ValueError, TypeError):
             await _qanswer(query, "ค่าไม่ถูกต้อง")
 
+
+
     elif data == "toggle_pending_rsi_recheck":
         config.PENDING_RSI_RECHECK_ENABLED = not config.PENDING_RSI_RECHECK_ENABLED
         save_runtime_state()
@@ -2032,6 +2041,34 @@ async def handle_callback(update, ctx):
                 pass
             await _qanswer(query, "Error")
 
+    elif data.startswith('toggle_s20_5_tf_'):
+        tf = data.replace('toggle_s20_5_tf_', '')
+        if hasattr(config, 'S20_5_TF_ENABLED'):
+            d = getattr(config, 'S20_5_TF_ENABLED')
+            d[tf] = not d.get(tf, True)
+            config.save_runtime_state()
+            await _show_strategy_detail(query, 20.5)
+
+    elif data == 'toggle_s20_5_compounding':
+        config.S20_5_COMPOUNDING_ENABLED = not getattr(config, 'S20_5_COMPOUNDING_ENABLED', False)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.5)
+
+    elif data == 'prompt_s20_5_risk_pct':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S20.5 (เช่น 2.0):")
+            ctx.user_data['awaiting_input'] = 's20_5_risk_pct'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_5_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
     elif data.startswith('toggle_s20_6_tf_'):
         tf = data.replace('toggle_s20_6_tf_', '')
         tf_dict = getattr(config, 'S20_6_TF_ENABLED', {})
@@ -2101,6 +2138,34 @@ async def handle_callback(update, ctx):
             err_msg = traceback.format_exc()
             try:
                 await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_10_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
+    elif data.startswith('toggle_s20_11_tf_'):
+        tf = data.replace('toggle_s20_11_tf_', '')
+        if hasattr(config, 'S20_11_TF_ENABLED'):
+            d = getattr(config, 'S20_11_TF_ENABLED')
+            d[tf] = not d.get(tf, True)
+            config.save_runtime_state()
+            await _show_strategy_detail(query, 20.11)
+
+    elif data == 'toggle_s20_11_compounding':
+        config.S20_11_COMPOUNDING_ENABLED = not getattr(config, 'S20_11_COMPOUNDING_ENABLED', False)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.11)
+
+    elif data == 'prompt_s20_11_risk_pct':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S20.11 (เช่น 2.0):")
+            ctx.user_data['awaiting_input'] = 's20_11_risk_pct'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_11_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
             except:
                 pass
             await _qanswer(query, "Error")

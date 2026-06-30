@@ -73,7 +73,7 @@ def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
       - scaled_volume = 4 × base_volume
     """
     try:
-        if str(sid) in ("13", "17"):
+        if str(sid) in ("13", "17") or str(sid).startswith("20.") or str(sid) == "21":
             return float(base_volume), []
         if not config.SCALE_OUT_ENABLED or base_volume <= 0:
             return float(base_volume), []

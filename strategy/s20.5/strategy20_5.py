@@ -209,6 +209,9 @@ def _find_fibo_models(rates, atr):
 
 
 def strategy_20_5(rates, tf="M5", dt_bkk=None) -> dict:
+    if getattr(config, "S20_5_TF_ENABLED", {}).get(tf) is False:
+        return {"signal": "WAIT", "reason": f"S20.5 is disabled for {tf}", "pattern": "S20.5", "sid": 20.5}
+
     if not _in_session(dt_bkk):
         return {"signal": "WAIT", "reason": "S20.5 - นอกเวลาทำการ", "pattern": "S20.5", "sid": 20.5}
         

@@ -951,6 +951,8 @@ def build_strategy_keyboard():
             return getattr(config, "S20_8_ENABLED", False)
         if sid == 20.10:
             return getattr(config, "S20_10_ENABLED", False)
+        if sid == 20.11:
+            return getattr(config, "S20_11_ENABLED", False)
         return active_strategies.get(sid, False)
 
     rows = []
@@ -996,6 +998,9 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.10:
         is_on = getattr(config, "S20_10_ENABLED", False)
         toggle_cb = "toggle_s20_10_enabled"
+    elif sid == 20.11:
+        is_on = getattr(config, "S20_11_ENABLED", False)
+        toggle_cb = "toggle_s20_11_enabled"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"
@@ -1398,19 +1403,6 @@ def build_strategy_detail_keyboard(sid: int):
         ])
 
     
-    elif sid == 20.5:
-        c_s20_5 = "🟢 S20.5 Compounding (On)" if getattr(config, "S20_5_COMPOUNDING_ENABLED", False) else "🔴 S20.5 Compounding (Off)"
-        rows.append([
-            InlineKeyboardButton(c_s20_5, callback_data="toggle_s20_5_compounding")
-        ])
-        r_pct = getattr(config, "S20_5_RISK_PCT", 2.0)
-        rows.append([
-            InlineKeyboardButton(f"S20.5 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_5_risk_pct")
-        ])
-
-    elif sid == 20.6:
-        pass
-
     elif sid == 20:
         s20_en     = getattr(config, "S20_ENABLED", False)
         t_defect   = getattr(config, "S20_TRIGGER_DEFECT", True)
@@ -1464,6 +1456,27 @@ def build_strategy_detail_keyboard(sid: int):
             )
         ])
 
+    elif sid == 20.5:
+        tf_dict = getattr(config, "S20_5_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_5_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_5 = "🟢 S20.5 Compounding (On)" if getattr(config, "S20_5_COMPOUNDING_ENABLED", False) else "🔴 S20.5 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_5, callback_data="toggle_s20_5_compounding")
+        ])
+        r_pct = getattr(config, "S20_5_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.5 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_5_risk_pct")
+        ])
+
     elif sid == 20.6:
         tf_dict = getattr(config, "S20_6_TF_ENABLED", {})
         tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
@@ -1507,6 +1520,27 @@ def build_strategy_detail_keyboard(sid: int):
         psycho_num = "🟢 ใช้เลขจิตวิทยา (On)" if getattr(config, "S20_10_USE_PSYCHOLOGICAL_NUMBERS", True) else "🔴 ใช้เลขจิตวิทยา (Off)"
         rows.append([
             InlineKeyboardButton(psycho_num, callback_data="toggle_s20_10_psycho")
+        ])
+
+    elif sid == 20.11:
+        tf_dict = getattr(config, "S20_11_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_11_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_11 = "🟢 S20.11 Compounding (On)" if getattr(config, "S20_11_COMPOUNDING_ENABLED", False) else "🔴 S20.11 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_11, callback_data="toggle_s20_11_compounding")
+        ])
+        r_pct = getattr(config, "S20_11_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.11 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_11_risk_pct")
         ])
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])

@@ -563,6 +563,57 @@ async def _handle_custom_input(update, context, text, awaiting):
         
         await _show_strategy_detail(MockQuery(update.effective_message), 20.10)
 
+    elif awaiting == "s20_11_risk_pct":
+        config.S20_11_RISK_PCT = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20.11 Risk %** เป็น {val}% เรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.callback_handler import _show_strategy_detail
+        # Mocking query-like object since it's a message update
+        class MockQuery:
+            def __init__(self, msg):
+                self.message = msg
+            async def edit_message_text(self, *args, **kwargs):
+                await self.message.reply_text(*args, **kwargs)
+        
+        await _show_strategy_detail(MockQuery(update.effective_message), 20.11)
+
+    elif awaiting == "s20_5_risk_pct":
+        config.S20_5_RISK_PCT = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20.5 Risk %** เป็น {val}% เรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.callback_handler import _show_strategy_detail
+        # Mocking query-like object since it's a message update
+        class MockQuery:
+            def __init__(self, msg):
+                self.message = msg
+            async def edit_message_text(self, *args, **kwargs):
+                await self.message.reply_text(*args, **kwargs)
+        
+        await _show_strategy_detail(MockQuery(update.effective_message), 20.5)
+
+    elif awaiting == "s20_6_risk_pct":
+        config.S20_6_RISK_PCT = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20.6 Risk %** เป็น {val}% เรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.callback_handler import _show_strategy_detail
+        # Mocking query-like object since it's a message update
+        class MockQuery:
+            def __init__(self, msg):
+                self.message = msg
+            async def edit_message_text(self, *args, **kwargs):
+                await self.message.reply_text(*args, **kwargs)
+        
+        await _show_strategy_detail(MockQuery(update.effective_message), 20.6)
+
 async def _handle_lot_input(update, context, text, waiting):
     """รับ lot size จาก user input"""
     context.user_data.pop("waiting_lot_input", None)

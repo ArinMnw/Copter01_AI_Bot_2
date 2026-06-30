@@ -447,8 +447,13 @@ def _build_buy_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_lookup
             ll_cands = [c for c in candidates if c["source"] == "LL"]
             if ll_cands:
                 latest_ll = max(ll_cands, key=lambda c: c["time"])
-                if latest_ll["time"] != newest["time"]:
-                    active_refs.append(latest_ll)
+                lo_t = min(latest_ll["time"], newest["time"])
+                hi_t = max(latest_ll["time"], newest["time"])
+                active_refs = [
+                    c for c in candidates
+                    if lo_t <= c["time"] <= hi_t
+                ]
+                active_refs.sort(key=lambda c: c["time"], reverse=True)
         return active_refs
 
     # ── 2. ตรวจ Sweep ─────────────────────────────────────────────────────────
@@ -838,8 +843,13 @@ def _build_sell_results(rates, rsi_vals, tf: str, tp_rates=None, htf_rates_looku
             hh_cands = [c for c in candidates if c["source"] == "HH"]
             if hh_cands:
                 latest_hh = max(hh_cands, key=lambda c: c["time"])
-                if latest_hh["time"] != newest["time"]:
-                    active_refs.append(latest_hh)
+                lo_t = min(latest_hh["time"], newest["time"])
+                hi_t = max(latest_hh["time"], newest["time"])
+                active_refs = [
+                    c for c in candidates
+                    if lo_t <= c["time"] <= hi_t
+                ]
+                active_refs.sort(key=lambda c: c["time"], reverse=True)
         return active_refs
 
     # ── 2. ตรวจ Sweep ─────────────────────────────────────────────────────────
