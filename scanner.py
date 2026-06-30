@@ -31,6 +31,7 @@ from strategy20 import strategy_20
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.5"))
 from strategy20_5 import strategy_20_5
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.6"))
 from strategy20_6 import strategy_20_6
 from strategy20_7 import strategy_20_7
 _s20_8_path = _Path(__file__).resolve().parent / "strategy" / "s20.8" / "strategy20_8.py"
@@ -2894,7 +2895,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_5.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.5, r20_5["signal"], last_candle_time, r20_5)
 
-    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) else {"signal": "WAIT", "reason": "S20.6 ปิด"}
+    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) and getattr(config, "S20_6_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.6 ปิด หรือ TF ปิด"}
     if r20_6.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.6, r20_6["signal"], last_candle_time, r20_6)
 

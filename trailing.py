@@ -2307,6 +2307,8 @@ async def check_s1_zone_rules(app):
             ))
             print(f"🗑️ [{now}] S1 {_mode} cancel {ticket} [{tf}]: {reason}")
 
+            await _close_linked_s11_for_tf(app, tf, f"S1 canceled by {_mode} rule [{tf}]")
+
     # Filled S1: if outside zone/swing rule -> close.
     for pos in positions:
         ticket = int(pos.ticket)
@@ -2357,7 +2359,7 @@ async def check_s1_zone_rules(app):
         else: # _mode == "swing"
             forward_meta = position_forward_meta.get(ticket) or {}
             t_detect = int(forward_meta.get("detect_bar_time", 0) or 0)
-            if t_detect <= 0 or forward_meta.get("confirmed"):
+            if t_detect <= 0 or forward_meta.get("swing_confirmed"):
                 continue
 
             t_last_closed = int(rates[-1]["time"])
@@ -2389,7 +2391,7 @@ async def check_s1_zone_rules(app):
                         break
 
             if has_valid_swing:
-                forward_meta["confirmed"] = True
+                forward_meta["swing_confirmed"] = True
                 position_forward_meta[ticket] = forward_meta
                 save_runtime_state()
                 continue

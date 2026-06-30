@@ -538,6 +538,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
     ใช้เมื่อ TG_SENT ถูกตัดกลางคำ (order เก่าที่ log แค่ 300 chars)"""
     oc_time_str = tf_name = entry = sl = tp = sid = signal = trend = hhll_log = None
     htf_ltf = sub_pattern_log = None
+    setup_bar_time = 0
     s14_ref_bar_time = s14_signal_bar_time = 0
     tk_str = str(ticket)
     for line in all_lines:
@@ -554,6 +555,12 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
         signal   = _fld(line, 'signal')
         trend    = _fld(line, 'trend_filter')
         hhll_log = _fld(line, 'hhll_last_label')  # บันทึก ณ ตอนสร้าง order
+        m_flow_t = re.search(r'flow_id=.*?\|T(\d+)(?:\||\s|$)', line)
+        if m_flow_t:
+            try:
+                setup_bar_time = int(m_flow_t.group(1))
+            except (TypeError, ValueError):
+                setup_bar_time = 0
         htf_ltf         = _fld(line, 'htf_ltf')
         sub_pattern_log = _fld(line, 'sub_pattern') or ""
         try:
@@ -621,6 +628,10 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
                 return None
             step = tf_mins.get(tf_str, 1)
             tf_secs = step * 60
+            if setup_bar_time and (not htf_tf or tf_str == ltf_tf):
+                raw = mt5.copy_rates_from(symbol, tf_id, int(setup_bar_time), count)
+                if raw is not None and len(raw) >= count:
+                    return raw[-count:]
             # ดึงแท่งที่ปิดก่อน oc_time
             start = oc_dt - timedelta(minutes=step * (count + 4))
             end   = oc_dt - timedelta(seconds=1)

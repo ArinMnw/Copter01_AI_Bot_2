@@ -1464,6 +1464,27 @@ def build_strategy_detail_keyboard(sid: int):
             )
         ])
 
+    elif sid == 20.6:
+        tf_dict = getattr(config, "S20_6_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_6_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_6 = "🟢 S20.6 Compounding (On)" if getattr(config, "S20_6_COMPOUNDING_ENABLED", False) else "🔴 S20.6 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_6, callback_data="toggle_s20_6_compounding")
+        ])
+        r_pct = getattr(config, "S20_6_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.6 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_6_risk_pct")
+        ])
+
     elif sid == 20.8:
         c_s20_8 = "🟢 S20.8 Compounding (On)" if getattr(config, "S20_8_COMPOUNDING_ENABLED", False) else "🔴 S20.8 Compounding (Off)"
         rows.append([
