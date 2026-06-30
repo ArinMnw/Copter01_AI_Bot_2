@@ -37,6 +37,9 @@ _s20_8_module = _importlib_util.module_from_spec(_s20_8_spec)
 _s20_8_spec.loader.exec_module(_s20_8_module)
 strategy_20_8 = _s20_8_module.strategy_20_8
 from strategy20_9 import strategy_20_9
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.10"))
+from strategy20_10 import strategy_20_10
 try:
     from strategy21 import strategy_21
 except ModuleNotFoundError:
@@ -2905,6 +2908,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_9.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.9, r20_9["signal"], last_candle_time, r20_9)
 
+    r20_10 = strategy_20_10(rates, tf_name=tf_name, config=config) if active_strategies.get(20.10, False) else {"signal": "WAIT", "reason": "S20.10 ปิด"}
+    if r20_10.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.10, r20_10["signal"], last_candle_time, r20_10)
+
     r21 = strategy_21(rates, tf_name=tf_name, config=config) if active_strategies.get(21, False) else {"signal": "WAIT", "reason": "S21 ปิด"}
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
@@ -3317,7 +3324,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── News Filter Bypass Application ──
     if getattr(config, "news_pause_active", False):
         _n_skip = getattr(config, "NEWS_FILTER_SKIP_SIDS", set())
-        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (21,r21)]:
+        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (20.10,r20_10), (21,r21)]:
             if _s not in _n_skip and _r.get("signal") not in ("WAIT", None):
                 _r["signal"] = "WAIT"
                 _r["reason"] = "📰 ติด News Filter Embargo"
@@ -3325,7 +3332,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (21, r21)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (21, r21)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3357,7 +3364,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (21, r21)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (21, r21)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")

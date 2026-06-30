@@ -949,6 +949,8 @@ def build_strategy_keyboard():
             return getattr(config, "S20_7_ENABLED", False)
         if sid == 20.8:
             return getattr(config, "S20_8_ENABLED", False)
+        if sid == 20.10:
+            return getattr(config, "S20_10_ENABLED", False)
         return active_strategies.get(sid, False)
 
     rows = []
@@ -991,6 +993,9 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.8:
         is_on = getattr(config, "S20_8_ENABLED", False)
         toggle_cb = "toggle_s20_8_enabled"
+    elif sid == 20.10:
+        is_on = getattr(config, "S20_10_ENABLED", False)
+        toggle_cb = "toggle_s20_10_enabled"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"
@@ -1458,6 +1463,20 @@ def build_strategy_detail_keyboard(sid: int):
         r_pct = getattr(config, "S20_8_RISK_PCT", 2.0)
         rows.append([
             InlineKeyboardButton(f"S20.8 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_8_risk_pct")
+        ])
+
+    elif sid == 20.10:
+        c_s20_10 = "🟢 S20.10 Compounding (On)" if getattr(config, "S20_10_COMPOUNDING_ENABLED", False) else "🔴 S20.10 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_10, callback_data="toggle_s20_10_compounding")
+        ])
+        r_pct = getattr(config, "S20_10_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.10 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_10_risk_pct")
+        ])
+        psycho_num = "🟢 ใช้เลขจิตวิทยา (On)" if getattr(config, "S20_10_USE_PSYCHOLOGICAL_NUMBERS", True) else "🔴 ใช้เลขจิตวิทยา (Off)"
+        rows.append([
+            InlineKeyboardButton(psycho_num, callback_data="toggle_s20_10_psycho")
         ])
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])

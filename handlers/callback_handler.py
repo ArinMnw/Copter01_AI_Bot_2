@@ -254,6 +254,14 @@ _STRATEGY_DESC = {
           "🎯 Entry: Pullback ที่ 50% ของ range แท่ง\n"
           "🛑 SL: 1.5 ATR\n"
           "🎯 TP: 2.0 ATR จาก Entry",
+
+    20.10: "🎯 *S20.10 Wick Purge (Reversal Trap)*\n\n"
+           "เน้นจับการหลอกกิน Stop Loss (Liquidity Sweep) แล้วกลับตัว\n"
+           "1️⃣ *BUY*: ทะลุ Low ล่าสุดลงไป แต่ดึงกลับมาปิดเป็นบวก (SP_Trap)\n"
+           "2️⃣ *SELL*: ทะลุ High ล่าสุดขึ้นไป แต่ทุบกลับมาปิดเป็นลบ (DM_Trap)\n\n"
+           "🎯 Entry: LIMIT กินไส้\n"
+           "🛑 SL: ใต้/เหนือไส้ + 1 ATR Buffer\n"
+           "🎯 TP: 2 ATR",
 }
 
 
@@ -1401,6 +1409,12 @@ async def handle_callback(update, ctx):
         status_th = "เปิด ✅" if config.S20_9_ENABLED else "ปิด ❌"
         await _show_strategy_detail(query, 20.9, f"S20.9: {status_th}")
 
+    elif data == "toggle_s20_10_enabled":
+        config.S20_10_ENABLED = not getattr(config, "S20_10_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_10_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.10, f"S20.10: {status_th}")
+
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
         turn_on = (data == "strategy_all_on")
@@ -1413,6 +1427,7 @@ async def handle_callback(update, ctx):
         config.S20_7_ENABLED = turn_on
         config.S20_8_ENABLED = turn_on
         config.S20_9_ENABLED = turn_on
+        config.S20_10_ENABLED = turn_on
         save_runtime_state()
         active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"
@@ -2013,6 +2028,31 @@ async def handle_callback(update, ctx):
             err_msg = traceback.format_exc()
             try:
                 await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_8_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
+    elif data == 'toggle_s20_10_compounding':
+        config.S20_10_COMPOUNDING_ENABLED = not getattr(config, 'S20_10_COMPOUNDING_ENABLED', False)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.10)
+
+    elif data == 'toggle_s20_10_psycho':
+        config.S20_10_USE_PSYCHOLOGICAL_NUMBERS = not getattr(config, 'S20_10_USE_PSYCHOLOGICAL_NUMBERS', True)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.10)
+
+    elif data == 'prompt_s20_10_risk_pct':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S20.10 (เช่น 2.0):")
+            ctx.user_data['awaiting_input'] = 's20_10_risk_pct'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_10_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
             except:
                 pass
             await _qanswer(query, "Error")

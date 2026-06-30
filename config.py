@@ -287,12 +287,12 @@ TRADE_DEBUG = False
 
 # ── Standalone Strategy / Filter Skip Configs ──────────────
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
-PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 21}
-NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 21}
-SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 21}
+PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 21}
+NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 21}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 21}
 SL_GUARD_GROUP_SKIP_SIDS      = {1}
-OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19}
-PDFIBOPLUS_SKIP_SIDS          = {1, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.8}
+OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.10}
+PDFIBOPLUS_SKIP_SIDS          = {1, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.8, 20.10}
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
 
@@ -636,6 +636,7 @@ active_strategies = {
     20.6: True,  # S20.6: FVG Standalone
     20.8: False, # ท่าที่ 20.8: อออิน4วิ 2 (Rejection)
     20.9: False, # ท่าที่ 20.9: Candle Action
+    20.10: False, # ท่าที่ 20.10: Allin4s_2 (Reversal Trap)
 }
 
 STRATEGY_NAMES = {
@@ -664,6 +665,7 @@ STRATEGY_NAMES = {
     20.7: "S20.7: อออิน4วิ 1",
     20.8: "S20.8: อออิน4วิ 2",
     20.9: "S20.9: Candle Action",
+    20.10: "S20.10: Wick Purge",
 }
 
 # ── Strategy 20: All in 4s (Reversal & Retracement) ─────────
@@ -676,6 +678,11 @@ S20_8_COMPOUNDING_ENABLED = False
 S20_8_RISK_PCT        = 2.0
 S20_8_MAX_LOT         = 50.0
 S20_9_ENABLED         = False
+S20_10_ENABLED        = False
+S20_10_COMPOUNDING_ENABLED = False
+S20_10_RISK_PCT       = 2.0
+S20_10_MAX_LOT        = 50.0
+S20_10_USE_PSYCHOLOGICAL_NUMBERS = True
 
 S20_8_POINTS_MULTIPLIER = 0.01
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
@@ -1929,6 +1936,12 @@ def save_runtime_state():
             "s20_8_compounding_enabled": S20_8_COMPOUNDING_ENABLED,
             "s20_8_risk_pct": S20_8_RISK_PCT,
             "s20_8_max_lot": S20_8_MAX_LOT,
+            "s20_9_enabled": S20_9_ENABLED,
+            "s20_10_enabled": S20_10_ENABLED,
+            "s20_10_compounding_enabled": S20_10_COMPOUNDING_ENABLED,
+            "s20_10_risk_pct": S20_10_RISK_PCT,
+            "s20_10_max_lot": S20_10_MAX_LOT,
+            "s20_10_use_psychological_numbers": S20_10_USE_PSYCHOLOGICAL_NUMBERS,
             "recheck_combined_mode": RECHECK_COMBINED_MODE,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
@@ -2198,6 +2211,7 @@ def restore_runtime_state():
         global S20_ENABLED, S20_SUB_CONFIG, S20_MIN_BODY_ATR_PCT, S20_SL_BUFFER, S20_FIBO_TP_LEVEL, S20_TREND_FILTER, S20_SESSION_FILTER, S20_ENTRY_BUFFER, S20_SL_2L2H
         global S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED, S20_8_ENABLED
         global S20_8_COMPOUNDING_ENABLED, S20_8_RISK_PCT, S20_8_MAX_LOT
+        global S20_9_ENABLED, S20_10_ENABLED, S20_10_COMPOUNDING_ENABLED, S20_10_RISK_PCT, S20_10_MAX_LOT, S20_10_USE_PSYCHOLOGICAL_NUMBERS
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
@@ -2260,6 +2274,12 @@ def restore_runtime_state():
         S20_8_COMPOUNDING_ENABLED = bool(state.get("s20_8_compounding_enabled", S20_8_COMPOUNDING_ENABLED))
         S20_8_RISK_PCT = float(state.get("s20_8_risk_pct", S20_8_RISK_PCT))
         S20_8_MAX_LOT = float(state.get("s20_8_max_lot", S20_8_MAX_LOT))
+        S20_9_ENABLED = bool(state.get("s20_9_enabled", S20_9_ENABLED))
+        S20_10_ENABLED = bool(state.get("s20_10_enabled", S20_10_ENABLED))
+        S20_10_COMPOUNDING_ENABLED = bool(state.get("s20_10_compounding_enabled", S20_10_COMPOUNDING_ENABLED))
+        S20_10_RISK_PCT = float(state.get("s20_10_risk_pct", S20_10_RISK_PCT))
+        S20_10_MAX_LOT = float(state.get("s20_10_max_lot", S20_10_MAX_LOT))
+        S20_10_USE_PSYCHOLOGICAL_NUMBERS = bool(state.get("s20_10_use_psychological_numbers", S20_10_USE_PSYCHOLOGICAL_NUMBERS))
         saved_s20_sub = state.get("s20_sub_config")
         if isinstance(saved_s20_sub, dict):
             S20_SUB_CONFIG.update(saved_s20_sub)
