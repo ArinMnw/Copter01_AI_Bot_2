@@ -178,13 +178,67 @@ def _has_swing_in_lookback(rates, signal: str, lookback_bars: int = 8) -> bool:
     return False
 
 
-def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_bars: int) -> dict | None:
+def _s1_swing_confirmed_for_lookback(
+    result: dict,
+    signal: str,
+    tf_name: str,
+    tf_secs: int,
+    current_bar_time: int,
+    detect_time: int,
+) -> bool:
+    if getattr(config, "S1_ZONE_MODE", "") != "swing":
+        return True
+    if not tf_name or not tf_secs:
+        return False
+
+    zone_meta = result.get("s1_zone_meta") or {}
+    if not zone_meta.get("enabled"):
+        return False
+
+    signal = str(signal or zone_meta.get("signal") or "").upper()
+    candles = result.get("candles") or []
+    pattern_candle_times = {
+        int(c["time"])
+        for c in candles
+        if c is not None and "time" in c
+    }
+    if not pattern_candle_times:
+        pattern_candle_times = {detect_time - n * int(tf_secs) for n in range(4)}
+
+    try:
+        hhll_swing.fetch_hhll(tf_name, current_bar_time=current_bar_time)
+        data = hhll_swing.get_hhll_data(tf_name) or {}
+    except Exception:
+        return False
+
+    if signal == "BUY":
+        points = [data.get("hl"), data.get("ll")]
+    elif signal == "SELL":
+        points = [data.get("hh"), data.get("lh")]
+    else:
+        return False
+
+    hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+    for point in points:
+        if not point or not point.get("time"):
+            continue
+        swing_time = int(point["time"])
+        if swing_time not in pattern_candle_times:
+            continue
+        confirm_time = swing_time + hhll_right * int(tf_secs)
+        if detect_time <= confirm_time <= detect_time + 5 * int(tf_secs) and confirm_time <= current_bar_time:
+            return True
+    return False
+
+
+def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_bars: int, tf_name: str = "") -> dict | None:
     lookback_bars = max(0, int(lookback_bars or 0))
     if lookback_bars <= 0 or rates is None or len(rates) < 4:
         return None
 
     signal = str(signal or "").upper()
     matches = []
+    invalid_s1_swing_detect_times = set()
     checkers = (
         (1, strategy_1),
         (2, strategy_2),
@@ -201,7 +255,7 @@ def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_
 
         for sid, checker in checkers:
             try:
-                result = checker(sliced_rates)
+                result = checker(sliced_rates, tf=tf_name) if sid == 1 else checker(sliced_rates)
             except Exception:
                 continue
             if sid == 2:
@@ -210,9 +264,23 @@ def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_
                 fvg = result.get("fvg") or {}
                 if str(fvg.get("signal", "")).upper() != signal:
                     continue
+                if detect_time in invalid_s1_swing_detect_times:
+                    continue
                 pattern = str(fvg.get("pattern", "") or "")
             else:
                 if str(result.get("signal", "")).upper() != signal:
+                    continue
+                if sid == 1 and not _s1_swing_confirmed_for_lookback(
+                    result,
+                    signal,
+                    tf_name,
+                    int(tf_secs or 0),
+                    int(rates[-1]["time"]),
+                    detect_time,
+                ):
+                    invalid_s1_swing_detect_times.add(detect_time)
+                    continue
+                if sid != 1 and detect_time in invalid_s1_swing_detect_times:
                     continue
                 pattern = str(result.get("pattern", "") or "")
             matches.append({
@@ -1739,7 +1807,7 @@ async def check_s3_maru_pending(app):
         cl = float(last_bar["close"])
         bull_next = cl > o
         lookback_bars = max(0, int(getattr(config, "S3_CONFIRM_LOOKBACK_BARS", getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8)) or 0))
-        s3_confirm_ref = _find_recent_signal_confirmation(rates, direction, TF_SECONDS_MAP.get(tf, 0), lookback_bars)
+        s3_confirm_ref = _find_recent_signal_confirmation(rates, direction, TF_SECONDS_MAP.get(tf, 0), lookback_bars, tf)
         if not s3_confirm_ref:
             _tf_secs_maru = max(1, TF_SECONDS_MAP.get(tf, 60))
             _key_maru = (tf, 3, direction)
@@ -2941,6 +3009,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     fvg["signal"],
                     tf_secs,
                     getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8),
+                    tf_name,
                 )
                 if not s2_confirm_ref:
                     _key_s2 = (tf_name, 2, fvg["signal"])
@@ -3422,7 +3491,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 0,
                 int(getattr(config, "S3_CONFIRM_LOOKBACK_BARS", getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8)) or 0),
             )
-            s3_confirm_ref = _find_recent_signal_confirmation(rates, signal, tf_secs, s3_lookback_bars)
+            s3_confirm_ref = _find_recent_signal_confirmation(rates, signal, tf_secs, s3_lookback_bars, tf_name)
             if not s3_confirm_ref:
                 _key_s3 = (tf_name, 3, signal)
                 if _key_s3 not in _lookback_fallback_start:

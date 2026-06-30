@@ -190,7 +190,7 @@ def strategy_1(rates, tf=""):
     #  [1] แดง → [0] เขียว close > h[1]
     #  Entry = open[1] | SL = min(l0,l1) - SL_BUFFER
     # ══════════════════════════════════════════════
-    if not bull1 and bull0:
+    if getattr(config, "S1_P6_ENABLED", True) and not bull1 and bull0:
         c0_engulf = bull_engulf(cl0, h1)
         zone      = (not use_zone) or (zone_low_2 <= sl_z + buf)
         if c0_engulf and zone:
@@ -220,7 +220,7 @@ def strategy_1(rates, tf=""):
     #  [1] เขียว → [0] แดง close < l[1]
     #  Entry = open[1] | SL = max(h0,h1) + SL_BUFFER
     # ══════════════════════════════════════════════
-    if bull1 and not bull0:
+    if getattr(config, "S1_P6_ENABLED", True) and bull1 and not bull0:
         c0_engulf = bear_engulf(cl0, l1)
         zone      = (not use_zone) or (zone_high_2 >= sh - buf)
         if c0_engulf and zone:

@@ -79,6 +79,37 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
         
     sma50 = sum(float(r["close"]) for r in rates[-min(50, len(rates)):]) / min(50, len(rates))
 
+    # ⚖️ Macro Premium / Discount Zone Filter (Lookback 120)
+    lookback_120 = rates[-min(120, len(rates)):]
+    highs_120 = [float(r["high"]) for r in lookback_120]
+    lows_120 = [float(r["low"]) for r in lookback_120]
+    max_120 = max(highs_120) if highs_120 else _high
+    min_120 = min(lows_120) if lows_120 else _low
+    mid_120 = (max_120 + min_120) / 2
+    is_macro_discount = _close <= mid_120
+    is_macro_premium = _close >= mid_120
+
+    # 📊 RSI (14) Momentum Filter
+    rsi_14 = 50.0
+    if len(rates) >= 15:
+        gains = []
+        losses = []
+        for i in range(-15, -1):
+            change = float(rates[i+1]["close"]) - float(rates[i]["close"])
+            if change > 0:
+                gains.append(change)
+                losses.append(0)
+            else:
+                gains.append(0)
+                losses.append(abs(change))
+        avg_gain = sum(gains) / 14
+        avg_loss = sum(losses) / 14
+        if avg_loss > 0:
+            rs = avg_gain / avg_loss
+            rsi_14 = 100.0 - (100.0 / (1.0 + rs))
+        else:
+            rsi_14 = 100.0 if avg_gain > 0 else 50.0
+
     # 🔬 เงื่อนไข 2L/2H Liquidity Sweep (กวาดสภาพคล่องระดับ 15 แท่ง)
     recent_lows = [float(r["low"]) for r in rates[-16:-1]]
     recent_highs = [float(r["high"]) for r in rates[-16:-1]]
@@ -88,9 +119,34 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
     is_buy_sweep = (_low < min_recent_low) and (_close > min_recent_low)
     is_sell_sweep = (_high > max_recent_high) and (_close < max_recent_high)
 
+    # 📈 Bollinger Bands (20, 2.0) Filter for Exhaustion Extremes
+    sma20 = sum(float(r["close"]) for r in rates[-min(20, len(rates)):]) / min(20, len(rates))
+    variance = sum((float(r["close"]) - sma20)**2 for r in rates[-min(20, len(rates)):]) / min(20, len(rates))
+    stddev = variance ** 0.5
+    lower_bb = sma20 - (2.0 * stddev)
+    upper_bb = sma20 + (2.0 * stddev)
+    
+    pierced_lower_bb = _low < lower_bb
+    pierced_upper_bb = _high > upper_bb
+
     # 🔬 เงื่อนไข Rejection & Sweep Confirmation (เข้มข้นขึ้นเพื่อเพิ่ม WR)
-    valid_buy_rejection = ((lower_wick_pct >= 0.45) or (is_green and body_pct >= 0.60 and lower_wick_pct >= 0.25)) and (_close > sma50) and is_buy_sweep
-    valid_sell_rejection = ((upper_wick_pct >= 0.45) or (is_red and body_pct >= 0.60 and upper_wick_pct >= 0.25)) and (_close < sma50) and is_sell_sweep
+    valid_buy_rejection = (
+        ((lower_wick_pct >= 0.45) or (is_green and body_pct >= 0.60 and lower_wick_pct >= 0.30)) 
+        and (_close > sma50) 
+        and is_buy_sweep
+        and is_macro_discount
+        and pierced_lower_bb
+        and (rsi_14 < 55)
+    )
+    
+    valid_sell_rejection = (
+        ((upper_wick_pct >= 0.45) or (is_red and body_pct >= 0.60 and upper_wick_pct >= 0.30)) 
+        and (_close < sma50) 
+        and is_sell_sweep
+        and is_macro_premium
+        and pierced_upper_bb
+        and (rsi_14 > 45)
+    )
     
     signal_to_return = "WAIT"
     entry = 0.0

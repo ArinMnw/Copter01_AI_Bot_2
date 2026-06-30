@@ -355,6 +355,7 @@ def SL_BUFFER(atr=None):
 # "normal" = ไม่สนใจ zone (เข้าได้ทุก pattern ที่ผ่านเงื่อนไข)
 # "swing"  = ต้องมี swing เกิดขึ้นฝั่งเดียวกันภายใน 4 แท่งหลังเกิด setup
 S1_ZONE_MODE = "swing"
+S1_P6_ENABLED = False  # S1 Pattern F / P6 disabled
 
 # ── ท่าที่ 1: Rejection Entry ─────────────────────────────────
 # เช็คแท่ง entry (แท่งที่ order fill) หลังแท่งนั้นปิด — ถ้าไม่เข้าเงื่อนไข

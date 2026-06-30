@@ -4425,9 +4425,9 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        # Skip standalone strategies
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
-            continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17/S18/S19 skip
+        # Skip standalone / strategy-managed setups.
+        if sid in (1, 10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
+            continue  # S1 uses its own swing/zone lifecycle; these strategies skip PD Fibo Plus.
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
