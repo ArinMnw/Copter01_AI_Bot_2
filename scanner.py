@@ -28,6 +28,8 @@ from strategy17 import strategy_17
 from strategy18 import strategy_18
 from strategy19 import strategy_19
 from strategy20 import strategy_20
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.5"))
 from strategy20_5 import strategy_20_5
 from strategy20_6 import strategy_20_6
 from strategy20_7 import strategy_20_7

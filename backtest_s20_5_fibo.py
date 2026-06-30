@@ -58,26 +58,39 @@ def run_fibo_backtest():
                 
                 # Check forward 20 candles for outcome
                 outcome = "UNKNOWN"
+                filled = False
                 for j in range(i, min(i+20, len(rates))):
                     future_bar = rates[j]
                     if res["signal"] == "BUY":
-                        if future_bar['low'] <= sl:
-                            outcome = "LOSS"
-                            losses += 1
-                            break
-                        elif future_bar['high'] >= tp:
-                            outcome = "WIN"
-                            wins += 1
-                            break
+                        if not filled:
+                            if future_bar['high'] >= tp:
+                                break # Cancel
+                            if future_bar['low'] <= entry:
+                                filled = True
+                        if filled:
+                            if future_bar['low'] <= sl:
+                                outcome = "LOSS"
+                                losses += 1
+                                break
+                            elif future_bar['high'] >= tp:
+                                outcome = "WIN"
+                                wins += 1
+                                break
                     else:
-                        if future_bar['high'] >= sl:
-                            outcome = "LOSS"
-                            losses += 1
-                            break
-                        elif future_bar['low'] <= tp:
-                            outcome = "WIN"
-                            wins += 1
-                            break
+                        if not filled:
+                            if future_bar['low'] <= tp:
+                                break # Cancel
+                            if future_bar['high'] >= entry:
+                                filled = True
+                        if filled:
+                            if future_bar['high'] >= sl:
+                                outcome = "LOSS"
+                                losses += 1
+                                break
+                            elif future_bar['low'] <= tp:
+                                outcome = "WIN"
+                                wins += 1
+                                break
         
         total_trades += trades
         total_wins += wins

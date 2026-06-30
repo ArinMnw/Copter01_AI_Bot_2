@@ -514,6 +514,21 @@ async def _handle_custom_input(update, context, text, awaiting):
         )
         from handlers.keyboard import show_s20_settings_menu
         await show_s20_settings_menu(update, is_query=False)
+    elif awaiting == "s20_5_risk_pct":
+        config.S20_5_RISK_PCT = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20.5 Risk %** เป็น {val}% เรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.callback_handler import _show_strategy_detail
+        class MockQuery:
+            def __init__(self, msg):
+                self.message = msg
+            async def edit_message_text(self, *args, **kwargs):
+                await self.message.reply_text(*args, **kwargs)
+        await _show_strategy_detail(MockQuery(update.effective_message), 20.5)
+
     elif awaiting == "s20_8_risk_pct":
         config.S20_8_RISK_PCT = val
         config.save_runtime_state()

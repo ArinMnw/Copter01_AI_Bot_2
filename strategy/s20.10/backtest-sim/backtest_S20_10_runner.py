@@ -93,12 +93,20 @@ def run_backtest(days_list: List[int], tf_arg: str):
                     for j in range(i+1, len(rates)):
                         future_bar = rates[j]
                         
-                        # 1. Check if order gets filled
+                        # 1. Check if order gets filled or cancelled
                         if not filled:
-                            if is_buy and future_bar['low'] <= entry_price:
-                                filled = True
-                            elif not is_buy and future_bar['high'] >= entry_price:
-                                filled = True
+                            if is_buy:
+                                if future_bar['high'] >= tp:
+                                    # Price reached target without filling us - Cancel order
+                                    break
+                                elif future_bar['low'] <= entry_price:
+                                    filled = True
+                            else:
+                                if future_bar['low'] <= tp:
+                                    # Price reached target without filling us - Cancel order
+                                    break
+                                elif future_bar['high'] >= entry_price:
+                                    filled = True
                                 
                         # 2. Check for SL / TP if filled
                         if filled:

@@ -1398,8 +1398,17 @@ def build_strategy_detail_keyboard(sid: int):
         ])
 
     
-    elif sid == 20.5 or sid == 20.6:
-        # ปุ่มเปิด/ปิดอยู่ที่ row บนสุดแล้ว (ชี้ไป S20_5_ENABLED/S20_6_FVG_ENABLED ตัวจริง)
+    elif sid == 20.5:
+        c_s20_5 = "🟢 S20.5 Compounding (On)" if getattr(config, "S20_5_COMPOUNDING_ENABLED", False) else "🔴 S20.5 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_5, callback_data="toggle_s20_5_compounding")
+        ])
+        r_pct = getattr(config, "S20_5_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.5 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_5_risk_pct")
+        ])
+
+    elif sid == 20.6:
         pass
 
     elif sid == 20:

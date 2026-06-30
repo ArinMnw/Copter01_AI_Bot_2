@@ -2012,6 +2012,26 @@ async def handle_callback(update, ctx):
         ctx.user_data['prompt_msg_id'] = msg.message_id
         await _qanswer(query)
 
+    elif data == 'toggle_s20_5_compounding':
+        config.S20_5_COMPOUNDING_ENABLED = not getattr(config, 'S20_5_COMPOUNDING_ENABLED', False)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.5)
+
+    elif data == 'prompt_s20_5_risk_pct':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S20.5 (เช่น 2.0):")
+            ctx.user_data['awaiting_input'] = 's20_5_risk_pct'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_5_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
     elif data == 'toggle_s20_8_compounding':
         config.S20_8_COMPOUNDING_ENABLED = not getattr(config, 'S20_8_COMPOUNDING_ENABLED', False)
         config.save_runtime_state()
