@@ -2393,6 +2393,8 @@ async def _sl_guard_place_retries(app, tf_name: str, rates) -> bool:
 
         for retry in retries:
             sid     = retry.get("sid")
+            if sid in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
+                continue
             signal  = retry.get("signal", side)
             entry   = float(retry.get("entry", 0))
             sl      = float(retry.get("sl", 0))
@@ -2474,6 +2476,8 @@ async def _combined_guard_place_retries(app, tf_name: str, rates) -> bool:
 
         for sig in retries:
             sid     = sig.get("sid", 0)
+            if sid in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
+                continue
             signal  = sig.get("signal", side)
             entry   = sig.get("entry", 0)
             sl      = sig.get("sl", 0)
@@ -2524,6 +2528,8 @@ async def _group_guard_place_retries(app, tf_name: str, rates) -> bool:
 
         for sig in retries:
             sid        = sig.get("sid", 0)
+            if sid in getattr(config, "SL_GUARD_GROUP_SKIP_SIDS", set()):
+                continue
             signal     = sig.get("signal", side)
             entry      = sig.get("entry", 0)
             sl         = sig.get("sl", 0)
@@ -3148,16 +3154,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     "pattern": fvg["pattern"],
                     "candle_key": last_candle_time,
                 }
-                await app.bot.send_message(
-                    chat_id=MY_USER_ID,
-                    text=(
-                        f"{sig_e} *FVG {fvg['signal']} [{tf_name}]*\n"
-                        f"Gap: `{final_gap_bot}` – `{final_gap_top}`\n"
-                        f"📌 Entry: `{final_entry}`\n"
-                        f"⏭️ ราคาผ่าน entry ไปแล้ว รอย้อนกลับ..."
-                    ),
-                    parse_mode="Markdown"
-                )
+                if getattr(config, "TRADE_DEBUG", False):
+                    await app.bot.send_message(
+                        chat_id=MY_USER_ID,
+                        text=(
+                            f"{sig_e} *FVG {fvg['signal']} [{tf_name}]*\n"
+                            f"Gap: `{final_gap_bot}` – `{final_gap_top}`\n"
+                            f"📌 Entry: `{final_entry}`\n"
+                            f"⏭️ ราคาผ่าน entry ไปแล้ว รอย้อนกลับ..."
+                        ),
+                        parse_mode="Markdown"
+                    )
             else:
                 log_event(
                     "ORDER_FAILED",
@@ -4052,7 +4059,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
 
             # ── SL Guard Group: บล็อก order ใหม่ (ทั้ง LIMIT และ MARKET) ถ้า group guard active ──
-            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in getattr(config, "SL_GUARD_SKIP_SIDS", {10, 14}):
+            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in getattr(config, "SL_GUARD_GROUP_SKIP_SIDS", {1}):
                 from trailing import (_group_guard_is_blocked, _group_guard_check_unblock,
                                       _group_guard_get_blocked_groups, _sl_guard_group)
                 _gg_order_mode = result.get("order_mode", "limit")

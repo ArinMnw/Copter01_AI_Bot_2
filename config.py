@@ -289,7 +289,8 @@ TRADE_DEBUG = False
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
 PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 21}
 NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 21}
-SL_GUARD_SKIP_SIDS            = {10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 21}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 21}
+SL_GUARD_GROUP_SKIP_SIDS      = {1}
 OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19}
 PDFIBOPLUS_SKIP_SIDS          = {1, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.8}
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง

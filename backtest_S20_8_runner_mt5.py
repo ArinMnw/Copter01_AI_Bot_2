@@ -14,6 +14,8 @@ def main():
     parser = argparse.ArgumentParser(description="Backtest S20.8 Strategy via MT5")
     parser.add_argument("--days", type=int, default=30, help="จำนวนวันย้อนหลัง (Days)")
     parser.add_argument("--tf", type=str, default="all", help="Timeframe (e.g. M1, M5, M15, M30, H1, H4, H12, D1 หรือ all)")
+    parser.add_argument("--start", type=str, default=None, help="Start time dd-MM-yyyy HH:mm")
+    parser.add_argument("--end", type=str, default=None, help="End time dd-MM-yyyy HH:mm")
     args = parser.parse_args()
     
     if args.tf.lower() == "all":
@@ -51,22 +53,35 @@ def main():
     total_loss = 0
     total_pnl = 0.0
     
+    start_dt = None
+    end_dt = None
+    if args.start:
+        start_dt = datetime.strptime(args.start, "%d-%m-%Y %H:%M").replace(tzinfo=BKK)
+    if args.end:
+        end_dt = datetime.strptime(args.end, "%d-%m-%Y %H:%M").replace(tzinfo=BKK)
+        
     for tf_name in tfs:
         mt5_tf = tf_mapping.get(tf_name)
         if mt5_tf is None:
             continue
             
-        if tf_name == "M1": bars_needed = args.days * 1440
-        elif tf_name == "M5": bars_needed = args.days * 288
-        elif tf_name == "M15": bars_needed = args.days * 96
-        elif tf_name == "M30": bars_needed = args.days * 48
-        elif tf_name == "H1": bars_needed = args.days * 24
-        elif tf_name == "H4": bars_needed = args.days * 6
-        elif tf_name == "H12": bars_needed = args.days * 2
-        elif tf_name == "D1": bars_needed = args.days
-        else: bars_needed = args.days * 1440
-        
-        rates_raw = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, bars_needed)
+        if start_dt is not None:
+            if end_dt is None:
+                end_dt = datetime.now(BKK)
+            rates_raw = mt5.copy_rates_range(symbol, mt5_tf, start_dt, end_dt)
+        else:
+            if tf_name == "M1": bars_needed = args.days * 1440
+            elif tf_name == "M5": bars_needed = args.days * 288
+            elif tf_name == "M15": bars_needed = args.days * 96
+            elif tf_name == "M30": bars_needed = args.days * 48
+            elif tf_name == "H1": bars_needed = args.days * 24
+            elif tf_name == "H4": bars_needed = args.days * 6
+            elif tf_name == "H12": bars_needed = args.days * 2
+            elif tf_name == "D1": bars_needed = args.days
+            else: bars_needed = args.days * 1440
+            
+            rates_raw = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, bars_needed)
+            
         if rates_raw is None or len(rates_raw) == 0:
             print(f"| {tf_name:<8} | 0 | 0 | 0 | 0.00% | N/A | $0.00 |")
             continue

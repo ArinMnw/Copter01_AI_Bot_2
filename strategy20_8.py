@@ -1,5 +1,7 @@
 import config as _config
 
+_last_trigger = {}
+
 def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
     if config is None:
         config = _config
@@ -13,6 +15,12 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
         
     if rates is None or len(rates) < 15:
         return {"signal": "WAIT", "reason": "Not enough rates", "pattern": "S20.8", "sid": 20.8}
+        
+    # กันยิงเบิ้ลในแท่งเดียวกัน (Race condition)
+    current_time = int(rates[-1]["time"])
+    last_trig = _last_trigger.get(tf_name, 0)
+    if current_time == last_trig:
+        return {"signal": "WAIT", "reason": "Already triggered in this candle", "pattern": "S20.8", "sid": 20.8}
         
     # เช็กระยะความผันผวนของ TF (ห้ามเข้าถ้าไส้วิ่งแรงเกิน 2000 จุด)
     for r in rates[-15:]:
@@ -59,59 +67,57 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
     
     # 🔥 Dynamic Risk Management for Consistent 1:1.5 RR Growth
     # ปรับใช้ ATR เพื่อให้ยืดหยุ่นตามสภาวะตลาด
-    buffer_pts = max(150.0, atr_pts * 0.5) 
+    buffer_pts = max(100.0, atr_pts * 0.3) 
     sl_pts = max(150.0, atr_pts * 1.0)
     tp_pts = sl_pts * 1.5 # RR 1:1.5
 
-    # 🛡️ Institutional Momentum Filter
-    # ป้องกันการเข้าสวนเทรนด์ที่สถาบันกำลังทุบ/ดันอย่างรุนแรง (Displacement)
+    # 🛡️ Institutional Momentum & Trend Filter
     prev_candle = rates[-2]
     prev_body = abs(float(prev_candle["close"]) - float(prev_candle["open"]))
-    if prev_body > (atr_price * 2.0):
+    if prev_body > (atr_price * 1.5):
         return {"signal": "WAIT", "reason": "Institutional Displacement Block", "pattern": "S20.8", "sid": 20.8}
+        
+    sma50 = sum(float(r["close"]) for r in rates[-min(50, len(rates)):]) / min(50, len(rates))
 
-    # 🔬 เงื่อนไข Rejection & Sweep Confirmation
-    # ปรับแก้จากเดิมที่ห้ามทะลุ เป็นอนุญาตให้ทะลุเพื่อกวาด SL (Sweep) ได้ แต่บังคับว่าต้องทิ้งหางกลับมาปิด (Failure to Close)
-    valid_buy_rejection = (lower_wick_pct >= 0.25) or (is_green and body_pct >= 0.60 and lower_wick_pct >= 0.15)
-    valid_sell_rejection = (upper_wick_pct >= 0.25) or (is_red and body_pct >= 0.60 and upper_wick_pct >= 0.15)
+    # 🔬 เงื่อนไข 2L/2H Liquidity Sweep (กวาดสภาพคล่องระดับ 15 แท่ง)
+    recent_lows = [float(r["low"]) for r in rates[-16:-1]]
+    recent_highs = [float(r["high"]) for r in rates[-16:-1]]
+    min_recent_low = min(recent_lows) if recent_lows else _low
+    max_recent_high = max(recent_highs) if recent_highs else _high
+    
+    is_buy_sweep = (_low < min_recent_low) and (_close > min_recent_low)
+    is_sell_sweep = (_high > max_recent_high) and (_close < max_recent_high)
+
+    # 🔬 เงื่อนไข Rejection & Sweep Confirmation (เข้มข้นขึ้นเพื่อเพิ่ม WR)
+    valid_buy_rejection = ((lower_wick_pct >= 0.45) or (is_green and body_pct >= 0.60 and lower_wick_pct >= 0.25)) and (_close > sma50) and is_buy_sweep
+    valid_sell_rejection = ((upper_wick_pct >= 0.45) or (is_red and body_pct >= 0.60 and upper_wick_pct >= 0.25)) and (_close < sma50) and is_sell_sweep
+    
+    signal_to_return = "WAIT"
+    entry = 0.0
+    sl = 0.0
+    tp = 0.0
     
     if valid_buy_rejection:
-        # หาโครงสร้าง Small 2L: ก่อนหน้ามีแท่งเขียวดันขึ้น 2-3 แท่ง
-        green_push = 0
-        prev_low = float('inf')
-        for i in range(2, 6):
-            b = rates[-i]
-            if float(b["close"]) > float(b["open"]):
-                green_push += 1
-                prev_low = min(prev_low, float(b["low"]))
-            else:
-                break
-                
-        # Liquidity Sweep Rule: ยอมให้ _low หลุด prev_low ได้เพื่อตวัดกินไส้ แต่ _close ต้องเด้งกลับมาปิดเหนือฐาน หรือห่างไม่เกินนิดเดียว
-        if green_push >= 1 and _close >= (prev_low - 0.2): 
-            signal = "BUY"
-            entry = _low - (buffer_pts * pt_mult) # เผื่อระยะกินไส้
-            sl = entry - (sl_pts * pt_mult)
-            tp = entry + (tp_pts * pt_mult)
+        buy_sl = _low - (sl_pts * pt_mult)
+        actual_risk = _close - buy_sl
+        buy_tp = _close + (actual_risk * 1.0) # RR 1:1
+        
+        signal_to_return = "BUY"
+        entry = _close
+        sl = buy_sl
+        tp = buy_tp
+
     elif valid_sell_rejection:
-        # หาโครงสร้าง Small 2H: ก่อนหน้ามีแท่งแดงกดลง 2-3 แท่ง
-        red_push = 0
-        prev_high = float('-inf')
-        for i in range(2, 6):
-            b = rates[-i]
-            if float(b["close"]) < float(b["open"]):
-                red_push += 1
-                prev_high = max(prev_high, float(b["high"]))
-            else:
-                break
-                
-        # Liquidity Sweep Rule: ยอมให้ _high ทะลุ prev_high ได้เพื่อกวาด SL แต่ _close ต้องโดนตบกลับมาปิดใต้แนว
-        if red_push >= 1 and _close <= (prev_high + 0.2): 
-            signal = "SELL"
-            entry = _high + (buffer_pts * pt_mult)
-            sl = entry + (sl_pts * pt_mult)
-            tp = entry - (tp_pts * pt_mult)
-    if signal != "WAIT":
+        sell_sl = _high + (sl_pts * pt_mult)
+        actual_risk = sell_sl - _close
+        sell_tp = _close - (actual_risk * 1.0) # RR 1:1
+        
+        signal_to_return = "SELL"
+        entry = _close
+        sl = sell_sl
+        tp = sell_tp
+
+    if signal_to_return != "WAIT":
         lot_multiplier = 1.0
         if getattr(config, "S20_8_COMPOUNDING_ENABLED", False):
             try:
@@ -136,22 +142,18 @@ def strategy_20_8(rates, tf="M1", tf_name=None, config=None) -> dict:
                         if base_lot > 0:
                             lot_multiplier = target_lot / base_lot
             except Exception as e:
-                try:
-                    from bot_log import log_error
-                    log_error("S20_8_COMPOUNDING", f"Error calculating lot: {e}")
-                except:
-                    pass
+                pass
 
+        _last_trigger[tf_name] = current_time
         return {
-            "signal": signal,
-            "pattern": "S20.8 Small2L2H",
-            "entry": round(entry, 5),
-            "sl": round(sl, 5),
-            "tp": round(tp, 5),
-            "reason": f"S20.8 {signal} at Local {'Low (2L)' if signal == 'BUY' else 'High (2H)'}",
+            "signal": signal_to_return,
+            "entry": entry,
+            "sl": sl,
+            "tp": tp,
+            "order_mode": "market",
+            "pattern": f"S20.8 Small2L2H",
             "sid": 20.8,
             "quant_lot_multiplier": lot_multiplier
         }
         
-    reason = locals().get("reason_override", "S20.8 No valid small 2L/2H structure")
-    return {"signal": "WAIT", "reason": reason, "pattern": "S20.8", "sid": 20.8}
+    return {"signal": "WAIT", "reason": "S20.8 No valid small 2L/2H structure", "pattern": "S20.8", "sid": 20.8}

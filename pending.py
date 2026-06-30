@@ -94,7 +94,8 @@ async def check_fvg_pending(app):
                     continue
             sig_e = "🟢" if signal == "BUY" else "🔴"
             print(f"🎯 [{now}] {tf}: FVG ราคาแตะ Entry {entry}!")
-            await tg(app, (
+            if getattr(config, "TRADE_DEBUG", False):
+                await tg(app, (
                     f"{sig_e} *FVG {signal} [{tf}]*\n"
                     f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
                     f"\U0001f4ca \u0e23\u0e32\u0e04\u0e32\u0e22\u0e49\u0e2d\u0e19\u0e21\u0e32\u0e41\u0e15\u0e30 Entry!\n"
@@ -102,7 +103,7 @@ async def check_fvg_pending(app):
                     f"\U0001f4cc Entry 98%: `{entry}`\n"
                     f"\U0001f6d1 SL: `{p['sl']}` | \U0001f3af TP: `{p['tp']}`\n"
                     f"\u23f3 \u0e15\u0e31\u0e49\u0e07 Limit Order..."
-                ))
+                    ))
             # TP เดียวกับ Order แรก ถ้ามี
             fvg_tp = get_existing_tp(signal, entry, tf) or p["tp"]
             order = open_order(signal, get_volume(), p["sl"], fvg_tp, entry_price=entry, tf=tf, sid=2, pattern=p.get("pattern", f"FVG {signal} [{tf}]"))

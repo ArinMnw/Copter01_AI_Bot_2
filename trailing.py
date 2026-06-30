@@ -154,6 +154,7 @@ def _sl_guard_cancel_pending_orders(side: str, scope: str = "all", tf: str = "")
         sell_types = (mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP)
         target_types = buy_types if side_up == "BUY" else sell_types
         combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or []) if scope == "combined" else None
+        skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
         cancelled = []
         for order in orders:
             if order.type not in target_types:
@@ -161,6 +162,9 @@ def _sl_guard_cancel_pending_orders(side: str, scope: str = "all", tf: str = "")
             ticket = int(order.ticket)
             # หา TF จาก pending_order_tf ก่อน แล้ว fallback ไป position_tf
             _info = pending_order_tf.get(ticket)
+            order_sid = (_info.get("sid") if isinstance(_info, dict) else None) or position_sid.get(ticket)
+            if order_sid in skip_sids:
+                continue
             order_tf = str((_info.get("tf", "") if isinstance(_info, dict) else "") or position_tf.get(ticket, ""))
             if scope == "tf" and order_tf != tf:
                 continue
@@ -197,8 +201,11 @@ def _sl_guard_close_open_positions(tf: str, side: str) -> list:
         if positions:
             side_up = side.upper()
             pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
             for pos in positions:
                 if pos.type != pos_type_mt5:
+                    continue
+                if position_sid.get(pos.ticket) in skip_sids:
                     continue
                 pos_tf = position_tf.get(pos.ticket, "")
                 if pos_tf != tf:
@@ -229,8 +236,11 @@ def _sl_guard_close_combined_positions(side: str) -> list:
             side_up = side.upper()
             pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
             combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+            skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
             for pos in positions:
                 if pos.type != pos_type_mt5:
+                    continue
+                if position_sid.get(pos.ticket) in skip_sids:
                     continue
                 pos_tf = position_tf.get(pos.ticket, "")
                 # ถ้ากำหนด combined_tfs ไว้ → กรองเฉพาะ TF ใน group; ถ้าว่าง → ปิดทุก TF
@@ -261,8 +271,11 @@ def _sl_guard_close_all_side_positions(side: str) -> list:
         if positions:
             side_up = side.upper()
             pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
             for pos in positions:
                 if pos.type != pos_type_mt5:
+                    continue
+                if position_sid.get(pos.ticket) in skip_sids:
                     continue
                 ok, _ = _close_position(pos, side_up, "SL Guard Group activate")
                 if ok:
@@ -7784,7 +7797,11 @@ async def check_cancel_pending_orders(app):
                             )
 
         # SL Guard: cancel near pending when guard is active for this TF/side
-        if not should_cancel and config.SL_GUARD_ENABLED:
+        if (
+            not should_cancel
+            and config.SL_GUARD_ENABLED
+            and _order_sid not in set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
+        ):
             _sg_side = None
             if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                 _sg_side = "BUY"
@@ -7824,7 +7841,11 @@ async def check_cancel_pending_orders(app):
                             )
 
         # SL Guard Combined: cancel near pending when combined guard blocks this TF/side
-        if not should_cancel and getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+        if (
+            not should_cancel
+            and getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+            and _order_sid not in set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
+        ):
             _cg_side = None
             if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                 _cg_side = "BUY"
@@ -7858,7 +7879,11 @@ async def check_cancel_pending_orders(app):
                                     )
 
         # SL Guard Group: cancel near pending when group guard blocks this TF/side
-        if not should_cancel and getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        if (
+            not should_cancel
+            and getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+            and _order_sid not in set(getattr(config, "SL_GUARD_GROUP_SKIP_SIDS", ()))
+        ):
             _gg_side = None
             if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                 _gg_side = "BUY"
