@@ -1,6 +1,0 @@
-[2026-07-01 12:28:01] BOT_ERROR | run_scan | ValueError: not enough values to unpack (expected 5, got 3) | ", False) and getattr(config, "S20_6_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.6 ปิด หรือ TF ปิด"} | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ | File "D:\Project\Copter01_AI_Bot_2\strategy\s20.6\strategy20_6.py", line 191, in strategy_20_6 | fvg_sig, fvg_pattern, anc_candle, fvg_c1, fvg_c3 = _find_fvg_retest_models(rates, atr, tf) | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ | ValueError: not enough values to unpack (expected 5, got 3)
-[2026-07-01 13:53:03] TG_DROP | TelegramError: httpx.ReadError:  | text=⚠️ MT5 ไม่ได้เชื่อมต่อ
-[2026-07-01 13:53:47] DEMO_PORTFOLIO | P13: fetch M5 bars failed
-[2026-07-01 13:53:47] DEMO_PORTFOLIO | P16: fetch M5 bars failed
-[2026-07-01 13:58:47] DEMO_PORTFOLIO | P13: fetch M5 bars failed
-[2026-07-01 13:58:47] DEMO_PORTFOLIO | P16: fetch M5 bars failed
