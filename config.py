@@ -644,6 +644,7 @@ active_strategies = {
     20.9: False, # ท่าที่ 20.9: Candle Action
     20.10: False, # ท่าที่ 20.10: Allin4s_2 (Reversal Trap)
     20.11: False, # ท่าที่ 20.11: Candle Strength
+    20.12: False, # ท่าที่ 20.12: FutureKey
 }
 
 STRATEGY_NAMES = {
@@ -674,6 +675,7 @@ STRATEGY_NAMES = {
     20.9: "S20.9: Candle Action",
     20.10: "S20.10: Wick Purge",
     20.11: "S20.11: Candle Strength",
+    20.12: "S20.12: FutureKey",
 }
 
 # ── Strategy 20: All in 4s (Reversal & Retracement) ─────────

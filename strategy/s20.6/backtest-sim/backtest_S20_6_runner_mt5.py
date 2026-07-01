@@ -55,13 +55,25 @@ def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=100
             print(f"⚠️ ไม่รู้จัก Timeframe: {tf}")
             continue
 
-        rates = mt5.copy_rates_range(symbol, mt5_tf, start_time, end_time)
+        # Fetch extra days to provide lookback bars (e.g. 100 bars minimum)
+        lookback_days_needed = {
+            "M1": 1, "M5": 1, "M15": 2, "M30": 3,
+            "H1": 5, "H4": 20, "H12": 60, "D1": 120
+        }.get(tf, 5)
+        
+        fetch_start = start_time - timedelta(days=lookback_days_needed)
+        rates = mt5.copy_rates_range(symbol, mt5_tf, fetch_start, end_time)
         if rates is None or len(rates) < 100:
             print(f"⚠️ ข้อมูลไม่พอสำหรับ TF {tf}")
             continue
 
+        # start testing ONLY after start_time
         for i in range(100, len(rates)):
-            window_rates = rates[i-50:i]
+            c_time = datetime.fromtimestamp(rates[i]['time'], tz=timezone.utc)
+            if c_time < start_time:
+                continue
+                
+            window_rates = rates[max(0, i-200):i+1]
             dt_bkk = mt5_ts_to_bkk(window_rates[-1]['time'])
             
             res = strategy20_6.strategy_20_6(window_rates, tf, dt_bkk)
@@ -93,10 +105,10 @@ def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=100
                     entry_price -= (spread * 0.1)
                 filled = True
                 
-                # The signal was generated on window_rates[-2] (which is rates[i-2]).
-                # The entry happens at the open of the forming candle window_rates[-1] (which is rates[i-1]).
-                # Therefore, we must start simulating the future from rates[i-1].
-                for j in range(i-1, min(i+100, len(rates))):
+                # The signal was generated on window_rates[-2] (which is rates[i-1]).
+                # The entry happens at the open of the forming candle window_rates[-1] (which is rates[i]).
+                # Therefore, we must start simulating the future from rates[i].
+                for j in range(i, min(i+100, len(rates))):
                     future_bar = rates[j]
                     high = future_bar["high"]
                     low = future_bar["low"]

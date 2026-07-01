@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-01 14:11:41",
+  "saved_at": "2026-07-01 14:40:15",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -93,7 +93,7 @@
   },
   "s20_6_session_filter": false,
   "s20_6_trend_filter": false,
-  "s20_6_entry_buffer": 0,
+  "s20_6_entry_buffer": 0.0,
   "s20_6_compounding_enabled": true,
   "s20_6_risk_pct": 2.0,
   "s20_6_max_lot": 50.0,
@@ -273,7 +273,7 @@
       "pre_arm": false,
       "fired_tickets": [],
       "awaiting_choch": false,
-      "fire_count": 139
+      "fire_count": 219
     }
   },
   "rsi9_plot_bullish": true,
@@ -287,12 +287,12 @@
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
     "date": "2026-07-01",
-    "realized": 3.52,
-    "wins": 1,
-    "losses": 2,
-    "count": 3,
-    "gross_win": 7.44,
-    "gross_loss": -3.92
+    "realized": 10.92,
+    "wins": 2,
+    "losses": 4,
+    "count": 6,
+    "gross_win": 14.86,
+    "gross_loss": -3.94
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -370,97 +370,77 @@
     "D1": 1782864000
   },
   "last_traded_per_tf": {
-    "M1": 1782893100,
-    "M5": 1782893100
+    "M15": 1782893700,
+    "M5": 1782894900,
+    "M1": 1782895020
   },
   "last_traded_sid_tf": {
     "M1": {
-      "2": 1782893100,
-      "14": 1782892800,
+      "2": 1782894000,
+      "14": 1782893700,
       "19": 1782892980,
-      "1": 1782893280
+      "1": 1782894900,
+      "3": 1782893760,
+      "11": 1782893880,
+      "2": 1782895020
     },
     "M5": {
-      "2": 1782893100,
-      "20.6": 1782893100
+      "2": 1782894000,
+      "20.6": 1782893100,
+      "1": 1782893700,
+      "16": 1782894000,
+      "1": 1782894900
+    },
+    "M15": {
+      "1": 1782892800,
+      "20.6": 1782893700
     }
   },
-  "pending_order_tf": {
-    "554683346": {
-      "tf": "M5",
-      "entry": 3966.52,
-      "sl": 3978.39,
-      "tp": 3948.72,
-      "gap_bot": 3954.65,
-      "gap_top": 3978.39,
-      "detect_bar_time": 1782893100,
-      "signal": "SELL",
-      "sid": 20.6,
-      "pattern": "S20.6.FVG_Entry",
-      "trend_filter": "bear_strong",
-      "flow_id": "M5|S20.6|SELL|T1782893100|E3966.52|SL3978.39|TP3948.72"
-    }
-  },
+  "pending_order_tf": {},
   "position_tf": {
-    "554674887": "M1",
-    "554675776": "M1",
-    "554677379": "M1",
-    "554677381": "M1",
-    "554682310": "M1",
-    "554682311": "M1",
-    "554683343": "M1",
-    "554683346": "M5"
+    "554686192": "M15",
+    "554688047": "M1",
+    "554692766": "M5",
+    "554701626": "M1",
+    "554702198": "M5"
   },
   "position_sid": {
-    "554674887": 2,
-    "554675776": 14,
-    "554677379": 2,
-    "554677381": 19,
-    "554682310": 2,
-    "554682311": 1,
-    "554683343": 2,
-    "554683346": 20.6
+    "554686192": 1,
+    "554688047": 11,
+    "554692766": 16,
+    "554701626": 2,
+    "554702198": 1
   },
   "position_pattern": {
-    "554674887": "ท่าที่ 2 FVG BUY [M1]",
-    "554675776": "ท่าที่ 14 Sweep RSI 🔴 SELL — Sweep Swing",
-    "554677379": "ท่าที่ 2 FVG SELL [M1]",
-    "554677381": "ท่าที่ 19 ICT SB 🔴 SELL",
-    "554682310": "ท่าที่ 2 FVG SELL [M1]",
-    "554682311": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน",
-    "554683343": "ท่าที่ 2 FVG SELL [M1+M5]",
-    "554683346": "S20.6.FVG_Entry"
+    "554686192": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว",
+    "554688047": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 1 (KRH1)",
+    "554692766": "ท่าที่ 16 AMD x iFVG 🟢 BUY",
+    "554701626": "ท่าที่ 2 FVG BUY [M1]",
+    "554702198": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง"
   },
   "position_trend_filter": {
-    "554674887": "bull_weak",
-    "554675776": "bull_weak",
-    "554677379": "bull_weak",
-    "554677381": "bull_weak",
-    "554682310": "bull_weak",
-    "554682311": "bull_weak",
-    "554683343": "bear_strong",
-    "554683346": "bear_strong"
+    "554686192": "bear_strong",
+    "554688047": "sideway",
+    "554692766": "bear_strong",
+    "554701626": "sideway",
+    "554702198": "bear_strong"
   },
   "position_zone_meta": {},
   "position_forward_meta": {},
   "entry_state": {
-    "554682310": "done"
+    "554701610": "done",
+    "554701615": "done"
   },
-  "trail_state": {},
+  "trail_state": {
+    "554688047": {
+      "phase": 0,
+      "order_tf": "M1"
+    }
+  },
   "fvg_order_tickets": {
-    "554674887": {
+    "554701626": {
       "tf": "M1",
       "signal": "BUY",
-      "checked": false
-    },
-    "554677379": {
-      "tf": "M1",
-      "signal": "SELL",
-      "checked": false
-    },
-    "554683343": {
-      "tf": "M1",
-      "signal": "SELL",
       "checked": false
     }
   },
@@ -470,7 +450,59 @@
   "trail_sl_focus_suppress_until_flat": false,
   "entry_candle_focus_suppress_until_flat": false,
   "scale_out_enabled": true,
-  "scale_out_state": {},
+  "scale_out_state": {
+    "554686192": {
+      "direction": "SELL",
+      "entry": 3967.08,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        22.340000000000146
+      ],
+      "step": 2,
+      "is_pending": false,
+      "sid": "1",
+      "tp_original": 3944.72
+    },
+    "554688047": {
+      "direction": "BUY",
+      "entry": 3961.44,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        8.240000000000236
+      ],
+      "step": 3,
+      "is_pending": false,
+      "sid": "11",
+      "tp_original": 3969.8
+    },
+    "554692766": {
+      "direction": "BUY",
+      "entry": 3965.48,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        34.279999999999745
+      ],
+      "step": 2,
+      "is_pending": false,
+      "sid": "16",
+      "tp_original": 3999.81
+    }
+  },
   "s15_use_val_vah": true,
   "s15_lookback": 100,
   "s15_min_rr": 1.0,
@@ -485,7 +517,8 @@
     "swept_high": false,
     "swept_low": true,
     "fired": {
-      "M1|BUY|1782892800": 1782892800
+      "M1|BUY|1782892800": 1782892800,
+      "M5|BUY|1782892800": 1782892800
     }
   },
   "s20_trigger_defect": true,
@@ -502,9 +535,11 @@
   "s20_fibo_tp_level": 1.618,
   "s20_trend_filter": false,
   "s20_session_filter": false,
-  "s20_entry_buffer": 390,
-  "s20_sl_2l2h": 100,
+  "s20_entry_buffer": 390.0,
+  "s20_sl_2l2h": 100.0,
   "fill_notified": [
-    554682311
+    554686192,
+    554692766,
+    554688047
   ]
 }
