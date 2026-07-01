@@ -2,13 +2,27 @@
 demo_portfolio.py — Live/demo runner for the "Champion" (P13) and "Max-Yield Blend" (P16)
 research portfolios, fully independent from the S1-S20 live bot.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- ไม่แตะ scanner.py / active_strategies / bot_state.json / trailing.py state dict ใดๆ
+- ไม่แตะ scanner.py / active_strategies / bot_state.json (ไม่เขียนทับ ไม่ใช้ logic ของบอทหลัก)
 - เรียก detect_s<N>() ตัวเดียวกับที่ backtest ใช้ ไม่มี logic ซ้ำ
 - วางออเดอร์ด้วย mt5.order_send() ตรงๆ (ไม่ผ่าน mt5_utils.open_order_market เพราะจะโดน
   ML_SCORING_ENABLED / SCALE_OUT_ENABLED ที่ config.py เปิดอยู่โดย default — ทั้งสองตัวจะเปลี่ยน
   volume/filter สัญญาณแบบไม่ตรงกับสมมติฐานที่ backtest ใช้ (MIN_LOT คงที่, fixed SL/TP)
 - SL/TP ฝากไว้กับ broker ตรงๆ (research พิสูจน์แล้วว่า fixed SL/TP ดีกว่า trailing/breakeven/
   partial-TP ทุกแบบที่ทดสอบ — ดู create_exit_optimization.md) ไม่ต้องมี exit-management เพิ่ม
+
+⚠️ สำคัญ (เจอบั๊กจริงตอน deploy 2026-07-01): trailing.py มีฟังก์ชัน generic position-management
+หลายสิบตัว (check_fill_trend_recheck, SL Guard Group, PD Zone fill check ฯลฯ) ที่สแกน
+mt5.positions_get(symbol=SYMBOL) แบบ "ทุกโพซิชั่นในสัญลักษณ์" แล้ว skip เฉพาะ ticket ที่
+position_sid.get(ticket) อยู่ใน skip-list ของฟังก์ชันนั้นๆ — ถ้าไม่ลงทะเบียน ticket ของเราไว้เลย
+sid จะเป็น None ซึ่งไม่ตรง skip-list ใดๆ ทำให้ไม้ P13/P16 โดน logic ของบอทหลักไปจัดการ/ปิดก่อนถึง
+SL/TP จริง (เจอจริง: ปิดขาดทุน -$0.01 ถึง -$0.49 ภายในไม่กี่สิบนาที ทั้งที่ SL ตั้งไกลกว่านั้นมาก)
+แก้โดยลงทะเบียน position_sid[ticket] = 21 ทันทีหลังวางออเดอร์สำเร็จ — sid=21 เป็นค่าที่ถูก
+"จอง" ไว้แล้วในทุก skip-list หลักของ trailing.py (SL_GUARD_SKIP_SIDS, SL_GUARD_GROUP_SKIP_SIDS,
+PDFIBOPLUS_SKIP_SIDS, PENDING_LIMIT_GUARD_SKIP_SIDS, NEWS_FILTER_SKIP_SIDS,
+OPPOSITE_ORDER_SKIP_SIDS, และ inline skip-tuple ของ check_fill_trend_recheck) — ตรงกับ
+strategy21.py เดิมที่ import ไว้เฉยๆแต่ active_strategies ไม่มี key 21 (ไม่เคยถูกเรียกจริง) จึงใช้
+sid นี้ tag ไม้ standalone ได้อย่างปลอดภัย ไม่ชนกับ strategy ไหน — position_sid ถูก
+save/restore ผ่าน bot_state.json อยู่แล้ว (ของเดิมในระบบ) จึงรอดข้าม restart อัตโนมัติ
 """
 
 import json
@@ -250,6 +264,16 @@ async def demo_scan(app, portfolio_name: str):
         comment = f"DEMO-{leg_id}"
         result = _place_market_order(sig, sl, tp, comment, magic)
 
+        if result.get("success") and result.get("ticket"):
+            # ⚠️ ต้องลงทะเบียนด้วย sid=21 ทันที ไม่งั้น trailing.py จะเห็น sid=None แล้วไม่ skip
+            # (บั๊กจริงที่เจอ 2026-07-01 — ดู docstring บนไฟล์นี้) sid=21 = ค่าจองไว้แล้วในทุก
+            # skip-list หลักของ trailing.py สำหรับ standalone strategy โดยเฉพาะ
+            try:
+                from trailing import position_sid
+                position_sid[result["ticket"]] = 21
+            except Exception as e:
+                log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+
         trade_log = {
             "ts": now.isoformat(), "leg": leg_id, "label": label, "signal": sig,
             "sl": sl, "tp": tp, "success": result.get("success"),
@@ -296,8 +320,70 @@ async def demo_scan_job(app):
                 log_error("DEMO_PORTFOLIO", f"{name} scan error: {type(e).__name__}: {e}")
 
 
+def _fetch_leg_pnl(portfolio_name: str):
+    """
+    ดึงกำไร/ขาดทุนแยกตาม leg ทั้ง 2 แบบ:
+    - "total"/"n_closed" = realized (ไม้ที่ปิดจบแล้วจริงๆ ผ่าน SL/TP ที่ broker) — ย้อนดู deal
+      history ของ MT5 เพราะ Python ไม่ได้คอยเช็คเอง
+    - "floating" = unrealized (ไม้ที่ยังเปิดอยู่ตอนนี้ ราคายังไม่แตะ SL/TP) — ดึงจาก
+      positions_get() ตรงๆ (ลอยได้ทั้งบวกและลบ ยังไม่ใช่กำไรจริงจนกว่าจะปิด)
+    match กลับด้วย ticket ที่บันทึกไว้ตอนวางออเดอร์ (state["trades"])
+
+    คืน dict: {leg_id: {"total": float, "n_closed": int, "floating": float, "first_ts": str}}
+    """
+    state = _load_state()
+    tickets = {t["ticket"]: (t["leg"], t["ts"]) for t in state["trades"]
+               if t.get("success") and t.get("ticket") and t["leg"].startswith(f"{portfolio_name}-")}
+    result = {}
+    for leg_id, ts in tickets.values():
+        d = result.setdefault(leg_id, {"total": 0.0, "n_closed": 0, "floating": 0.0, "first_ts": ts})
+        if ts < d["first_ts"]:
+            d["first_ts"] = ts
+
+    if not tickets:
+        return result
+
+    magic = MAGIC_BASE + int(portfolio_name[1:])
+
+    # ── floating (ไม้ที่ยังเปิดอยู่ตอนนี้) ──────────────────────────────────
+    open_positions = mt5.positions_get(symbol=config.SYMBOL)
+    if open_positions:
+        for p in open_positions:
+            if p.magic != magic:
+                continue
+            leg_info = tickets.get(p.ticket)
+            if leg_info is None:
+                continue
+            d = result.setdefault(leg_info[0], {"total": 0.0, "n_closed": 0, "floating": 0.0,
+                                                 "first_ts": leg_info[1]})
+            d["floating"] += float(p.profit) + float(p.swap)
+
+    # ── realized (ไม้ที่ปิดจบแล้ว) ───────────────────────────────────────────
+    from datetime import timedelta as _td
+    date_from = datetime.now(timezone.utc) - _td(days=200)
+    date_to = datetime.now(timezone.utc) + _td(days=1)
+    deals = mt5.history_deals_get(date_from, date_to)
+    if not deals:
+        return result
+
+    for deal in deals:
+        if deal.magic != magic:
+            continue
+        if deal.entry != mt5.DEAL_ENTRY_OUT:  # เอาเฉพาะ deal ที่ "ปิด" position (มีกำไร/ขาดทุนจริง)
+            continue
+        leg_info = tickets.get(deal.position_id)
+        if leg_info is None:
+            continue
+        leg_id = leg_info[0]
+        d = result.setdefault(leg_id, {"total": 0.0, "n_closed": 0, "floating": 0.0,
+                                        "first_ts": leg_info[1]})
+        d["total"] += float(deal.profit) + float(deal.swap) + float(deal.commission)
+        d["n_closed"] += 1
+    return result
+
+
 def get_status_text(portfolio_name: str) -> str:
-    """สรุปสถานะสำหรับ Telegram status view"""
+    """สรุปสถานะสำหรับ Telegram status view — รวมกำไรเฉลี่ยต่อวัน/เดือน/กำไรรวม แยกราย leg"""
     state = _load_state()
     is_active = config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False)
     keys = PORTFOLIOS[portfolio_name]
@@ -315,6 +401,7 @@ def get_status_text(portfolio_name: str) -> str:
         f"Magic: {magic}",
         f"ออเดอร์วันนี้: {n_success} ไม้",
     ]
+
     open_positions = mt5.positions_get(symbol=config.SYMBOL)
     if open_positions:
         pf_positions = [p for p in open_positions if p.magic == magic]
@@ -323,4 +410,37 @@ def get_status_text(portfolio_name: str) -> str:
             for p in pf_positions[:10]:
                 lines.append(f"  #{p.ticket} {'BUY' if p.type==0 else 'SELL'} "
                              f"{p.volume} SL:{p.sl:.2f} TP:{p.tp:.2f} PnL:{p.profit:.2f}")
+
+    # ── กำไร/ขาดทุนแยกราย leg: realized (ปิดแล้ว) + floating (ยังเปิดอยู่) ─────────
+    pnl_by_leg = _fetch_leg_pnl(portfolio_name)
+    if pnl_by_leg:
+        now = _now_bkk()
+        lines.append(f"\n💵 *กำไร/ขาดทุน แยกราย leg:*")
+        total_realized = 0.0
+        total_floating = 0.0
+        sort_key = lambda k: pnl_by_leg[k]["total"] + pnl_by_leg[k]["floating"]
+        for leg_id in sorted(pnl_by_leg, key=sort_key, reverse=True):
+            d = pnl_by_leg[leg_id]
+            key = leg_id.split("-", 1)[1]  # "P13-D" -> "D"
+            label = _LEG_DEFS.get(key, (key,))[0]
+            first_dt = datetime.fromisoformat(d["first_ts"])
+            days_elapsed = max((now - first_dt).total_seconds() / 86400.0, 1.0)
+            per_day = d["total"] / days_elapsed
+            per_month = per_day * 30
+            total_realized += d["total"]
+            total_floating += d["floating"]
+            float_part = f" | ลอยอยู่ `${d['floating']:+.2f}` (ยังไม่ปิด)" if d["floating"] != 0 else ""
+            lines.append(
+                f"  `{key}` {label}: ปิดแล้ว `${d['total']:+.2f}` "
+                f"({d['n_closed']} ไม้){float_part}\n"
+                f"      เฉลี่ย/วัน `${per_day:+.2f}` | เฉลี่ย/เดือน `${per_month:+.2f}`"
+            )
+        lines.append(
+            f"\n**รวม realized (ปิดแล้ว): ${total_realized:+.2f}**\n"
+            f"**รวม floating (ยังไม่ปิด): ${total_floating:+.2f}**\n"
+            f"**รวมทั้งหมด: ${total_realized + total_floating:+.2f}**"
+        )
+    else:
+        lines.append("\n_ยังไม่มีไม้เข้าเลย — รอสัญญาณแรกก่อน_")
+
     return "\n".join(lines)
