@@ -1478,6 +1478,16 @@ C_TP    = "\033[38;5;46m"    # เขียว  — TP
 
 STATE_FILE = "bot_state.json"
 
+# ── Demo Portfolio (P13 "Champion" / P16 "Max-Yield Blend") ──────────────────
+# ระบบทดสอบแยกอิสระจากบอทหลัก (S1-S20) — ใช้ demo_portfolio.py, state แยกที่
+# demo_portfolio_state.json, magic number แยก (990013/990016), ไม่แตะ
+# active_strategies/bot_state.json/trailing.py — คุมเปิด-ปิดผ่าน Telegram
+# ⚠️ default = เปิดทั้งคู่ (ผู้ใช้ยืนยันแล้ว 2026-07-01) — หลัง bot restart/คอมดับแล้วรันใหม่
+# จะเทรดจริงทันทีโดยไม่ต้องกด Telegram ยืนยันก่อน (ไม่มี safety-net auto-OFF อีกต่อไป)
+# ถ้าต้องการปิดชั่วคราว ใช้ปุ่ม ⏸️ ในเมนู "🧪 Demo Portfolio" บน Telegram
+DEMO_PORTFOLIO_ACTIVE = {"P13": True, "P16": True}     # default เปิดทั้งคู่
+DEMO_PORTFOLIO_SCAN_INTERVAL = 5                       # นาที (เท่ากับ SCAN_INTERVAL เดิม)
+
 # ── Triple Scale-Out (TSO) — Config ───────────────────────────
 # เปิด/ปิด ผ่านปุ่ม Telegram (📈 Scale-Out 4X)
 # เมื่อ ON:

@@ -16,6 +16,7 @@ from handlers.btn_settings import handle_btn_settings
 from handlers.btn_tf import handle_btn_tf
 from handlers.btn_profit import handle_btn_profit
 from handlers.btn_tg_status import handle_btn_tg_status
+from handlers.btn_demo_portfolio import handle_btn_demo_portfolio
 from mt5_utils import connect_mt5
 from handlers.keyboard import main_keyboard
 from datetime import datetime, timedelta
@@ -75,6 +76,7 @@ BUTTON_ROUTES = {
     "🕐 เลือก Timeframe": handle_btn_tf,
     "📊 สรุปกำไร":        handle_btn_profit,
     "🚦 TG Status":       handle_btn_tg_status,
+    "🧪 Demo Portfolio":  handle_btn_demo_portfolio,
 }
 
 

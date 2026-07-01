@@ -43,7 +43,7 @@ def _trend_allows(signal: str, tf: str) -> bool:
 def _find_fvg_retest_models(rates, atr, tf):
     """S20.6 FVG Retest Model (Deep Price Action)"""
     if len(rates) < 15:
-        return None, None, None
+        return None, None, None, None, None
 
     def is_green(c): return c and c['close'] > c['open']
     def is_red(c): return c and c['close'] < c['open']
@@ -145,7 +145,7 @@ def _find_fvg_retest_models(rates, atr, tf):
                     if is_engulf or is_half_engulf or is_pinbar:
                         # [PDF Page 6]: ต้องมีการทำไส้บนบ้าง ไม่งั้นเตรียมโดด Sell
                         if wick_top(c_prev) < atr * 0.02 and c_prev['close'] <= c_p2['high']:
-                            return None, "S20.6.Blocked_NoTopWick_Trap", c_prev
+                            return None, "S20.6.Blocked_NoTopWick_Trap", c_prev, None, None
                         
                         return "BUY", "S20.6.FVG_Entry", c_prev, c1, c3
                         
@@ -164,7 +164,7 @@ def _find_fvg_retest_models(rates, atr, tf):
                     if is_engulf or is_half_engulf or is_pinbar:
                         # [PDF Page 6]: ต้องมีการทำไส้ล่างบ้าง
                         if wick_bot(c_prev) < atr * 0.02 and c_prev['close'] >= c_p2['low']:
-                            return None, "S20.6.Blocked_NoBotWick_Trap", c_prev
+                            return None, "S20.6.Blocked_NoBotWick_Trap", c_prev, None, None
                         
                         return "SELL", "S20.6.FVG_Entry", c_prev, c1, c3
 

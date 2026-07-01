@@ -3,7 +3,7 @@ import config
 from config import *
 
 
-def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: float) -> float:
+def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: float, sid=None) -> float:
     """Dynamic Lot Sizing — คืน base lot ที่คำนวณจาก RISK_PERCENT × equity / ระยะ SL
     (ก่อน TSO scale). ถ้า RISK_PERCENT_ENABLED=False หรือข้อมูลไม่พอ → คืน base_volume เดิม
 
@@ -14,7 +14,20 @@ def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: floa
     clamp: [volume_min, min(RISK_MAX_LOT, volume_max)] และ snap ตาม volume_step
     """
     try:
-        if not getattr(config, "RISK_PERCENT_ENABLED", False):
+        is_compounding = getattr(config, "RISK_PERCENT_ENABLED", False)
+        risk_pct = float(getattr(config, "RISK_PERCENT", 2.0))
+        max_lot = float(getattr(config, "RISK_MAX_LOT", 100.0))
+        
+        if str(sid) == "20.6":
+            is_compounding = getattr(config, "S20_6_COMPOUNDING_ENABLED", False)
+            risk_pct = float(getattr(config, "S20_6_RISK_PCT", 2.0))
+            max_lot = float(getattr(config, "S20_6_MAX_LOT", 50.0))
+        elif str(sid) == "20.8":
+            is_compounding = getattr(config, "S20_8_COMPOUNDING_ENABLED", False)
+            risk_pct = float(getattr(config, "S20_8_RISK_PCT", 2.0))
+            max_lot = float(getattr(config, "S20_8_MAX_LOT", 50.0))
+            
+        if not is_compounding:
             return float(base_volume)
         if not entry or not sl or entry <= 0 or sl <= 0:
             return float(base_volume)
@@ -33,7 +46,7 @@ def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: floa
             return float(base_volume)
 
         equity     = float(getattr(acc, "equity", 0.0) or getattr(acc, "balance", 0.0) or 0.0)
-        risk_money = equity * (float(config.RISK_PERCENT) / 100.0)
+        risk_money = equity * (risk_pct / 100.0)
         if risk_money <= 0:
             return float(base_volume)
 
@@ -47,7 +60,7 @@ def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: floa
         vol_min  = float(getattr(info, "volume_min", 0.01) or 0.01)
         vol_max  = float(getattr(info, "volume_max", 100.0) or 100.0)
         vol_step = float(getattr(info, "volume_step", 0.01) or 0.01)
-        cap      = min(float(getattr(config, "RISK_MAX_LOT", vol_max)), vol_max)
+        cap      = min(max_lot, vol_max)
         lot = max(vol_min, min(lot, cap))
         # snap ลงเป็นจำนวนเท่าของ step
         if vol_step > 0:
@@ -726,7 +739,7 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
         ot = mt5.ORDER_TYPE_SELL_STOP
 
     # ── Dynamic Lot Sizing: ปรับ base lot ตาม % risk ก่อน TSO (no-op ถ้า OFF) ──
-    base_volume = _resolve_risk_volume(float(volume), signal, price, sl)
+    base_volume = _resolve_risk_volume(float(volume), signal, price, sl, sid=sid)
     # ── Triple Scale-Out: ขยาย volume ตาม TP เดิม (skip S13) ──
     send_volume, effective_steps = _scale_out_resolve_volume(
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
@@ -844,7 +857,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
         ot = mt5.ORDER_TYPE_SELL_LIMIT
 
     # ── Dynamic Lot Sizing: ปรับ base lot ตาม % risk ก่อน TSO (no-op ถ้า OFF) ──
-    base_volume = _resolve_risk_volume(float(volume), signal, price, sl)
+    base_volume = _resolve_risk_volume(float(volume), signal, price, sl, sid=sid)
     # ── Triple Scale-Out: ขยาย volume ตาม TP เดิม (dynamic steps) ──
     send_volume, effective_steps = _scale_out_resolve_volume(
         base_volume, sid=sid, direction=signal, entry=price, tp=tp
@@ -957,7 +970,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     ot    = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
 
     # ── Dynamic Lot Sizing: ปรับ base lot ตาม % risk ก่อน TSO (no-op ถ้า OFF) ──
-    base_volume = _resolve_risk_volume(float(volume), signal, price, sl)
+    base_volume = _resolve_risk_volume(float(volume), signal, price, sl, sid=sid)
     # ── Triple Scale-Out: ขยาย volume (skip S13 — มี logic แยก) ──
     send_volume, effective_steps = _scale_out_resolve_volume(
         base_volume, sid=sid, direction=signal, entry=price, tp=tp

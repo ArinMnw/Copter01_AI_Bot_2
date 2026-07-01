@@ -30,7 +30,7 @@ def main_keyboard():
         [KeyboardButton("🤖 สแกนตอนนี้"), KeyboardButton("⚙️ สถานะ Auto")],
         [KeyboardButton("⏳ Pending Orders"), KeyboardButton("🗑️ ยกเลิก Pending")],
         [KeyboardButton("📊 สรุปกำไร"), KeyboardButton("⚙️ ตั้งค่า")],
-        [KeyboardButton("🚦 TG Status")],
+        [KeyboardButton("🚦 TG Status"), KeyboardButton("🧪 Demo Portfolio")],
     ], resize_keyboard=True)
 
 
@@ -1001,6 +1001,9 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.11:
         is_on = getattr(config, "S20_11_ENABLED", False)
         toggle_cb = "toggle_s20_11_enabled"
+    elif sid == 20.12:
+        is_on = getattr(config, "S20_12_ENABLED", False)
+        toggle_cb = "toggle_s20_12_enabled"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"

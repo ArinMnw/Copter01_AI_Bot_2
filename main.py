@@ -203,6 +203,16 @@ def main():
         except Exception as e:
             await _tg_error(app, "run_scan", e)
 
+    async def run_demo_portfolio_scan():
+        """P13 (Champion) / P16 (Max-Yield Blend) — ระบบทดสอบแยกอิสระจากบอทหลัก
+        (ดู demo_portfolio.py) ไม่แตะ active_strategies/scanner.py/trailing.py state ใดๆ
+        no-op ถ้าไม่มี portfolio ไหน active (default ปิดทั้งคู่)"""
+        try:
+            import demo_portfolio
+            await demo_portfolio.demo_scan_job(app)
+        except Exception as e:
+            await _tg_error(app, "run_demo_portfolio_scan", e)
+
     async def _close_btc_exposure_before_xau_switch():
         """ปิด position และลบ pending ของ BTCUSD ก่อนสลับกลับ XAUUSD"""
         btc_symbol = "BTCUSD.iux"
@@ -565,6 +575,18 @@ def main():
         max_instances=1,
         coalesce=True,
         misfire_grace_time=5,
+        next_run_time=datetime.now(_tz2.utc)
+    )
+
+    # Demo Portfolio (P13/P16) — สแกนแยกอิสระจากบอทหลัก ทุก DEMO_PORTFOLIO_SCAN_INTERVAL นาที
+    # (no-op ถ้าไม่มี portfolio ไหน active — ดู config.DEMO_PORTFOLIO_ACTIVE)
+    scheduler.add_job(
+        run_demo_portfolio_scan,
+        'interval',
+        minutes=config.DEMO_PORTFOLIO_SCAN_INTERVAL,
+        id="demo_portfolio_scan_job",
+        max_instances=1,
+        coalesce=True,
         next_run_time=datetime.now(_tz2.utc)
     )
 
