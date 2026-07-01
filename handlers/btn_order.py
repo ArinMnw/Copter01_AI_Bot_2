@@ -141,7 +141,13 @@ def _grep_ticket_lines(ticket: int) -> list[str]:
     return matched
 
 
-def _grep_tg_sent_near_ts(ts_unix: int, pattern_key: str, window_sec: int = 90) -> str:
+def _grep_tg_sent_near_ts(
+    ts_unix: int,
+    pattern_key: str,
+    window_sec: int = 90,
+    ticket: int | None = None,
+    expected_tf: str = "",
+) -> str:
     """หา TG_SENT ที่ match pattern_key ภายใน ±window_sec วินาทีของ ts_unix
     ใช้แทน line-proximity search ของ _read_signal_tg (ทำงานถูกต้องทุก file)
     """
@@ -164,6 +170,27 @@ def _grep_tg_sent_near_ts(ts_unix: int, pattern_key: str, window_sec: int = 90) 
             return 0
 
     lo, hi = ts_unix - window_sec, ts_unix + window_sec
+    tk_str = str(ticket or "")
+    best_score = -1
+    best_msg = ""
+
+    def _context_score(line: str) -> int:
+        clean = line.replace("\\", "")
+        score = 0
+        if tk_str and tk_str in clean:
+            score += 100
+        if expected_tf:
+            tf_markers = (
+                f"Timeframe: {expected_tf}",
+                f"Timeframe: `{expected_tf}`",
+                f"Flow: `{expected_tf}-",
+                f"TF: {expected_tf}",
+                f"[{expected_tf}]",
+            )
+            if any(marker in clean for marker in tf_markers):
+                score += 10
+        return score
+
     for path in _all_bot_log_files():
         try:
             with open(path, encoding='utf-8', errors='replace') as f:
@@ -179,10 +206,16 @@ def _grep_tg_sent_near_ts(ts_unix: int, pattern_key: str, window_sec: int = 90) 
                     if t == 0 or lo <= t <= hi:
                         m2 = re.match(r'^\[.+?\]\s+TG_SENT \| (.+)', line)
                         if m2:
-                            return m2.group(1).rstrip().replace(" | ", "\n")
+                            msg = m2.group(1).rstrip().replace(" | ", "\n")
+                            score = _context_score(line)
+                            if score > best_score:
+                                best_score = score
+                                best_msg = msg
+                            if score >= 100:
+                                return msg
         except Exception:
             pass
-    return ""
+    return best_msg
 
 
 def _read_order_meta(ticket: int, all_lines: list) -> tuple[str, str, str]:
@@ -221,6 +254,7 @@ def _read_signal_tg(ticket: int, all_lines: list) -> str:
     # Step 1: หา ORDER_CREATED line → pattern name + timestamp
     oc_ts_str    = None
     pattern_name = None
+    tf_name      = ""
     for line in tk_lines:
         if tk_str not in line:
             continue
@@ -232,6 +266,7 @@ def _read_signal_tg(ticket: int, all_lines: list) -> str:
         m = re.match(r'^\[.+?\]\s+ORDER_CREATED \| ([^|]+)', line)
         if m:
             pattern_name = m.group(1).strip()
+        tf_name = _fld(line, 'tf') or ""
         break
 
     if oc_ts_str is None:
@@ -249,7 +284,13 @@ def _read_signal_tg(ticket: int, all_lines: list) -> str:
 
     # Step 2: timestamp window search (ไม่ขึ้นกับ line number)
     if pattern_name and oc_unix > 0:
-        result = _grep_tg_sent_near_ts(oc_unix, pattern_name, window_sec=90)
+        result = _grep_tg_sent_near_ts(
+            oc_unix,
+            pattern_name,
+            window_sec=90,
+            ticket=ticket,
+            expected_tf=tf_name,
+        )
         if result:
             return result
 
@@ -497,6 +538,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
     ใช้เมื่อ TG_SENT ถูกตัดกลางคำ (order เก่าที่ log แค่ 300 chars)"""
     oc_time_str = tf_name = entry = sl = tp = sid = signal = trend = hhll_log = None
     htf_ltf = sub_pattern_log = None
+    setup_bar_time = 0
     s14_ref_bar_time = s14_signal_bar_time = 0
     tk_str = str(ticket)
     for line in all_lines:
@@ -513,6 +555,12 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
         signal   = _fld(line, 'signal')
         trend    = _fld(line, 'trend_filter')
         hhll_log = _fld(line, 'hhll_last_label')  # บันทึก ณ ตอนสร้าง order
+        m_flow_t = re.search(r'flow_id=.*?\|T(\d+)(?:\||\s|$)', line)
+        if m_flow_t:
+            try:
+                setup_bar_time = int(m_flow_t.group(1))
+            except (TypeError, ValueError):
+                setup_bar_time = 0
         htf_ltf         = _fld(line, 'htf_ltf')
         sub_pattern_log = _fld(line, 'sub_pattern') or ""
         try:
@@ -580,6 +628,10 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
                 return None
             step = tf_mins.get(tf_str, 1)
             tf_secs = step * 60
+            if setup_bar_time and (not htf_tf or tf_str == ltf_tf):
+                raw = mt5.copy_rates_from(symbol, tf_id, int(setup_bar_time), count)
+                if raw is not None and len(raw) >= count:
+                    return raw[-count:]
             # ดึงแท่งที่ปิดก่อน oc_time
             start = oc_dt - timedelta(minutes=step * (count + 4))
             end   = oc_dt - timedelta(seconds=1)

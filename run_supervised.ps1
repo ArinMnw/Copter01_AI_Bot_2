@@ -9,7 +9,7 @@
 #   - ถ้า process ตายเอง → restart
 #
 # วิธีรัน:  powershell -ExecutionPolicy Bypass -NoProfile -File run_supervised.ps1
-#          หรือดับเบิลคลิก run_supervised.bat
+#          หรือดับเบิลคลิก run\run_supervised.bat
 # หยุด:    Ctrl+C (bot ที่รันอยู่จะกลายเป็น orphan แต่ยังเทรดต่อ — ปิดเองถ้าต้องการ)
 
 param(

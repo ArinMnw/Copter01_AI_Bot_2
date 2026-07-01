@@ -1,6 +1,8 @@
 from config import *
 import config
 import asyncio
+import importlib.util as _importlib_util
+from pathlib import Path as _Path
 import time as _time
 from bot_log import log_block, log_event
 from mt5_utils import connect_mt5, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
@@ -26,11 +28,25 @@ from strategy17 import strategy_17
 from strategy18 import strategy_18
 from strategy19 import strategy_19
 from strategy20 import strategy_20
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.5"))
 from strategy20_5 import strategy_20_5
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.6"))
 from strategy20_6 import strategy_20_6
 from strategy20_7 import strategy_20_7
-from strategy20_8 import strategy_20_8
+_s20_8_path = _Path(__file__).resolve().parent / "strategy" / "s20.8" / "strategy20_8.py"
+_s20_8_spec = _importlib_util.spec_from_file_location("strategy20_8", _s20_8_path)
+_s20_8_module = _importlib_util.module_from_spec(_s20_8_spec)
+_s20_8_spec.loader.exec_module(_s20_8_module)
+strategy_20_8 = _s20_8_module.strategy_20_8
 from strategy20_9 import strategy_20_9
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.10"))
+from strategy20_10 import strategy_20_10
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.11"))
+from strategy20_11 import strategy_20_11
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.12"))
+from strategy20_12 import strategy_20_12
 try:
     from strategy21 import strategy_21
 except ModuleNotFoundError:
@@ -172,13 +188,67 @@ def _has_swing_in_lookback(rates, signal: str, lookback_bars: int = 8) -> bool:
     return False
 
 
-def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_bars: int) -> dict | None:
+def _s1_swing_confirmed_for_lookback(
+    result: dict,
+    signal: str,
+    tf_name: str,
+    tf_secs: int,
+    current_bar_time: int,
+    detect_time: int,
+) -> bool:
+    if getattr(config, "S1_ZONE_MODE", "") != "swing":
+        return True
+    if not tf_name or not tf_secs:
+        return False
+
+    zone_meta = result.get("s1_zone_meta") or {}
+    if not zone_meta.get("enabled"):
+        return False
+
+    signal = str(signal or zone_meta.get("signal") or "").upper()
+    candles = result.get("candles") or []
+    pattern_candle_times = {
+        int(c["time"])
+        for c in candles
+        if c is not None and "time" in c
+    }
+    if not pattern_candle_times:
+        pattern_candle_times = {detect_time - n * int(tf_secs) for n in range(4)}
+
+    try:
+        hhll_swing.fetch_hhll(tf_name, current_bar_time=current_bar_time)
+        data = hhll_swing.get_hhll_data(tf_name) or {}
+    except Exception:
+        return False
+
+    if signal == "BUY":
+        points = [data.get("hl"), data.get("ll")]
+    elif signal == "SELL":
+        points = [data.get("hh"), data.get("lh")]
+    else:
+        return False
+
+    hhll_right = int(getattr(config, "HHLL_RIGHT", 5) or 5)
+    for point in points:
+        if not point or not point.get("time"):
+            continue
+        swing_time = int(point["time"])
+        if swing_time not in pattern_candle_times:
+            continue
+        confirm_time = swing_time + hhll_right * int(tf_secs)
+        if detect_time <= confirm_time <= detect_time + 5 * int(tf_secs) and confirm_time <= current_bar_time:
+            return True
+    return False
+
+
+def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_bars: int, tf_name: str = "") -> dict | None:
     lookback_bars = max(0, int(lookback_bars or 0))
     if lookback_bars <= 0 or rates is None or len(rates) < 4:
         return None
 
     signal = str(signal or "").upper()
     matches = []
+    invalid_s1_swing_detect_times = set()
     checkers = (
         (1, strategy_1),
         (2, strategy_2),
@@ -195,7 +265,7 @@ def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_
 
         for sid, checker in checkers:
             try:
-                result = checker(sliced_rates)
+                result = checker(sliced_rates, tf=tf_name) if sid == 1 else checker(sliced_rates)
             except Exception:
                 continue
             if sid == 2:
@@ -204,9 +274,23 @@ def _find_recent_signal_confirmation(rates, signal: str, tf_secs: int, lookback_
                 fvg = result.get("fvg") or {}
                 if str(fvg.get("signal", "")).upper() != signal:
                     continue
+                if detect_time in invalid_s1_swing_detect_times:
+                    continue
                 pattern = str(fvg.get("pattern", "") or "")
             else:
                 if str(result.get("signal", "")).upper() != signal:
+                    continue
+                if sid == 1 and not _s1_swing_confirmed_for_lookback(
+                    result,
+                    signal,
+                    tf_name,
+                    int(tf_secs or 0),
+                    int(rates[-1]["time"]),
+                    detect_time,
+                ):
+                    invalid_s1_swing_detect_times.add(detect_time)
+                    continue
+                if sid != 1 and detect_time in invalid_s1_swing_detect_times:
                     continue
                 pattern = str(result.get("pattern", "") or "")
             matches.append({
@@ -1733,7 +1817,7 @@ async def check_s3_maru_pending(app):
         cl = float(last_bar["close"])
         bull_next = cl > o
         lookback_bars = max(0, int(getattr(config, "S3_CONFIRM_LOOKBACK_BARS", getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8)) or 0))
-        s3_confirm_ref = _find_recent_signal_confirmation(rates, direction, TF_SECONDS_MAP.get(tf, 0), lookback_bars)
+        s3_confirm_ref = _find_recent_signal_confirmation(rates, direction, TF_SECONDS_MAP.get(tf, 0), lookback_bars, tf)
         if not s3_confirm_ref:
             _tf_secs_maru = max(1, TF_SECONDS_MAP.get(tf, 60))
             _key_maru = (tf, 3, direction)
@@ -2393,6 +2477,8 @@ async def _sl_guard_place_retries(app, tf_name: str, rates) -> bool:
 
         for retry in retries:
             sid     = retry.get("sid")
+            if sid in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
+                continue
             signal  = retry.get("signal", side)
             entry   = float(retry.get("entry", 0))
             sl      = float(retry.get("sl", 0))
@@ -2474,6 +2560,8 @@ async def _combined_guard_place_retries(app, tf_name: str, rates) -> bool:
 
         for sig in retries:
             sid     = sig.get("sid", 0)
+            if sid in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
+                continue
             signal  = sig.get("signal", side)
             entry   = sig.get("entry", 0)
             sl      = sig.get("sl", 0)
@@ -2524,6 +2612,8 @@ async def _group_guard_place_retries(app, tf_name: str, rates) -> bool:
 
         for sig in retries:
             sid        = sig.get("sid", 0)
+            if sid in getattr(config, "SL_GUARD_GROUP_SKIP_SIDS", set()):
+                continue
             signal     = sig.get("signal", side)
             entry      = sig.get("entry", 0)
             sl         = sig.get("sl", 0)
@@ -2809,7 +2899,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_5.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.5, r20_5["signal"], last_candle_time, r20_5)
 
-    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) else {"signal": "WAIT", "reason": "S20.6 ปิด"}
+    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) and getattr(config, "S20_6_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.6 ปิด หรือ TF ปิด"}
     if r20_6.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.6, r20_6["signal"], last_candle_time, r20_6)
 
@@ -2824,6 +2914,18 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r20_9 = strategy_20_9(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20.9, False) else {"signal": "WAIT", "reason": "S20.9 ปิด"}
     if r20_9.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.9, r20_9["signal"], last_candle_time, r20_9)
+
+    r20_10 = strategy_20_10(rates, tf_name=tf_name, config=config) if active_strategies.get(20.10, False) else {"signal": "WAIT", "reason": "S20.10 ปิด"}
+    if r20_10.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.10, r20_10["signal"], last_candle_time, r20_10)
+
+    r20_11 = strategy_20_11(rates, tf_name=tf_name, config=config) if active_strategies.get(20.11, False) else {"signal": "WAIT", "reason": "S20.11 ปิด"}
+    if r20_11.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.11, r20_11["signal"], last_candle_time, r20_11)
+
+    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if active_strategies.get(20.12, False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.12 ปิด หรือ TF ปิด"}
+    if r20_12.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 
     r21 = strategy_21(rates, tf_name=tf_name, config=config) if active_strategies.get(21, False) else {"signal": "WAIT", "reason": "S21 ปิด"}
     if r21.get("signal") in ("BUY", "SELL"):
@@ -2929,6 +3031,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     fvg["signal"],
                     tf_secs,
                     getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8),
+                    tf_name,
                 )
                 if not s2_confirm_ref:
                     _key_s2 = (tf_name, 2, fvg["signal"])
@@ -3148,16 +3251,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     "pattern": fvg["pattern"],
                     "candle_key": last_candle_time,
                 }
-                await app.bot.send_message(
-                    chat_id=MY_USER_ID,
-                    text=(
-                        f"{sig_e} *FVG {fvg['signal']} [{tf_name}]*\n"
-                        f"Gap: `{final_gap_bot}` – `{final_gap_top}`\n"
-                        f"📌 Entry: `{final_entry}`\n"
-                        f"⏭️ ราคาผ่าน entry ไปแล้ว รอย้อนกลับ..."
-                    ),
-                    parse_mode="Markdown"
-                )
+                if getattr(config, "TRADE_DEBUG", False):
+                    await app.bot.send_message(
+                        chat_id=MY_USER_ID,
+                        text=(
+                            f"{sig_e} *FVG {fvg['signal']} [{tf_name}]*\n"
+                            f"Gap: `{final_gap_bot}` – `{final_gap_top}`\n"
+                            f"📌 Entry: `{final_entry}`\n"
+                            f"⏭️ ราคาผ่าน entry ไปแล้ว รอย้อนกลับ..."
+                        ),
+                        parse_mode="Markdown"
+                    )
             else:
                 log_event(
                     "ORDER_FAILED",
@@ -3232,11 +3336,18 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     f"รอแท่งถัดไป..."
                 ))
 
-    # ── เลือก result ที่ดีที่สุดสำหรับ execute order ──────────────
+    # ── News Filter Bypass Application ──
+    if getattr(config, "news_pause_active", False):
+        _n_skip = getattr(config, "NEWS_FILTER_SKIP_SIDS", set())
+        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (20.10,r20_10), (20.11,r20_11), (20.12,r20_12), (21,r21)]:
+            if _s not in _n_skip and _r.get("signal") not in ("WAIT", None):
+                _r["signal"] = "WAIT"
+                _r["reason"] = "📰 ติด News Filter Embargo"
+
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (21, r21)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3268,7 +3379,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (21, r21)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3402,7 +3513,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 0,
                 int(getattr(config, "S3_CONFIRM_LOOKBACK_BARS", getattr(config, "S2_NORMAL_CONFIRM_LOOKBACK_BARS", 8)) or 0),
             )
-            s3_confirm_ref = _find_recent_signal_confirmation(rates, signal, tf_secs, s3_lookback_bars)
+            s3_confirm_ref = _find_recent_signal_confirmation(rates, signal, tf_secs, s3_lookback_bars, tf_name)
             if not s3_confirm_ref:
                 _key_s3 = (tf_name, 3, signal)
                 if _key_s3 not in _lookback_fallback_start:
@@ -3420,7 +3531,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 continue
         # ── Sweep Filter Block — independent of TREND_FILTER_SCAN_BLOCK ──────
         # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15/S16 bypass)
-        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19):
+        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
             try:
                 import sweep_filter as _sf_blk
                 if _sf_blk.is_enabled():
@@ -3447,7 +3558,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             except Exception:
                 pass
         # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption, S16 AMD iFVG, S17 Sweep Sniper — reversal/standalone → bypass trend filter
-        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19) and config.TREND_FILTER_SCAN_BLOCK:
+        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(
@@ -3477,6 +3588,34 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     tf=tf_name, sid=sid, signal=signal,
                 )
                 continue
+        # ── QUANT ENGINE INTERCEPT (Central Gateway) ────────────────────
+        try:
+            import quant_engine
+            from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+            _BKK = _tz(_td(hours=7))
+            _time_bkk = _dt.fromtimestamp(last_candle_time, tz=_BKK)
+            
+            _tick = mt5.symbol_info_tick(config.SYMBOL)
+            _c_price = (_tick.ask if signal == "BUY" else _tick.bid) if _tick else result.get("entry", 0)
+            
+            quant_res = quant_engine.evaluate_signal(tf_name, sid, result, rates, _c_price, _time_bkk)
+            if quant_res.get("status") == "REJECTED":
+                _print_skip_once(
+                    tf_name,
+                    f"🛑 [{now}] {tf_label(tf_name)} ท่า{sid}: Quant Block ({quant_res.get('reason')})"
+                )
+                continue
+                
+            # Apply Modifications
+            if quant_res.get("adjusted_sl"):
+                result["sl"] = quant_res["adjusted_sl"]
+            if quant_res.get("adjusted_tp"):
+                result["tp"] = quant_res["adjusted_tp"]
+            if quant_res.get("adjusted_lot_multiplier", 1.0) != 1.0:
+                result["quant_lot_multiplier"] = quant_res["adjusted_lot_multiplier"]
+        except Exception as e:
+            _log_err("QUANT_ENGINE", e, f"sid={sid} tf={tf_name}")
+            
         # Pattern B pending
         if "Pattern B" in pattern:
             pb_key = f"{tf_name}_{last_candle_time}_{sid}"
@@ -3719,12 +3858,15 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     place_model = int(spec.get("model", 0) or 0)
                     place_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, place_entry, sl, tp, place_model)
                     order_sl = 0.0 if use_delay_sl else sl
+                    # Apply Quant Lot Multiplier
+                    final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
+                    
                     if order_mode == "stop":
-                        order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
+                        order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
                     elif order_mode == "market":
-                        order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=place_pattern)
+                        order = open_order_market(signal, final_volume, order_sl, tp, tf=tf_name, sid=sid, pattern=place_pattern)
                     else:
-                        order = open_order(signal, get_volume(), order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
+                        order = open_order(signal, final_volume, order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
                     order["_entry"] = place_entry
                     order["_pattern"] = place_pattern
                     order["_entry_label"] = place_label
@@ -3941,7 +4083,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                            entry=entry, sl=sl, tp=tp, candle_time=last_candle_time)
 
             # ── SL Guard: บล็อก LIMIT order ใหม่ถ้า guard active ──────
-            if config.SL_GUARD_ENABLED:
+            if config.SL_GUARD_ENABLED and sid not in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
                 from trailing import _sl_guard_state as _sgs, _sl_guard_check_unblock as _sgu
                 _sg_order_mode = result.get("order_mode", "limit")
                 if _sg_order_mode == "limit":
@@ -3978,7 +4120,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
 
             # ── SL Guard Combined: บล็อก LIMIT order ใหม่ถ้า combined guard active ──
-            if getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+            if getattr(config, "SL_GUARD_COMBINED_ENABLED", False) and sid not in getattr(config, "SL_GUARD_SKIP_SIDS", set()):
                 from trailing import _combined_guard_is_blocked, _combined_guard_check_unblock
                 from trailing import _sl_guard_combined as _cgstate
                 _cg_order_mode = result.get("order_mode", "limit")
@@ -4014,7 +4156,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         continue
 
             # ── SL Guard Group: บล็อก order ใหม่ (ทั้ง LIMIT และ MARKET) ถ้า group guard active ──
-            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in (10, 14):
+            if getattr(config, "SL_GUARD_GROUP_ENABLED", False) and sid not in getattr(config, "SL_GUARD_GROUP_SKIP_SIDS", {1}):
                 from trailing import (_group_guard_is_blocked, _group_guard_check_unblock,
                                       _group_guard_get_blocked_groups, _sl_guard_group)
                 _gg_order_mode = result.get("order_mode", "limit")
@@ -4135,12 +4277,15 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             order_sl = 0.0 if use_delay_sl else sl
 
             try:
+                # Apply Quant Lot Multiplier
+                final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
+                
                 if order_mode == "stop":
-                    order = open_order_stop(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
                 elif order_mode == "market":
-                    order = open_order_market(signal, get_volume(), order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order_market(signal, final_volume, order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
                 else:
-                    order = open_order(signal, get_volume(), order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
             except Exception as _order_exc:
                 log_event("ORDER_PLACEMENT_EXCEPTION",
                            f"{type(_order_exc).__name__}: {_order_exc}",

@@ -947,6 +947,12 @@ def build_strategy_keyboard():
             return getattr(config, "S20_6_FVG_ENABLED", False)
         if sid == 20.7:
             return getattr(config, "S20_7_ENABLED", False)
+        if sid == 20.8:
+            return getattr(config, "S20_8_ENABLED", False)
+        if sid == 20.10:
+            return getattr(config, "S20_10_ENABLED", False)
+        if sid == 20.11:
+            return getattr(config, "S20_11_ENABLED", False)
         return active_strategies.get(sid, False)
 
     rows = []
@@ -986,6 +992,15 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.7:
         is_on = getattr(config, "S20_7_ENABLED", False)
         toggle_cb = "toggle_s20_7_enabled"
+    elif sid == 20.8:
+        is_on = getattr(config, "S20_8_ENABLED", False)
+        toggle_cb = "toggle_s20_8_enabled"
+    elif sid == 20.10:
+        is_on = getattr(config, "S20_10_ENABLED", False)
+        toggle_cb = "toggle_s20_10_enabled"
+    elif sid == 20.11:
+        is_on = getattr(config, "S20_11_ENABLED", False)
+        toggle_cb = "toggle_s20_11_enabled"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"
@@ -1388,10 +1403,6 @@ def build_strategy_detail_keyboard(sid: int):
         ])
 
     
-    elif sid == 20.5 or sid == 20.6:
-        # ปุ่มเปิด/ปิดอยู่ที่ row บนสุดแล้ว (ชี้ไป S20_5_ENABLED/S20_6_FVG_ENABLED ตัวจริง)
-        pass
-
     elif sid == 20:
         s20_en     = getattr(config, "S20_ENABLED", False)
         t_defect   = getattr(config, "S20_TRIGGER_DEFECT", True)
@@ -1443,6 +1454,118 @@ def build_strategy_detail_keyboard(sid: int):
                 f"{'🟢' if sess_on else '⬜'} Session Filter",
                 callback_data="toggle_s20_session"
             )
+        ])
+
+    elif sid == 20.5:
+        tf_dict = getattr(config, "S20_5_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_5_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_5 = "🟢 S20.5 Compounding (On)" if getattr(config, "S20_5_COMPOUNDING_ENABLED", False) else "🔴 S20.5 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_5, callback_data="toggle_s20_5_compounding")
+        ])
+        r_pct = getattr(config, "S20_5_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.5 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_5_risk_pct")
+        ])
+
+    elif sid == 20.6:
+        tf_dict = getattr(config, "S20_6_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_6_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_6 = "🟢 S20.6 Compounding (On)" if getattr(config, "S20_6_COMPOUNDING_ENABLED", False) else "🔴 S20.6 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_6, callback_data="toggle_s20_6_compounding")
+        ])
+        r_pct = getattr(config, "S20_6_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.6 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_6_risk_pct")
+        ])
+
+    elif sid == 20.8:
+        c_s20_8 = "🟢 S20.8 Compounding (On)" if getattr(config, "S20_8_COMPOUNDING_ENABLED", False) else "🔴 S20.8 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_8, callback_data="toggle_s20_8_compounding")
+        ])
+        r_pct = getattr(config, "S20_8_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.8 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_8_risk_pct")
+        ])
+
+    elif sid == 20.10:
+        c_s20_10 = "🟢 S20.10 Compounding (On)" if getattr(config, "S20_10_COMPOUNDING_ENABLED", False) else "🔴 S20.10 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_10, callback_data="toggle_s20_10_compounding")
+        ])
+        r_pct = getattr(config, "S20_10_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.10 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_10_risk_pct")
+        ])
+        psycho_num = "🟢 ใช้เลขจิตวิทยา (On)" if getattr(config, "S20_10_USE_PSYCHOLOGICAL_NUMBERS", True) else "🔴 ใช้เลขจิตวิทยา (Off)"
+        rows.append([
+            InlineKeyboardButton(psycho_num, callback_data="toggle_s20_10_psycho")
+        ])
+
+    elif sid == 20.11:
+        tf_dict = getattr(config, "S20_11_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_11_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_11 = "🟢 S20.11 Compounding (On)" if getattr(config, "S20_11_COMPOUNDING_ENABLED", False) else "🔴 S20.11 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_11, callback_data="toggle_s20_11_compounding")
+        ])
+        r_pct = getattr(config, "S20_11_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.11 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_11_risk_pct")
+        ])
+
+    elif sid == 20.12:
+        tf_dict = getattr(config, "S20_12_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_12_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_12 = "🟢 S20.12 Compounding (On)" if getattr(config, "S20_12_COMPOUNDING_ENABLED", False) else "🔴 S20.12 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_12, callback_data="toggle_s20_12_compounding")
+        ])
+        r_pct = getattr(config, "S20_12_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.12 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_12_risk_pct")
+        ])
+        sess_on = "🟢 S20.12 Session Filter (On)" if getattr(config, "S20_12_SESSION_FILTER", False) else "🔴 S20.12 Session Filter (Off)"
+        rows.append([
+            InlineKeyboardButton(sess_on, callback_data="toggle_s20_12_session")
         ])
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
@@ -2598,7 +2721,8 @@ async def show_s20_settings_menu(update_or_query, is_query=False):
         f"- No Body Close: *{m_nobody}*\n"
         f"- Fibo Confluence: *{m_fibo}*\n\n"
         f"📏 Entry Buffer: *{getattr(config, 'S20_ENTRY_BUFFER', 0)} จุด*\n"
-        f"🛑 SL 2L/2H: *{getattr(config, 'S20_SL_2L2H', 100)} จุด*"
+        f"🛑 SL 2L/2H: *{getattr(config, 'S20_SL_2L2H', 100)} จุด*\n\n"
+
     )
     keyboard = build_s20_settings_keyboard()
     if is_query:

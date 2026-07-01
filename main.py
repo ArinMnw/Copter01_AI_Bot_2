@@ -4,7 +4,7 @@ import time as _time
 from datetime import datetime
 from bot_log import log_event, log_error, setup_python_logging, cleanup_old_logs
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.error import NetworkError
+from telegram.error import Conflict, NetworkError
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -93,6 +93,17 @@ async def _handle_app_error(update: object, context: ContextTypes.DEFAULT_TYPE) 
     if isinstance(exc, NetworkError):
         log_event("TG_NETWORK_ERROR", str(exc)[:200])
         return
+    if isinstance(exc, Conflict):
+        log_event("TG_WEBHOOK_CONFLICT", str(exc)[:200])
+        try:
+            await context.bot.delete_webhook(drop_pending_updates=True)
+            log_event("TG_WEBHOOK_CONFLICT", "delete_webhook ok")
+        except Exception as delete_exc:
+            log_error(
+                "TG_WEBHOOK_DELETE_ERROR",
+                f"{type(delete_exc).__name__}: {delete_exc}",
+            )
+        return
 
     tb = "".join(traceback.format_exception(None, exc, exc.__traceback__)) if exc else ""
     log_error(
@@ -160,16 +171,22 @@ def main():
                         
                         if connect_mt5():
                             import mt5_worker as mt5
+                            from trailing import pending_order_tf
                             orders = mt5.orders_get(symbol=config.SYMBOL)
                             if orders:
+                                canceled_count = 0
+                                skip_sids = getattr(config, "NEWS_FILTER_SKIP_SIDS", set())
                                 for o in orders:
+                                    sid = pending_order_tf.get(o.ticket, {}).get("sid")
+                                    if sid in skip_sids:
+                                        continue
                                     req = {"action": mt5.TRADE_ACTION_REMOVE, "order": o.ticket}
                                     mt5.order_send(req)
-                                print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 Canceled {len(orders)} pending orders due to news.")
+                                    canceled_count += 1
+                                if canceled_count > 0:
+                                    print(f"[{now_bkk().strftime('%H:%M:%S')}] 📰 Canceled {canceled_count} pending orders due to news.")
                 
-                # ถ้าไม่ใช้ observable mode ให้หยุดการสแกนไปเลย
-                if not observable:
-                    return # Skip auto_scan
+                # Removed short-circuit return to allow bypassed strategies to run
                 
             if getattr(config, "news_pause_active", False) and not is_active:
                 config.news_pause_active = False
@@ -410,7 +427,9 @@ def main():
             await check_s1_zone_rules(app); _lap("s1_zone_rules")
             await check_s1_rejection_entry(app); _lap("s1_rejection_entry")
             await check_s2_s3_chain_groups(app); _lap("s2_s3_chain_groups")
-            await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
+            # Disabled per user request (2026-06-29): keep S1 pending/position
+            # even when no same-side S2/S3 appears within the forward window.
+            # await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
             await check_cancel_pending_orders(app); _lap("cancel_pending_orders")
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
             await check_opposite_order_tp(app); _lap("opposite_order_tp")

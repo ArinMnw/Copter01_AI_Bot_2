@@ -20,7 +20,7 @@ def mt5_ts_to_bkk(ts):
     # เราจะถือว่า ts ที่ดึงมาจาก MT5 นั้นสามารถแปลงโดยตรงเป็น datetime แล้วปรับ timezone
     return datetime.fromtimestamp(ts, tz=BKK)
 
-def run_backtest(days, tf_input, sid_target):
+def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=1000.0):
     if not connect_mt5():
         print("❌ ไม่สามารถเชื่อมต่อ MT5 ได้")
         sys.exit(1)
@@ -42,6 +42,8 @@ def run_backtest(days, tf_input, sid_target):
     # เปิดโมดูลทดสอบ (ต้องจำลองให้ strategy20 ทำงาน)
     # เราจะจำลองการทำงานโดยดึงแท่งเทียนมาทีละชุด
     import strategy20
+    import sys, os
+    sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.5"))
     import strategy20_5
     import strategy20_6
 
@@ -52,9 +54,9 @@ def run_backtest(days, tf_input, sid_target):
 
     symbol = config.SYMBOL
     contract_size = 100  # สมมติว่าเทรด XAUUSD 1 lot = 100 oz
-    volume = 0.01        # เปิดไม้ละ 0.01 lot
 
     for tf in tfs:
+        balance = start_balance
         mt5_tf = getattr(mt5, f"TIMEFRAME_{tf}", None)
         if not mt5_tf:
             print(f"⚠️ ไม่รู้จัก Timeframe: {tf}")
@@ -91,13 +93,19 @@ def run_backtest(days, tf_input, sid_target):
                 sl = res.get("sl")
                 tp = res.get("tp")
                 
-                stats[tf]["trades"] += 1
-                stats[tf]["fav_signal"][signal] = stats[tf]["fav_signal"].get(signal, 0) + 1
-                
+                if compound_pct > 0 and abs(entry_price - sl) > 0:
+                    risk_amt = balance * (compound_pct / 100.0)
+                    volume = risk_amt / (abs(entry_price - sl) * contract_size)
+                    volume = max(0.01, round(volume, 2))
+                    if volume > 50.0: volume = 50.0
+                else:
+                    volume = 0.01
+
                 # จำลองการชน TP / SL
-                # ค้นหาอนาคต 10 แท่ง (หรือจนกว่าจะชน)
+                # ค้นหาอนาคต 100 แท่ง (หรือจนกว่าจะชน)
                 hit_tp = False
                 hit_sl = False
+                filled = False
                 pnl = 0.0
                 
                 for j in range(i, min(i+100, len(rates))):
@@ -106,30 +114,51 @@ def run_backtest(days, tf_input, sid_target):
                     low = future_bar["low"]
                     
                     if signal == "BUY":
-                        if low <= sl:
-                            hit_sl = True
-                            pnl = (sl - entry_price) * contract_size * volume
-                            break
-                        if high >= tp:
-                            hit_tp = True
-                            pnl = (tp - entry_price) * contract_size * volume
-                            break
+                        if not filled:
+                            if high >= tp:
+                                break # Cancel order if it hits TP before filling
+                            if low <= entry_price:
+                                filled = True
+                        
+                        if filled:
+                            if low <= sl:
+                                hit_sl = True
+                                pnl = (sl - entry_price) * contract_size * volume
+                                break
+                            if high >= tp:
+                                hit_tp = True
+                                pnl = (tp - entry_price) * contract_size * volume
+                                break
                     elif signal == "SELL":
-                        if high >= sl:
-                            hit_sl = True
-                            pnl = (entry_price - sl) * contract_size * volume
-                            break
-                        if low <= tp:
-                            hit_tp = True
-                            pnl = (entry_price - tp) * contract_size * volume
-                            break
+                        if not filled:
+                            if low <= tp:
+                                break # Cancel order if it hits TP before filling
+                            if high >= entry_price:
+                                filled = True
+                        if filled:
+                            if high >= sl:
+                                hit_sl = True
+                                pnl = (entry_price - sl) * contract_size * volume
+                                break
+                            if low <= tp:
+                                hit_tp = True
+                                pnl = (entry_price - tp) * contract_size * volume
+                                break
+                
+                if not filled:
+                    continue  # ไม่ถูกเกี่ยวออเดอร์ในระยะเวลาที่กำหนด ยกเลิก
+
+                stats[tf]["trades"] += 1
+                stats[tf]["fav_signal"][signal] = stats[tf]["fav_signal"].get(signal, 0) + 1
                 
                 if hit_tp:
                     stats[tf]["win"] += 1
                     stats[tf]["pnl"] += pnl
+                    balance += pnl
                 elif hit_sl:
                     stats[tf]["loss"] += 1
                     stats[tf]["pnl"] += pnl
+                    balance += pnl
                 else:
                     # ปิดสิ้นงวด
                     close_price = rates[min(i+99, len(rates)-1)]["close"]
@@ -143,6 +172,7 @@ def run_backtest(days, tf_input, sid_target):
                     else:
                         stats[tf]["loss"] += 1
                     stats[tf]["pnl"] += pnl
+                    balance += pnl
 
     # ปริ้นตารางผลลัพธ์
     print("\n| กรอบเวลา (Timeframe) | จำนวนการเข้าเทรดทั้งหมด (Trades) | เคสที่ชนะ (Win) | เคสที่แพ้ (Loss) | อัตราแพ้ชนะ (Win Rate %) | แนวราคา/ระดับสัญญาณเทคนิคอลที่เข้าบ่อยที่สุด | ผลรวมกำไรขาดทุนสุทธิ (Net P&L ($)) |")
@@ -180,6 +210,8 @@ if __name__ == "__main__":
     parser.add_argument("--days", type=int, default=30, help="จำนวนวันย้อนหลังที่ต้องการรัน")
     parser.add_argument("--tf", type=str, default="all", help="กรอบเวลา (เช่น M1, M5, H1, หรือ all)")
     parser.add_argument("--sid", type=str, required=True, help="รหัสกลยุทธ์ท่าย่อยเป้าหมาย (เช่น 20.6)")
+    parser.add_argument("--compound", type=float, default=0.0, help="เปอร์เซ็นต์ความเสี่ยงสำหรับการทบต้น (เช่น 2.0) ค่า default 0 = ไม่ใช้")
+    parser.add_argument("--balance", type=float, default=1000.0, help="ทุนเริ่มต้นสำหรับแต่ละ TF")
     
     args = parser.parse_args()
-    run_backtest(args.days, args.tf, args.sid)
+    run_backtest(args.days, args.tf, args.sid, compound_pct=args.compound, start_balance=args.balance)

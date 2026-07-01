@@ -91,16 +91,16 @@ python main.py
 บน Windows:
 
 ```bash
-run.bat
+run\run.bat
 ```
 
 **Production (แนะนำ) — มี auto-restart กัน event-loop hang:**
 
 ```bash
-run_supervised.bat
+run\run_supervised.bat
 ```
 
-- `run_supervised.bat` → เรียก `run_supervised.ps1` (external supervisor รันแยก process)
+- `run\run_supervised.bat` → เรียก `run_supervised.ps1` (external supervisor รันแยก process)
 - supervisor อ่าน `bot_heartbeat.txt` — ถ้า `ts` ค้างเกิน threshold (loop แข็งจาก MT5 blocking call) → kill + restart; process ตายเองก็ restart
 - ดู §External Supervisor / Event-Loop Stall
 

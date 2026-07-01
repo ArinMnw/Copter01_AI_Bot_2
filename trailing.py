@@ -154,6 +154,7 @@ def _sl_guard_cancel_pending_orders(side: str, scope: str = "all", tf: str = "")
         sell_types = (mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP)
         target_types = buy_types if side_up == "BUY" else sell_types
         combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or []) if scope == "combined" else None
+        skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
         cancelled = []
         for order in orders:
             if order.type not in target_types:
@@ -161,6 +162,9 @@ def _sl_guard_cancel_pending_orders(side: str, scope: str = "all", tf: str = "")
             ticket = int(order.ticket)
             # หา TF จาก pending_order_tf ก่อน แล้ว fallback ไป position_tf
             _info = pending_order_tf.get(ticket)
+            order_sid = (_info.get("sid") if isinstance(_info, dict) else None) or position_sid.get(ticket)
+            if order_sid in skip_sids:
+                continue
             order_tf = str((_info.get("tf", "") if isinstance(_info, dict) else "") or position_tf.get(ticket, ""))
             if scope == "tf" and order_tf != tf:
                 continue
@@ -197,8 +201,11 @@ def _sl_guard_close_open_positions(tf: str, side: str) -> list:
         if positions:
             side_up = side.upper()
             pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
             for pos in positions:
                 if pos.type != pos_type_mt5:
+                    continue
+                if position_sid.get(pos.ticket) in skip_sids:
                     continue
                 pos_tf = position_tf.get(pos.ticket, "")
                 if pos_tf != tf:
@@ -229,8 +236,11 @@ def _sl_guard_close_combined_positions(side: str) -> list:
             side_up = side.upper()
             pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
             combined_tfs = set(getattr(config, "SL_GUARD_COMBINED_TFS", []) or [])
+            skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
             for pos in positions:
                 if pos.type != pos_type_mt5:
+                    continue
+                if position_sid.get(pos.ticket) in skip_sids:
                     continue
                 pos_tf = position_tf.get(pos.ticket, "")
                 # ถ้ากำหนด combined_tfs ไว้ → กรองเฉพาะ TF ใน group; ถ้าว่าง → ปิดทุก TF
@@ -261,8 +271,11 @@ def _sl_guard_close_all_side_positions(side: str) -> list:
         if positions:
             side_up = side.upper()
             pos_type_mt5 = mt5.ORDER_TYPE_BUY if side_up == "BUY" else mt5.ORDER_TYPE_SELL
+            skip_sids = set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
             for pos in positions:
                 if pos.type != pos_type_mt5:
+                    continue
+                if position_sid.get(pos.ticket) in skip_sids:
                     continue
                 ok, _ = _close_position(pos, side_up, "SL Guard Group activate")
                 if ok:
@@ -968,6 +981,7 @@ _sweep_last_bar: dict = {}  # {ticket: last_checked_bar_time}
 # "entry_candle" -> used by check_entry_candle_quality
 # value: "BUY" | "SELL" | None
 _focus_frozen_side: dict = {"trail_sl": None, "entry_candle": None}
+_focus_suppress_until_flat: dict = {"trail_sl": False, "entry_candle": False}
 
 
 def _get_s6_prev_swing_high(rates, lookback=100, tf=""):
@@ -2293,6 +2307,8 @@ async def check_s1_zone_rules(app):
             ))
             print(f"🗑️ [{now}] S1 {_mode} cancel {ticket} [{tf}]: {reason}")
 
+            await _close_linked_s11_for_tf(app, tf, f"S1 canceled by {_mode} rule [{tf}]")
+
     # Filled S1: if outside zone/swing rule -> close.
     for pos in positions:
         ticket = int(pos.ticket)
@@ -2300,7 +2316,16 @@ async def check_s1_zone_rules(app):
             continue
         zone_meta = position_zone_meta.get(ticket) or {}
         if not zone_meta.get("enabled"):
-            continue
+            # fallback: ลอง recover จาก pending_order_tf (กรณี meta ยังไม่ถูกโอน)
+            _pend_fb = pending_order_tf.get(ticket)
+            if isinstance(_pend_fb, dict) and _pend_fb.get("s1_zone_meta", {}).get("enabled"):
+                zone_meta = dict(_pend_fb["s1_zone_meta"])
+                position_zone_meta[ticket] = zone_meta
+                if _pend_fb.get("s1_forward_meta") and ticket not in position_forward_meta:
+                    position_forward_meta[ticket] = dict(_pend_fb["s1_forward_meta"])
+                print(f"🔧 [{now}] S1 zone_meta recovered from pending_order_tf for {ticket}")
+            else:
+                continue
 
         tf = position_tf.get(ticket)
         if not tf:
@@ -2334,7 +2359,7 @@ async def check_s1_zone_rules(app):
         else: # _mode == "swing"
             forward_meta = position_forward_meta.get(ticket) or {}
             t_detect = int(forward_meta.get("detect_bar_time", 0) or 0)
-            if t_detect <= 0 or forward_meta.get("confirmed"):
+            if t_detect <= 0 or forward_meta.get("swing_confirmed"):
                 continue
 
             t_last_closed = int(rates[-1]["time"])
@@ -2366,7 +2391,7 @@ async def check_s1_zone_rules(app):
                         break
 
             if has_valid_swing:
-                forward_meta["confirmed"] = True
+                forward_meta["swing_confirmed"] = True
                 position_forward_meta[ticket] = forward_meta
                 save_runtime_state()
                 continue
@@ -2887,7 +2912,9 @@ def _focus_update_frozen_side(feature: str, positions, pending_orders):
     - if no buy/sell orders remain, reset marker to None
     - if marker is None and only one side exists, freeze to that side
     - if marker is None and both sides exist, wait until one side disappears first
-    - if marker already exists, keep it
+    - if marker already exists and that side still exists, keep it
+    - if marker side disappears while the other side remains, treat it as stale and
+      suppress re-arming until both sides are flat
 
     Returns the marker after update.
     """
@@ -2895,12 +2922,40 @@ def _focus_update_frozen_side(feature: str, positions, pending_orders):
     has_buy, has_sell = _focus_side_presence(positions, pending_orders)
 
     if not has_buy and not has_sell:
+        changed = current is not None or _focus_suppress_until_flat.get(feature, False)
         if current is not None:
             _focus_frozen_side[feature] = None
+        _focus_suppress_until_flat[feature] = False
+        if changed:
             try:
                 save_runtime_state()
             except Exception:
                 pass
+        return None
+
+    if current is not None:
+        current_present = has_buy if current == "BUY" else has_sell
+        if not current_present:
+            _focus_frozen_side[feature] = None
+            _focus_suppress_until_flat[feature] = True
+            try:
+                save_runtime_state()
+            except Exception:
+                pass
+            try:
+                log_event(
+                    "FOCUS_OPPOSITE",
+                    "stale_marker_reset",
+                    feature=feature,
+                    stale_side=current,
+                    has_buy=has_buy,
+                    has_sell=has_sell,
+                )
+            except Exception:
+                pass
+            return None
+
+    if _focus_suppress_until_flat.get(feature, False):
         return None
 
     if current is None:
@@ -3121,8 +3176,12 @@ def _reversal_trail_override(pos_type: str, order_tf: str, current_sl: float, po
 
 def reset_focus_frozen_side(feature: str):
     """Call this when the user toggles Focus Opposite from OFF back to ON."""
-    if feature in _focus_frozen_side and _focus_frozen_side[feature] is not None:
+    if feature in _focus_frozen_side and (
+        _focus_frozen_side[feature] is not None
+        or _focus_suppress_until_flat.get(feature, False)
+    ):
         _focus_frozen_side[feature] = None
+        _focus_suppress_until_flat[feature] = False
         try:
             save_runtime_state()
         except Exception:
@@ -3345,6 +3404,22 @@ async def check_limit_fill_notify(app):
         pattern_name = position_pattern.get(ticket, "") or ""
         reverse_tag = " [Reverse]" if pattern_name.startswith("Reverse ") else ""
 
+        # ── S1 meta transfer (zone_meta / forward_meta) ──────────────────
+        # ต้องรันที่นี่เพราะ check_entry_candle_quality ถูก skip เมื่อ
+        # ENTRY_CANDLE_ENABLED=False ทำให้ meta ไม่ถูกโอนจาก pending → position
+        # → check_s1_zone_rules (swing exit) ไม่ทำงาน
+        _pend_fill = pending_order_tf.get(ticket)
+        if isinstance(_pend_fill, dict):
+            if ticket not in position_zone_meta and _pend_fill.get("s1_zone_meta"):
+                position_zone_meta[ticket] = dict(_pend_fill["s1_zone_meta"])
+            if ticket not in position_forward_meta and _pend_fill.get("s1_forward_meta"):
+                position_forward_meta[ticket] = dict(_pend_fill["s1_forward_meta"])
+        if fvg_info:
+            if ticket not in position_zone_meta and fvg_info.get("s1_zone_meta"):
+                position_zone_meta[ticket] = dict(fvg_info["s1_zone_meta"])
+            if ticket not in position_forward_meta and fvg_info.get("s1_forward_meta"):
+                position_forward_meta[ticket] = dict(fvg_info["s1_forward_meta"])
+
         # ── resolve _fill_tf (3-tier fallback) ──
         _fill_tf = position_tf.get(ticket)
         if not _fill_tf and fvg_info:
@@ -3507,7 +3582,7 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
+        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
             continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design), S18 (TJR standalone), S19 (ICT SB standalone) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -3724,8 +3799,8 @@ async def check_fill_trend_recheck(app):
     for pos in positions:
         ticket = pos.ticket
         sid = position_sid.get(ticket)
-        # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone), S19 (ICT SB standalone)
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
+        # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone), S19 (ICT SB standalone), S20+
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -4083,7 +4158,7 @@ async def check_pending_trend_approach(app):
                 sid = _pend.get("sid")
 
         # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck), S18/S19 standalone
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
+        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
             continue
 
         # Resolve TF
@@ -4352,9 +4427,9 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        # Skip standalone strategies
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
-            continue  # S1/S2/S3/S11 ไม่ใช้ PD Fibo Plus | S9/S10/S13/S14/S15/S16/S17/S18/S19 skip
+        # Skip standalone / strategy-managed setups.
+        if sid in (1, 10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+            continue  # S1 uses its own swing/zone lifecycle; these strategies skip PD Fibo Plus.
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
@@ -4667,7 +4742,7 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
             continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง; S18 = TJR; S19 = ICT SB)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
@@ -5743,7 +5818,7 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 21):
+        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
             continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL; S18 = TJR; S19 = ICT SB)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)
@@ -7724,7 +7799,11 @@ async def check_cancel_pending_orders(app):
                             )
 
         # SL Guard: cancel near pending when guard is active for this TF/side
-        if not should_cancel and config.SL_GUARD_ENABLED:
+        if (
+            not should_cancel
+            and config.SL_GUARD_ENABLED
+            and _order_sid not in set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
+        ):
             _sg_side = None
             if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                 _sg_side = "BUY"
@@ -7764,7 +7843,11 @@ async def check_cancel_pending_orders(app):
                             )
 
         # SL Guard Combined: cancel near pending when combined guard blocks this TF/side
-        if not should_cancel and getattr(config, "SL_GUARD_COMBINED_ENABLED", False):
+        if (
+            not should_cancel
+            and getattr(config, "SL_GUARD_COMBINED_ENABLED", False)
+            and _order_sid not in set(getattr(config, "SL_GUARD_SKIP_SIDS", ()))
+        ):
             _cg_side = None
             if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                 _cg_side = "BUY"
@@ -7798,7 +7881,11 @@ async def check_cancel_pending_orders(app):
                                     )
 
         # SL Guard Group: cancel near pending when group guard blocks this TF/side
-        if not should_cancel and getattr(config, "SL_GUARD_GROUP_ENABLED", False):
+        if (
+            not should_cancel
+            and getattr(config, "SL_GUARD_GROUP_ENABLED", False)
+            and _order_sid not in set(getattr(config, "SL_GUARD_GROUP_SKIP_SIDS", ()))
+        ):
             _gg_side = None
             if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
                 _gg_side = "BUY"

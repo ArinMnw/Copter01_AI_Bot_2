@@ -19,7 +19,7 @@ logs/
 ```
 
 - เมื่อเดือนเปลี่ยน `bot_log.py` จะ rotate `bot.log` / `system.log` → `old_logs/<prefix>-YYYY-MM.log` อัตโนมัติ
-- **archive ด้วยมือ:** `archive_logs.bat` (เรียก `archive_logs_by_month.py`) ย้าย log ที่ยังไม่ได้แยกเดือน (`bot.log`, `system/system.log`) → ไฟล์รายเดือนใน `old_logs/` (stream + route ตาม timestamp, รองรับไฟล์หลายร้อย MB) — ควรรันตอนปิด bot
+- **archive ด้วยมือ:** `run\archive_logs.bat` (เรียก `archive_logs_by_month.py`) ย้าย log ที่ยังไม่ได้แยกเดือน (`bot.log`, `system/system.log`) → ไฟล์รายเดือนใน `old_logs/` (stream + route ตาม timestamp, รองรับไฟล์หลายร้อย MB) — ควรรันตอนปิด bot
 
 ## ไฟล์ log หลัก
 

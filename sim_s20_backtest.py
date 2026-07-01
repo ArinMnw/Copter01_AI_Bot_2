@@ -12,7 +12,9 @@ import argparse
 import csv
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+BKK = timezone(timedelta(hours=7))
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -38,10 +40,15 @@ TF_MAP = {
     "D1":  (mt5.TIMEFRAME_D1, 1),
 }
 
-def fetch_bars(symbol, tf_name, days):
+def fetch_bars(symbol, tf_name, days, start_dt=None, end_dt=None):
     tf_val, per_day = TF_MAP[tf_name]
-    count = days * per_day + 300
-    rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, count)
+    if start_dt is not None:
+        if end_dt is None:
+            end_dt = datetime.now(BKK)
+        rates = mt5.copy_rates_range(symbol, tf_val, start_dt, end_dt)
+    else:
+        count = days * per_day + 300
+        rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, count)
     if rates is None or len(rates) == 0:
         return None
     return rates
@@ -196,6 +203,8 @@ def main():
     ap.add_argument("--tf", default="M1,M5,M15,M30,H1,H4,H12,D1")
     ap.add_argument("--spread", type=float, default=0.20)
     ap.add_argument("--fibo", type=float, default=None)
+    ap.add_argument("--start", type=str, default=None, help="Start time dd-MM-yyyy HH:mm")
+    ap.add_argument("--end", type=str, default=None, help="End time dd-MM-yyyy HH:mm")
     args = ap.parse_args()
 
     if args.fibo is not None:
@@ -224,8 +233,16 @@ def main():
 
     tf_list = [t.strip() for t in args.tf.split(",") if t.strip() in TF_MAP]
     bars_by_tf = {}
+    
+    start_dt = None
+    end_dt = None
+    if args.start:
+        start_dt = datetime.strptime(args.start, "%d-%m-%Y %H:%M").replace(tzinfo=BKK)
+    if args.end:
+        end_dt = datetime.strptime(args.end, "%d-%m-%Y %H:%M").replace(tzinfo=BKK)
+        
     for tf_name in tf_list:
-        bars = fetch_bars(SYMBOL, tf_name, args.days)
+        bars = fetch_bars(SYMBOL, tf_name, args.days, start_dt, end_dt)
         if bars is None:
             print(f"! {tf_name}: ดึงข้อมูลไม่ได้ - ข้าม")
             continue
