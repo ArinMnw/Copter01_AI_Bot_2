@@ -1543,6 +1543,31 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(f"S20.11 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_11_risk_pct")
         ])
 
+    elif sid == 20.12:
+        tf_dict = getattr(config, "S20_12_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_12_tf_{tf}")
+            if i < 3: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        c_s20_12 = "🟢 S20.12 Compounding (On)" if getattr(config, "S20_12_COMPOUNDING_ENABLED", False) else "🔴 S20.12 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s20_12, callback_data="toggle_s20_12_compounding")
+        ])
+        r_pct = getattr(config, "S20_12_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S20.12 Risk: {r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s20_12_risk_pct")
+        ])
+        sess_on = "🟢 S20.12 Session Filter (On)" if getattr(config, "S20_12_SESSION_FILTER", False) else "🔴 S20.12 Session Filter (Off)"
+        rows.append([
+            InlineKeyboardButton(sess_on, callback_data="toggle_s20_12_session")
+        ])
+
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
     return InlineKeyboardMarkup(rows)
 

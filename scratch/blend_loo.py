@@ -1,0 +1,121 @@
+import sys
+sys.path.insert(0, ".")
+import MetaTrader5 as mt5
+import config
+from strategy31 import S31_DEFAULTS
+from strategy34 import S34_DEFAULTS
+from strategy36 import S36_DEFAULTS
+from strategy37 import S37_DEFAULTS
+from strategy38 import S38_DEFAULTS
+from strategy39 import S39_DEFAULTS
+from strategy40 import S40_DEFAULTS
+from strategy41 import S41_DEFAULTS
+from strategy42 import S42_DEFAULTS
+from strategy44 import S44_DEFAULTS
+from strategy45 import S45_DEFAULTS
+from strategy46 import S46_DEFAULTS
+from strategy47 import S47_DEFAULTS
+from strategy49 import S49_DEFAULTS
+from strategy51 import S51_DEFAULTS
+from strategy56 import S56_DEFAULTS
+import sim_s30_backtest as s30sim
+import sim_s31_backtest as s31sim
+import sim_s34_backtest as s34sim
+import sim_s36_backtest as s36sim
+import sim_s37_backtest as s37sim
+import sim_s38_backtest as s38sim
+import sim_s39_backtest as s39sim
+import sim_s40_backtest as s40sim
+import sim_s41_backtest as s41sim
+import sim_s42_backtest as s42sim
+import sim_s44_backtest as s44sim
+import sim_s45_backtest as s45sim
+import sim_s46_backtest as s46sim
+import sim_s47_backtest as s47sim
+import sim_s49_backtest as s49sim
+import sim_s51_backtest as s51sim
+import sim_s56_backtest as s56sim
+
+mt5.initialize()
+cfg_a = dict(S31_DEFAULTS); cfg_a.update(SL_ATR_MULT=1.2, TP_RR=1.0)
+cfg_b = dict(S34_DEFAULTS); cfg_b.update(BREAKOUT_LOOKBACK=8, VOLUME_SURGE_MULT=2.0,
+                                          MIN_BREAKOUT_ATR=0.15, SL_ATR_MULT=0.8, TP_RR=1.0)
+cfg_c = dict(S36_DEFAULTS); cfg_c.update(MIN_GAP_ATR=0.25, MAX_GAP_AGE_BARS=15,
+                                          RETRACE_ENTRY_PCT=0.5, SL_ATR_MULT=1.0, TP_RR=0.8)
+cfg_d = dict(S37_DEFAULTS); cfg_d.update(PIVOT_WING=3, MAX_LEVEL_AGE_BARS=60, TOUCH_ATR_MULT=0.3,
+                                          REJECT_ATR_MULT=0.15, SL_ATR_MULT=0.8, TP_RR=1.5)
+cfg_e = dict(S38_DEFAULTS); cfg_e.update(SWING_LOOKBACK_BARS=25, MIN_SWING_ATR=3.0,
+                                          MAX_RETRACE_AGE_BARS=20, SL_ATR_MULT=1.0, TP_RR=1.0)
+cfg_f = dict(S39_DEFAULTS); cfg_f.update(BASE_BARS=3, BASE_ATR_MULT=1.5, IMPULSE_ATR_MULT=0.8,
+                                          MAX_ZONE_AGE_BARS=30, SL_ATR_MULT=0.8, TP_RR=1.5)
+cfg_g = dict(S40_DEFAULTS); cfg_g.update(ZIGZAG_MIN_ATR=1.5, ZIGZAG_LOOKBACK_BARS=200, MAX_WAVE4_AGE_BARS=25,
+                                          ENTRY_BREAK_ATR_MULT=0.1, SL_ATR_MULT=1.0, TP_RR=1.5)
+cfg_h = dict(S41_DEFAULTS); cfg_h.update(PIVOT_WING=2, MIN_PRICE_DIFF_ATR=0.3, MIN_RSI_DIFF=3.0,
+                                          MAX_CONFIRM_AGE_BARS=8, SL_ATR_MULT=0.8, TP_RR=1.0,
+                                          CONFIRMATION_TYPE="htf_trend")
+cfg_i = dict(S42_DEFAULTS); cfg_i.update(RANGE_BARS=9, SWEEP_ATR_MULT=0.5, MIN_RANGE_ATR=1.0,
+                                          SL_ATR_MULT=1.0, TP_RR=1.0, CONFIRMATION_TYPE="htf_trend")
+cfg_k = dict(S44_DEFAULTS); cfg_k.update(LOOKBACK_BARS=80, BUCKET_ATR_MULT=0.2, TOUCH_ATR_MULT=0.5,
+                                          REJECT_ATR_MULT=0.15, SL_ATR_MULT=1.0, TP_RR=1.5)
+cfg_l = dict(S45_DEFAULTS); cfg_l.update(IMPULSE_ATR_MULT=1.5, MAX_OB_AGE_BARS=40, MAX_VIOLATION_WICK_ATR=0.1,
+                                          SL_ATR_MULT=1.0, TP_RR=1.5)
+cfg_m = dict(S46_DEFAULTS); cfg_m.update(OR_SESSION_START="14:00", OR_MINUTES=30, MAX_BREAKOUT_AGE_MIN=90,
+                                          MIN_BREAK_ATR=0.1, SL_ATR_MULT=0.8, TP_RR=1.5)
+cfg_n = dict(S47_DEFAULTS); cfg_n.update(ST_ATR_PERIOD=20, ST_ATR_MULT=2.0, SL_ATR_MULT=1.5, TP_RR=2.0,
+                                          SESSION_FILTER=False, CONFIRMATION_TYPE="htf_trend")
+cfg_p = dict(S49_DEFAULTS); cfg_p.update(STD_MULT=1.0, TOUCH_ATR_MULT=0.2, REJECT_ATR_MULT=0.1,
+                                          SL_ATR_MULT=1.0, TP_RR=1.0)
+cfg_q = dict(S51_DEFAULTS); cfg_q.update(TOUCH_ATR_MULT=0.5, REJECT_ATR_MULT=0.1, SL_ATR_MULT=0.8,
+                                          TP_RR=1.5, SESSION_FILTER=False)
+cfg_r = dict(S56_DEFAULTS); cfg_r.update(TOUCH_ATR_MULT=0.8, REJECT_ATR_MULT=0.15, SL_ATR_MULT=1.0,
+                                          TP_RR=1.5, CONFIRMATION_TYPE="none", SESSION_FILTER=False)
+
+sims = {"a": s31sim, "b": s34sim, "c": s36sim, "d": s37sim, "e": s38sim, "f": s39sim, "g": s40sim,
+        "h": s41sim, "i": s42sim, "k": s44sim, "l": s45sim, "m": s46sim, "n": s47sim, "p": s49sim,
+        "q": s51sim, "r": s56sim}
+cfgs = {"a": cfg_a, "b": cfg_b, "c": cfg_c, "d": cfg_d, "e": cfg_e, "f": cfg_f, "g": cfg_g,
+        "h": cfg_h, "i": cfg_i, "k": cfg_k, "l": cfg_l, "m": cfg_m, "n": cfg_n, "p": cfg_p, "q": cfg_q,
+        "r": cfg_r}
+
+ALL = list("abcdefghiklmnpqr")
+names = {"a":"S31engulf","b":"S34volbrk","c":"S36FVG","d":"S37 S/R","e":"S38fib","f":"S39zone",
+         "g":"S40elliott","h":"S41rsi","i":"S42crt","k":"S44volprof","l":"S45 OB","m":"S46 ORB",
+         "n":"S47supertr","p":"S49vwap","q":"S51pdhl","r":"S56 wkHL"}
+
+# accumulate full + leave-one-out across windows
+agg = {kk: {"d_mo": [], "d_sh": []} for kk in ALL}
+full_mo_all, full_sh_all = [], []
+for days in [90, 150, 180]:
+    entry_bars = s30sim.fetch_bars(config.SYMBOL, "M5", days, extra_bars=600)
+    htf_bars = s30sim.fetch_bars(config.SYMBOL, "M15", days, extra_bars=200)
+    days_series = {}
+    for kk in sims:
+        raw = sims[kk].run_single(entry_bars, htf_bars, cfgs[kk], days, 0.20)
+        twp, eq = s31sim.simulate_equity_substream(raw, cfgs[kk], s31sim.START_EQUITY)
+        days_series[kk] = s31sim.daily_series_from_trades(twp)
+    def combine(keys):
+        alls = set()
+        for kk in keys: alls |= set(days_series[kk])
+        comb = {d: sum(days_series[kk].get(d, 0.0) for kk in keys) for d in alls}
+        c = s31sim.consistency_metrics(comb)
+        return sum(comb.values())/days*30, c["sharpe_like"]
+    full_mo, full_sh = combine(ALL)
+    full_mo_all.append(full_mo); full_sh_all.append(full_sh)
+    for kk in ALL:
+        mo, sh = combine([x for x in ALL if x != kk])
+        # delta = (full - without) : positive => leg ADDS value
+        agg[kk]["d_mo"].append(full_mo - mo)
+        agg[kk]["d_sh"].append(full_sh - sh)
+
+import statistics as st
+print(f"FULL 16-way avg: $/mo={st.mean(full_mo_all):.0f} sharpe={st.mean(full_sh_all):.3f}")
+print(f"\nLeave-One-Out (delta = contribution of each leg; NEGATIVE sharpe-delta = leg is a DRAG):")
+print(f"{'leg':<12} {'avg d$/mo':>10} {'avg dSharpe':>12}")
+rows = []
+for kk in ALL:
+    rows.append((st.mean(agg[kk]["d_sh"]), st.mean(agg[kk]["d_mo"]), kk))
+rows.sort()  # most negative (drag) first
+for dsh, dmo, kk in rows:
+    flag = "  <-- DRAG?" if dsh < 0 else ""
+    print(f"{names[kk]:<12} {dmo:>+10.1f} {dsh:>+12.4f}{flag}")
+mt5.shutdown()

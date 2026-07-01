@@ -287,12 +287,12 @@ TRADE_DEBUG = False
 
 # ── Standalone Strategy / Filter Skip Configs ──────────────
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
-PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21}
-NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21}
-SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21}
-SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21}
-OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21}
-PDFIBOPLUS_SKIP_SIDS          = {1, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21}
+PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+PDFIBOPLUS_SKIP_SIDS          = {1, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
 
@@ -698,6 +698,14 @@ S20_11_TF_ENABLED     = {"M1": True, "M5": True, "M15": True, "M30": True, "H1":
 S20_11_COMPOUNDING_ENABLED = False
 S20_11_RISK_PCT       = 2.0
 S20_11_MAX_LOT        = 50.0
+
+S20_12_ENABLED        = False
+S20_12_TF_ENABLED     = {"M1": True, "M5": True, "M15": True, "M30": True, "H1": True, "H4": True, "H12": True, "D1": True}
+S20_12_COMPOUNDING_ENABLED = False
+S20_12_RISK_PCT       = 2.0
+S20_12_MAX_LOT        = 50.0
+S20_12_SESSION_FILTER = False
+
 
 S20_8_POINTS_MULTIPLIER = 0.01
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
@@ -1980,6 +1988,12 @@ def save_runtime_state():
             "s20_11_compounding_enabled": S20_11_COMPOUNDING_ENABLED,
             "s20_11_risk_pct": S20_11_RISK_PCT,
             "s20_11_max_lot": S20_11_MAX_LOT,
+            "s20_12_enabled": S20_12_ENABLED,
+            "s20_12_tf_enabled": S20_12_TF_ENABLED,
+            "s20_12_compounding_enabled": S20_12_COMPOUNDING_ENABLED,
+            "s20_12_risk_pct": S20_12_RISK_PCT,
+            "s20_12_max_lot": S20_12_MAX_LOT,
+            "s20_12_session_filter": S20_12_SESSION_FILTER,
             "recheck_combined_mode": RECHECK_COMBINED_MODE,
             "near_approach_cancel_enabled": NEAR_APPROACH_CANCEL_ENABLED,
             "near_approach_cancel_points": NEAR_APPROACH_CANCEL_POINTS,
@@ -2252,6 +2266,8 @@ def restore_runtime_state():
         global S20_7_ENABLED, S20_8_ENABLED
         global S20_8_COMPOUNDING_ENABLED, S20_8_RISK_PCT, S20_8_MAX_LOT
         global S20_9_ENABLED, S20_10_ENABLED, S20_10_COMPOUNDING_ENABLED, S20_10_RISK_PCT, S20_10_MAX_LOT, S20_10_USE_PSYCHOLOGICAL_NUMBERS
+        global S20_11_ENABLED, S20_11_COMPOUNDING_ENABLED, S20_11_RISK_PCT, S20_11_MAX_LOT, S20_11_TF_ENABLED
+        global S20_12_ENABLED, S20_12_COMPOUNDING_ENABLED, S20_12_RISK_PCT, S20_12_MAX_LOT, S20_12_TF_ENABLED, S20_12_SESSION_FILTER
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
@@ -2332,6 +2348,35 @@ def restore_runtime_state():
         S20_10_RISK_PCT = float(state.get("s20_10_risk_pct", S20_10_RISK_PCT))
         S20_10_MAX_LOT = float(state.get("s20_10_max_lot", S20_10_MAX_LOT))
         S20_10_USE_PSYCHOLOGICAL_NUMBERS = bool(state.get("s20_10_use_psychological_numbers", S20_10_USE_PSYCHOLOGICAL_NUMBERS))
+        S20_11_ENABLED = bool(state.get("s20_11_enabled", S20_11_ENABLED))
+        saved_s20_11_tf = state.get("s20_11_tf_enabled", {})
+        if isinstance(saved_s20_11_tf, dict):
+            for tf_name in S20_11_TF_ENABLED:
+                if tf_name in saved_s20_11_tf:
+                    S20_11_TF_ENABLED[tf_name] = bool(saved_s20_11_tf[tf_name])
+        S20_11_COMPOUNDING_ENABLED = bool(state.get("s20_11_compounding_enabled", S20_11_COMPOUNDING_ENABLED))
+        saved_s20_11_risk = state.get("s20_11_risk_pct")
+        if isinstance(saved_s20_11_risk, (int, float)) and saved_s20_11_risk > 0:
+            S20_11_RISK_PCT = float(saved_s20_11_risk)
+        saved_s20_11_max = state.get("s20_11_max_lot")
+        if isinstance(saved_s20_11_max, (int, float)) and saved_s20_11_max > 0:
+            S20_11_MAX_LOT = float(saved_s20_11_max)
+
+        S20_12_ENABLED = bool(state.get("s20_12_enabled", S20_12_ENABLED))
+        saved_s20_12_tf = state.get("s20_12_tf_enabled", {})
+        if isinstance(saved_s20_12_tf, dict):
+            for tf_name in S20_12_TF_ENABLED:
+                if tf_name in saved_s20_12_tf:
+                    S20_12_TF_ENABLED[tf_name] = bool(saved_s20_12_tf[tf_name])
+        S20_12_COMPOUNDING_ENABLED = bool(state.get("s20_12_compounding_enabled", S20_12_COMPOUNDING_ENABLED))
+        saved_s20_12_risk = state.get("s20_12_risk_pct")
+        if isinstance(saved_s20_12_risk, (int, float)) and saved_s20_12_risk > 0:
+            S20_12_RISK_PCT = float(saved_s20_12_risk)
+        saved_s20_12_max = state.get("s20_12_max_lot")
+        if isinstance(saved_s20_12_max, (int, float)) and saved_s20_12_max > 0:
+            S20_12_MAX_LOT = float(saved_s20_12_max)
+        S20_12_SESSION_FILTER = bool(state.get("s20_12_session_filter", S20_12_SESSION_FILTER))
+
         S20_11_ENABLED = bool(state.get("s20_11_enabled", S20_11_ENABLED))
         S20_11_TF_ENABLED = state.get("s20_11_tf_enabled", S20_11_TF_ENABLED)
         S20_11_COMPOUNDING_ENABLED = bool(state.get("s20_11_compounding_enabled", S20_11_COMPOUNDING_ENABLED))
