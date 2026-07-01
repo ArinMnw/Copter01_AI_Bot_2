@@ -68,7 +68,11 @@ def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=100
             continue
 
         # start testing ONLY after start_time
+        skip_until_index = 0
         for i in range(100, len(rates)):
+            if i <= skip_until_index:
+                continue
+                
             c_time = datetime.fromtimestamp(rates[i]['time'], tz=timezone.utc)
             if c_time < start_time:
                 continue
@@ -108,7 +112,7 @@ def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=100
                 # The signal was generated on window_rates[-2] (which is rates[i-1]).
                 # The entry happens at the open of the forming candle window_rates[-1] (which is rates[i]).
                 # Therefore, we must start simulating the future from rates[i].
-                for j in range(i, min(i+100, len(rates))):
+                for j in range(i, min(i+2000, len(rates))):
                     future_bar = rates[j]
                     high = future_bar["high"]
                     low = future_bar["low"]
@@ -137,6 +141,7 @@ def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=100
                 
                 if hit_tp or hit_sl:
                     pnl -= commission * volume # หักคอม
+                    skip_until_index = j
                 
                 if hit_tp:
                     stats[tf]["win"] += 1

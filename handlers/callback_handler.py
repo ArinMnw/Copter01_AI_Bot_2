@@ -1438,6 +1438,12 @@ async def handle_callback(update, ctx):
         status_th = "เปิด ✅" if config.S20_11_ENABLED else "ปิด ❌"
         await _show_strategy_detail(query, 20.11, f"S20.11: {status_th}")
 
+    elif data == "toggle_s20_12_enabled":
+        config.S20_12_ENABLED = not getattr(config, "S20_12_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_12_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.12, f"S20.12: {status_th}")
+
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
         turn_on = (data == "strategy_all_on")
@@ -1452,6 +1458,7 @@ async def handle_callback(update, ctx):
         config.S20_9_ENABLED = turn_on
         config.S20_10_ENABLED = turn_on
         config.S20_11_ENABLED = turn_on
+        config.S20_12_ENABLED = turn_on
         save_runtime_state()
         active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"
