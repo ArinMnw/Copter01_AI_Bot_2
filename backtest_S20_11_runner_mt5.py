@@ -17,7 +17,7 @@ for tf in config.S20_11_TF_ENABLED:
 def parse_args():
     parser = argparse.ArgumentParser(description="Backtest S20.11 Candle Strength")
     parser.add_argument("--tf", type=str, default="all", help="Timeframe (e.g. M1, M5, all)")
-    parser.add_argument("--symbol", type=str, default="XAUUSD.iux", help="Symbol")
+    parser.add_argument("--symbol", type=str, default="", help="Symbol (default: profile SYMBOL)")
     parser.add_argument("--days", type=int, default=0, help="Days to backtest (0 = run multiple)")
     parser.add_argument("--compound", type=float, default=2.0, help="Risk percentage for compounding (default 2)")
     return parser.parse_args()
@@ -25,10 +25,11 @@ def parse_args():
 def main():
     args = parse_args()
     
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5, resolve=False):
         print("MT5 initialize failed")
         return
-        
+
+    args.symbol = config.profile_symbol(args.symbol or config.SYMBOL, mt5, set_runtime=True)
     mt5.symbol_select(args.symbol, True)
     info = mt5.symbol_info(args.symbol)
     if not info:

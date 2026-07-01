@@ -7,10 +7,11 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repla
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
+import config
 
-mt5.initialize()
+config.mt5_initialize(mt5)
 UTC6 = timezone(timedelta(hours=6))
-SYM  = 'XAUUSD.iux'
+SYM  = config.SYMBOL
 
 def bkk(ts): return datetime.fromtimestamp(int(ts), UTC6).strftime('%H:%M')
 

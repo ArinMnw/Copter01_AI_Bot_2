@@ -8,15 +8,16 @@ sys.path.insert(0, "D:/Project/Copter01_AI_Bot_2")
 
 from datetime import datetime, timedelta, timezone
 import MetaTrader5 as mt5
+import config
 
 BKK = timezone(timedelta(hours=7))
 
-SYMBOL    = "XAUUSD.iux"
+SYMBOL    = config.SYMBOL
 fill_bkk  = datetime(2026, 5, 27,  1, 54, 14, tzinfo=BKK)
 start_bkk = datetime(2026, 5, 26, 22,  0,  0, tzinfo=BKK)
 end_bkk   = datetime(2026, 5, 27,  1, 55,  0, tzinfo=BKK)
 
-if not mt5.initialize():
+if not config.mt5_initialize(mt5):
     print("MT5 init failed:", mt5.last_error())
     sys.exit(1)
 

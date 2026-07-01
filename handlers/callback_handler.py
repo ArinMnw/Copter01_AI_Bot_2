@@ -36,11 +36,13 @@ def _log_cb_error(tag, e):
 
 
 def _strategy_is_on(sid):
-    """สถานะเปิด/ปิดจริงของ strategy — S20.5/S20.6 ใช้ flag แยก ไม่ใช่ active_strategies"""
+    """สถานะเปิด/ปิดจริงของ strategy — S20.5/S20.6/S20.12 ใช้ flag แยก ไม่ใช่ active_strategies"""
     if sid == 20.5:
         return getattr(config, "S20_5_ENABLED", False)
     if sid == 20.6:
         return getattr(config, "S20_6_FVG_ENABLED", False)
+    if sid == 20.12:
+        return getattr(config, "S20_12_ENABLED", False)
     return active_strategies.get(sid, False)
 
 

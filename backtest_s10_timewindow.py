@@ -22,7 +22,7 @@ parser.add_argument('--since', type=str, required=False,
 parser.add_argument('--exclude-cancelled', '--only-filled', action='store_true', dest='exclude_cancelled',
                     help='Exclude trades/orders that were cancelled before fill (e.g., CANCEL, PD_FAIL, OPEN_PENDING)')
 parser.add_argument('--symbol', type=str, required=False,
-                    help='Symbol to backtest (e.g., XAUUSD.iux). If omitted, loads from bot_state.json')
+                    help='Symbol to backtest (e.g., XAUUSD). If omitted, loads from bot_state.json')
 args = parser.parse_args()
 
 # Now import from sim_s10_backtest (which will use updated config values)
@@ -67,7 +67,7 @@ if args.since:
     sim_s10_backtest.SINCE = since_utc
 
 def run_backtest():
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5, resolve=False):
         print('MT5 init failed:', mt5.last_error())
         return
 
@@ -80,7 +80,7 @@ def run_backtest():
                 state_symbol = str((json.load(f) or {}).get("symbol", "") or "")
     except Exception:
         state_symbol = ""
-    selected_symbol = args.symbol or state_symbol or config.SYMBOL
+    selected_symbol = config.profile_symbol(args.symbol or state_symbol or config.SYMBOL, mt5, set_runtime=True)
     if selected_symbol:
         config.set_runtime_symbol(selected_symbol)
         sim_s10_backtest.SYMBOL = selected_symbol

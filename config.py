@@ -3,10 +3,87 @@ import asyncio
 import copy
 import json
 import os
+import re
 import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _profile_dir_candidates(profile: str) -> list[str]:
+    if not profile:
+        return []
+    return [
+        os.path.join(ROOT_DIR, "profiles", profile),
+        os.path.join(ROOT_DIR, "profiles", "demo", profile),
+        os.path.join(ROOT_DIR, "profiles", "real", profile),
+        os.path.join(ROOT_DIR, "profiles", "demo", "accounts", profile),
+        os.path.join(ROOT_DIR, "profiles", "real", "accounts", profile),
+    ]
+
+
+def _resolve_profile_dir(profile: str) -> str:
+    for path in _profile_dir_candidates(profile):
+        if os.path.exists(os.path.join(path, "profile.env")):
+            return path
+    return os.path.join(ROOT_DIR, "profiles", profile) if profile else ROOT_DIR
+
+
+def _load_profile_env() -> None:
+    """Load the active BOT_PROFILE profile.env before config constants are read."""
+    profile = (os.getenv("BOT_PROFILE") or "").strip()
+    if not profile:
+        return
+    profile_env = os.getenv("BOT_PROFILE_ENV")
+    if not profile_env:
+        profile_env = os.path.join(_resolve_profile_dir(profile), "profile.env")
+    if not os.path.exists(profile_env):
+        return
+    try:
+        with open(profile_env, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key:
+                    os.environ.setdefault(key, value)
+    except OSError:
+        pass
+
+
+_load_profile_env()
+
+BOT_PROFILE = (os.getenv("BOT_PROFILE") or "").strip()
+PROFILE_DIR = _resolve_profile_dir(BOT_PROFILE) if BOT_PROFILE else ROOT_DIR
+PROFILE_ACTIVE = bool(BOT_PROFILE)
+LOG_DIR = os.path.join(PROFILE_DIR, "logs") if PROFILE_ACTIVE else "logs"
+OLD_LOG_DIR = os.path.join(LOG_DIR, "old_logs")
+SYSTEM_LOG_DIR = os.path.join(LOG_DIR, "system")
+DEBUG_LOG_DIR = os.path.join(LOG_DIR, "debug")
+STATE_FILE = os.path.join(PROFILE_DIR, "bot_state.json") if PROFILE_ACTIVE else "bot_state.json"
+HEARTBEAT_FILE = os.path.join(PROFILE_DIR, "bot_heartbeat.txt") if PROFILE_ACTIVE else "bot_heartbeat.txt"
+SUPERVISOR_LOCK_FILE = os.path.join(PROFILE_DIR, "supervisor.lock") if PROFILE_ACTIVE else "supervisor.lock"
+MT5_SERVER_TZ_HISTORY_FILE = (
+    os.path.join(PROFILE_DIR, "mt5_server_tz_history.json")
+    if PROFILE_ACTIVE
+    else os.path.join(ROOT_DIR, "mt5_server_tz_history.json")
+)
+
+
+def _ensure_profile_dirs() -> None:
+    for path in (PROFILE_DIR, LOG_DIR, OLD_LOG_DIR, SYSTEM_LOG_DIR, DEBUG_LOG_DIR):
+        try:
+            os.makedirs(path, exist_ok=True)
+        except OSError:
+            pass
+
+
+_ensure_profile_dirs()
 
 # console บางเครื่อง (เช่น cmd.exe ที่ codepage ไทย cp874) เจอ emoji ใน print()
 # แล้ว UnicodeEncodeError ตั้งแต่ import-time ทำให้ main.py ไม่ขึ้นเลย (เคสจริง:
@@ -42,7 +119,7 @@ _MT5_SERVER_TZ_CONFIRM_COUNT = 2  # ต้องเห็นค่าใหม�
 # วันที่ 25/06 ขยับเป็น 1 → ใครแปลงเวลา deal ของ 24/06 ด้วยค่าวันนี้ จะช้าไป 1h)
 # เก็บ history ไว้แยกตามวันที่ (UTC date) เพื่อให้ฟังก์ชันแสดงผล deal/order เก่า
 # (เช่น Deal History footer, candle block ของ ticket lookup) ดึงค่าของ "วันนั้น" ได้ถูก
-_MT5_SERVER_TZ_HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mt5_server_tz_history.json")
+_MT5_SERVER_TZ_HISTORY_FILE = MT5_SERVER_TZ_HISTORY_FILE
 
 
 def _load_mt5_server_tz_history() -> dict:
@@ -238,12 +315,128 @@ def set_runtime_symbol(new_symbol: str):
             except Exception:
                 pass
 
+
+def _symbol_root(symbol: str) -> str:
+    text = str(symbol or "").strip().upper()
+    m = re.match(r"([A-Z]+)", text)
+    return m.group(1) if m else text
+
+
+def _symbol_config_key(symbol: str) -> str:
+    root = _symbol_root(symbol)
+    if root.startswith("BTCUSD"):
+        return "BTCUSD.iux"
+    return "XAUUSD.iux"
+
+
+def _symbol_candidate_names(symbol: str) -> list[str]:
+    root = _symbol_root(symbol)
+    configured = [
+        s.strip()
+        for s in str(SYMBOL_CANDIDATES or "").split(",")
+        if s.strip() and _symbol_root(s.strip()) == root
+    ]
+    common = [
+        symbol,
+        root,
+        f"{root}.iux",
+        f"{root}-VIPc",
+        f"{root}c",
+        f"{root}m",
+    ]
+    for name in SYMBOL_CONFIG.keys():
+        if _symbol_root(name) == root:
+            common.append(name)
+    seen, out = set(), []
+    for item in configured + common:
+        key = str(item).strip()
+        if key and key.upper() not in seen:
+            seen.add(key.upper())
+            out.append(key)
+    return out
+
+
+def resolve_mt5_symbol(mt5_module=None, symbol: str | None = None, set_runtime: bool = True) -> str:
+    """Resolve generic SYMBOL like XAUUSD to the broker-specific symbol name."""
+    mt5_api = mt5_module or mt5
+    desired = str(symbol if symbol is not None else SYMBOL or "").strip()
+    if not desired:
+        return desired
+
+    for candidate in _symbol_candidate_names(desired):
+        try:
+            info = mt5_api.symbol_info(candidate)
+        except Exception:
+            info = None
+        if info is not None:
+            try:
+                mt5_api.symbol_select(candidate, True)
+            except Exception:
+                pass
+            if set_runtime and candidate != SYMBOL:
+                set_runtime_symbol(candidate)
+            return candidate
+
+    root = _symbol_root(desired)
+    try:
+        symbols = mt5_api.symbols_get(f"{root}*") or []
+    except Exception:
+        symbols = []
+    matches = []
+    for item in symbols:
+        name = str(getattr(item, "name", "") or "")
+        if name.upper().startswith(root):
+            matches.append(name)
+    for candidate in sorted(matches, key=lambda s: (0 if s.upper() == root else 1, len(s), s)):
+        try:
+            mt5_api.symbol_select(candidate, True)
+        except Exception:
+            pass
+        if set_runtime and candidate != SYMBOL:
+            set_runtime_symbol(candidate)
+        return candidate
+    return desired
+
+
+def symbol_family_config() -> dict:
+    return SYMBOL_CONFIG.get(SYMBOL, SYMBOL_CONFIG.get(_symbol_config_key(SYMBOL), SYMBOL_CONFIG["XAUUSD.iux"]))
+
+
+def mt5_initialize(mt5_module=None, login: bool = True, resolve: bool = True) -> bool:
+    """Initialize direct MetaTrader5 scripts with the active profile path/login."""
+    mt5_api = mt5_module or mt5
+    init_kwargs = {"timeout": MT5_TIMEOUT_MS}
+    if MT5_PATH:
+        init_kwargs["path"] = MT5_PATH
+        init_kwargs["portable"] = MT5_PORTABLE
+    ok = bool(mt5_api.initialize(**init_kwargs))
+    if not ok:
+        return False
+    if login and MT5_LOGIN:
+        try:
+            info = mt5_api.account_info()
+        except Exception:
+            info = None
+        if info is None or int(getattr(info, "login", 0) or 0) != int(MT5_LOGIN):
+            ok = bool(mt5_api.login(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER))
+            if not ok:
+                return False
+    if resolve:
+        resolve_mt5_symbol(mt5_api)
+    return True
+
+
+def profile_symbol(symbol: str | None = None, mt5_module=None, set_runtime: bool = False) -> str:
+    """Resolve a generic or configured symbol for scripts/backtests."""
+    return resolve_mt5_symbol(mt5_module or mt5, symbol or SYMBOL, set_runtime=set_runtime)
+
 # ============================================================
 #  SETTINGS
 # ============================================================
 TELEGRAM_TOKEN = "8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0"
 MY_USER_ID     = 8666020453
-SYMBOL         = "XAUUSD.iux"   # เปลี่ยน runtime โดย check_symbol_switch()
+SYMBOL         = "XAUUSD"   # runtime resolves this to broker-specific symbol suffix
+SYMBOL_CANDIDATES = ""
 symbol_switch_in_progress = False  # True ระหว่าง check_symbol_switch กำลังสลับ symbol (กัน order race)
 
 # ── config ต่อ symbol ─────────────────────────────────────────
@@ -254,6 +447,22 @@ SYMBOL_CONFIG = {
 MT5_LOGIN      = 2101114448
 MT5_PASSWORD   = "cop04TERZ_18"
 MT5_SERVER     = "IUXMarkets-Demo"
+MT5_PATH       = ""
+MT5_PORTABLE   = True
+MT5_TIMEOUT_MS = 120000
+MAGIC_NUMBER   = 234001
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", TELEGRAM_TOKEN)
+MY_USER_ID     = int(os.getenv("MY_USER_ID", os.getenv("TELEGRAM_USER_ID", str(MY_USER_ID))) or MY_USER_ID)
+SYMBOL         = os.getenv("SYMBOL", SYMBOL)
+SYMBOL_CANDIDATES = os.getenv("SYMBOL_CANDIDATES", SYMBOL_CANDIDATES)
+MT5_LOGIN      = int(os.getenv("MT5_LOGIN", str(MT5_LOGIN)) or MT5_LOGIN)
+MT5_PASSWORD   = os.getenv("MT5_PASSWORD", MT5_PASSWORD)
+MT5_SERVER     = os.getenv("MT5_SERVER", MT5_SERVER)
+MT5_PATH       = os.getenv("MT5_PATH", MT5_PATH)
+MT5_PORTABLE   = os.getenv("MT5_PORTABLE", str(MT5_PORTABLE)).strip().lower() in ("1", "true", "yes", "on")
+MT5_TIMEOUT_MS = int(os.getenv("MT5_TIMEOUT_MS", str(MT5_TIMEOUT_MS)) or MT5_TIMEOUT_MS)
+MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBER)
 
 AUTO_VOLUME    = 0.01   # lot size สำหรับ auto trade (ฐานของ XAUUSD)
 
@@ -264,7 +473,7 @@ def points_scale() -> float:
     XAUUSD = 1.0 (default), BTCUSD = 4.0
     ใช้ background ทุกที่ที่คำนวณ point → price (ไม่กระทบค่าใน Telegram UI)
     """
-    if SYMBOL == "BTCUSD.iux":
+    if str(SYMBOL).upper().startswith("BTCUSD"):
         return 4.0
     return 1.0
 
@@ -348,7 +557,7 @@ def SL_BUFFER(atr=None):
     """
     if SL_ATR_ENABLED and atr is not None:
         return float(atr) * float(SL_ATR_MULT)
-    return SYMBOL_CONFIG.get(SYMBOL, SYMBOL_CONFIG["XAUUSD.iux"])["sl_buffer"]
+    return symbol_family_config()["sl_buffer"]
 
 # ── ท่าที่ 1: Zone filter mode ───────────────────────────────
 # "zone"   = ต้องอยู่ใกล้ Swing Low/High (เดิม)
@@ -1172,7 +1381,6 @@ RISK_MAX_LOT         = 0.20   # เพดาน lot ต่อไม้ (หล�
 # แจ้ง Telegram เมื่อ MT5 หลุด / scan ค้าง และเมื่อกลับมาปกติ (dedup กัน spam)
 WATCHDOG_ENABLED   = True
 WATCHDOG_STALE_SEC = 120          # ไม่มี scan สำเร็จเกิน N วิ (ขณะ auto ON) → แจ้งเตือน
-HEARTBEAT_FILE     = "bot_heartbeat.txt"
 last_scan_ts       = 0.0          # epoch ของ scan สำเร็จล่าสุด (set โดย main.run_scan)
 _watchdog_mt5_ok   = True         # สถานะ MT5 ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
 _watchdog_scan_ok  = True         # สถานะ scan ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
@@ -1477,8 +1685,6 @@ BOLD   = "\033[1m"
 C_ENTRY = "\033[38;5;226m"   # เหลือง — Entry
 C_SL    = "\033[38;5;196m"   # แดง    — SL
 C_TP    = "\033[38;5;46m"    # เขียว  — TP
-
-STATE_FILE = "bot_state.json"
 
 # ── Demo Portfolio (P13 "Champion" / P16 "Max-Yield Blend") ──────────────────
 # ระบบทดสอบแยกอิสระจากบอทหลัก (S1-S20) — ใช้ demo_portfolio.py, state แยกที่

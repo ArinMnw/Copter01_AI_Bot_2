@@ -1,11 +1,12 @@
 import MetaTrader5 as mt5
+import config
 from datetime import datetime, timedelta, timezone
 
-mt5.initialize()
+config.mt5_initialize(mt5)
 BKK = timezone(timedelta(hours=7))
 start = datetime(2026,6,16,20,0,tzinfo=BKK)
 end = datetime(2026,6,16,21,30,tzinfo=BKK)
-rates = mt5.copy_rates_range('XAUUSD.iux', mt5.TIMEFRAME_M1, start, end)
+rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M1, start, end)
 with open('ohlc_dump.txt','w') as f:
     if rates is not None:
         for r in rates:

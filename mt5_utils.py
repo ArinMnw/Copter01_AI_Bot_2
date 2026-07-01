@@ -1,6 +1,11 @@
 import re
+import time
 import config
 from config import *
+
+_MT5_CONNECTED = False
+_MT5_CONNECTED_CHECK_TS = 0.0
+_MT5_CONNECT_CACHE_SEC = 30.0
 
 
 def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: float, sid=None) -> float:
@@ -518,13 +523,44 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
 
 def connect_mt5():
     """เชื่อมต่อ MT5 — ถ้า initialize แล้วและ login อยู่แล้วไม่ต้อง login ซ้ำ"""
-    if not mt5.initialize():
+    global _MT5_CONNECTED, _MT5_CONNECTED_CHECK_TS
+    now_ts = time.time()
+    if _MT5_CONNECTED and (now_ts - _MT5_CONNECTED_CHECK_TS) < _MT5_CONNECT_CACHE_SEC:
+        return True
+
+    if _MT5_CONNECTED:
+        info = mt5.account_info()
+        if info is not None and int(getattr(info, "login", 0) or 0) == int(config.MT5_LOGIN):
+            _MT5_CONNECTED_CHECK_TS = now_ts
+            return True
+        _MT5_CONNECTED = False
+
+    mt5_path = str(getattr(config, "MT5_PATH", "") or "").strip()
+    mt5_timeout = int(getattr(config, "MT5_TIMEOUT_MS", 120000) or 120000)
+    if mt5_path:
+        if not mt5.initialize(path=mt5_path, portable=bool(getattr(config, "MT5_PORTABLE", True)), timeout=mt5_timeout):
+            return False
+    elif not mt5.initialize(timeout=mt5_timeout):
         return False
     # ตรวจว่า login อยู่แล้วหรือยัง
     info = mt5.account_info()
-    if info is not None and info.login == MT5_LOGIN:
-        return True  # เชื่อมอยู่แล้ว ไม่ต้อง login ซ้ำ
-    return mt5.login(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER)
+    ok = False
+    if info is not None and int(getattr(info, "login", 0) or 0) == int(config.MT5_LOGIN):
+        ok = True  # เชื่อมอยู่แล้ว ไม่ต้อง login ซ้ำ
+    else:
+        ok = bool(mt5.login(login=config.MT5_LOGIN, password=config.MT5_PASSWORD, server=config.MT5_SERVER))
+    if ok:
+        _MT5_CONNECTED = True
+        _MT5_CONNECTED_CHECK_TS = time.time()
+        try:
+            before = config.SYMBOL
+            resolved = config.resolve_mt5_symbol(mt5)
+            if resolved and resolved != before:
+                from bot_log import log_event
+                log_event("SYMBOL_RESOLVED", f"{before} -> {resolved}", requested=before, resolved=resolved)
+        except Exception:
+            pass
+    return ok
 
 
 def calc_atr(rates, period: int = 14) -> float:
@@ -764,7 +800,7 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
         "sl":           sl,
         "tp":           tp,
         "deviation":    20,
-        "magic":        234001,
+        "magic":        int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
         "comment":      _build_order_comment(tf, sid, pattern, "Strategy4_Stop"),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,
@@ -882,7 +918,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
         "sl":           sl,
         "tp":           tp,
         "deviation":    20,
-        "magic":        234001,
+        "magic":        int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
         "comment":      _build_order_comment(
             tf, sid, pattern, "Strategy1_Limit",
             parallel_tfs=parallel_tfs,
@@ -995,7 +1031,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
         "sl":           sl,
         "tp":           tp,
         "deviation":    20,
-        "magic":        234001,
+        "magic":        int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
         "comment":      _build_order_comment(tf, sid, pattern, "Strategy_Market", order_index=order_index),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_FOK,
@@ -1080,4 +1116,3 @@ def should_cancel_pending(rates, signal: str, entry: float) -> tuple:
     # ── Condition 3 ถูกปิด ── (กลืนกิน Swing High/Low)
 
     return False, ""
-

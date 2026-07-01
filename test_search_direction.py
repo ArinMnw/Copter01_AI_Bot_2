@@ -1,13 +1,14 @@
 import MetaTrader5 as mt5
+import config
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 from datetime import datetime, timezone, timedelta
 
-mt5.initialize()
+config.mt5_initialize(mt5)
 config.restore_runtime_state()
 
-SYMBOL = "XAUUSD.iux"
+SYMBOL = config.SYMBOL
 tf_val = mt5.TIMEFRAME_M5
 
 start_dt = datetime(2026, 5, 29, 12, 0)

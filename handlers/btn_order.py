@@ -6,8 +6,11 @@ from handlers.keyboard import (main_keyboard, build_strategy_keyboard,
     build_tf_keyboard, build_tf_keyboard_with_back,
     build_scan_keyboard, build_scan_keyboard_with_back)
 
-BOT_LOG_FILE  = os.path.join("logs", "bot.log")
-BOT_LOG_DIR   = os.path.join("logs", "old_logs")   # archived bot-YYYY-MM.log
+try:
+    from bot_log import BOT_LOG_FILE, OLD_LOG_DIR as BOT_LOG_DIR
+except Exception:
+    BOT_LOG_FILE  = os.path.join("logs", "bot.log")
+    BOT_LOG_DIR   = os.path.join("logs", "old_logs")   # archived bot-YYYY-MM.log
 
 def _all_bot_log_files() -> list[str]:
     """คืน list ของ log files ทั้งหมด (เก่า→ใหม่ = chronological)

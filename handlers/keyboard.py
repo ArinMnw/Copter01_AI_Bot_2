@@ -953,6 +953,8 @@ def build_strategy_keyboard():
             return getattr(config, "S20_10_ENABLED", False)
         if sid == 20.11:
             return getattr(config, "S20_11_ENABLED", False)
+        if sid == 20.12:
+            return getattr(config, "S20_12_ENABLED", False)
         return active_strategies.get(sid, False)
 
     rows = []

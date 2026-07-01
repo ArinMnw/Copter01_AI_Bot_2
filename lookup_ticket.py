@@ -2,7 +2,7 @@ import sys; sys.path.insert(0, ".")
 import MetaTrader5 as mt5, config
 
 TICKET = 541881814
-mt5.initialize()
+config.mt5_initialize(mt5)
 
 print("=== history_deals_get(ticket) ===")
 deals = mt5.history_deals_get(ticket=TICKET)

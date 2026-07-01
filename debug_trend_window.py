@@ -37,11 +37,11 @@ print(f"Trend check — TF={TF}  {start_h}-{end_h} BKK  ({now_real.strftime('%d-
 print()
 
 import MetaTrader5 as mt5
-os.environ.setdefault("MT5_PATH","C:/Program Files/MetaTrader 5 IC Markets (SC)/terminal64.exe")
-mt5.initialize()
+import config as _cfg
+if not _cfg.mt5_initialize(mt5):
+    print("MT5 init failed:", mt5.last_error()); sys.exit(1)
 
 from config import TF_OPTIONS, SYMBOL
-import config as _cfg
 import hhll_swing
 
 LEFT  = int(getattr(_cfg,"HHLL_LEFT",5))

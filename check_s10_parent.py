@@ -19,7 +19,7 @@ parser.add_argument('--tf', type=str, required=True,
 parser.add_argument('--time', type=str, required=True,
                     help='Parent bar open time in Bangkok timezone (YYYY-MM-DD HH:MM)')
 parser.add_argument('--symbol', type=str, required=False,
-                    help='Symbol to check (e.g. XAUUSD.iux). Defaults to config.SYMBOL')
+                    help='Symbol to check (e.g. XAUUSD). Defaults to config.SYMBOL')
 args = parser.parse_args()
 
 # Import sim_s10_backtest to get timezone offset logic and simulation engine
@@ -51,7 +51,7 @@ def mt5_range_dt_from_ts(ts: int) -> datetime:
     return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=BKK)
 
 def run_diagnostics():
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5, resolve=False):
         print('MT5 init failed:', mt5.last_error())
         return
 
@@ -68,7 +68,7 @@ def run_diagnostics():
                 state_symbol = str((json.load(f) or {}).get("symbol", "") or "")
     except Exception:
         state_symbol = ""
-    symbol = args.symbol or state_symbol or config.SYMBOL
+    symbol = config.profile_symbol(args.symbol or state_symbol or config.SYMBOL, mt5, set_runtime=True)
     config.set_runtime_symbol(symbol)
     sim_s10_backtest.SYMBOL = symbol
     sync_strategy10_runtime_config()

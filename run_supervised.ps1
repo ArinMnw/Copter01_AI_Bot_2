@@ -20,11 +20,57 @@ param(
     # ปล่อยว่างไว้ = auto-detect (ดู Resolve-Python ด้านล่าง) — ระบุเองได้ถ้าต้องการ
     # บังคับ interpreter ตัวใดตัวหนึ่งเจาะจง (เช่น -Python "py" -PythonArgs "-3.11")
     [string]$Python,
-    [string]$PythonArgs
+    [string]$PythonArgs,
+    [string]$Profile
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
+
+if (-not $Profile -and $env:BOT_PROFILE) {
+    $Profile = $env:BOT_PROFILE
+}
+if ($Profile) {
+    $env:BOT_PROFILE = $Profile
+}
+
+function Load-ProfileEnv([string]$profileName) {
+    if (-not $profileName) { return }
+    $profileDir = Resolve-ProfileDir $profileName
+    $envFile = Join-Path $profileDir "profile.env"
+    if (-not (Test-Path $envFile)) {
+        Write-Host "ERROR: missing profile env file: $envFile"
+        Write-Host "Create it from profiles\$profileName\profile.env.example before running this profile."
+        exit 1
+    }
+    foreach ($line in Get-Content $envFile -Encoding UTF8) {
+        $trim = $line.Trim()
+        if (-not $trim -or $trim.StartsWith("#") -or -not $trim.Contains("=")) { continue }
+        $parts = $trim.Split("=", 2)
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim().Trim('"').Trim("'")
+        if ($key) {
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+        }
+    }
+}
+
+function Resolve-ProfileDir([string]$profileName) {
+    if (-not $profileName) { return $PSScriptRoot }
+    $candidates = @(
+        (Join-Path $PSScriptRoot "profiles\$profileName"),
+        (Join-Path $PSScriptRoot "profiles\demo\$profileName"),
+        (Join-Path $PSScriptRoot "profiles\real\$profileName"),
+        (Join-Path $PSScriptRoot "profiles\demo\accounts\$profileName"),
+        (Join-Path $PSScriptRoot "profiles\real\accounts\$profileName")
+    )
+    foreach ($dir in $candidates) {
+        if (Test-Path (Join-Path $dir "profile.env")) { return $dir }
+    }
+    return $candidates[0]
+}
+
+Load-ProfileEnv $Profile
 
 function Test-PythonCandidate([string]$exe, [string[]]$extraArgs) {
     # คืน $true ถ้า interpreter ตัวนี้เรียกได้จริง และมี dependency หลักของบอทครบ
@@ -74,11 +120,13 @@ function Resolve-Python {
     return $candidates[0]
 }
 
-$HeartbeatFile = Join-Path $PSScriptRoot "bot_heartbeat.txt"
-$LogDir        = Join-Path $PSScriptRoot "logs"
+$RuntimeDir    = if ($Profile) { Resolve-ProfileDir $Profile } else { $PSScriptRoot }
+$HeartbeatFile = Join-Path $RuntimeDir "bot_heartbeat.txt"
+$LogDir        = Join-Path $RuntimeDir "logs"
 $LogFile       = Join-Path $LogDir "supervisor.log"
-$LockFile      = Join-Path $PSScriptRoot "supervisor.lock"
+$LockFile      = Join-Path $RuntimeDir "supervisor.lock"
 
+if (-not (Test-Path $RuntimeDir)) { New-Item -ItemType Directory -Path $RuntimeDir | Out-Null }
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
 
 function Write-Log($msg) {
@@ -128,7 +176,7 @@ if (-not $PSBoundParameters.ContainsKey('Python')) {
 $PythonArgList = @($PythonArgs -split ' ' | Where-Object { $_ -ne '' })
 $PythonCmdLabel = (@($Python) + $PythonArgList) -join ' '
 
-Write-Log "Supervisor started (stale=$StaleSec s, check=$CheckEvery s, grace=$GraceSec s, python='$PythonCmdLabel')"
+Write-Log "Supervisor started (profile='$($Profile)', stale=$StaleSec s, check=$CheckEvery s, grace=$GraceSec s, python='$PythonCmdLabel')"
 
 try {
 while ($true) {

@@ -8,11 +8,12 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
+import config
 
-mt5.initialize()
+config.mt5_initialize(mt5)
 UTC6 = timezone(timedelta(hours=6))
 
-SYM  = 'XAUUSD.iux'
+SYM  = config.SYMBOL
 LL_PRICE  = 4464.10   # LL pivot M5 06:00
 LL_TIME   = datetime(2026,6,5,6,0, tzinfo=UTC6)
 LL_TS     = int(LL_TIME.timestamp())

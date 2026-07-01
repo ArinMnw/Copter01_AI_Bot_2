@@ -5,20 +5,21 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
+import config
 
-mt5.initialize()
+config.mt5_initialize(mt5)
 UTC6 = timezone(timedelta(hours=6))
 
 # ดึง M5 ช่วงกว้างขึ้น 05:00-08:00 BKK
 start = datetime(2026,6,5,5,0, tzinfo=UTC6).astimezone(timezone.utc)
 end   = datetime(2026,6,5,8,0, tzinfo=UTC6).astimezone(timezone.utc)
-rates = mt5.copy_rates_range('XAUUSD.iux', mt5.TIMEFRAME_M5, start, end)
+rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M5, start, end)
 mt5.shutdown()
 
 LL_PRICE = 4464.10   # LL pivot ที่ confirmed ใน HHLL
 LL_TIME  = "06:00"
 
-print(f'M5  XAUUSD.iux  05:00-08:00 BKK  |  LL pivot = {LL_PRICE} @ {LL_TIME}')
+print(f'M5  {config.SYMBOL}  05:00-08:00 BKK  |  LL pivot = {LL_PRICE} @ {LL_TIME}')
 print(f'{"Time":>6}  {"O":>8}  {"H":>8}  {"L":>8}  {"C":>8}  C  Sweep check')
 print('-' * 75)
 

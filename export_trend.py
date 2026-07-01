@@ -29,6 +29,7 @@ try:
     MT5_LOGIN     = _cfg.MT5_LOGIN
     MT5_PASSWORD  = _cfg.MT5_PASSWORD
     MT5_SERVER    = _cfg.MT5_SERVER
+    MT5_PATH      = getattr(_cfg, "MT5_PATH", "")
     PER_TF_MAP    = getattr(_cfg, "TREND_FILTER_PER_TF", {}) or {}
     TF_ACTIVE     = getattr(_cfg, "TF_ACTIVE",  {}) or {}
     HHLL_LEFT     = int(getattr(_cfg, "HHLL_LEFT",     5)   or 5)
@@ -49,9 +50,13 @@ if not TF_NAMES:
 
 # ─────────────────────────────────────────────────────────────────────
 def _connect() -> bool:
-    ok = mt5.initialize(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER)
+    init_kwargs = {"path": MT5_PATH} if MT5_PATH else {}
+    ok = mt5.initialize(**init_kwargs)
     if not ok:
         print(f"❌ MT5 initialize failed: {mt5.last_error()}")
+        return False
+    if MT5_LOGIN and not mt5.login(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER):
+        print(f"❌ MT5 login failed: {mt5.last_error()}")
         return False
     info = mt5.terminal_info()
     acc  = mt5.account_info()

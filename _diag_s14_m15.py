@@ -7,17 +7,18 @@ sys.path.insert(0, "D:/Project/Copter01_AI_Bot_2")
 
 from datetime import datetime, timedelta, timezone
 import MetaTrader5 as mt5
+import config
 from strategy9 import _calc_rsi_values
 
 BKK    = timezone(timedelta(hours=7))
-SYMBOL = "XAUUSD.iux"
+SYMBOL = config.SYMBOL
 
 # sweep bar = 00:30 chart = 01:30 BKK  (M15)
 # fetch ย้อนหลัง ~18h สำหรับ RSI warmup (69 bars × 15min)
 start_bkk = datetime(2026, 5, 26,  8, 0, tzinfo=BKK)   # chart 07:00
 end_bkk   = datetime(2026, 5, 27,  1, 50, tzinfo=BKK)   # chart 00:50
 
-if not mt5.initialize():
+if not config.mt5_initialize(mt5):
     print("MT5 init failed:", mt5.last_error())
     sys.exit(1)
 

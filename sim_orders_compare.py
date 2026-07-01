@@ -15,6 +15,7 @@ import os, re, io, sys, csv
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict, Counter
 import MetaTrader5 as mt5
+import config
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +32,7 @@ def iter_log_lines():
                 yield line
 
 BKK = timezone(timedelta(hours=7))
-SYMBOL = "XAUUSD.iux"
+SYMBOL = config.SYMBOL
 WIN_START = "2026-05-26"
 
 GROUPS = [["H4","H12","D1"],["H1","H4","H12"],["M30","H1","H4"],
@@ -151,7 +152,7 @@ def price_at(candles, tf, t_unix):
     return (best[1]+best[2])/2 if best else None
 
 def main():
-    if not mt5.initialize(): print("MT5 init failed", mt5.last_error()); return
+    if not config.mt5_initialize(mt5): print("MT5 init failed", mt5.last_error()); return
     created, filled, closed, ofail, ofday, of_first, of_last = parse_log()
     candles = fetch_candles()
     intervals, activations = build_blocked_intervals(closed, candles)

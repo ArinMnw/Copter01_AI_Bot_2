@@ -2411,7 +2411,7 @@ async def scan_s12(app):
         "sl":           sl,
         "tp":           tp,
         "deviation":    20,
-        "magic":        0,
+        "magic":        int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
         "comment":      f"M5_S12_{'BUY' if should_buy else 'SELL'}",
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": _get_filling_mode(),
@@ -2923,7 +2923,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_11.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.11, r20_11["signal"], last_candle_time, r20_11)
 
-    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if active_strategies.get(20.12, False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.12 ปิด หรือ TF ปิด"}
+    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if getattr(config, "S20_12_ENABLED", False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.12 ปิด หรือ TF ปิด"}
     if r20_12.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 

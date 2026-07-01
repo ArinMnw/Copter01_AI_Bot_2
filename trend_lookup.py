@@ -42,7 +42,7 @@ def main():
     dt_bkk   = dt_naive.replace(tzinfo=BKK)
     ts_query = int(dt_bkk.timestamp()) + config.MT5_SERVER_TZ * 3600
 
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print(f"ERROR: MT5 initialize ไม่สำเร็จ: {mt5.last_error()}")
         sys.exit(1)
 

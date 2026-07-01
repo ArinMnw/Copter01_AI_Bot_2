@@ -16,7 +16,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 try:
     import MetaTrader5 as mt5
-    MT5_OK = mt5.initialize()
+    MT5_OK = config.mt5_initialize(mt5)
 except Exception:
     MT5_OK = False
     mt5 = None
@@ -144,7 +144,7 @@ def sim_fix(order):
     end_unix = cancel_unix + 48 * 3600
     from_dt  = datetime.fromtimestamp(p_close, tz=timezone.utc)
     to_dt    = datetime.fromtimestamp(end_unix, tz=timezone.utc)
-    rates = mt5.copy_rates_range("XAUUSD.iux", mt5.TIMEFRAME_M1, from_dt, to_dt)
+    rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M1, from_dt, to_dt)
     if rates is None or len(rates) == 0:
         return "NO_DATA"
 

@@ -275,10 +275,13 @@ async def demo_scan(app, portfolio_name: str):
                 log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
 
         trade_log = {
-            "ts": now.isoformat(), "leg": leg_id, "label": label, "signal": sig,
-            "sl": sl, "tp": tp, "success": result.get("success"),
+            "ts": now.isoformat(), "entry_bar_ts": entry_ts, "leg": leg_id, "label": label,
+            "signal": sig, "sl": sl, "tp": tp, "success": result.get("success"),
             "ticket": result.get("ticket"), "error": result.get("error"),
         }
+        # entry_bar_ts = MT5 server timestamp ดิบของแท่งที่ยิง signal (ไม่ใช่ BKK wall-clock)
+        # เก็บไว้ให้ tool ตรวจสอบย้อนหลัง (เช่น verify_signal_consistency.py) fetch ราคาย้อนหลัง
+        # ตรงเป๊ะได้โดยไม่ต้องคำนวณ timezone กลับไปกลับมา (เคยพลาดตรงนี้มาก่อน)
         state["trades"].append(trade_log)
         state["trades"] = state["trades"][-500:]  # กัน state file โตไม่จำกัด
         _save_state(state)

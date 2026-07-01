@@ -215,7 +215,7 @@ def main():
 
     async def _close_btc_exposure_before_xau_switch():
         """ปิด position และลบ pending ของ BTCUSD ก่อนสลับกลับ XAUUSD"""
-        btc_symbol = "BTCUSD.iux"
+        btc_symbol = config.resolve_mt5_symbol(mt5, "BTCUSD", set_runtime=False)
         closed_positions = []
         canceled_orders = []
 
@@ -241,7 +241,7 @@ def main():
                 position_pattern.pop(ticket, None)
                 position_zone_meta.pop(ticket, None)
                 _entry_state.pop(ticket, None)
-                log_event("ORDER_CANCELED", "BTC pending cleared before switching to XAUUSD.iux", symbol=btc_symbol, ticket=ticket)
+                log_event("ORDER_CANCELED", "BTC pending cleared before switching to XAUUSD", symbol=btc_symbol, ticket=ticket)
 
         btc_positions = mt5.positions_get(symbol=btc_symbol) or []
         for pos in btc_positions:
@@ -259,7 +259,7 @@ def main():
                 "type": close_type,
                 "price": close_price,
                 "deviation": 20,
-                "magic": 234001,
+                "magic": int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
                 "comment": "switch_to_xau_close_btc",
                 "type_time": mt5.ORDER_TIME_GTC,
                 "type_filling": mt5.ORDER_FILLING_FOK,
@@ -276,7 +276,7 @@ def main():
                 _entry_state.pop(ticket, None)
                 log_event(
                     "POSITION_CLOSED",
-                    "BTC position closed before switching to XAUUSD.iux",
+                    "BTC position closed before switching to XAUUSD",
                     symbol=btc_symbol,
                     ticket=ticket,
                     close_price=close_price,
@@ -304,10 +304,12 @@ def main():
         if not connect_mt5():
             return
         try:
-            xau_info = mt5.symbol_info("XAUUSD.iux")
+            xau_symbol = config.resolve_mt5_symbol(mt5, "XAUUSD", set_runtime=False)
+            btc_symbol = config.resolve_mt5_symbol(mt5, "BTCUSD", set_runtime=False)
+            xau_info = mt5.symbol_info(xau_symbol)
             if xau_info is None:
                 return
-            xau_tick = mt5.symbol_info_tick("XAUUSD.iux")
+            xau_tick = mt5.symbol_info_tick(xau_symbol)
             now_ts = int(datetime.now().timestamp())
             tick_ok = (
                 xau_tick is not None
@@ -317,7 +319,7 @@ def main():
             )
             xau_open = (xau_info.trade_mode != 0) and tick_ok
             print(
-                f"[{now_bkk().strftime('%H:%M:%S')}] 🔎 symbol_check XAUUSD.iux "
+                f"[{now_bkk().strftime('%H:%M:%S')}] 🔎 symbol_check {xau_symbol} "
                 f"trade_mode={xau_info.trade_mode} "
                 f"tick_time={getattr(xau_tick, 'time', 0)} "
                 f"bid={getattr(xau_tick, 'bid', 0.0)} ask={getattr(xau_tick, 'ask', 0.0)} "
@@ -325,7 +327,7 @@ def main():
             )
             log_event(
                 "SYMBOL_CHECK",
-                f"XAUUSD.iux trade_mode={xau_info.trade_mode} xau_open={xau_open}",
+                f"{xau_symbol} trade_mode={xau_info.trade_mode} xau_open={xau_open}",
                 trade_mode=xau_info.trade_mode,
                 tick_time=getattr(xau_tick, "time", 0),
                 bid=float(getattr(xau_tick, "bid", 0.0)),
@@ -340,39 +342,39 @@ def main():
             log_error("SYMBOL_SWITCH_ERROR", f"{type(e).__name__}: {e}")
             return
         if xau_open:
-            if config.SYMBOL != "XAUUSD.iux":
+            if config._symbol_root(config.SYMBOL).startswith("BTCUSD") or config.SYMBOL != xau_symbol:
                 # กัน scan สร้างออเดอร์ระหว่างปิด BTC + สลับ symbol (race guard)
                 config.symbol_switch_in_progress = True
                 try:
-                    if config.SYMBOL == "BTCUSD.iux":
+                    if config._symbol_root(config.SYMBOL).startswith("BTCUSD"):
                         await _close_btc_exposure_before_xau_switch()
-                    set_runtime_symbol("XAUUSD.iux")
+                    set_runtime_symbol(xau_symbol)
                     save_runtime_state()
                 finally:
                     config.symbol_switch_in_progress = False
-                await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux")
-                print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับกลับ XAUUSD.iux")
+                await tg(app, f"🟡 *XAUUSD เปิดแล้ว* → สลับกลับ {xau_symbol}")
+                print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับกลับ {xau_symbol}")
                 if config.auto_active:
-                    await tg(app, "⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `XAUUSD.iux`")
-                    print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> XAUUSD.iux")
+                    await tg(app, f"⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `{xau_symbol}`")
+                    print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> {xau_symbol}")
                     await auto_scan(app)
             elif startup:
                 # ตอน start: SYMBOL เป็น XAUUSD อยู่แล้ว → force setattr ให้ทุก module + ไม่ส่ง TG ซ้ำ
-                set_runtime_symbol("XAUUSD.iux")
-                print(f"[{now_bkk().strftime('%H:%M:%S')}] ✅ startup: XAUUSD.iux เปิดอยู่ (ไม่ต้องสลับ)")
-        elif not xau_open and config.SYMBOL != "BTCUSD.iux":
+                set_runtime_symbol(xau_symbol)
+                print(f"[{now_bkk().strftime('%H:%M:%S')}] ✅ startup: {xau_symbol} เปิดอยู่ (ไม่ต้องสลับ)")
+        elif not xau_open and (config._symbol_root(config.SYMBOL).startswith("XAUUSD") or config.SYMBOL != btc_symbol):
             # กัน scan สร้างออเดอร์ระหว่างสลับ symbol (race guard)
             config.symbol_switch_in_progress = True
             try:
-                set_runtime_symbol("BTCUSD.iux")
+                set_runtime_symbol(btc_symbol)
                 save_runtime_state()
             finally:
                 config.symbol_switch_in_progress = False
-            await tg(app, f"🔵 *XAUUSD ปิด* → สลับไป BTCUSD.iux")
-            print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับไป BTCUSD.iux")
+            await tg(app, f"🔵 *XAUUSD ปิด* → สลับไป {btc_symbol}")
+            print(f"[{now_bkk().strftime('%H:%M:%S')}] 🔄 สลับไป {btc_symbol}")
             if config.auto_active:
-                await tg(app, "⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `BTCUSD.iux`")
-                print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> BTCUSD.iux")
+                await tg(app, f"⚡ *สั่งสแกนทันทีหลังสลับ symbol* \n📈 SYMBOL: `{btc_symbol}`")
+                print(f"[{now_bkk().strftime('%H:%M:%S')}] ⚡ trigger immediate scan after symbol switch -> {btc_symbol}")
                 await auto_scan(app)
 
     async def run_trail_sl():

@@ -7,8 +7,13 @@ from datetime import datetime, timedelta, timezone
 
 
 TZ_OFFSET = 7
-LOG_DIR       = "logs"
-OLD_LOG_DIR   = os.path.join(LOG_DIR, "old_logs")   # archived monthly logs
+try:
+    import config as _runtime_config
+except Exception:
+    _runtime_config = None
+
+LOG_DIR       = getattr(_runtime_config, "LOG_DIR", "logs")
+OLD_LOG_DIR   = getattr(_runtime_config, "OLD_LOG_DIR", os.path.join(LOG_DIR, "old_logs"))   # archived monthly logs
 
 # สคริปต์ backtest/sim import โมดูล (scanner, strategy10, ...) ที่เรียก log_event()/log_error()
 # ตรงๆ เหมือนกัน — ถ้าไม่แยก ผลจาก backtest จะไปปนกับ log ของ bot ที่รันจริง (bot.log/error.log)
@@ -22,13 +27,13 @@ _SYSTEM_LOG_PREFIX = "system" if _IS_LIVE_BOT else "backtest_system"
 
 BOT_LOG_FILE  = os.path.join(LOG_DIR, f"{_BOT_LOG_PREFIX}.log")
 ERROR_LOG_FILE = os.path.join(LOG_DIR, f"{_ERROR_LOG_PREFIX}.log")
-SYSTEM_LOG_DIR  = os.path.join(LOG_DIR, "system")
+SYSTEM_LOG_DIR  = getattr(_runtime_config, "SYSTEM_LOG_DIR", os.path.join(LOG_DIR, "system"))
 SYSTEM_LOG_FILE = (
     os.path.join(SYSTEM_LOG_DIR, "system.log")
     if _IS_LIVE_BOT
     else os.path.join(LOG_DIR, "backtest_system.log")
 )
-DEBUG_LOG_DIR   = os.path.join(LOG_DIR, "debug")
+DEBUG_LOG_DIR   = getattr(_runtime_config, "DEBUG_LOG_DIR", os.path.join(LOG_DIR, "debug"))
 LOG_RETENTION_DAYS = 15
 _MAX_BOT_LOG_BYTES = 100 * 1024 * 1024  # 100 MB
 

@@ -5,15 +5,16 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
+import config
 
-mt5.initialize()
+config.mt5_initialize(mt5)
 UTC6 = timezone(timedelta(hours=6))
 
 # M5 ช่วง 05:20-06:40 BKK เพื่อดู swing low + sweep bar
 start = datetime(2026,6,5,5,20, tzinfo=UTC6).astimezone(timezone.utc)
 end   = datetime(2026,6,5,6,40, tzinfo=UTC6).astimezone(timezone.utc)
 
-rates = mt5.copy_rates_range('XAUUSD.iux', mt5.TIMEFRAME_M5, start, end)
+rates = mt5.copy_rates_range(config.SYMBOL, mt5.TIMEFRAME_M5, start, end)
 mt5.shutdown()
 
 if rates is None or len(rates) == 0:
@@ -22,7 +23,7 @@ if rates is None or len(rates) == 0:
 
 LL_PRICE = 4464.10   # LL pivot ที่เห็นใน HHLL
 
-print(f'M5  XAUUSD.iux  |  05:20-06:40 BKK  |  LL pivot = {LL_PRICE}')
+print(f'M5  {config.SYMBOL}  |  05:20-06:40 BKK  |  LL pivot = {LL_PRICE}')
 print(f'{"Time":>6}  {"Open":>8}  {"High":>8}  {"Low":>8}  {"Close":>8}  C  Note')
 print('-' * 65)
 

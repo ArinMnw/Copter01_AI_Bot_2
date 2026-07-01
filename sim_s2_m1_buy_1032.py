@@ -20,12 +20,12 @@ from strategy2 import strategy_2, detect_fvg
 from strategy3 import strategy_3
 from mt5_utils import find_swing_tp
 
-SYMBOL = "XAUUSD.iux"
+SYMBOL = config.SYMBOL
 TZ_OFFSET = config.TZ_OFFSET       # 7
 SERVER_TZ = config.MT5_SERVER_TZ   # 1
 BKK_MINUS_QUERY_OFFSET = TZ_OFFSET - SERVER_TZ  # 6h: bkk = server_epoch_as_utc + 6h
 
-assert mt5.initialize(), "MT5 connect failed"
+assert config.mt5_initialize(mt5), "MT5 connect failed"
 
 
 def bkk_to_query_dt(bkk_dt: datetime) -> datetime:

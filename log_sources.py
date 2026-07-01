@@ -21,6 +21,11 @@ log_sources.py — helper กลางสำหรับรวมไฟล์ bo
 import os
 import glob
 
+try:
+    import config as _runtime_config
+except Exception:
+    _runtime_config = None
+
 # bot-2026-06.log / bot-2026-06-14-00.log (ไม่รวม .bak)
 _ARCHIVE_GLOB = "bot-2[0-9][0-9][0-9]-[0-9][0-9]*.log"
 # bot-2026-06.log.bak-... / bot-2026-06-14-00.log.bak-...
@@ -35,10 +40,14 @@ def bot_log_files(root: str = None, include_bak: bool = True) -> list:
     root: โฟลเดอร์ที่มี logs/ (default = โฟลเดอร์ของไฟล์นี้)
     include_bak: รวมไฟล์ .bak-* ด้วยหรือไม่ (default True ตามพฤติกรรมเดิมของ sim scripts)
     """
-    if root is None:
-        root = os.path.dirname(os.path.abspath(__file__))
-    log_dir = os.path.join(root, "logs")
-    old_dir = os.path.join(log_dir, "old_logs")
+    if root is None and _runtime_config is not None:
+        log_dir = getattr(_runtime_config, "LOG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
+        old_dir = getattr(_runtime_config, "OLD_LOG_DIR", os.path.join(log_dir, "old_logs"))
+    else:
+        if root is None:
+            root = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(root, "logs")
+        old_dir = os.path.join(log_dir, "old_logs")
 
     files = sorted(glob.glob(os.path.join(old_dir, _ARCHIVE_GLOB)))
     if include_bak:
@@ -58,9 +67,12 @@ def bot_log_files(root: str = None, include_bak: bool = True) -> list:
 
 def ensure_backtest_log_files(root: str = None) -> dict:
     """สร้างไฟล์ log สำหรับ backtest ถ้ายังไม่มี โดยไม่แตะ live bot logs."""
-    if root is None:
-        root = os.path.dirname(os.path.abspath(__file__))
-    log_dir = os.path.join(root, "logs")
+    if root is None and _runtime_config is not None:
+        log_dir = getattr(_runtime_config, "LOG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
+    else:
+        if root is None:
+            root = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(root, "logs")
     os.makedirs(log_dir, exist_ok=True)
     paths = {
         "bot": os.path.join(log_dir, "backtest_bot.log"),
@@ -76,10 +88,14 @@ def ensure_backtest_log_files(root: str = None) -> dict:
 
 def backtest_log_files(root: str = None, include_bak: bool = True, ensure: bool = True) -> list:
     """คืน list path ของ backtest bot log เท่านั้น; ไม่อ่าน logs/bot.log ของระบบจริง."""
-    if root is None:
-        root = os.path.dirname(os.path.abspath(__file__))
-    log_dir = os.path.join(root, "logs")
-    old_dir = os.path.join(log_dir, "old_logs")
+    if root is None and _runtime_config is not None:
+        log_dir = getattr(_runtime_config, "LOG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
+        old_dir = getattr(_runtime_config, "OLD_LOG_DIR", os.path.join(log_dir, "old_logs"))
+    else:
+        if root is None:
+            root = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(root, "logs")
+        old_dir = os.path.join(log_dir, "old_logs")
 
     if ensure:
         ensure_backtest_log_files(root)

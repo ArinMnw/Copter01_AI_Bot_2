@@ -6,16 +6,14 @@ import os
 # Add current path to import strategy20
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import strategy20
+import config
 
 def run_fibo_backtest():
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5, resolve=False):
         print("initialize() failed, error code =", mt5.last_error())
         return
 
-    import config
-    symbol = config.SYMBOL
-    if not symbol:
-        symbol = "XAUUSDm"
+    symbol = config.profile_symbol(config.SYMBOL, mt5, set_runtime=True)
     tfs = {
         "M1": mt5.TIMEFRAME_M1,
         "M5": mt5.TIMEFRAME_M5,

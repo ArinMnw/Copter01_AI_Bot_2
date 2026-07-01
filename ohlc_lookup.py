@@ -15,7 +15,7 @@ process ได้ปลอดภัย ไม่ชนกับ bot ที่ร
 
 Usage:
     python ohlc_lookup.py M1 24-06-2026 18:56
-    python ohlc_lookup.py M5 24-06-2026 19:08 XAUUSD.iux
+    python ohlc_lookup.py M5 24-06-2026 19:08 XAUUSD
 """
 import sys
 from datetime import datetime, timezone, timedelta

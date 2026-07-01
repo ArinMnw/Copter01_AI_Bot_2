@@ -5,8 +5,9 @@ from datetime import datetime, timedelta, timezone
 _BKK = timezone(timedelta(hours=7))
 
 import MetaTrader5 as mt5
-os.environ.setdefault("MT5_PATH","C:/Program Files/MetaTrader 5 IC Markets (SC)/terminal64.exe")
-mt5.initialize()
+import config as _cfg
+if not _cfg.mt5_initialize(mt5):
+    print("MT5 init failed:", mt5.last_error()); sys.exit(1)
 from config import TF_OPTIONS, SYMBOL
 
 ref_price = 4483.69   # HH@11:34 price

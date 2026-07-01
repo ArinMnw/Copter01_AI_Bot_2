@@ -38,10 +38,20 @@ from datetime import datetime
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-ROOT       = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR    = os.path.join(ROOT, "logs")
-OLD_DIR    = os.path.join(LOG_DIR, "old_logs")
-SYS_DIR    = os.path.join(LOG_DIR, "system")
+if "--profile" in sys.argv:
+    try:
+        idx = sys.argv.index("--profile")
+        os.environ["BOT_PROFILE"] = sys.argv[idx + 1]
+        del sys.argv[idx:idx + 2]
+    except Exception:
+        print("[WARN] --profile requires a value")
+
+import config
+
+ROOT       = getattr(config, "ROOT_DIR", os.path.dirname(os.path.abspath(__file__)))
+LOG_DIR    = config.LOG_DIR
+OLD_DIR    = config.OLD_LOG_DIR
+SYS_DIR    = config.SYSTEM_LOG_DIR
 MAX_ARCHIVE_BYTES = 80 * 1024 * 1024
 
 # timestamp ที่ต้นบรรทัด:  [2026-05-27 01:29:04]  หรือ  2026-05-27 01:29:04,123

@@ -6,13 +6,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 import MetaTrader5 as mt5
+import config
 from datetime import datetime, timedelta, timezone
 
 # Import REAL functions from hhll_swing
 from hhll_swing import _build_zz, _classify_pt, _is_ph, _is_pl
 
 BKK = timezone(timedelta(hours=7))
-SYMBOL = "XAUUSD.iux"
+SYMBOL = config.SYMBOL
 TF = mt5.TIMEFRAME_M1
 HHLL_LEFT = 5
 HHLL_RIGHT = 5
@@ -20,7 +21,7 @@ HHLL_LOOKBACK = 500
 
 
 def main():
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print(f"MT5 init failed: {mt5.last_error()}")
         return
 
