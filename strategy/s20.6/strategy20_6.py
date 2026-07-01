@@ -11,12 +11,12 @@ from mt5_utils import calc_atr
 
 def _in_session(dt_bkk) -> bool:
     """เช็ค Killzones (London/NY)"""
-    if not getattr(config, "S20_SESSION_FILTER", False):
+    if not getattr(config, "S20_6_SESSION_FILTER", False):
         return True
     if dt_bkk is None:
         return True
     cur = dt_bkk.time() if hasattr(dt_bkk, 'time') else dt_bkk
-    sessions = getattr(config, "S20_SESSIONS", [("14:00", "18:00"), ("19:00", "23:00")])
+    sessions = getattr(config, "S20_6_SESSIONS", [("14:00", "18:00"), ("19:00", "23:00")])
     from datetime import time
     for start_str, end_str in sessions:
         sh, sm = map(int, start_str.split(":"))
@@ -27,7 +27,7 @@ def _in_session(dt_bkk) -> bool:
 
 def _trend_allows(signal: str, tf: str) -> bool:
     """ห้ามเข้าสวน Strong Trend"""
-    if not getattr(config, "S20_TREND_FILTER", False):
+    if not getattr(config, "S20_6_TREND_FILTER", False):
         return True
     trend_info = hhll_swing.get_trend_from_structure(tf)
     if not trend_info:
@@ -205,7 +205,7 @@ def strategy_20_6(rates, tf="M5", dt_bkk=None) -> dict:
         base_wick = 310.0
         tf_scale = tf_max_wick.get(tf, base_wick) / base_wick
         
-        entry_buffer = getattr(config, "S20_ENTRY_BUFFER", 0.0) * tf_scale * 0.01
+        entry_buffer = getattr(config, "S20_6_ENTRY_BUFFER", 0.0) * tf_scale * 0.01
         sl_2l2h = atr * 1.5
         
         fibo_run = min(7.044, 3.097) # capped as in old logic for anchor size

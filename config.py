@@ -538,18 +538,24 @@ class _TgWrapper:
                     except Exception as _re:
                         _retry_err = _re
 
-                # ── auto-fix: Timed out → wait 3s + retry (Markdown → plain) ──
+                # ── auto-fix: Timed out → retry a few times before dropping ──
                 elif "timed out" in err_str.lower():
-                    try:
-                        await asyncio.sleep(3)
+                    for _attempt, _delay in enumerate((3, 6, 10), start=1):
+                        await asyncio.sleep(_delay)
                         try:
                             await self._send(chat_id=chat_id, text=final_text, parse_mode=parse_mode, **kwargs)
-                        except Exception:
-                            await self._send(chat_id=chat_id, text=final_text, parse_mode=None, **kwargs)
-                        _retried = True
-                        _log_sent_retry(final_text)
-                    except Exception as _re:
-                        _retry_err = _re
+                            _retried = True
+                            _log_sent_retry(final_text)
+                            break
+                        except Exception as _re:
+                            _retry_err = _re
+                            try:
+                                await self._send(chat_id=chat_id, text=final_text, parse_mode=None, **kwargs)
+                                _retried = True
+                                _log_sent_retry(final_text)
+                                break
+                            except Exception as _plain_re:
+                                _retry_err = _plain_re
 
                 if not _retried:
                     # ── retry ล้มเหลว → log TG_DROP พร้อม original error + retry error ──
@@ -909,6 +915,10 @@ S20_TRIGGER_FIBO_ENTRY  = True  # ท่าย่อย S20.5: Fibo Entry
 S20_5_ENABLED           = False # ท่าย่อย S20.5: Fibo Standalone (default ปิด — เปิด/ปิดผ่าน Telegram)
 S20_6_FVG_ENABLED       = False # ท่าย่อย S20.6: FVG Standalone (default ปิด — เปิด/ปิดผ่าน Telegram)
 S20_6_TF_ENABLED        = {"M1": True, "M5": True, "M15": True, "M30": True, "H1": True, "H4": True, "H12": True, "D1": True}
+S20_6_SESSION_FILTER    = False
+S20_6_SESSIONS          = [("14:00", "18:00"), ("19:00", "23:00")]
+S20_6_TREND_FILTER      = False
+S20_6_ENTRY_BUFFER      = 0
 
 # ── Stage 2: Modifiers & Filters (ตัวช่วยความแม่นยำ) ────────────────
 S20_MODIFIER_MAGIC_NUM  = True  # กรองด้วยเลขจิตวิทยา (เช่น 7)
@@ -921,7 +931,7 @@ S20_CANCEL_ON_2L        = True  # ยกเลิกเมื่อเกิด 
 
 S20_MIN_BODY_ATR_PCT    = 0.30
 S20_SL_BUFFER           = 1.0
-S20_SESSION_FILTER      = True
+S20_SESSION_FILTER      = False
 S20_SESSIONS            = [("14:00", "18:00"), ("19:00", "23:00")]
 S20_ENTRY_BUFFER        = 390  # ระยะเผื่อเข้าดักไส้
 S20_SL_2L2H             = 100  # SL สำหรับท่า 2L/2H ขนาดเล็ก
@@ -1969,6 +1979,9 @@ def save_runtime_state():
             "s20_5_tf_enabled": S20_5_TF_ENABLED,
             "s20_6_fvg_enabled": S20_6_FVG_ENABLED,
             "s20_6_tf_enabled": S20_6_TF_ENABLED,
+            "s20_6_session_filter": S20_6_SESSION_FILTER,
+            "s20_6_trend_filter": S20_6_TREND_FILTER,
+            "s20_6_entry_buffer": S20_6_ENTRY_BUFFER,
             "s20_6_compounding_enabled": S20_6_COMPOUNDING_ENABLED,
             "s20_6_risk_pct": S20_6_RISK_PCT,
             "s20_6_max_lot": S20_6_MAX_LOT,
@@ -2262,7 +2275,7 @@ def restore_runtime_state():
         global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
         global S20_ENABLED, S20_SUB_CONFIG, S20_MIN_BODY_ATR_PCT, S20_SL_BUFFER, S20_FIBO_TP_LEVEL, S20_TREND_FILTER, S20_SESSION_FILTER, S20_ENTRY_BUFFER, S20_SL_2L2H
         global S20_5_ENABLED, S20_5_COMPOUNDING_ENABLED, S20_5_RISK_PCT, S20_5_MAX_LOT, S20_5_TF_ENABLED
-        global S20_6_FVG_ENABLED, S20_6_TF_ENABLED, S20_6_COMPOUNDING_ENABLED, S20_6_RISK_PCT, S20_6_MAX_LOT
+        global S20_6_FVG_ENABLED, S20_6_TF_ENABLED, S20_6_SESSION_FILTER, S20_6_TREND_FILTER, S20_6_ENTRY_BUFFER, S20_6_COMPOUNDING_ENABLED, S20_6_RISK_PCT, S20_6_MAX_LOT
         global S20_7_ENABLED, S20_8_ENABLED
         global S20_8_COMPOUNDING_ENABLED, S20_8_RISK_PCT, S20_8_MAX_LOT
         global S20_9_ENABLED, S20_10_ENABLED, S20_10_COMPOUNDING_ENABLED, S20_10_RISK_PCT, S20_10_MAX_LOT, S20_10_USE_PSYCHOLOGICAL_NUMBERS
@@ -2334,6 +2347,9 @@ def restore_runtime_state():
         saved_s20_6_tf = state.get("s20_6_tf_enabled")
         if saved_s20_6_tf and isinstance(saved_s20_6_tf, dict):
             S20_6_TF_ENABLED.update(saved_s20_6_tf)
+        S20_6_SESSION_FILTER = bool(state.get("s20_6_session_filter", S20_6_SESSION_FILTER))
+        S20_6_TREND_FILTER = bool(state.get("s20_6_trend_filter", S20_6_TREND_FILTER))
+        S20_6_ENTRY_BUFFER = float(state.get("s20_6_entry_buffer", S20_6_ENTRY_BUFFER))
         S20_6_COMPOUNDING_ENABLED = bool(state.get("s20_6_compounding_enabled", S20_6_COMPOUNDING_ENABLED))
         S20_6_RISK_PCT = float(state.get("s20_6_risk_pct", S20_6_RISK_PCT))
         S20_6_MAX_LOT = float(state.get("s20_6_max_lot", S20_6_MAX_LOT))

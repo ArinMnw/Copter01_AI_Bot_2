@@ -63,4 +63,45 @@ RR คือ exit ที่ optimal แล้วสำหรับ mechanism ร
 "ดูเหมือนมี pattern แต่ small-sample noise" (คล้าย lesson 10 เรื่อง overfitting illusion) —
 ไม่ต้องเพิ่ม day-of-week filter ให้ blend
 
+## Session H/L Reversal (London range → NY session) — ❌ REJECTED (4th confirmation ของ S56 uniqueness)
+
+ทดสอบ level source ใหม่: London session (14:00-19:00 BKK) H/L เป็น endogenous level, เทรด
+reversal ช่วง NY session (19:00-24:00) ต่อ — สมมติฐาน: อยู่ระหว่าง prev-day (noisy, ตก) กับ
+weekly (sweet spot, S56) ใน frequency spectrum, "fresh" กว่า weekly เพราะสร้างเสร็จในวันเดียวกัน
+
+**Fixed-lot robustness:** PF 0.96-1.27 ทุก window (60d เกือบ breakeven 1.01, 90-180d 1.13-1.27) —
+edge อ่อนแต่มีจริง (ไม่ล่มเหมือน artifact) คล้าย marginal leg (S47 SuperTrend) มากกว่า S56
+
+**Blend contribution vs 13-way champion — ❌ REJECT:**
+
+| window | 13-way sharpe | +LondonNY sharpe | Δ | $/mo Δ |
+|---|---|---|---|---|
+| 90d | 0.594 | 0.538 | **-0.056** | +$1039 |
+| 150d | 0.504 | 0.485 | **-0.019** | +$612 |
+| 180d | 0.479 | 0.471 | **-0.008** | +$481 |
+
+sharpe แย่ลง**ทุก window ที่ทดสอบ** (3/3) แม้ $/mo เพิ่ม — เข้าเกณฑ์ reject แบบ S43 (แย่ลงทุก window)
+ไม่ใช่ marginal-accept แบบ S45 (แย่ลงบางส่วน) แม้ magnitude จะเล็กลงเมื่อ window ยาวขึ้นก็ตาม
+
+## บทสรุป — endogenous-level-neighbor search ปิดสมบูรณ์ (4 reject ยืนยัน S56 unique)
+
+**บทเรียนใหม่ (33):** session-level H/L (London range) เป็น reject ตัวที่ 4 ที่ล้อมรอบ S56
+(หลัง monthly/prev-day/weekly-open) — ยืนยันซ้ำว่า **weekly H/L extreme (S56) เป็นจุดเดียวใน
+frequency×extreme-type space ทั้งหมดที่มี edge จริงสำหรับ prior-period-reversal family** ไม่มี
+neighbor ไหนในทุกทิศทาง (TF สั้นกว่า/ยาวกว่า, extreme ต่างประเภท) ที่ผ่าน blend test — การค้นหา
+เพิ่มในทิศทางนี้ไม่คุ้ม effort อีกต่อไป
+
+## Level Confluence (S56 weekly H/L + S44 volume node) — ❌ NEGATIVE (ไม่มี discriminating power)
+
+สมมติฐาน: S56 signal ที่เกิดตรงกับ high-volume node (จาก S44 logic) ควรแม่นกว่า signal ที่ไม่ตรง —
+ทดสอบ PF แยกตาม volume density รอบระดับ (180 วัน)
+
+ผล: **CONFLUENCE PF=1.13 (n=1037) vs NO-confluence PF=1.10 (n=240)** — ต่างกันเพียงเล็กน้อย ไม่มี
+นัยสำคัญ + 81% ของ trade อยู่ใน "confluence" อยู่แล้ว (เพราะ weekly extreme ตามธรรมชาติมักมี volume
+สะสมมาก ไม่ใช่ signal ที่ independent) → ไม่ใช่ filter ที่ใช้แยกคุณภาพ trade ได้จริง
+
+**บทเรียนใหม่ (34):** endogenous level 2 ตัวที่ independent กัน (weekly H/L, volume node) มักจะ
+overlap กันอยู่แล้วโดยธรรมชาติ (ราคาที่ทำ weekly extreme มักมี volume เยอะด้วย) — "confluence filter"
+จึงไม่ได้เพิ่มข้อมูลใหม่ ไม่ discriminate คุณภาพ trade ได้จริง
+
 ไม่แก้ S1-S58 หรือไฟล์ระบบหลัก — research/analysis only

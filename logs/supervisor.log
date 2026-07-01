@@ -1898,3 +1898,11 @@
 [2026-07-01 00:38:48] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
 [2026-07-01 00:38:48] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
 [2026-07-01 00:38:49] main.py running (pid=3968)
+[2026-07-01 10:46:24] WARN: lock file ค้างจาก pid=3332 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-07-01 10:46:25] Supervisor started (stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
+[2026-07-01 10:46:25] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-07-01 10:46:26] main.py running (pid=17192)
+[2026-07-01 10:53:26] STALL: heartbeat age=193s > 180s (loop hang) -> kill pid=17192 + restart
+[2026-07-01 10:53:26] Restarting in 5 s ...
+[2026-07-01 10:53:31] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-07-01 10:53:31] main.py running (pid=25444)

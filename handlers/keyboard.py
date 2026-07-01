@@ -1489,6 +1489,13 @@ def build_strategy_detail_keyboard(sid: int):
         rows.append(tf_row1)
         rows.append(tf_row2)
 
+        trend_on = getattr(config, "S20_6_TREND_FILTER", False)
+        sess_on = getattr(config, "S20_6_SESSION_FILTER", False)
+        rows.append([
+            InlineKeyboardButton(f"{'🟢' if trend_on else '🔴'} Trend Filter", callback_data="toggle_s20_6_trend"),
+            InlineKeyboardButton(f"{'🟢' if sess_on else '🔴'} Session Filter", callback_data="toggle_s20_6_session")
+        ])
+
         c_s20_6 = "🟢 S20.6 Compounding (On)" if getattr(config, "S20_6_COMPOUNDING_ENABLED", False) else "🔴 S20.6 Compounding (Off)"
         rows.append([
             InlineKeyboardButton(c_s20_6, callback_data="toggle_s20_6_compounding")

@@ -2077,6 +2077,16 @@ async def handle_callback(update, ctx):
         config.save_runtime_state()
         await _show_strategy_detail(query, 20.6)
 
+    elif data == 'toggle_s20_6_trend':
+        config.S20_6_TREND_FILTER = not getattr(config, 'S20_6_TREND_FILTER', False)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.6)
+
+    elif data == 'toggle_s20_6_session':
+        config.S20_6_SESSION_FILTER = not getattr(config, 'S20_6_SESSION_FILTER', False)
+        config.save_runtime_state()
+        await _show_strategy_detail(query, 20.6)
+
     elif data == 'toggle_s20_6_compounding':
         config.S20_6_COMPOUNDING_ENABLED = not getattr(config, 'S20_6_COMPOUNDING_ENABLED', False)
         config.save_runtime_state()
