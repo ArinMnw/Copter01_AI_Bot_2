@@ -16,11 +16,10 @@ def _build_demo_portfolio_view():
         [InlineKeyboardButton(
             "⏸️ หยุด P13" if config.DEMO_PORTFOLIO_ACTIVE.get("P13") else "▶️ เปิด P13",
             callback_data="demo_p13_toggle"),
-         InlineKeyboardButton("🔄", callback_data="demo_p13_refresh")],
-        [InlineKeyboardButton(
+         InlineKeyboardButton(
             "⏸️ หยุด P16" if config.DEMO_PORTFOLIO_ACTIVE.get("P16") else "▶️ เปิด P16",
-            callback_data="demo_p16_toggle"),
-         InlineKeyboardButton("🔄", callback_data="demo_p16_refresh")],
+            callback_data="demo_p16_toggle")],
+        [InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh")],
     ])
     return text, kb
 

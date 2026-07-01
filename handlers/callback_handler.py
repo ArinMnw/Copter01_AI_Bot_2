@@ -345,10 +345,11 @@ async def handle_callback(update, ctx):
                 _log_cb_error("toggle_auto", e)
         await _qanswer(query,f"{'เปิด' if config.auto_active else 'หยุด'} Auto แล้ว")
 
-    elif data in ("demo_p13_toggle", "demo_p16_toggle", "demo_p13_refresh", "demo_p16_refresh"):
+    elif data in ("demo_p13_toggle", "demo_p16_toggle", "demo_refresh"):
         from handlers.btn_demo_portfolio import _build_demo_portfolio_view
-        portfolio = "P13" if data.startswith("demo_p13_") else "P16"
-        if data.endswith("_toggle"):
+        is_toggle = data.endswith("_toggle")
+        if is_toggle:
+            portfolio = "P13" if data.startswith("demo_p13_") else "P16"
             config.DEMO_PORTFOLIO_ACTIVE[portfolio] = not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio, False)
         try:
             text, kb = _build_demo_portfolio_view()
@@ -356,7 +357,7 @@ async def handle_callback(update, ctx):
         except Exception as e:
             if "not modified" not in str(e).lower():
                 _log_cb_error("demo_portfolio_toggle", e)
-        if data.endswith("_toggle"):
+        if is_toggle:
             state_txt = "เปิด" if config.DEMO_PORTFOLIO_ACTIVE.get(portfolio) else "หยุด"
             await _qanswer(query, f"{state_txt} {portfolio} แล้ว")
         else:
