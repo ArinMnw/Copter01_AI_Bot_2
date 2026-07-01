@@ -43,10 +43,10 @@ def _apply_psychological_number(price: float, is_buy: bool, is_tp: bool) -> floa
         offset = 0
     return float(int_price + offset) + (price - int_price)
 
-def strategy_20_12(rates, tf="M5", dt_bkk=None) -> dict:
+def strategy_20_12(rates, tf_name="M5", config=config) -> dict:
     res = {"signal": "WAIT", "reason": "", "pattern": "S20.12", "sid": 20.12}
 
-    if not _in_session(dt_bkk):
+    if not _in_session(None):
         res["reason"] = "S20.12 - นอกเวลาทำการ"
         return res
         
