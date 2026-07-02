@@ -31,12 +31,16 @@ def main():
 
     print(f"🕒 ช่วงเวลา SIM: {start_bkk} ถึง {end_bkk}")
 
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print("❌ MT5 Initialize Failed")
         return
 
-    start_utc = start_bkk.tz_localize(BKK).astimezone(timezone.utc)
-    end_utc = end_bkk.tz_localize(BKK).astimezone(timezone.utc)
+    resolved_symbol = config.SYMBOL
+
+    # ใช้ naive UTC+7 แปลง BKK->UTC เพื่อกำหนดขอบเขต query เท่านั้น (MT5_SERVER_TZ ต่างจาก
+    # BKK ไม่คงที่ + ห่างได้หลายชม.) แล้วบวก padding กว้างๆ กันเคส server tz ดันช่วงเวลาออกนอกขอบ
+    start_utc = start_bkk.tz_localize(BKK).astimezone(timezone.utc) - timedelta(hours=6)
+    end_utc = end_bkk.tz_localize(BKK).astimezone(timezone.utc) + timedelta(hours=6)
 
     print("📥 กำลังดึงประวัติการเทรดจาก MT5...")
     deals = mt5.history_deals_get(start_utc, end_utc)
@@ -48,13 +52,13 @@ def main():
     # Filter MT5 deals
     act_trades = []
     for d in deals:
-        if d.symbol != config.SYMBOL:
+        if d.symbol != resolved_symbol:
             continue
         # Only closed deals (OUT) to compare with sim closures
         if d.entry != mt5.DEAL_ENTRY_OUT:
             continue
         
-        dt_bkk = datetime.fromtimestamp(d.time, tz=timezone.utc).astimezone(BKK)
+        dt_bkk = config.mt5_ts_to_bkk(d.time)
         typ = "BUY" if d.type == mt5.DEAL_TYPE_SELL else "SELL" # DEAL_ENTRY_OUT for BUY is a SELL deal
         
         # S20.6 uses SID 20.6, so the original IN deal comment should contain "20.6"

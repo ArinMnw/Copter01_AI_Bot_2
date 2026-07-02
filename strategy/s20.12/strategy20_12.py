@@ -54,10 +54,12 @@ def strategy_20_12(rates, tf_name="M5", config=config) -> dict:
         res["reason"] = "S20.12 - ข้อมูลไม่พอ (ตัองการ 20+ แท่ง)"
         return res
 
-    atr = calc_atr(rates[:-1], 14) or 1.0
-    c_curr  = rates[-2] # The one that just closed
-    c_prev1 = rates[-3]
-    c_prev2 = rates[-4]
+    # rates[-1] คือแท่งที่ปิดสมบูรณ์ล่าสุดจริง (scanner ดึงแบบข้ามแท่งกำลังก่อตัวมาแล้ว)
+    # ใช้เป็นแท่งอ้างอิง pattern ตรงๆ เพื่อตัดความหน่วง 1 แท่งที่ไม่จำเป็นออก
+    atr = calc_atr(rates, 14) or 1.0
+    c_curr  = rates[-1] # The one that just closed
+    c_prev1 = rates[-2]
+    c_prev2 = rates[-3]
     
     def is_green(c): return c and c['close'] > c['open']
     def is_red(c): return c and c['close'] < c['open']
@@ -153,14 +155,36 @@ def strategy_20_12(rates, tf_name="M5", config=config) -> dict:
         tp_raw = min(tp_raw, entry - atr)
         sl = max(sl, entry + (atr*0.2))
 
-    res_out = {
+    lot_multiplier = 1.0
+    if getattr(config, "S20_12_COMPOUNDING_ENABLED", False):
+        try:
+            import mt5_worker as mt5w
+            acc = mt5w.account_info()
+            if acc is not None:
+                balance = acc.balance
+                risk_pct = getattr(config, "S20_12_RISK_PCT", 2.0)
+                max_lot = getattr(config, "S20_12_MAX_LOT", 50.0)
+                sl_dist = abs(round(entry, 2) - round(sl, 2))
+                if sl_dist > 0:
+                    sym = mt5w.symbol_info(getattr(config, "SYMBOL", "XAUUSD.iux"))
+                    contract_size = sym.trade_contract_size if sym else 100.0
+                    risk_usd = balance * (risk_pct / 100.0)
+                    calculated_lot = risk_usd / (sl_dist * contract_size)
+                    target_lot = max(0.01, min(round(calculated_lot, 2), max_lot))
+                    base_lot = config.get_volume()
+                    if base_lot > 0:
+                        lot_multiplier = target_lot / base_lot
+        except Exception:
+            pass
+
+    return {
         "signal": signal,
         "entry": round(entry, 2),
         "sl": round(sl, 2),
         "tp": round(tp_raw, 2),
         "reason": f"S20.12 - {sub_pattern}",
         "pattern": sub_pattern,
-        "sid": 20.12
+        "sid": 20.12,
+        "quant_lot_multiplier": lot_multiplier,
+        "order_mode": "market"
     }
-    
-    return res_out

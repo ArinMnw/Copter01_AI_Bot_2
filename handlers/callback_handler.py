@@ -36,13 +36,11 @@ def _log_cb_error(tag, e):
 
 
 def _strategy_is_on(sid):
-    """สถานะเปิด/ปิดจริงของ strategy — S20.5/S20.6/S20.12 ใช้ flag แยก ไม่ใช่ active_strategies"""
+    """สถานะเปิด/ปิดจริงของ strategy — S20.5/S20.6 ใช้ flag แยก ไม่ใช่ active_strategies"""
     if sid == 20.5:
         return getattr(config, "S20_5_ENABLED", False)
     if sid == 20.6:
         return getattr(config, "S20_6_FVG_ENABLED", False)
-    if sid == 20.12:
-        return getattr(config, "S20_12_ENABLED", False)
     return active_strategies.get(sid, False)
 
 
@@ -1441,11 +1439,6 @@ async def handle_callback(update, ctx):
         status_th = "เปิด ✅" if config.S20_11_ENABLED else "ปิด ❌"
         await _show_strategy_detail(query, 20.11, f"S20.11: {status_th}")
 
-    elif data == "toggle_s20_12_enabled":
-        config.S20_12_ENABLED = not getattr(config, "S20_12_ENABLED", False)
-        save_runtime_state()
-        status_th = "เปิด ✅" if config.S20_12_ENABLED else "ปิด ❌"
-        await _show_strategy_detail(query, 20.12, f"S20.12: {status_th}")
 
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด

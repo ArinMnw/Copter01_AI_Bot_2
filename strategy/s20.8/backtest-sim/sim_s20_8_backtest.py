@@ -227,7 +227,7 @@ def main():
     if args.fibo is not None:
         config.S20_FIBO_TP_LEVEL = args.fibo
 
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print(f"MT5 initialize ล้มเหลว: {mt5.last_error()}")
         return
         
@@ -297,12 +297,13 @@ def main():
                 s = summarize(sp_tf_trades)
                 if s:
                     writer.writerow([tf_name, sp, s['trades'], s['wr'], s['pnl'], s['avg_win'], s['avg_loss'], s['max_consec_sl']])
-    # Export detailed trades
+    # Export detailed trades — เรียงตาม entry_time (open time) รวมทุก TF
     trades_csv = os.path.join(EXCEL_DIR, "s20_8_trades.csv")
+    sorted_trades = sorted(all_trades, key=lambda t: t.get("entry_time") or "")
     with open(trades_csv, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=["tf", "signal", "sub_pattern", "outcome", "entry_time", "exit_time", "entry", "tp", "sl", "exit_price", "pnl_usd_001lot"])
         writer.writeheader()
-        writer.writerows(all_trades)
+        writer.writerows(sorted_trades)
     print(f"✅ Exported detailed trades to {trades_csv}")
 
 if __name__ == "__main__":

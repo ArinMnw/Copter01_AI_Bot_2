@@ -918,7 +918,7 @@ S20_11_MAX_LOT        = 50.0
 
 S20_12_ENABLED        = False
 S20_12_TF_ENABLED     = {"M1": True, "M5": True, "M15": True, "M30": True, "H1": True, "H4": True, "H12": True, "D1": True}
-S20_12_COMPOUNDING_ENABLED = False
+S20_12_COMPOUNDING_ENABLED = True
 S20_12_RISK_PCT       = 2.0
 S20_12_MAX_LOT        = 50.0
 S20_12_SESSION_FILTER = False

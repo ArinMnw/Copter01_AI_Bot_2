@@ -214,6 +214,8 @@ def run_backtest(days, tf_input, sid_target, compound_pct=0.0, start_balance=100
     if sim_trades:
         import pandas as pd
         df_sim = pd.DataFrame(sim_trades)
+        df_sim["Time (BKK)"] = pd.to_datetime(df_sim["Time (BKK)"])
+        df_sim = df_sim.sort_values("Time (BKK)").reset_index(drop=True)
         out_csv = os.path.join(os.path.dirname(__file__), "..", "excel", "s20_6_sim_trades.csv")
         os.makedirs(os.path.dirname(out_csv), exist_ok=True)
         df_sim.to_csv(out_csv, index=False)

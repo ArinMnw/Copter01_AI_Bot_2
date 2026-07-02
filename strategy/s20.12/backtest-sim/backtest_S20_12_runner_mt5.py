@@ -116,50 +116,58 @@ def main():
                     sl = res["sl"]
                     tp = res["tp"]
                     pattern = res["pattern"]
-                    
+
                     trade_pnl = 0.0
                     trade_result = None
-                    
+
                     sl_dist = abs(entry - sl)
                     if sl_dist == 0: sl_dist = 1.0
                     risk_amt = balance * risk_pct
                     lot = risk_amt / (sl_dist * contract_size)
                     lot = max(0.01, round(lot, 2))
-                    
-                    for j in range(i, min(i+2000, len(rates))):
+
+                    # เข้า order ทันทีแบบ market (ไม่รอ limit fill): pattern confirm ตอนแท่ง i ปิด
+                    # (c_curr=rates[-1]=window[i] หลังตัด lag แล้ว) → ถือว่าเปิด order ทันที ที่ entry
+                    # ที่ strategy คำนวณไว้ แล้วไล่หา SL/TP จากแท่งถัดไป (i+1) เป็นต้นไป
+                    close_bar_idx = None
+                    for j in range(i + 1, min(i + 2000, len(rates))):
                         c = rates[j]
                         if sig == "BUY":
                             if c['low'] <= sl:
                                 trade_result = "LOSS"
                                 exec_price = sl - spread
                                 trade_pnl = -(entry - exec_price) * contract_size * lot
+                                close_bar_idx = j
                                 break
                             elif c['high'] >= tp:
                                 trade_result = "WIN"
                                 exec_price = tp - spread
                                 trade_pnl = (exec_price - entry) * contract_size * lot
+                                close_bar_idx = j
                                 break
-                        else: # SELL
+                        else:  # SELL
                             if c['high'] >= sl:
                                 trade_result = "LOSS"
                                 exec_price = sl + spread
                                 trade_pnl = -(exec_price - entry) * contract_size * lot
+                                close_bar_idx = j
                                 break
                             elif c['low'] <= tp:
                                 trade_result = "WIN"
                                 exec_price = tp + spread
                                 trade_pnl = (entry - exec_price) * contract_size * lot
+                                close_bar_idx = j
                                 break
-                                
+
                     if trade_result:
-                        skip_until_index = j
+                        skip_until_index = close_bar_idx
                         trades += 1
                         balance += trade_pnl
                         net_pl += trade_pnl
                         patterns[pattern] = patterns.get(pattern, 0) + 1
-                        
+
                         dt_bkk = mt5_ts_to_bkk(rates[i]['time'])
-                        close_time = mt5_ts_to_bkk(c['time'])
+                        close_time = mt5_ts_to_bkk(rates[close_bar_idx]['time'])
                         sim_trades.append({
                             "Time (BKK)": dt_bkk.strftime('%Y-%m-%d %H:%M:%S'),
                             "Close Time": close_time.strftime('%Y-%m-%d %H:%M:%S') if close_time else "",
@@ -171,7 +179,7 @@ def main():
                             "P&L": f"{trade_pnl:.2f}",
                             "Reason": "TP" if trade_result == "WIN" else "SL"
                         })
-                        
+
                         if trade_result == "WIN":
                             wins += 1
                         else:
@@ -204,6 +212,8 @@ def main():
         if sim_trades:
             import pandas as pd
             df_sim = pd.DataFrame(sim_trades)
+            df_sim["Time (BKK)"] = pd.to_datetime(df_sim["Time (BKK)"])
+            df_sim = df_sim.sort_values("Time (BKK)").reset_index(drop=True)
             out_csv = os.path.join(os.path.dirname(__file__), "..", "excel", "s20_12_sim_trades.csv")
             os.makedirs(os.path.dirname(out_csv), exist_ok=True)
             df_sim.to_csv(out_csv, index=False)

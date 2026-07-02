@@ -133,7 +133,7 @@ def summarize(trades):
     }
 
 def main():
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print(f"MT5 initialize failed: {mt5.last_error()}")
         return
         

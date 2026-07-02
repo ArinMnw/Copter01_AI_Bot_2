@@ -20,10 +20,10 @@ def run_backtest(days_list: List[int], tf_arg: str):
     print(f"Starting Backtest for S20.10...")
     print(f"Days: {days_list}, Timeframe: {tf_arg}")
     
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print("MT5 initialize failed")
         return
-        
+
     symbol = config.SYMBOL
     if not mt5.symbol_select(symbol, True):
         print(f"Failed to select {symbol}")

@@ -7,6 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.error import Conflict, NetworkError
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from config import *
 import config
@@ -569,15 +570,17 @@ def main():
     # Pattern scan ทุก 5 วินาที — max_instances=1 กัน scan วิ่งซ้อน
     # (race: _scan_results.clear ทับกัน + ออเดอร์ซ้ำเพราะ dedup อยู่นอก lock)
     # coalesce=True → ถ้ารอบก่อนยังไม่จบ ให้รวบรอบที่ค้างเป็นรอบเดียว
+    # ใช้ CronTrigger ยึดกับวินาทีนาฬิกาจริง (:01,:06,:11,...,:56) แทน interval เดิมที่จังหวะ
+    # ลอยตามวินาทีที่ bot start ทำให้ scan อาจตามหลังแท่งที่เพิ่งปิดได้นานสุดถึง ~5 วิ
+    # แบบสุ่ม — CronTrigger รับประกันว่ามี scan ที่วินาทีที่ 1 ของทุกนาทีเสมอ (market order
+    # ของ sid ที่ order_mode=market เช่น S20.12/S14 จะยิงไม่เกินวิ 1-3 หลังแท่งปิดจริง)
     scheduler.add_job(
         run_scan,
-        'interval',
-        seconds=5,
+        CronTrigger(second="1,6,11,16,21,26,31,36,41,46,51,56"),
         id="auto_scan_job",
         max_instances=1,
         coalesce=True,
-        misfire_grace_time=5,
-        next_run_time=datetime.now(_tz2.utc)
+        misfire_grace_time=5
     )
 
     # Demo Portfolio (P13/P16) — สแกนแยกอิสระจากบอทหลัก ทุก DEMO_PORTFOLIO_SCAN_INTERVAL นาที

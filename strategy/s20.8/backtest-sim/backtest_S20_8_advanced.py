@@ -140,7 +140,7 @@ def run_backtest_for_days(days, symbol, tfs, tf_mapping, contract_size, lot_size
     return results
 
 def main():
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print("initialize() failed, error code =", mt5.last_error())
         return
 

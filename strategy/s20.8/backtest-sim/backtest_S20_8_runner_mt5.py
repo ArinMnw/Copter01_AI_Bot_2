@@ -28,7 +28,7 @@ def main():
     else:
         tfs = [args.tf.upper()]
 
-    if not mt5.initialize():
+    if not config.mt5_initialize(mt5):
         print("initialize() failed, error code =", mt5.last_error())
         return
 
