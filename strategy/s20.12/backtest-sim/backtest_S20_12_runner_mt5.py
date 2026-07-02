@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument("--symbol", type=str, default="", help="Symbol (default: profile SYMBOL)")
     parser.add_argument("--days", type=int, default=0, help="Days to backtest (0 = run multiple)")
     parser.add_argument("--compound", type=float, default=2.0, help="Risk percentage for compounding (default 2)")
+    parser.add_argument("--start", type=str, default=None, help="Start time dd-MM-yyyy HH:mm (BKK) — วิ่งจากเวลานี้จนถึงปัจจุบัน (override --days)")
     return parser.parse_args()
 
 def main():
@@ -58,25 +59,37 @@ def main():
     if args.tf != "all":
         tfs = {args.tf: tfs[args.tf]}
         
-    if args.days > 0:
+    start_dt_bkk = None
+    if args.start:
+        start_dt_bkk = datetime.strptime(args.start, "%d-%m-%Y %H:%M")
+        days_list = ["custom"]  # sentinel, วิ่งรอบเดียวจาก --start ถึงปัจจุบัน
+    elif args.days > 0:
         days_list = [args.days]
     else:
         days_list = [30, 60, 90, 120, 180]
-    
+
     for days in days_list:
-        results = []
         sim_trades = []
-        
-        end_time = datetime.now()
-        start_time = end_time - timedelta(days=days)
-        
-        # Lot calculation based on 2% risk of $1000 balance
-        balance = 1000.0
+        candidates = []  # raw trade shapes ทุก TF รวมกัน — ยังไม่คิด lot/compounding
+
+        # datetime.now() = เวลา BKK จาก OS clock แต่ mt5.copy_rates_range ต้องการค่าที่ต่างจาก
+        # BKK อยู่ +1h เป๊ะ (ยืนยันด้วย copy_rates_from_pos ground-truth) — ไม่ใช่ TZ_OFFSET(-7h)
+        # ตามที่ backtest_auto_trade.py ใช้ เพราะ context ฐานเวลาเริ่มต้นต่างกัน
+        end_time = datetime.now() + timedelta(hours=1)
+        if start_dt_bkk is not None:
+            start_time = start_dt_bkk + timedelta(hours=1)
+            start_time_bkk = start_dt_bkk  # ใช้เทียบกับ mt5_ts_to_bkk() ในลูป (convention เดียวกับ BKK จริง)
+            days_label = f"{args.start} ถึงปัจจุบัน"
+        else:
+            start_time = end_time - timedelta(days=days)
+            start_time_bkk = datetime.now() - timedelta(days=days)
+            days_label = f"{days} days"
+
         risk_pct = args.compound / 100.0
         contract_size = info.trade_contract_size if info.trade_contract_size > 0 else 100.0
-        
-        print(f"\n--- Running Backtest S20.12 for {days} days ---")
-        
+
+        print(f"\n--- Running Backtest S20.12 for {days_label} ---")
+
         for tf_name, tf_code in tfs.items():
             lookback_days_needed = {
                 "M1": 1, "M5": 1, "M15": 2, "M30": 3,
@@ -86,30 +99,31 @@ def main():
             fetch_start = start_time - timedelta(days=lookback_days_needed)
             rates = mt5.copy_rates_range(args.symbol, tf_code, fetch_start, end_time)
             if rates is None or len(rates) < 50:
-                results.append((tf_name, 0, 0, 0, 0.0, "-", 0.0))
                 continue
                 
-            trades = 0
-            wins = 0
-            losses = 0
-            net_pl = 0.0
-            patterns = {}
-            
-            skip_until_index = 0
+            # ไม่ skip ไปรอ trade ก่อนหน้าปิดอีกต่อไป — เช็ค signal ทุกแท่ง เพื่อจำลองว่า live bot
+            # ยิงออเดอร์ซ้ำได้หลายไม้พร้อมกันต่อ TF เดียวกัน (เช่น sweep ต่อเนื่องหลายแท่งติด)
+            # ไม่ใช่แค่ทีละไม้ต่อ TF แบบเดิม — เก็บแค่ raw shape ก่อน ยังไม่คิด lot/compounding
+            # (คิดทีหลังตอน event-driven balance simulation รวมทุก TF ตามลำดับเวลาจริง)
             for i in range(100, len(rates)):
-                if i <= skip_until_index:
+                # ใช้ mt5_ts_to_bkk() เทียบกับ start_time_bkk ตรงๆ (BKK จริงทั้งคู่) แทนการเทียบ
+                # raw epoch-as-UTC กับ start_time ที่ปรับ +1h แล้ว (คนละ convention กัน ต่างได้ถึง
+                # ~7 ชม. — ทำให้ --start ช่วงสั้นๆ กรองข้อมูลออกหมดจนไม่เจอไม้เลย)
+                c_time_bkk = mt5_ts_to_bkk(rates[i]['time'])
+                if c_time_bkk.replace(tzinfo=None) < start_time_bkk:
                     continue
-                    
-                c_time = datetime.fromtimestamp(rates[i]['time'], tz=timezone.utc)
-                if c_time.replace(tzinfo=None) < start_time:
-                    continue
-                
+
                 if i % 5000 == 0:
                     print(f"  [{tf_name}] Processing bar {i}/{len(rates)}...")
-                    
-                window_rates = rates[max(0, i-200):i+1]
+
+                # ATR ใช้ Wilder's RMA (calc_atr) ที่ผลลัพธ์ขึ้นกับขนาด window ทั้งก้อน (ไม่ใช่แค่
+                # 14 แท่งสุดท้าย) — ต้องใช้ lookback เท่ากับที่ live scanner ใช้จริง (TF_LOOKBACK+6)
+                # ไม่งั้น ATR จะเพี้ยนจาก live ทำให้ SL/TP (ที่คำนวณจาก atr) ต่างกันได้ทั้งที่
+                # entry ตรงกัน (เจอจาก ticket 555402265 — entry/sl ตรง แต่ tp ต่างกันมาก)
+                live_lookback = config.TF_LOOKBACK.get(tf_name, 200) + 6
+                window_rates = rates[max(0, i-live_lookback):i+1]
                 res = strategy_20_12(window_rates, tf_name)
-                
+
                 if res and res.get("signal") in ("BUY", "SELL"):
                     sig = res["signal"]
                     entry = res["entry"]
@@ -117,14 +131,9 @@ def main():
                     tp = res["tp"]
                     pattern = res["pattern"]
 
-                    trade_pnl = 0.0
                     trade_result = None
-
                     sl_dist = abs(entry - sl)
                     if sl_dist == 0: sl_dist = 1.0
-                    risk_amt = balance * risk_pct
-                    lot = risk_amt / (sl_dist * contract_size)
-                    lot = max(0.01, round(lot, 2))
 
                     # เข้า order ทันทีแบบ market (ไม่รอ limit fill): pattern confirm ตอนแท่ง i ปิด
                     # (c_curr=rates[-1]=window[i] หลังตัด lag แล้ว) → ถือว่าเปิด order ทันที ที่ entry
@@ -136,67 +145,123 @@ def main():
                             if c['low'] <= sl:
                                 trade_result = "LOSS"
                                 exec_price = sl - spread
-                                trade_pnl = -(entry - exec_price) * contract_size * lot
+                                pnl_per_lot = -(entry - exec_price) * contract_size
                                 close_bar_idx = j
                                 break
                             elif c['high'] >= tp:
                                 trade_result = "WIN"
                                 exec_price = tp - spread
-                                trade_pnl = (exec_price - entry) * contract_size * lot
+                                pnl_per_lot = (exec_price - entry) * contract_size
                                 close_bar_idx = j
                                 break
                         else:  # SELL
                             if c['high'] >= sl:
                                 trade_result = "LOSS"
                                 exec_price = sl + spread
-                                trade_pnl = -(exec_price - entry) * contract_size * lot
+                                pnl_per_lot = -(exec_price - entry) * contract_size
                                 close_bar_idx = j
                                 break
                             elif c['low'] <= tp:
                                 trade_result = "WIN"
                                 exec_price = tp + spread
-                                trade_pnl = (entry - exec_price) * contract_size * lot
+                                pnl_per_lot = (entry - exec_price) * contract_size
                                 close_bar_idx = j
                                 break
 
                     if trade_result:
-                        skip_until_index = close_bar_idx
-                        trades += 1
-                        balance += trade_pnl
-                        net_pl += trade_pnl
-                        patterns[pattern] = patterns.get(pattern, 0) + 1
-
-                        dt_bkk = mt5_ts_to_bkk(rates[i]['time'])
-                        close_time = mt5_ts_to_bkk(rates[close_bar_idx]['time'])
-                        sim_trades.append({
-                            "Time (BKK)": dt_bkk.strftime('%Y-%m-%d %H:%M:%S'),
-                            "Close Time": close_time.strftime('%Y-%m-%d %H:%M:%S') if close_time else "",
-                            "TF": tf_name,
-                            "Type": sig,
-                            "Entry": f"{entry:.2f}",
-                            "SL": f"{sl:.2f}",
-                            "TP": f"{tp:.2f}",
-                            "P&L": f"{trade_pnl:.2f}",
-                            "Reason": "TP" if trade_result == "WIN" else "SL"
+                        # rates[i]['time'] คือเวลา "เปิด" ของแท่งสัญญาณ แต่ order จริงถูกสร้าง
+                        # ตอนแท่งนั้น "ปิด" (=เวลาเปิดของแท่งถัดไป) ต้องใช้ rates[i+1] ไม่งั้น
+                        # เวลาที่โชว์จะช้ากว่าจริงไป 1 ความยาวแท่งเสมอ (เทียบ ORDER_CREATED จริง)
+                        open_dt = mt5_ts_to_bkk(rates[i+1]['time'])
+                        close_dt = mt5_ts_to_bkk(rates[close_bar_idx]['time'])
+                        candidates.append({
+                            "open_dt": open_dt,
+                            "close_dt": close_dt,
+                            "tf": tf_name,
+                            "sig": sig,
+                            "entry": entry,
+                            "sl": sl,
+                            "tp": tp,
+                            "pattern": pattern,
+                            "sl_dist": sl_dist,
+                            "pnl_per_lot": pnl_per_lot,
+                            "reason": "TP" if trade_result == "WIN" else "SL",
                         })
 
-                        if trade_result == "WIN":
-                            wins += 1
-                        else:
-                            losses += 1
-                            
-            win_rate = (wins / trades * 100.0) if trades > 0 else 0.0
-            most_pattern = max(patterns, key=patterns.get) if patterns else "-"
-            results.append((tf_name, trades, wins, losses, win_rate, most_pattern, net_pl))
-            
+        # ── Event-driven portfolio balance simulation ──────────────────────
+        # รวมทุก TF มาเรียงตามเวลาเปิดจริง แล้วเดิน balance ทีละ event (open/close)
+        # ตามลำดับเวลาจริง ไม่ใช่ตามลำดับที่ตรวจเจอ signal หรือประมวลผลทีละ TF จบก่อน
+        # (เดิม balance กระโดดไม่ stack ต่อเนื่อง เพราะ trade ที่เปิดคาบเกี่ยวกันข้าม TF/ข้ามไม้
+        # ถูกอัปเดตผิดลำดับเวลา) เริ่มต้นด้วย balance = $1000 เสมอ
+        balance = 1000.0
+        candidates.sort(key=lambda c: c["open_dt"])
+        open_positions = []  # trade ที่เปิดอยู่ ยังไม่ปิด (list of candidate dict)
+
+        def _close_due(now_dt):
+            nonlocal balance
+            due = [c for c in open_positions if c["close_dt"] <= now_dt]
+            due.sort(key=lambda c: c["close_dt"])
+            for c in due:
+                actual_pnl = c["pnl_per_lot"] * c["lot"]
+                balance += actual_pnl
+                c["actual_pnl"] = actual_pnl
+                c["balance_after"] = balance
+                open_positions.remove(c)
+
+        for cand in candidates:
+            _close_due(cand["open_dt"])
+            risk_amt = balance * risk_pct
+            lot = max(0.01, round(risk_amt / (cand["sl_dist"] * contract_size), 2))
+            cand["lot"] = lot
+            open_positions.append(cand)
+
+        # ปิดไม้ที่เหลือค้างอยู่ทั้งหมดตามลำดับเวลาปิดจริง
+        open_positions.sort(key=lambda c: c["close_dt"])
+        for c in list(open_positions):
+            actual_pnl = c["pnl_per_lot"] * c["lot"]
+            balance += actual_pnl
+            c["actual_pnl"] = actual_pnl
+            c["balance_after"] = balance
+            open_positions.remove(c)
+
+        for c in candidates:
+            sim_trades.append({
+                "Time (BKK)": c["open_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "Close Time": c["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "TF": c["tf"],
+                "Type": c["sig"],
+                "Entry": f"{c['entry']:.2f}",
+                "SL": f"{c['sl']:.2f}",
+                "TP": f"{c['tp']:.2f}",
+                "Lot": f"{c['lot']:.2f}",
+                "P&L": f"{c['actual_pnl']:.2f}",
+                "Balance": f"{c['balance_after']:.2f}",
+                "Reason": c["reason"],
+            })
+
+        # ── สรุปตาราง per-TF จาก candidates ที่คิด lot จริงแล้ว ──
+        results = []
+        for tf_name in tfs:
+            tf_cands = [c for c in candidates if c["tf"] == tf_name]
+            tr = len(tf_cands)
+            w = sum(1 for c in tf_cands if c["reason"] == "TP")
+            l = tr - w
+            wr = (w / tr * 100.0) if tr > 0 else 0.0
+            net = sum(c["actual_pnl"] for c in tf_cands)
+            pat_count = {}
+            for c in tf_cands:
+                pat_count[c["pattern"]] = pat_count.get(c["pattern"], 0) + 1
+            most_pattern = max(pat_count, key=pat_count.get) if pat_count else "-"
+            results.append((tf_name, tr, w, l, wr, most_pattern, net))
+
         print(f"\n| กรอบเวลา (Timeframe) | จำนวนการเข้าเทรดทั้งหมด (Trades) | เคสที่ชนะ (Win) | เคสที่แพ้ (Loss) | อัตราแพ้ชนะ (Win Rate %) | แนวราคา/ระดับสัญญาณเทคนิคอลที่เข้าบ่อยที่สุด | ผลรวมกำไรขาดทุนสุทธิ (Net P&L ($)) |")
         print(f"|---|---|---|---|---|---|---|")
-        
+
         total_trades = 0
         total_wins = 0
         total_losses = 0
         total_net = 0.0
-        
+
         for r in results:
             tf_name, tr, w, l, wr, pat, net = r
             print(f"| **{tf_name}** | {tr} | {w} | {l} | {wr:.1f}% | {pat} | {net:,.2f} |")
@@ -204,10 +269,11 @@ def main():
             total_wins += w
             total_losses += l
             total_net += net
-            
+
         total_wr = (total_wins / total_trades * 100.0) if total_trades > 0 else 0.0
         print(f"| **สรุปรวมทุก TF** | {total_trades} | {total_wins} | {total_losses} | {total_wr:.1f}% | - | {total_net:,.2f} |")
-        
+        print(f"💰 Balance เริ่มต้น: $1,000.00 | Balance สุดท้าย: ${balance:,.2f}")
+
         # Save SIM trades to CSV
         if sim_trades:
             import pandas as pd
@@ -218,7 +284,7 @@ def main():
             os.makedirs(os.path.dirname(out_csv), exist_ok=True)
             df_sim.to_csv(out_csv, index=False)
             print(f"💾 บันทึกประวัติออเดอร์จำลองไว้ที่: {out_csv}")
-        
+
     mt5.shutdown()
 
 if __name__ == "__main__":

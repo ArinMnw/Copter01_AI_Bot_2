@@ -1999,8 +1999,9 @@ def _escape_md(text: str) -> str:
 
 def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
                reason_txt, current_price, entry, sl, tp, rr, ticket=None, extra_note="",
-               swing_h_text="", swing_l_text="", entry_label="Limit ที่", flow_id=""):
+               swing_h_text="", swing_l_text="", entry_label="Limit ที่", flow_id="", volume=None):
     """สร้าง Telegram message format มาตรฐานสำหรับทุกท่า"""
+    display_volume = volume if volume is not None else AUTO_VOLUME
     price_diff = round(abs(current_price - entry), 2)
     ticket_line = f"\n🔖 Ticket: `{ticket}`" if ticket else ""
     flow_line = f"\nFlow: `{_short_flow_id(flow_id)}`" if flow_id else ""
@@ -2021,7 +2022,7 @@ def _order_msg(sig_e, pattern, tf_name, sid, candle_rows, swing_h, swing_l,
         f"💰 ราคาปัจจุบัน: `{current_price:.2f}`\n"
         f"📌 *{entry_label}:* `{entry}` (ห่าง {price_diff})\n"
         f"🛑 SL: `{sl}` | 🎯 TP: `{tp}`\n"
-        f"⚖️ R:R `1:{rr}` | 📦 `{AUTO_VOLUME}` lot"
+        f"⚖️ R:R `1:{rr}` | 📦 `{display_volume}` lot"
         f"{ticket_line}{flow_line}{note_line}"
     )
 def _fvg_find_parallel_intersection(new_tf: str, signal: str, gap_bot: float, gap_top: float):
@@ -4192,7 +4193,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             # ── Shared TP: ถ้ามี Order ทิศเดียวกันอยู่แล้ว ──────────
             # BUY → TP = Swing High ย่อย ร่วมกัน
             # SELL → TP = Swing Low ย่อย ร่วมกัน
-            existing_tp = get_existing_tp(signal, entry, tf_name, requester_sid=sid) if getattr(config, "SHARED_TP_ENABLED", True) else 0.0
+            # sid ใน SHARED_TP_SKIP_SIDS (กลุ่ม standalone เช่น S20.5-S20.12) ต้องไม่ถูก override
+            # TP เลย — strategy คำนวณ TP ของตัวเองมาแล้ว ต้องเป็น standalone 100%
+            existing_tp = (
+                get_existing_tp(signal, entry, tf_name, requester_sid=sid)
+                if getattr(config, "SHARED_TP_ENABLED", True) and sid not in getattr(config, "SHARED_TP_SKIP_SIDS", ())
+                else 0.0
+            )
             if existing_tp > 0:
                 print(f"📌 [{now}] Shared TP {signal} [{tf_name}]: {existing_tp} (ท่า{sid} เดิม: {tp})")
                 # ข้อความ "เหตุผล" ที่ strategy คืนมาฝัง TP เดิม (ก่อนถูก override) ไว้แล้ว
@@ -4248,6 +4255,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             )
             swing_h_text = _fmt_swing_dt(_sh_info["time"]) if _sh_info else ""
             swing_l_text = _fmt_swing_dt(_sl_info["time"]) if _sl_info else ""
+            # Apply Quant Lot Multiplier — คำนวณก่อน เพื่อให้ข้อความ Telegram โชว์ lot จริงที่จะส่ง
+            # order (ไม่ใช่ AUTO_VOLUME เฉยๆ) เคยเจอบั๊ก S20.12 compound แล้วแต่ Telegram ยังโชว์ 0.01
+            final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
             await _notify_pattern_found_once(
                 app,
                 f"pattern|{base_flow_id}",
@@ -4271,15 +4281,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     swing_l_text=swing_l_text,
                     entry_label=result.get("entry_label", "Limit ที่"),
                     flow_id=base_flow_id,
+                    volume=final_volume,
                 ),
             )
             use_delay_sl = (order_mode == "limit") and (sid == 8 or config.DELAY_SL_MODE != "off")
             order_sl = 0.0 if use_delay_sl else sl
 
             try:
-                # Apply Quant Lot Multiplier
-                final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
-                
                 if order_mode == "stop":
                     order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
                 elif order_mode == "market":

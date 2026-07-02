@@ -124,6 +124,7 @@ def main():
             "SIM_Type": sim["Type"],
             "SIM_Entry": sim["Entry"],
             "SIM_P&L": sim["P&L"],
+            "SIM_Balance": sim["Balance"] if "Balance" in sim else None,
             "SIM_Reason": sim["Reason"],
             "MT5_Open_Time": mt5_open.strftime('%Y-%m-%d %H:%M:%S') if mt5_open is not None else None,
             "MT5_Close_Time": mt5_close.strftime('%Y-%m-%d %H:%M:%S') if mt5_close is not None else None,
@@ -134,8 +135,39 @@ def main():
             "Matched": match is not None
         }
         results.append(res)
-        
+
+    # ── ออเดอร์ MT5 จริงที่ไม่มี SIM คู่เลย (เช่น backtest ไม่เจอ pattern เดียวกัน) ──
+    # loop ด้านบนวนตาม SIM เป็นหลัก ถ้าไม่ทำส่วนนี้ ออเดอร์จริงที่ไม่ match จะหายไปจากไฟล์
+    # ทั้งที่มีอยู่จริงใน MT5 — เพิ่มมาแสดงแยกเพื่อให้ตรวจสอบได้ว่ามีไม้ไหนที่ backtest มองไม่เห็น
+    if not df_act.empty:
+        unmatched_act = df_act[~df_act.index.isin(matched_indices)]
+        for _, act in unmatched_act.iterrows():
+            act_open = act["MT5_Open_Time"].tz_localize(None) if act["MT5_Open_Time"] is not None else None
+            act_close = act["MT5_Close_Time"].tz_localize(None) if act["MT5_Close_Time"] is not None else None
+            results.append({
+                "SIM_Open_Time": None,
+                "SIM_Close_Time": None,
+                "SIM_TF": None,
+                "SIM_Type": None,
+                "SIM_Entry": None,
+                "SIM_P&L": None,
+                "SIM_Balance": None,
+                "SIM_Reason": "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้",
+                "MT5_Open_Time": act_open.strftime('%Y-%m-%d %H:%M:%S') if act_open is not None else None,
+                "MT5_Close_Time": act_close.strftime('%Y-%m-%d %H:%M:%S') if act_close is not None else None,
+                "MT5_Price": act["MT5_Price"],
+                "MT5_P&L": act["MT5_P&L"],
+                "MT5_Comment": act["MT5_Comment"],
+                "MT5_Position_ID": act["MT5_Position_ID"],
+                "Matched": False
+            })
+
     df_res = pd.DataFrame(results)
+    if not df_res.empty:
+        # เรียงตามเวลาจริง — ใช้ SIM_Open_Time ถ้ามี ไม่งั้น fallback ไป MT5_Open_Time
+        # (แถวที่เป็นออเดอร์ MT5 กำพร้า ไม่มี SIM คู่ จะได้เรียงตามเวลาที่เกิดขึ้นจริงแทนที่จะตกท้ายไฟล์)
+        sort_key = pd.to_datetime(df_res["SIM_Open_Time"]).fillna(pd.to_datetime(df_res["MT5_Open_Time"]))
+        df_res = df_res.assign(_sort_key=sort_key).sort_values("_sort_key").drop(columns="_sort_key").reset_index(drop=True)
     
     out_dir = os.path.join(os.path.dirname(__file__), "..", "excel")
     os.makedirs(out_dir, exist_ok=True)

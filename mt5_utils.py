@@ -724,6 +724,9 @@ def get_existing_tp(signal: str, entry: float = 0.0, tf: str = "", requester_sid
             continue
         if _pos_sid.get(pos.ticket) == 12:
             continue
+        import config as _cfg
+        if _pos_sid.get(pos.ticket) in getattr(_cfg, "SHARED_TP_SKIP_SIDS", ()):
+            continue
         if pos.tp <= 0:
             continue
         # filter TF: ถ้าระบุ tf มา ต้อง match เท่านั้น
