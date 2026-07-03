@@ -1030,6 +1030,27 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await _show_strategy_detail(query, 17, f"✅ ท่า17 Entry Mode: {mode}")
 
+    elif data == "toggle_s17_compounding":
+        config.S17_COMPOUNDING_ENABLED = not getattr(config, "S17_COMPOUNDING_ENABLED", False)
+        save_runtime_state()
+        status = "ON" if config.S17_COMPOUNDING_ENABLED else "OFF"
+        await _show_strategy_detail(query, 17, f"✅ ท่า17 Compounding: {status}")
+
+    elif data == "prompt_s17_risk_pct":
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์เปอร์เซ็นต์ความเสี่ยงต่อไม้ (Risk %) สำหรับ S17 (เช่น 2.0):")
+            ctx.user_data['awaiting_input'] = 's17_risk_pct'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s17_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
     elif data == "toggle_s18_session_filter":
         config.S18_SESSION_FILTER = not getattr(config, "S18_SESSION_FILTER", True)
         save_runtime_state()
@@ -1438,6 +1459,12 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         status_th = "เปิด ✅" if config.S20_11_ENABLED else "ปิด ❌"
         await _show_strategy_detail(query, 20.11, f"S20.11: {status_th}")
+
+    elif data == "toggle_s20_12_enabled":
+        config.S20_12_ENABLED = not getattr(config, "S20_12_ENABLED", False)
+        save_runtime_state()
+        status_th = "เปิด ✅" if config.S20_12_ENABLED else "ปิด ❌"
+        await _show_strategy_detail(query, 20.12, f"S20.12: {status_th}")
 
 
     elif data in ("strategy_all_on", "strategy_all_off"):

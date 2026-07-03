@@ -827,7 +827,7 @@ M5_S15_VAH
 
 ## ท่าที่ 17: Sweep Sniper
 
-ไฟล์หลัก: `strategy17.py` — รันเฉพาะ **M1** (`S17_ALLOWED_TFS`)
+ไฟล์หลัก: `strategy17.py` — TF ที่อนุญาต: **M1, M30, H1** (`S17_ALLOWED_TFS`, ปรับ 03/07/2026)
 
 ⚠️ **ความเข้าใจที่ถูกต้อง**: win rate สูงของท่านี้มาจาก "TP สั้น + SL กว้าง" (RR ต่ำ ~0.17)
 — 1 SL กิน TP ~6 ไม้ ไม่ใช่เวทมนตร์ ต้องคุม lot เล็กและยอมรับ tail risk
@@ -844,7 +844,7 @@ Entry/Exit:
 - **Entry**: LIMIT รอ retrace 61.8% ของแท่ง sweep (`S17_ENTRY_MODE="limit_618"`)
   ไม่ fill ภายใน `S17_LIMIT_CANCEL_BARS` (5) แท่ง → ยกเลิกผ่านกลไก `cancel_bars` กลาง
 - **TP**: entry ± `S17_TP_ATR_MULT` (0.3) × ATR — สั้นมากโดยตั้งใจ
-- **SL**: ใต้/เหนือไส้ sweep ∓ `S17_SL_ATR_BUFFER` (1.0) × ATR (buffer ของท่าเอง ไม่ใช้ `SL_BUFFER` กลาง)
+- **SL**: ใต้/เหนือไส้ sweep ∓ `S17_SL_ATR_BUFFER` (1.5, ปรับจาก 1.0 เมื่อ 03/07/2026) × ATR (buffer ของท่าเอง ไม่ใช้ `SL_BUFFER` กลาง)
 - dedup: 1 ไม้/แท่ง signal + level cooldown `S17_LEVEL_COOLDOWN_BARS` (20) แท่ง (in-memory ไม่ persist)
 
 ### ผล backtest (sim_s17_backtest.py, spread $0.20/ไม้, lot 0.01)
@@ -854,27 +854,60 @@ Entry/Exit:
 | M1 30 วัน (05-06/2026) | 146 | 92.5% | +$42.96 | 1 |
 | M1 60 วัน (03-06/2026) | 248 | 91.1% | +$78.90 | 2 |
 | M1 30 วัน spread $0.35 | 146 | 89.0% | +$21.06 | 5 |
+| M1 60 วัน **bid/ask model** (04-07/2026) | 226 | 89.4% | +$86.20 | 2 |
+| M1 60 วัน bid/ask **SLB=1.5** (default ใหม่ 03/07) | 226 | **92.5%** | **+$92.24** | 1 |
 
-- **M5/M15/M30 ขาดทุนทุก combo ที่ทดสอบ** → จึง gate เฉพาะ M1
-- ทางเลือก `S17_TP_ATR_MULT=0.4`: WR 87.1% แต่กำไรมากกว่า (+$89.73 / 60 วัน)
+### WR tune 03/07/2026 (`S17_SL_ATR_BUFFER` 1.0 → 1.5)
+
+- sweep entry mode × TP × SLB × RSI × wick บน M1 60d (bid/ask model): **SLB=1.5 ชนะทั้ง WR และ P/L**
+  (SL กว้างขึ้นพลิก ~7 SL เป็น TP; แลก avgL −3.91 → −5.50/ไม้)
+- validation: 30d WR 93.5% +$46.14 | 22d WR 96.0% +$30.28 | stress spread $0.35: WR 90.3% +$70.62
+  | M30+H1 60d: **19/19 ชนะ +$94.00**
+- ทางที่แพ้: `limit_786` แย่กว่า `limit_618` ทุก combo, RSI/wick เข้มขึ้น → n ลดและ P/L ลด
+- **ทางเลือก WR สูงสุด**: `S17_TP_ATR_MULT=0.2` + SLB 1.5 → **WR 94.7%** แต่ P/L เหลือ +$56.70
+- ทางเลือก `S17_TP_ATR_MULT=0.4`: WR 87.1% แต่กำไรมากกว่า (+$89.73 / 60 วัน, model เดิม)
 - trend filter แบบ EMA slope (`S17_TREND_FILTER`) ตัด setup เกือบหมด → default OFF
 - time stop (`S17_TIME_STOP_BARS`) ไม่ช่วยใน backtest → default 0
+
+### Audit live 3 สัปดาห์แรก (11/06–03/07/2026)
+
+- **live: 26 ไม้ WR 69.2% −$11.21** vs sim ช่วงเดียวกัน (bid/ask model): 50 ไม้ WR 90% +$22.70
+- สาเหตุ gap ที่พบ:
+  1. **Bot downtime**: สัปดาห์ W24 (15–21/06) live มี 0 ไม้ทั้งสัปดาห์ → เทรดหายไปเกือบครึ่ง
+  2. **sid=None leak**: ไม้ 23/06 21:59 ถูก "Fill Trend Recheck" ปิด 3 วิหลัง fill ทั้งที่ S17 อยู่ใน skip list
+     — race ตอน metadata ยังไม่ handoff → `position_sid.get()` คืน None → หลุด skip
+     **แก้แล้ว**: `_resolve_pos_sid()` ใน `trailing.py` (4 ชั้น: memory → pending meta → tracked → parse comment)
+     ใช้กับ RSI Recheck / Fill Trend Recheck / PD Fibo Plus fill
+  3. SL Guard Group ปิด S17 อีก 3 ไม้ (by design — คงไว้)
+- sim bid/ask fill model (03/07): BUY fill ต้อง `low ≤ entry−spread`, SELL TP ต้อง `low ≤ tp−spread`,
+  SELL SL โดนเร็วขึ้น `high ≥ sl−spread` — ตัวเลขต่างจาก model เดิมเล็กน้อย (91.1% → 89.4%)
+- **TF review (sim 60d bid/ask)**: M1 +86.20 (n=226) | M30 +28.78 (n=12) | H1 +42.02 (n=7)
+  | **M5 −16.83 (ลบซ้ำ 2 รอบ) | M15 −4.67 + live ลบ** → `S17_ALLOWED_TFS = ["M1","M30","H1"]`
+  (config เคยถูกขยายเป็น M1–H4 ระหว่างทาง — ดึง M5/M15/H4 ออกแล้ว)
+- ⚠️ M30/H1 n ยังน้อยมาก (12/7 ไม้) และ avgL ต่อไม้ใหญ่กว่า M1 ~4 เท่า (−$19 ต่อไม้) — เฝ้าดูต่อ
 
 ### Standalone behavior (เหมือน S14/S15/S16)
 
 - bypass Trend Filter (scan) + Sweep Filter block
 - skip: Fill Trend Recheck, Pending Trend Check, RSI Recheck (เข้าที่ RSI extreme by design), PD Fibo Plus ทั้ง fill+pending (ใช้ PD ใน detect เอง), Entry Candle, Trail SL, Opposite Order, Limit Guard
 - **ไม่เข้า TSO** — ออก lot คงที่ `AUTO_VOLUME` ต่อไม้ (backtest validate แบบ flat lot; TP สั้นเกินกว่าจะแบ่ง 4 step)
+- **Compounding (03/07/2026 — แบบเดียวกับ S20.12)**: `S17_COMPOUNDING_ENABLED` (default OFF)
+  → lot = balance × `S17_RISK_PCT`% / (ระยะ SL × contract), cap `S17_MAX_LOT`
+  ส่งผ่าน `quant_lot_multiplier` ใน result → scanner คูณ base lot ตอน place order
+  Telegram: `📋 เลือก Strategy` → ท่า 17 → ปุ่ม Compounding + Risk %
+  sim 60d (risk 2%, เริ่ม $1,000): **$1,520.88 (+52.1%), max DD 4.3%**, lot 0.01-0.14
+  (risk 5%: +161.4% แต่ DD 11.3%) — เทียบ fixed 0.01 = +$192.76
 - อยู่ใน `STRONG_TREND_BLOCK_SIDS` (เปิดกันไม้สวน strong trend ได้)
 - comment: `M1_S17_SNB` (BUY) / `M1_S17_SNS` (SELL)
 
 ### Config
 
-- `S17_ALLOWED_TFS=["M1"]`, `S17_LOOKBACK=60`, `S17_RSI_BUY_MAX=32`, `S17_RSI_SELL_MIN=68`
-- `S17_WICK_MIN_PCT=0.30`, `S17_TP_ATR_MULT=0.3`, `S17_SL_ATR_BUFFER=1.0`, `S17_MAX_RISK_ATR_MULT=4.0`
-- `S17_ENTRY_MODE="limit_618"`, `S17_LIMIT_CANCEL_BARS=5`, `S17_PD_FILTER=True`
+- `S17_ALLOWED_TFS=["M1","M30","H1"]`, `S17_LOOKBACK=60`, `S17_RSI_BUY_MAX=32`, `S17_RSI_SELL_MIN=68`
+- `S17_WICK_MIN_PCT=0.30`, `S17_TP_ATR_MULT=0.3`, `S17_SL_ATR_BUFFER=1.5`, `S17_MAX_RISK_ATR_MULT=4.0`
+- `S17_ENTRY_MODE="limit_618"` (มี `"limit_786"` เพิ่ม 03/07 แต่ backtest แย่กว่า — ไม่ใช้), `S17_LIMIT_CANCEL_BARS=5`, `S17_PD_FILTER=True`
 - `S17_SESSION_FILTER=True`, `S17_SESSIONS=[("14:00","18:00"),("19:00","23:00")]`
 - `S17_LEVEL_COOLDOWN_BARS=20`
+- `S17_COMPOUNDING_ENABLED=False`, `S17_RISK_PCT=2.0`, `S17_MAX_LOT=50.0` (persist ใน `bot_state.json`)
 
 ## Sweep Filter (override trend ก่อน trend filter ปกติ)
 

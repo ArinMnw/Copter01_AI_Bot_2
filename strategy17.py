@@ -171,7 +171,10 @@ def detect_s17(rates, tf: str = "", dt_bkk=None):
         and (not pd_filter or bc <= fib_382)
         and trend_buy_ok
     ):
-        if entry_mode == "limit_618":
+        if entry_mode == "limit_786":
+            entry = round(bl + bar_range * 0.214, 2)  # LIMIT รอ retrace 78.6% (ลึกสุด)
+            order_mode, entry_label = "limit", "BUY LIMIT (Sweep Sniper 78.6%)"
+        elif entry_mode == "limit_618":
             entry = round(bl + bar_range * 0.382, 2)  # LIMIT รอ retrace 61.8% (ลึก)
             order_mode, entry_label = "limit", "BUY LIMIT (Sweep Sniper 61.8%)"
         elif entry_mode == "limit_50":
@@ -220,7 +223,10 @@ def detect_s17(rates, tf: str = "", dt_bkk=None):
         and (not pd_filter or bc >= fib_618)
         and trend_sell_ok
     ):
-        if entry_mode == "limit_618":
+        if entry_mode == "limit_786":
+            entry = round(bh - bar_range * 0.214, 2)  # LIMIT รอ retrace 78.6% (ลึกสุด)
+            order_mode, entry_label = "limit", "SELL LIMIT (Sweep Sniper 78.6%)"
+        elif entry_mode == "limit_618":
             entry = round(bh - bar_range * 0.382, 2)  # LIMIT รอ retrace 61.8% (ลึก)
             order_mode, entry_label = "limit", "SELL LIMIT (Sweep Sniper 61.8%)"
         elif entry_mode == "limit_50":
@@ -262,6 +268,35 @@ def detect_s17(rates, tf: str = "", dt_bkk=None):
     return {"signal": "WAIT", "reason": "S17: ยังไม่พบ sweep + wick + RSI extreme ครบเงื่อนไข"}
 
 
+def _s17_compound_multiplier(entry: float, sl: float) -> float:
+    """คำนวณ quant_lot_multiplier แบบ S20.12: lot = balance × risk% / (ระยะ SL × contract)
+    คืน multiplier เทียบ base lot (get_volume) — 1.0 เมื่อปิด compounding หรือข้อมูลไม่พอ
+    เรียกเฉพาะ runtime (ไม่อยู่ใน detect_s17 → backtest จำลอง compounding เองใน sim)
+    """
+    if not getattr(config, "S17_COMPOUNDING_ENABLED", False):
+        return 1.0
+    try:
+        import MetaTrader5 as mt5
+        acc = mt5.account_info()
+        sym = mt5.symbol_info(config.SYMBOL)
+        if acc is None or sym is None:
+            return 1.0
+        sl_dist = abs(round(float(entry), 2) - round(float(sl), 2))
+        if sl_dist <= 0:
+            return 1.0
+        contract_size = float(getattr(sym, "trade_contract_size", 100.0) or 100.0)
+        risk_usd = float(acc.balance) * (float(getattr(config, "S17_RISK_PCT", 2.0)) / 100.0)
+        calculated_lot = risk_usd / (sl_dist * contract_size)
+        max_lot = float(getattr(config, "S17_MAX_LOT", 50.0))
+        target_lot = max(0.01, min(round(calculated_lot, 2), max_lot))
+        base_lot = config.get_volume()
+        if base_lot > 0:
+            return target_lot / base_lot
+    except Exception:
+        pass
+    return 1.0
+
+
 def strategy_17(rates, tf: str = ""):
     """
     S17: Sweep Sniper — wrapper runtime (TF gate + dedup + session ด้วยเวลาปัจจุบัน)
@@ -292,4 +327,6 @@ def strategy_17(rates, tf: str = ""):
 
     _s17_last_fire[(tf, sig)] = bar_time
     _s17_level_fired[lv_key] = bar_time
+    # Compounding (แบบ S20.12): scanner คูณ base lot ด้วย quant_lot_multiplier ตอน place order
+    result["quant_lot_multiplier"] = _s17_compound_multiplier(result["entry"], result["sl"])
     return result

@@ -953,6 +953,8 @@ def build_strategy_keyboard():
             return getattr(config, "S20_10_ENABLED", False)
         if sid == 20.11:
             return getattr(config, "S20_11_ENABLED", False)
+        if sid == 20.12:
+            return getattr(config, "S20_12_ENABLED", False)
         return active_strategies.get(sid, False)
 
     rows = []
@@ -1001,6 +1003,9 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.11:
         is_on = getattr(config, "S20_11_ENABLED", False)
         toggle_cb = "toggle_s20_11_enabled"
+    elif sid == 20.12:
+        is_on = getattr(config, "S20_12_ENABLED", False)
+        toggle_cb = "toggle_s20_12_enabled"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"
@@ -1298,6 +1303,14 @@ def build_strategy_detail_keyboard(sid: int):
                 f"{'✅' if entry_mode == 'market' else '⬜'} Market",
                 callback_data="set_s17_entry_mode_market"
             ),
+        ])
+        c_s17 = "🟢 S17 Compounding (On)" if getattr(config, "S17_COMPOUNDING_ENABLED", False) else "🔴 S17 Compounding (Off)"
+        rows.append([
+            InlineKeyboardButton(c_s17, callback_data="toggle_s17_compounding")
+        ])
+        s17_r_pct = getattr(config, "S17_RISK_PCT", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"S17 Risk: {s17_r_pct}% (คลิกเพื่อเปลี่ยน)", callback_data="prompt_s17_risk_pct")
         ])
 
     elif sid == 18:

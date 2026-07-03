@@ -2892,39 +2892,45 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r19.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 19, r19["signal"], last_candle_time, r19)
 
-    r20 = strategy_20(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20, False) else {"signal": "WAIT", "reason": "S20 ปิด"}
+    # S20 family: จำกัด symbol ตาม S20_SYMBOL_FILTER (default XAUUSD เท่านั้น)
+    # ใช้ startswith เพื่อรองรับ broker suffix เช่น XAUUSD.iux, XAUUSD.vtm
+    _sym_upper = str(SYMBOL).upper()
+    _s20_ok = (not getattr(config, "S20_SYMBOL_FILTER", [])
+               or any(_sym_upper.startswith(s.upper()) for s in getattr(config, "S20_SYMBOL_FILTER", [])))
+
+    r20 = strategy_20(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20, False) and _s20_ok else {"signal": "WAIT", "reason": "S20 ปิด"}
     if r20.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20, r20["signal"], last_candle_time, r20)
-        
-    r20_5 = strategy_20_5(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_5_ENABLED", False) else {"signal": "WAIT", "reason": "S20.5 ปิด"}
+
+    r20_5 = strategy_20_5(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_5_ENABLED", False) and _s20_ok else {"signal": "WAIT", "reason": "S20.5 ปิด"}
     if r20_5.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.5, r20_5["signal"], last_candle_time, r20_5)
 
-    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) and getattr(config, "S20_6_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.6 ปิด หรือ TF ปิด"}
+    r20_6 = strategy_20_6(rates, tf=tf_name, dt_bkk=now_bkk()) if getattr(config, "S20_6_FVG_ENABLED", False) and getattr(config, "S20_6_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.6 ปิด หรือ TF ปิด"}
     if r20_6.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.6, r20_6["signal"], last_candle_time, r20_6)
 
-    r20_7 = strategy_20_7(rates, tf=tf_name) if active_strategies.get(20.7, False) else {"signal": "WAIT", "reason": "S20.7 ปิด"}
+    r20_7 = strategy_20_7(rates, tf=tf_name) if active_strategies.get(20.7, False) and _s20_ok else {"signal": "WAIT", "reason": "S20.7 ปิด"}
     if r20_7.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.7, r20_7["signal"], last_candle_time, r20_7)
 
-    r20_8 = strategy_20_8(rates, tf_name=tf_name, config=config) if active_strategies.get(20.8, False) else {"signal": "WAIT", "reason": "S20.8 ปิด"}
+    r20_8 = strategy_20_8(rates, tf_name=tf_name, config=config) if active_strategies.get(20.8, False) and _s20_ok else {"signal": "WAIT", "reason": "S20.8 ปิด"}
     if r20_8.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.8, r20_8["signal"], last_candle_time, r20_8)
 
-    r20_9 = strategy_20_9(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20.9, False) else {"signal": "WAIT", "reason": "S20.9 ปิด"}
+    r20_9 = strategy_20_9(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(20.9, False) and _s20_ok else {"signal": "WAIT", "reason": "S20.9 ปิด"}
     if r20_9.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.9, r20_9["signal"], last_candle_time, r20_9)
 
-    r20_10 = strategy_20_10(rates, tf_name=tf_name, config=config) if active_strategies.get(20.10, False) else {"signal": "WAIT", "reason": "S20.10 ปิด"}
+    r20_10 = strategy_20_10(rates, tf_name=tf_name, config=config) if active_strategies.get(20.10, False) and _s20_ok else {"signal": "WAIT", "reason": "S20.10 ปิด"}
     if r20_10.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.10, r20_10["signal"], last_candle_time, r20_10)
 
-    r20_11 = strategy_20_11(rates, tf_name=tf_name, config=config) if active_strategies.get(20.11, False) else {"signal": "WAIT", "reason": "S20.11 ปิด"}
+    r20_11 = strategy_20_11(rates, tf_name=tf_name, config=config) if active_strategies.get(20.11, False) and _s20_ok else {"signal": "WAIT", "reason": "S20.11 ปิด"}
     if r20_11.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.11, r20_11["signal"], last_candle_time, r20_11)
 
-    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if active_strategies.get(20.12, False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) else {"signal": "WAIT", "reason": "S20.12 ปิด หรือ TF ปิด"}
+    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if active_strategies.get(20.12, False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.12 ปิด หรือ TF ปิด"}
     if r20_12.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 

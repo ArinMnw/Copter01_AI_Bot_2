@@ -9,6 +9,8 @@ import sys
 import requests
 from datetime import datetime
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 _root = os.path.dirname(os.path.abspath(__file__))
 
 

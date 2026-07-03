@@ -8,11 +8,21 @@ sim_s17_backtest.py — Backtest S17 Sweep Sniper จากข้อมูล MT
     = ราคา ณ วินาทีที่แท่ง signal เพิ่งปิด (runtime เห็นแบบนี้จริง)
   - entry = open ของแท่งถัดไป, TP/SL เดินไปข้างหน้าทีละแท่ง
   - แท่งเดียวกันแตะทั้ง TP และ SL → นับ SL (conservative)
-  - spread หักจาก P/L ทุกไม้ (default 0.20 USD — IUX XAU โดยประมาณ)
+
+Bid/Ask fill model (03/07/2026 — แก้จาก audit live 3 สัปดาห์แรก WR 69% vs sim 91%):
+  rates ของ MT5 เป็นราคา bid → โมเดลเดิม fill BUY limit เมื่อ bid แตะ entry
+  ซึ่งมองโลกดีเกิน (จริงต้อง ask = bid+spread ลงถึง entry) ทำ WR เฟ้อ
+  - BUY : fill เมื่อ low ≤ entry − spread | TP เมื่อ high ≥ tp | SL เมื่อ low ≤ sl
+  - SELL: fill เมื่อ high ≥ entry | TP เมื่อ low ≤ tp − spread | SL เมื่อ high ≥ sl − spread
+  - P/L limit mode = ราคาทำจริง ไม่หัก spread ซ้ำ (ต้นทุนอยู่ในเงื่อนไข fill แล้ว)
+  - market mode ยังหัก spread จาก P/L แบบเดิม
 
 ตัวอย่าง:
   python sim_s17_backtest.py --days 30 --tf M1,M5,M15,M30
   python sim_s17_backtest.py --days 30 --tf M5 --sweep --csv
+  # Compounding แบบ S20.12 runner: risk 2%/ไม้ จาก balance เริ่ม 1000
+  python sim_s17_backtest.py --days 60 --tf M1,M30,H1 --compound 2 --start-balance 1000
+  python sim_s17_backtest.py --start "01-05-2026 00:00" --end "01-07-2026 00:00" --tf M1 --compound 2
 """
 
 import argparse
@@ -194,16 +204,18 @@ def replay_tf(bars, tf_name, spread):
 
         entry, tp, sl = float(res["entry"]), float(res["tp"]), float(res["sl"])
         time_stop = int(getattr(config, "S17_TIME_STOP_BARS", 0))
+        is_limit = res.get("order_mode") == "limit"
 
         # LIMIT mode: รอ fill ภายใน S17_LIMIT_CANCEL_BARS แท่ง — ไม่ fill = ไม่มีไม้
+        # bid/ask: BUY fill ต้องให้ ask ลงถึง entry → bid ≤ entry − spread
         start = j + 1
-        if res.get("order_mode") == "limit":
+        if is_limit:
             cancel_bars = int(getattr(config, "S17_LIMIT_CANCEL_BARS", 5))
             fill_idx = None
             for m in range(j + 1, min(j + 1 + cancel_bars, n)):
                 hi, lw = float(bars[m]["high"]), float(bars[m]["low"])
                 if sig == "BUY":
-                    if lw <= entry:
+                    if lw <= entry - spread:
                         fill_idx = m
                         break
                     if hi >= tp:
@@ -212,7 +224,7 @@ def replay_tf(bars, tf_name, spread):
                     if hi >= entry:
                         fill_idx = m
                         break
-                    if lw <= tp:
+                    if lw <= tp - spread:
                         break
             if fill_idx is None:
                 continue
@@ -222,14 +234,14 @@ def replay_tf(bars, tf_name, spread):
         for m in range(start, n):
             hi, lw = float(bars[m]["high"]), float(bars[m]["low"])
             if sig == "BUY":
-                if lw <= sl:            # conservative: เช็ค SL ก่อน
+                if lw <= sl:            # conservative: เช็ค SL ก่อน (bid)
                     outcome, exit_price = "SL", sl
                 elif hi >= tp:
                     outcome, exit_price = "TP", tp
             else:
-                if hi >= sl:
+                if hi >= sl - spread:   # SELL ปิดที่ ask → SL โดนเร็วขึ้น
                     outcome, exit_price = "SL", sl
-                elif lw <= tp:
+                elif lw <= tp - spread:  # SELL TP ต้องให้ ask ลงถึง tp
                     outcome, exit_price = "TP", tp
             if outcome == "OPEN" and time_stop > 0 and (m - start + 1) >= time_stop:
                 outcome, exit_price = "TS", float(bars[m]["close"])
@@ -241,17 +253,61 @@ def replay_tf(bars, tf_name, spread):
             continue  # ไม้ค้างท้ายข้อมูล — ไม่นับ
 
         diff = (exit_price - entry) if sig == "BUY" else (entry - exit_price)
-        pnl = diff - spread  # $ ต่อ 0.01 lot (XAU 0.01 lot = 1 oz)
+        # limit mode: ต้นทุน spread อยู่ในเงื่อนไข fill/exit แล้ว — หักซ้ำเฉพาะ TS (ปิด market)
+        # market mode: หัก spread เต็มแบบเดิม
+        if is_limit:
+            pnl = diff - (spread if outcome == "TS" and sig == "SELL" else 0.0)
+        else:
+            pnl = diff - spread  # $ ต่อ 0.01 lot (XAU 0.01 lot = 1 oz)
         trades.append({
             "tf": tf_name, "signal": sig, "outcome": outcome,
-            "entry_time": config.mt5_ts_to_bkk(int(entry_bar["time"])).strftime("%Y-%m-%d %H:%M"),
+            "entry_time": config.mt5_ts_to_bkk(int(bars[start]["time"])).strftime("%Y-%m-%d %H:%M"),
             "exit_time": config.mt5_ts_to_bkk(exit_time).strftime("%Y-%m-%d %H:%M"),
+            "entry_ts": int(bars[start]["time"]),
             "entry": round(entry, 2), "tp": round(tp, 2), "sl": round(sl, 2),
             "exit_price": round(exit_price, 2),
+            "risk_dist": round(abs(entry - sl), 2),
             "pnl_usd_001lot": round(pnl, 2),
             "rsi": res.get("rsi_at_signal", 0),
         })
     return trades
+
+
+def simulate_compound(trades, risk_pct, start_balance, max_lot=50.0):
+    """จำลอง compounding แบบ S20.12: lot = balance × risk% / (ระยะ SL × 100)
+    เรียงไม้ตามเวลา fill, ปรับ balance ต่อไม้ (sequential approximation)
+    คืน dict summary (final_balance, return_pct, max_dd_pct, min/max lot)
+    """
+    if not trades:
+        return None
+    balance = float(start_balance)
+    peak = balance
+    max_dd = 0.0
+    lots = []
+    for t in sorted(trades, key=lambda x: x.get("entry_ts", 0)):
+        risk_dist = float(t.get("risk_dist", 0) or 0)
+        if risk_dist <= 0:
+            continue
+        risk_usd = balance * (risk_pct / 100.0)
+        lot = risk_usd / (risk_dist * 100.0)   # XAU: 1 lot = 100 oz
+        lot = max(0.01, min(round(lot, 2), float(max_lot)))
+        lots.append(lot)
+        # pnl_usd_001lot = P/L ต่อ 1 oz (0.01 lot) → คูณสเกลเป็น lot จริง
+        balance += float(t["pnl_usd_001lot"]) * (lot / 0.01)
+        peak = max(peak, balance)
+        if peak > 0:
+            max_dd = max(max_dd, (peak - balance) / peak * 100.0)
+        if balance <= 0:
+            balance = 0.0
+            break
+    return {
+        "final_balance": round(balance, 2),
+        "return_pct": round((balance - start_balance) / start_balance * 100.0, 1),
+        "max_dd_pct": round(max_dd, 1),
+        "lot_min": min(lots) if lots else 0,
+        "lot_max": max(lots) if lots else 0,
+        "n": len(lots),
+    }
 
 
 def summarize(trades):
@@ -302,6 +358,13 @@ def main():
     ap.add_argument("--rsib", type=float, default=None, help="override S17_RSI_BUY_MAX")
     ap.add_argument("--rsis", type=float, default=None, help="override S17_RSI_SELL_MIN")
     ap.add_argument("--wick", type=float, default=None, help="override S17_WICK_MIN_PCT")
+    ap.add_argument("--symbol", default="", help="override symbol (default: config.SYMBOL)")
+    ap.add_argument("--compound", type=float, default=0.0,
+                    help="Risk %% ต่อไม้แบบ compounding (0 = ปิด) — แบบเดียวกับ backtest_S20_12_runner_mt5.py")
+    ap.add_argument("--start-balance", type=float, default=1000.0, help="balance เริ่มต้นสำหรับ compounding (default 1000)")
+    ap.add_argument("--start", default=None, help="เวลาเริ่ม dd-MM-yyyy HH:mm (BKK) — override --days")
+    ap.add_argument("--end", default=None, help="เวลาจบ dd-MM-yyyy HH:mm (BKK) — ไม่ระบุ = ปัจจุบัน")
+    ap.add_argument("--max-lot", type=float, default=None, help="เพดาน lot compounding (default: config.S17_MAX_LOT)")
     ap.add_argument("--csv", action="store_true", help="เซฟ trades ลง excel_reports/backtest_compare/s17/")
     args = ap.parse_args()
 
@@ -318,16 +381,50 @@ def main():
     if args.wick is not None:
         config.S17_WICK_MIN_PCT = args.wick
 
+    def parse_bkk(text):
+        for fmt in ("%d-%m-%Y %H:%M", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.strptime(text, fmt)
+            except ValueError:
+                continue
+        raise SystemExit(f"รูปแบบเวลาไม่ถูกต้อง: {text} (ใช้ dd-MM-yyyy HH:mm)")
+
+    start_dt = parse_bkk(args.start) if args.start else None
+    end_dt = parse_bkk(args.end) if args.end else None
+    fetch_days = args.days
+    if start_dt:
+        fetch_days = max(args.days, (datetime.now() - start_dt).days + 2)
+
+    def in_range(t):
+        dt = datetime.strptime(t["entry_time"], "%Y-%m-%d %H:%M")
+        if start_dt and dt < start_dt:
+            return False
+        if end_dt and dt > end_dt:
+            return False
+        return True
+
     if not mt5.initialize():
         print(f"MT5 initialize ล้มเหลว: {mt5.last_error()}")
         return
-    symbol = config.SYMBOL
-    print(f"Symbol: {symbol} | days={args.days} | spread=${args.spread:.2f}/trade | lot=0.01")
+    symbol = args.symbol or config.SYMBOL
+    rng = f"{args.start} -> {args.end or 'now'}" if start_dt else f"days={args.days}"
+    print(f"Symbol: {symbol} | {rng} | spread=${args.spread:.2f}/trade | lot=0.01")
 
-    tf_list = [t.strip() for t in args.tf.split(",") if t.strip() in TF_MAP]
+    # --tf all = ทุก TF ที่ sim รองรับ (เหมือน backtest_S20_12_runner_mt5.py)
+    if args.tf.strip().lower() == "all":
+        tf_list = list(TF_MAP.keys())
+        allowed = getattr(config, "S17_ALLOWED_TFS", [])
+        if allowed:
+            print(f"หมายเหตุ: live ใช้เฉพาะ TF {','.join(allowed)} (S17_ALLOWED_TFS) — sim รันทุก TF เพื่อเปรียบเทียบ")
+    else:
+        tf_list = [t.strip() for t in args.tf.split(",") if t.strip() in TF_MAP]
+    if not tf_list:
+        print(f"ไม่รู้จัก TF: {args.tf} — ใช้ได้: all หรือ {','.join(TF_MAP.keys())}")
+        mt5.shutdown()
+        return
     bars_by_tf = {}
     for tf_name in tf_list:
-        bars = fetch_bars(symbol, tf_name, args.days)
+        bars = fetch_bars(symbol, tf_name, fetch_days)
         if bars is None:
             print(f"! {tf_name}: ดึงข้อมูลไม่ได้ - ข้าม")
             continue
@@ -417,11 +514,22 @@ def main():
     all_trades = []
     print("\n== BASELINE (config ปัจจุบัน) ==")
     for tf_name, bars in bars_by_tf.items():
-        trades = replay_tf(bars, tf_name, args.spread)
+        trades = [t for t in replay_tf(bars, tf_name, args.spread) if in_range(t)]
         all_trades += trades
         print(fmt_row(tf_name, summarize(trades)))
     print("-" * 100)
     print(fmt_row("TOTAL", summarize(all_trades)))
+
+    if args.compound > 0 and all_trades:
+        max_lot = args.max_lot if args.max_lot else float(getattr(config, "S17_MAX_LOT", 50.0))
+        c = simulate_compound(all_trades, args.compound, args.start_balance, max_lot=max_lot)
+        if c:
+            print(f"\n== COMPOUNDING (risk {args.compound}%/ไม้, เริ่ม ${args.start_balance:,.0f}, max lot {max_lot}) ==")
+            print(f"Balance สุดท้าย : ${c['final_balance']:,.2f}  ({c['return_pct']:+.1f}%)")
+            print(f"Max Drawdown    : {c['max_dd_pct']:.1f}%")
+            print(f"Lot ที่ใช้       : {c['lot_min']:.2f} - {c['lot_max']:.2f} ({c['n']} ไม้)")
+            fixed_pnl = sum(t["pnl_usd_001lot"] for t in all_trades)
+            print(f"เทียบ fixed 0.01: {fixed_pnl:+.2f} USD")
 
     if args.csv and all_trades:
         out_dir = os.path.join("excel_reports", "backtest_compare", "s17")

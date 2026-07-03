@@ -117,10 +117,14 @@
     ```
 *   **ตัวอย่างรัน S17 Sweep Sniper standalone sim สำหรับจูนพารามิเตอร์ — เรียก `detect_s17()` ตรง:**
     ```bash
-    python sim_s17_backtest.py --days 60 --tf M1 --csv
+    python sim_s17_backtest.py --days 60 --tf M1,M30,H1 --symbol XAUUSD.iux --csv
     python sim_s17_backtest.py --days 30 --tf M1,M5 --sweep4   # จูน entry mode/TP/SLbuf/RSI
+    # Compounding แบบ S20.12 runner (risk % ต่อไม้ + ระบุช่วงเวลาแบบ --start/--end)
+    python sim_s17_backtest.py --days 60 --tf M1,M30,H1 --symbol XAUUSD.iux --compound 2 --start-balance 1000
+    python sim_s17_backtest.py --start "01-06-2026 00:00" --end "01-07-2026 00:00" --tf M1 --symbol XAUUSD.iux --compound 2
     ```
     *   `--mode/--tp/--slb/--rsib/--rsis/--wick` override config รายตัวได้, `--spread` ปรับ spread ต่อไม้ (default $0.20)
+    *   `--compound N` = risk N% ต่อไม้ (0 = ปิด), `--start-balance` (default 1000), `--max-lot` (default `S17_MAX_LOT`)
     *   CSV ออกที่ `excel_reports/backtest_compare/s17/`
 *   **Future work: ตัวอย่างรัน S18 พร้อมเทียบ MT5 history และสร้าง CSV/XLSX อัตโนมัติ:**
     ```bash

@@ -10,16 +10,20 @@ echo ==================================
 
 set BOT_PROFILE=real-vtmarket-26575165
 
-:: แจ้ง Telegram ว่า bot เริ่มทำงาน (ส่ง + pin message)
 python notify_start.py
 
-:: เวลาปัจจุบัน format DD-MM-YYYY HH:MM สำหรับ S20.12 supervisor
 for /f "tokens=1-5 delims=/ " %%a in ('echo %date%') do set D=%%c-%%b-%%a
 for /f "tokens=1-2 delims=: " %%a in ('echo %time%') do (set HH=%%a & set MM=%%b)
 set HH=%HH: =%
+set /a MM=%MM%-1
+if %MM% LSS 0 (set MM=59 & set /a HH=%HH%-1)
+if %HH% LSS 0 set HH=23
+if %MM% LSS 10 set MM=0%MM%
+if %HH% LSS 10 set HH=0%HH%
 set START_TIME=%D% %HH%:%MM%
 
-:: เปิด S20.12 supervisor ใน window แยก (state file อยู่ใน profile dir อัตโนมัติ)
+del /f /q "profiles\real\real-vtmarket-26575165\.supervisor_s2012_state" 2>nul
+
 start "S20.12 Supervisor [REAL]" python strategy/s20.12/backtest-sim/supervisor_s20_12.py ^
   --start "%START_TIME%" --compound 2 --tf all
 

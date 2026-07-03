@@ -3188,6 +3188,37 @@ def reset_focus_frozen_side(feature: str):
             pass
 
 
+_SID_COMMENT_RE = re.compile(r"_S(\d+(?:\.\d+)?)")
+
+
+def _resolve_pos_sid(ticket, comment: str = ""):
+    """Resolve sid ของ position แบบ 4 ชั้น: memory → pending meta → tracked → comment
+
+    เดิมจุดเช็ค recheck ต่างๆ ใช้ position_sid.get(ticket) ตรงๆ — ถ้า metadata
+    ยังไม่ถูก handoff (race หลัง fill ใหม่ / หลัง restart) จะได้ None ซึ่ง
+    ไม่อยู่ใน skip list → strategy standalone โดน recheck ปิดผิดจังหวะ
+    (เคสจริง: S17 M1 ถูก Fill Trend Recheck ปิด 3 วิหลัง fill, 23/06/2026 21:59)
+    """
+    sid = position_sid.get(ticket)
+    if sid is not None:
+        return sid
+    _p = pending_order_tf.get(ticket)
+    if isinstance(_p, dict) and _p.get("sid") is not None:
+        return _p.get("sid")
+    _t = getattr(config, "tracked_positions", {}) or {}
+    _info = _t.get(ticket) or _t.get(str(ticket))
+    if isinstance(_info, dict) and _info.get("sid") is not None:
+        return _info.get("sid")
+    m = _SID_COMMENT_RE.search(str(comment or ""))
+    if m:
+        txt = m.group(1)
+        try:
+            return float(txt) if "." in txt else int(txt)
+        except ValueError:
+            return None
+    return None
+
+
 def _get_spread_price():
     """Return spread as a price value."""
     info = mt5.symbol_info(SYMBOL)
@@ -3581,7 +3612,7 @@ async def check_fill_rsi_recheck(app):
         ticket = pos.ticket
         if ticket in _fill_rsi_checked:
             continue
-        sid = position_sid.get(ticket)
+        sid = _resolve_pos_sid(ticket, getattr(pos, "comment", ""))
         if sid in getattr(config, "RSI_RECHECK_SKIP_SIDS", ()):
             continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design), S18 (TJR standalone), S19 (ICT SB standalone) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
@@ -3798,7 +3829,7 @@ async def check_fill_trend_recheck(app):
 
     for pos in positions:
         ticket = pos.ticket
-        sid = position_sid.get(ticket)
+        sid = _resolve_pos_sid(ticket, getattr(pos, "comment", ""))
         # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone), S19 (ICT SB standalone), S20+
         # list ย้ายไปรวมไว้ที่ config.FILL_TREND_RECHECK_SKIP_SIDS แล้ว (กัน drift แบบที่เคยขาด 20.12)
         if sid in getattr(config, "FILL_TREND_RECHECK_SKIP_SIDS", ()):
@@ -4428,7 +4459,7 @@ async def check_fill_pdfiboplus(app):
         ticket = pos.ticket
         if ticket in _pdfiboplus_fill_checked:
             continue
-        sid = position_sid.get(ticket)
+        sid = _resolve_pos_sid(ticket, getattr(pos, "comment", ""))
         # Skip standalone / strategy-managed setups — ใช้ config.PDFIBOPLUS_SKIP_SIDS เป็นหลัก
         # (เดิม hardcode list แยกไว้ตรงนี้ แล้ว drift ไม่ตรงกับ config จนขาด 9,11,14,20.12 ไป —
         # ทำให้ S20.12 ที่ต้อง standalone 100% โดนปิด position ผิดจังหวะด้วย "PD Zone fill check")

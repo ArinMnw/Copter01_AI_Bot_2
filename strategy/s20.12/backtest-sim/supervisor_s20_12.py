@@ -173,6 +173,10 @@ def main():
     # บันทึก state ทันที — ถ้า crash ก่อนเจอ order แรก restart จะรู้ว่าต้องเริ่มจากไหน
     _save_state(current_start)
 
+    # รอจนถึง :01 ของนาทีถัดไปก่อน cycle แรก
+    # ป้องกันกรณีรัน bat กลางนาที เช่น 12:00:35 → รอถึง 12:01:01
+    _sleep_until_next_01()
+
     while True:
         now = datetime.now()
         print(f"\n[{now.strftime('%H:%M:%S')}] ─── รอบใหม่ ───")
@@ -199,7 +203,7 @@ def main():
 
         if df is None or df.empty:
             print("  ⚠️ run_sim ไม่มี trade — รอรอบหน้า")
-            time.sleep(args.interval)
+            _sleep_until_next_01()
             continue
 
         import pandas as pd
