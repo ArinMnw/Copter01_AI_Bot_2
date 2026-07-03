@@ -1,6 +1,7 @@
 import argparse
 import sys, os
 import copy
+import subprocess
 from datetime import datetime, timedelta, timezone
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -302,6 +303,16 @@ def main():
             print(f"💾 บันทึกประวัติออเดอร์จำลองไว้ที่: {out_csv}")
 
     mt5.shutdown()
+
+    # ── รัน compare อัตโนมัติหลัง backtest เสร็จ ──────────────────────────
+    print("\n" + "=" * 60)
+    print("▶ รัน compare_mt5_orders.py อัตโนมัติ...")
+    compare_cmd = [sys.executable, os.path.join(script_dir, "compare_mt5_orders.py")]
+    if args.start:
+        compare_cmd += ["--start", args.start]
+    if args.end:
+        compare_cmd += ["--end", args.end]
+    subprocess.run(compare_cmd)
 
 if __name__ == "__main__":
     main()
