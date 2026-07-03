@@ -182,6 +182,17 @@ def _save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
+def _count_open_positions(magic, leg_id):
+    """นับไม้ที่เปิดค้างอยู่ของ leg นี้โดยเฉพาะ (แยกด้วย comment prefix DEMO-<leg_id>) —
+    ใช้กัน leg เดียวยิงไม้ใหม่ซ้อนกันไม่จำกัดตอนเทรนด์แรง (เจอจริง 2026-07-02: leg D/K
+    ค้าง 5-6 ไม้พร้อมกัน จน margin บัญชีเล็กหมด ออเดอร์อื่นโดน 10019 No money)"""
+    positions = mt5.positions_get(symbol=config.SYMBOL)
+    if not positions:
+        return 0
+    prefix = f"DEMO-{leg_id}"
+    return sum(1 for p in positions if p.magic == magic and p.comment.startswith(prefix))
+
+
 def _place_market_order(signal, sl, tp, comment, magic):
     """วางออเดอร์ตรงๆ ผ่าน mt5.order_send() — ไม่ผ่าน mt5_utils.open_order_market() เพื่อเลี่ยง
     ML_SCORING_ENABLED / SCALE_OUT_ENABLED ที่เป็น global toggle ของบอทเดิม (ดู docstring บนไฟล์)"""
@@ -260,6 +271,14 @@ async def demo_scan(app, portfolio_name: str):
             continue
 
         state["last_signal_ts"][leg_id] = entry_ts
+
+        open_count = _count_open_positions(magic, leg_id)
+        if open_count >= config.DEMO_PORTFOLIO_MAX_POS_PER_LEG:
+            log_event("DEMO_PORTFOLIO_SKIP",
+                       f"{leg_id} {sig} skipped — {open_count} positions already open "
+                       f"(cap={config.DEMO_PORTFOLIO_MAX_POS_PER_LEG})")
+            continue
+
         sl, tp = float(res["sl"]), float(res["tp"])
         comment = f"DEMO-{leg_id}"
         result = _place_market_order(sig, sl, tp, comment, magic)

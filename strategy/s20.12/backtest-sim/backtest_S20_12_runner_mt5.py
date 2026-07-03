@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument("--days", type=int, default=0, help="Days to backtest (0 = run multiple)")
     parser.add_argument("--compound", type=float, default=2.0, help="Risk percentage for compounding (default 2)")
     parser.add_argument("--start", type=str, default=None, help="Start time dd-MM-yyyy HH:mm (BKK) — วิ่งจากเวลานี้จนถึงปัจจุบัน (override --days)")
+    parser.add_argument("--end", type=str, default=None, help="End time dd-MM-yyyy HH:mm (BKK) — จำกัดขอบเขตท้าย ถ้าไม่ระบุ = ปัจจุบัน")
     return parser.parse_args()
 
 def main():
@@ -60,9 +61,12 @@ def main():
         tfs = {args.tf: tfs[args.tf]}
         
     start_dt_bkk = None
+    end_dt_bkk = None
+    if args.end:
+        end_dt_bkk = datetime.strptime(args.end, "%d-%m-%Y %H:%M")
     if args.start:
         start_dt_bkk = datetime.strptime(args.start, "%d-%m-%Y %H:%M")
-        days_list = ["custom"]  # sentinel, วิ่งรอบเดียวจาก --start ถึงปัจจุบัน
+        days_list = ["custom"]  # sentinel, วิ่งรอบเดียวจาก --start ถึง --end (หรือปัจจุบัน)
     elif args.days > 0:
         days_list = [args.days]
     else:
@@ -74,16 +78,23 @@ def main():
 
         # datetime.now() = เวลา BKK จาก OS clock แต่ mt5.copy_rates_range ต้องการค่าที่ต่างจาก
         # BKK อยู่ +1h เป๊ะ (ยืนยันด้วย copy_rates_from_pos ground-truth) — ไม่ใช่ TZ_OFFSET(-7h)
-        # ตามที่ backtest_auto_trade.py ใช้ เพราะ context ฐานเวลาเริ่มต้นต่างกัน
-        end_time = datetime.now() + timedelta(hours=1)
+        # ตามที่ backtest_auto_trade.py ใช้ เพราะ context ฐานเวลาเริ่มต้นต่างกัน — ใช้ convention
+        # เดียวกันกับ --end ที่ระบุมาด้วย (ถ้าไม่ระบุ ใช้ปัจจุบันเหมือนเดิม)
+        if end_dt_bkk is not None:
+            end_time = end_dt_bkk + timedelta(hours=1)
+            end_time_bkk = end_dt_bkk
+        else:
+            end_time = datetime.now() + timedelta(hours=1)
+            end_time_bkk = datetime.now()
+
         if start_dt_bkk is not None:
             start_time = start_dt_bkk + timedelta(hours=1)
             start_time_bkk = start_dt_bkk  # ใช้เทียบกับ mt5_ts_to_bkk() ในลูป (convention เดียวกับ BKK จริง)
-            days_label = f"{args.start} ถึงปัจจุบัน"
+            days_label = f"{args.start} ถึง {args.end or 'ปัจจุบัน'}"
         else:
             start_time = end_time - timedelta(days=days)
-            start_time_bkk = datetime.now() - timedelta(days=days)
-            days_label = f"{days} days"
+            start_time_bkk = end_time_bkk - timedelta(days=days)
+            days_label = f"{days} days (ถึง {args.end})" if args.end else f"{days} days"
 
         risk_pct = args.compound / 100.0
         contract_size = info.trade_contract_size if info.trade_contract_size > 0 else 100.0
@@ -105,14 +116,14 @@ def main():
             # ยิงออเดอร์ซ้ำได้หลายไม้พร้อมกันต่อ TF เดียวกัน (เช่น sweep ต่อเนื่องหลายแท่งติด)
             # ไม่ใช่แค่ทีละไม้ต่อ TF แบบเดิม — เก็บแค่ raw shape ก่อน ยังไม่คิด lot/compounding
             # (คิดทีหลังตอน event-driven balance simulation รวมทุก TF ตามลำดับเวลาจริง)
-            for i in range(100, len(rates)):
-                # ใช้ mt5_ts_to_bkk() เทียบกับ start_time_bkk ตรงๆ (BKK จริงทั้งคู่) แทนการเทียบ
-                # raw epoch-as-UTC กับ start_time ที่ปรับ +1h แล้ว (คนละ convention กัน ต่างได้ถึง
-                # ~7 ชม. — ทำให้ --start ช่วงสั้นๆ กรองข้อมูลออกหมดจนไม่เจอไม้เลย)
-                c_time_bkk = mt5_ts_to_bkk(rates[i]['time'])
-                if c_time_bkk.replace(tzinfo=None) < start_time_bkk:
-                    continue
-
+            # หมายเหตุ: เริ่ม loop ที่ 20 (ขั้นต่ำที่ strategy เองต้องการ) ไม่ใช่ 100 — TF ใหญ่ (H1/H4)
+            # ตอนใช้ --start ช่วงแคบๆ อาจได้ rates รวมทั้งก้อนไม่ถึง 100 แท่ง ทำให้ range(100, len(rates))
+            # ว่างเปล่าและไม่มีทาง detect signal ได้เลยแม้แต่ตัวเดียว (เจอเคสจริง: H4/H1 = 0 เสมอ)
+            for i in range(20, len(rates)):
+                # หมายเหตุ: ห้ามกรองจากเวลาแท่งอ้างอิง (rates[i]) แล้ว continue ตรงนี้ — TF ใหญ่
+                # (H1/H4) แท่งอ้างอิงอาจปิดไปนานแล้วก่อน start_time_bkk แต่ order จริงเพิ่งเปิดใน
+                # ช่วงที่ขอ (เจอเคสจริง: H4 แท่งอ้างอิงปิด 14:00 แต่ order เปิดจริง 18:13 ซึ่งอยู่ใน
+                # ช่วง --start ที่ขอ) ต้องกรองด้วย open_dt (เวลาเปิดจริง) ทีหลังแทน ดูด้านล่าง
                 if i % 5000 == 0:
                     print(f"  [{tf_name}] Processing bar {i}/{len(rates)}...")
 
@@ -173,6 +184,11 @@ def main():
                         # ตอนแท่งนั้น "ปิด" (=เวลาเปิดของแท่งถัดไป) ต้องใช้ rates[i+1] ไม่งั้น
                         # เวลาที่โชว์จะช้ากว่าจริงไป 1 ความยาวแท่งเสมอ (เทียบ ORDER_CREATED จริง)
                         open_dt = mt5_ts_to_bkk(rates[i+1]['time'])
+                        # กรองด้วยเวลาเปิดจริง (ไม่ใช่เวลาแท่งอ้างอิง) — TF ใหญ่แท่งอ้างอิงอาจปิด
+                        # ก่อน start_time_bkk นานแล้ว แต่ order เปิดจริงอยู่ในช่วงที่ขอได้
+                        _open_dt_naive = open_dt.replace(tzinfo=None)
+                        if _open_dt_naive < start_time_bkk or _open_dt_naive > end_time_bkk:
+                            continue
                         close_dt = mt5_ts_to_bkk(rates[close_bar_idx]['time'])
                         candidates.append({
                             "open_dt": open_dt,

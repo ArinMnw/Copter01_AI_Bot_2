@@ -18,6 +18,7 @@ except ImportError:
     HHLL_LEFT     = 5
     HHLL_RIGHT    = 5
     HHLL_LOOKBACK = 500
+    _cfg          = None
 
 # ── State ─────────────────────────────────────────────────────────────
 # Format ต่อ TF:
@@ -189,7 +190,11 @@ def fetch_hhll(tf_name: str, symbol: str | None = None,
     ยังไม่เปลี่ยน จะข้าม fetch+recompute ก้อนใหญ่ (ลด MT5 IPC call ที่ทำให้ scan ช้า/ลาก
     event loop ค้าง — ดู §External Supervisor / Event-Loop Stall ใน AGENTS.md)
     ผู้เรียกที่ไม่ส่ง current_bar_time มา (เช่น force-fetch ใน trailing.py) ยัง fetch สดทุกครั้งเหมือนเดิม"""
-    sym      = symbol  or SYMBOL
+    # ใช้ _cfg.SYMBOL (module attribute, อ่านสดทุกครั้ง) แทน SYMBOL ที่ import แบบ snapshot
+    # ตอนโหลดโมดูล — config.SYMBOL ถูก resolve เป็นชื่อจริงของ broker (เช่น "XAUUSD.iux")
+    # หลัง import แล้ว ถ้ายังใช้ SYMBOL เดิม (ค้างที่ "XAUUSD") copy_rates_from_pos จะคืน None
+    # เพราะ symbol ไม่ตรงกับที่ broker ใช้จริง ทำให้ HHLL ไม่มีวันคำนวณสำเร็จเลย
+    sym      = symbol  or getattr(_cfg, "SYMBOL", SYMBOL)
     tf_val   = TF_OPTIONS.get(tf_name)
     if tf_val is None:
         return False

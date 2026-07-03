@@ -3532,7 +3532,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 continue
         # ── Sweep Filter Block — independent of TREND_FILTER_SCAN_BLOCK ──────
         # SWEEP_LOW → block SELL / SWEEP_HIGH → block BUY  (S9/S10/S13/S14/S15/S16 bypass)
-        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        if sid not in getattr(config, "SWEEP_FILTER_SKIP_SIDS", ()):
             try:
                 import sweep_filter as _sf_blk
                 if _sf_blk.is_enabled():
@@ -3559,7 +3559,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             except Exception:
                 pass
         # S9 RSI Divergence, S10 CRT TBS, S13 EzAlgo, S14 Sweep RSI, S15 VP absorption, S16 AMD iFVG, S17 Sweep Sniper — reversal/standalone → bypass trend filter
-        if sid not in (9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21) and config.TREND_FILTER_SCAN_BLOCK:
+        if sid not in getattr(config, "TREND_FILTER_SKIP_SIDS", ()) and config.TREND_FILTER_SCAN_BLOCK:
             allowed, tf_reason = trend_allows_signal(tf_name, signal)
             if not allowed:
                 _print_skip_once(

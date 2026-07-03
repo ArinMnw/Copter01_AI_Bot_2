@@ -3582,7 +3582,7 @@ async def check_fill_rsi_recheck(app):
         if ticket in _fill_rsi_checked:
             continue
         sid = position_sid.get(ticket)
-        if sid in (1, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        if sid in getattr(config, "RSI_RECHECK_SKIP_SIDS", ()):
             continue  # S1 (zone-based), S9 (RSI Div), S11 (Fibo), S14 (Sweep RSI), S15 (VP reversal — RSI มัก extreme), S17 (Sweep Sniper — เข้าที่ RSI extreme by design), S18 (TJR standalone), S19 (ICT SB standalone) — skip RSI Recheck
         # S12, S13 — ใช้ RSI Recheck (ตามคำขอ 2026-05-18)
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -3800,7 +3800,8 @@ async def check_fill_trend_recheck(app):
         ticket = pos.ticket
         sid = position_sid.get(ticket)
         # Skip S1/S2/S3/S11 (ใช้ trend filter ของตัวเองที่ signal gen), S9/S10/S14/S15/S16/S17 (market order หรือ counter-trend by design), S18 (TJR standalone), S19 (ICT SB standalone), S20+
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        # list ย้ายไปรวมไว้ที่ config.FILL_TREND_RECHECK_SKIP_SIDS แล้ว (กัน drift แบบที่เคยขาด 20.12)
+        if sid in getattr(config, "FILL_TREND_RECHECK_SKIP_SIDS", ()):
             continue
 
         # ข้ามถ้าทุก round เสร็จแล้ว
@@ -4158,7 +4159,8 @@ async def check_pending_trend_approach(app):
                 sid = _pend.get("sid")
 
         # Skip เหมือน check_fill_trend_recheck (S1/S2/S3/S11 ไม่ใช้ approach trend recheck), S18/S19 standalone
-        if sid in (1, 2, 3, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        # list -> config.PENDING_TREND_RECHECK_SKIP_SIDS
+        if sid in getattr(config, "PENDING_TREND_RECHECK_SKIP_SIDS", ()):
             continue
 
         # Resolve TF
@@ -4427,8 +4429,11 @@ async def check_fill_pdfiboplus(app):
         if ticket in _pdfiboplus_fill_checked:
             continue
         sid = position_sid.get(ticket)
-        # Skip standalone / strategy-managed setups.
-        if sid in (1, 10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        # Skip standalone / strategy-managed setups — ใช้ config.PDFIBOPLUS_SKIP_SIDS เป็นหลัก
+        # (เดิม hardcode list แยกไว้ตรงนี้ แล้ว drift ไม่ตรงกับ config จนขาด 9,11,14,20.12 ไป —
+        # ทำให้ S20.12 ที่ต้อง standalone 100% โดนปิด position ผิดจังหวะด้วย "PD Zone fill check")
+        # คง 12, 20 ไว้เพิ่มเติมตามพฤติกรรมเดิมที่ตั้งใจแยกไว้เฉพาะจุดนี้
+        if sid in (set(getattr(config, "PDFIBOPLUS_SKIP_SIDS", ())) | {12, 20}):
             continue  # S1 uses its own swing/zone lifecycle; these strategies skip PD Fibo Plus.
 
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
@@ -4742,7 +4747,7 @@ async def check_entry_candle_quality(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        if sid in getattr(config, "ENTRY_CANDLE_QUALITY_SKIP_SIDS", ()):
             continue  # standalone strategies (S15 = VP absorption, มี entry logic เอง; S18 = TJR; S19 = ICT SB)
         sig_e    = "🟢" if pos_type == "BUY" else "🔴"
         state    = _entry_state.get(ticket)
@@ -5818,7 +5823,7 @@ async def check_engulf_trail_sl(app):
         ticket   = pos.ticket
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         sid      = position_sid.get(ticket)
-        if sid in (10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 21):
+        if sid in getattr(config, "TRAIL_SL_SKIP_SIDS", ()):
             continue  # standalone strategies (S15 = VP absorption, exit ด้วย fixed TP/SL; S18 = TJR; S19 = ICT SB)
         # Resolve order timeframe
         fvg_info = fvg_order_tickets.get(ticket)

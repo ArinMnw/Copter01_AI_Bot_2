@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 import MetaTrader5 as mt5
@@ -10,7 +11,20 @@ import config
 
 BKK = timezone(timedelta(hours=7))
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compare S20.12 SIM vs MT5 orders")
+    parser.add_argument("--start", type=str, default=None,
+                         help="เวลาเริ่มต้นแบบเดียวกับที่ใช้รัน backtest_S20_12_runner_mt5.py "
+                              "(dd-MM-yyyy HH:mm, BKK) — ใช้กรอง order กำพร้าไม่ให้โผล่นอกช่วงที่ขอจริง "
+                              "ถ้าไม่ระบุ จะ fallback ไปใช้เวลาของไม้แรกใน SIM แทน (อาจกว้างกว่าที่ตั้งใจ)")
+    parser.add_argument("--end", type=str, default=None,
+                         help="เวลาสิ้นสุดแบบเดียวกับที่ใช้รัน backtest_S20_12_runner_mt5.py "
+                              "(dd-MM-yyyy HH:mm, BKK) — ถ้าไม่ระบุ จะ fallback ไปใช้เวลาปิดของไม้สุดท้าย"
+                              "ใน SIM แทน (อาจแคบกว่าที่ตั้งใจ ตัด order ท้ายช่วงที่ควรอยู่ในขอบเขตออกไป)")
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
     sim_csv = os.path.join(os.path.dirname(__file__), "..", "excel", "s20_12_sim_trades.csv")
     if not os.path.exists(sim_csv):
         print(f"❌ ไม่พบไฟล์ {sim_csv}\nกรุณารัน backtest_S20_12_runner_mt5.py ก่อนครับ")
@@ -25,9 +39,23 @@ def main():
     # Parse BKK times to UTC for MT5
     df_sim["Time (BKK)"] = pd.to_datetime(df_sim["Time (BKK)"])
     df_sim["Close Time"] = pd.to_datetime(df_sim["Close Time"])
-    
-    start_bkk = df_sim["Time (BKK)"].min() - timedelta(hours=1)
-    end_bkk = df_sim["Close Time"].max() + timedelta(hours=1)
+
+    # ช่วง SIM จริง (ไม่ padding) — ใช้กรองว่า order ไหน "อยู่ในคำขอจริง" ตอนแสดงผล
+    # ถ้าระบุ --start มา ใช้ค่านั้นตรงๆ (ตรงกับที่ผู้ใช้ตั้งใจ) ไม่งั้น fallback ไปใช้เวลาไม้แรกใน
+    # SIM (ซึ่งอาจช้ากว่าค่า --start จริงที่เคยสั่งไปหลายนาที เพราะเป็นเวลาที่ signal แรกถูกตรวจเจอ
+    # ไม่ใช่เวลาที่ขอ — ทำให้ order ก่อนหน้านั้นเล็กน้อยยังหลุดผ่านมาโชว์ได้)
+    if args.start:
+        _sim_start_exact = pd.Timestamp(datetime.strptime(args.start, "%d-%m-%Y %H:%M"))
+    else:
+        _sim_start_exact = df_sim["Time (BKK)"].min()
+    if args.end:
+        _sim_end_exact = pd.Timestamp(datetime.strptime(args.end, "%d-%m-%Y %H:%M"))
+    else:
+        _sim_end_exact = df_sim["Close Time"].max()
+
+    # ช่วง query MT5 — padding ±1h กันพลาดขอบเขต (คนละจุดประสงค์กับตัวกรองแสดงผลด้านบน)
+    start_bkk = _sim_start_exact - timedelta(hours=1)
+    end_bkk = _sim_end_exact + timedelta(hours=1)
 
     print(f"🕒 ช่วงเวลา SIM: {start_bkk} ถึง {end_bkk}")
 
@@ -118,53 +146,66 @@ def main():
         mt5_close = match["MT5_Close_Time"].tz_localize(None) if match is not None else None
 
         res = {
-            "SIM_Open_Time": sim["Time (BKK)"],
+            "SIM_Open_Time":  sim["Time (BKK)"],
             "SIM_Close_Time": sim["Close Time"],
-            "SIM_TF": sim["TF"],
-            "SIM_Type": sim["Type"],
-            "SIM_Entry": sim["Entry"],
-            "SIM_P&L": sim["P&L"],
-            "SIM_Balance": sim["Balance"] if "Balance" in sim else None,
-            "SIM_Reason": sim["Reason"],
-            "MT5_Open_Time": mt5_open.strftime('%Y-%m-%d %H:%M:%S') if mt5_open is not None else None,
+            "SIM_TF":         sim["TF"],
+            "SIM_Type":       sim["Type"],
+            "SIM_Entry":      sim["Entry"],
+            "SIM_Lot":        sim["Lot"] if "Lot" in sim else None,
+            "SIM_P&L":        sim["P&L"],
+            "SIM_Balance":    sim["Balance"] if "Balance" in sim else None,
+            "SIM_Reason":     sim["Reason"],
+            "MT5_Open_Time":  mt5_open.strftime('%Y-%m-%d %H:%M:%S') if mt5_open is not None else None,
             "MT5_Close_Time": mt5_close.strftime('%Y-%m-%d %H:%M:%S') if mt5_close is not None else None,
-            "MT5_Price": match["MT5_Price"] if match is not None else None,
-            "MT5_P&L": match["MT5_P&L"] if match is not None else None,
-            "MT5_Comment": match["MT5_Comment"] if match is not None else None,
+            "MT5_Type":       match["MT5_Type"] if match is not None else None,
+            "MT5_Price":      match["MT5_Price"] if match is not None else None,
+            "MT5_Volume":     match["MT5_Volume"] if match is not None else None,
+            "MT5_P&L":        match["MT5_P&L"] if match is not None else None,
+            "MT5_Comment":    match["MT5_Comment"] if match is not None else None,
             "MT5_Position_ID": match["MT5_Position_ID"] if match is not None else None,
-            "Matched": match is not None
+            "Matched":        match is not None,
         }
         results.append(res)
 
     # ── ออเดอร์ MT5 จริงที่ไม่มี SIM คู่เลย (เช่น backtest ไม่เจอ pattern เดียวกัน) ──
     # loop ด้านบนวนตาม SIM เป็นหลัก ถ้าไม่ทำส่วนนี้ ออเดอร์จริงที่ไม่ match จะหายไปจากไฟล์
     # ทั้งที่มีอยู่จริงใน MT5 — เพิ่มมาแสดงแยกเพื่อให้ตรวจสอบได้ว่ามีไม้ไหนที่ backtest มองไม่เห็น
+    # หมายเหตุ: query MT5 กว้างกว่าช่วง SIM จริงมาก (±1h ก่อน query + ±6h กัน server-tz) — ถ้าไม่
+    # กรองตรงนี้ ออเดอร์นอกช่วงที่ขอจริงๆ จะโผล่มาปนด้วยจนรก ต้องกรองด้วยช่วง SIM แบบไม่ padding
+    # (_sim_start_exact/_sim_end_exact) ก่อนนำมาแสดงเป็นแถวกำพร้า ไม่ใช่ start_bkk/end_bkk ที่มี ±1h
+    _sim_start_naive = _sim_start_exact.replace(tzinfo=None) if _sim_start_exact.tzinfo else _sim_start_exact
+    _sim_end_naive = _sim_end_exact.replace(tzinfo=None) if _sim_end_exact.tzinfo else _sim_end_exact
     if not df_act.empty:
         unmatched_act = df_act[~df_act.index.isin(matched_indices)]
         for _, act in unmatched_act.iterrows():
             act_open = act["MT5_Open_Time"].tz_localize(None) if act["MT5_Open_Time"] is not None else None
             act_close = act["MT5_Close_Time"].tz_localize(None) if act["MT5_Close_Time"] is not None else None
+            if act_open is None or not (_sim_start_naive <= act_open <= _sim_end_naive):
+                continue  # นอกช่วงเวลา SIM ที่ขอจริง — ไม่เอามาแสดง กันรก
             results.append({
-                "SIM_Open_Time": None,
+                "SIM_Open_Time":  None,
                 "SIM_Close_Time": None,
-                "SIM_TF": None,
-                "SIM_Type": None,
-                "SIM_Entry": None,
-                "SIM_P&L": None,
-                "SIM_Balance": None,
-                "SIM_Reason": "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้",
-                "MT5_Open_Time": act_open.strftime('%Y-%m-%d %H:%M:%S') if act_open is not None else None,
+                "SIM_TF":         None,
+                "SIM_Type":       None,
+                "SIM_Entry":      None,
+                "SIM_Lot":        None,
+                "SIM_P&L":        None,
+                "SIM_Balance":    None,
+                "SIM_Reason":     "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้",
+                "MT5_Open_Time":  act_open.strftime('%Y-%m-%d %H:%M:%S') if act_open is not None else None,
                 "MT5_Close_Time": act_close.strftime('%Y-%m-%d %H:%M:%S') if act_close is not None else None,
-                "MT5_Price": act["MT5_Price"],
-                "MT5_P&L": act["MT5_P&L"],
-                "MT5_Comment": act["MT5_Comment"],
+                "MT5_Type":       act["MT5_Type"],
+                "MT5_Price":      act["MT5_Price"],
+                "MT5_Volume":     act["MT5_Volume"],
+                "MT5_P&L":        act["MT5_P&L"],
+                "MT5_Comment":    act["MT5_Comment"],
                 "MT5_Position_ID": act["MT5_Position_ID"],
-                "Matched": False
+                "Matched":        False,
             })
 
     df_res = pd.DataFrame(results)
     if not df_res.empty:
-        # เรียงตามเวลาจริง — ใช้ SIM_Open_Time ถ้ามี ไม่งั้น fallback ไป MT5_Open_Time
+        # เรียงตาม Open Time — ใช้ SIM_Open_Time ถ้ามี ไม่งั้น fallback ไป MT5_Open_Time
         # (แถวที่เป็นออเดอร์ MT5 กำพร้า ไม่มี SIM คู่ จะได้เรียงตามเวลาที่เกิดขึ้นจริงแทนที่จะตกท้ายไฟล์)
         sort_key = pd.to_datetime(df_res["SIM_Open_Time"]).fillna(pd.to_datetime(df_res["MT5_Open_Time"]))
         df_res = df_res.assign(_sort_key=sort_key).sort_values("_sort_key").drop(columns="_sort_key").reset_index(drop=True)
