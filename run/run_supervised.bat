@@ -1,9 +1,25 @@
 @echo off
 title Copter Gold Bot (Supervised)
+chcp 65001 >nul
 cd /d "%~dp0.."
+
 echo ==================================
 echo   Copter Gold Bot - Supervised
 echo   (auto-restart on crash / hang)
 echo ==================================
+
+:: แจ้ง Telegram ว่า bot เริ่มทำงาน (ส่ง + pin message)
+python notify_start.py
+
+:: เวลาปัจจุบัน format DD-MM-YYYY HH:MM สำหรับ S20.12 supervisor
+for /f "tokens=1-5 delims=/ " %%a in ('echo %date%') do set D=%%c-%%b-%%a
+for /f "tokens=1-2 delims=: " %%a in ('echo %time%') do (set HH=%%a & set MM=%%b)
+set HH=%HH: =%
+set START_TIME=%D% %HH%:%MM%
+
+:: เปิด S20.12 supervisor ใน window แยก (state file อยู่ root dir เพราะไม่มี profile)
+start "S20.12 Supervisor" python strategy/s20.12/backtest-sim/supervisor_s20_12.py ^
+  --start "%START_TIME%" --compound 2 --tf all
+
 powershell -ExecutionPolicy Bypass -NoProfile -File "%CD%\run_supervised.ps1"
 pause

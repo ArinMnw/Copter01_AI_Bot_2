@@ -1,144 +1,137 @@
-# S83 Attempt - S67 Clear Candle Scout Above S81
+# S83 Attempt - S88 D1 Inverse No-17 Overlay Above S82
 
 สถานะ: research/backtest-only, ยังไม่ wire เข้า live bot
 
 ## Baseline
 
-Champion ล่าสุดยังเป็น:
+Champion ก่อนรอบนี้:
 
 ```text
-S81 = P16 + S63x12.8 + S69x22.1925 + S64x13.875
+S82 = S81 + S87(D1_H12_TURN_follow)x33.55
 ```
 
-| Metric | S81 |
+| Metric | S82 |
 |---|---:|
-| Avg $/day | 339.82 |
-| Min $/day | 313.60 |
-| Min PF | 4.37 |
+| Avg $/day | 384.42 |
+| Min $/day | 364.83 |
+| Min PF | 4.055 |
 | Max streak | 3 |
 | Worst day | -999.91 |
+| Max lot | 0.19 |
+| Max leg DD | 55.01% |
+| Skipped by circuit breaker | 9727 |
 
-## Candidate
+## Idea
 
-```text
-S67 = All-in-4S Clear Candle
-```
+S87 `D1_LAST_inverse` had strong positive contribution but failed S83 because one loss at 2026-02-19 17:30 BKK pushed the already-weak 180d day below the -1000 floor.
 
-แนวคิดจาก PDF:
-
-- clear candle คือแท่งที่ถูกดันแรงไปทางหนึ่งแล้วถูกดึงกลับมาปิดอีกฝั่ง
-- ต้องมี rejection wick ชัด
-- close ต้อง cover context ของแท่งก่อนหน้า
-- แยก test เป็น reversal/continuation
-
-## Runner
-
-เพิ่ม optimizer:
+S88 is a filtered version of that leg:
 
 ```text
-optimize_s67_clear_candle.py
+S88_D1_INV_NO17 = S87(D1_LAST_inverse) excluding fill hour 17 BKK
 ```
 
-โหมด:
-
-```text
-fixed/raw scout -> exact sizing validation เฉพาะ top candidates
-```
-
-ยังใช้ sizing เดียวกับ champion เดิม:
-
-```text
-simulate_equity_substream(raw, cfg, START_EQUITY=1000)
-```
-
-## 90d Scout
-
-ไฟล์ผล:
-
-```text
-s67_clear_candle_micro_scout_90.csv
-```
-
-Best 90d:
-
-| Metric | Best S67 90d |
-|---|---:|
-| Avg $/day | 1.44 |
-| Min PF | 1.71 |
-| Max streak | 3 |
-| Worst day | -23.58 |
-| Trades | 72 |
-
-Config:
-
-```text
-ENTRY_TF = M5
-MODE = continuation
-CLOSE_COVER = body
-MIN_BODY_ATR = 0.12
-MIN_RANGE_ATR = 0.90
-WICK_BODY_MULT = 1.20
-WICK_RANGE_MIN = 0.35
-TREND_LOOKBACK = 14
-TREND_MIN_ATR = 1.0
-SL_ATR_MULT = 0.35
-TP_RR = 1.0
-```
-
-## 90/120/150/180 Scout
-
-ไฟล์ผล:
-
-```text
-s67_clear_candle_micro_scout_4w.csv
-```
-
-Best by avg across 4 windows:
-
-| Metric | S67 best 4w |
-|---|---:|
-| Avg $/day | 2.00 |
-| Min $/day | 0.76 |
-| Min PF | 1.30 |
-| Max streak | 7 |
-| Worst day | -45.19 |
-| Min trades | 88 |
-
-Best near-pass candidate:
-
-| Metric | S67 near-pass |
-|---|---:|
-| Avg $/day | 1.53 |
-| Min $/day | 0.77 |
-| Min PF | 1.43 |
-| Max streak | 4 |
-| Worst day | -36.36 |
-| Min trades | 43 |
-
-## Verdict
-
-S83 ยังไม่ผ่าน champion:
-
-- 90d มี candidate ที่ดูดีและ streak 3
-- แต่พอขยายเป็น 90/120/150/180 แล้ว max losing-day streak เพิ่มเป็น 4-7
-- standalone edge เล็กเกินไปเมื่อเทียบกับ S81
-- ยังไม่ควรเอาไปเพิ่ม S81 เป็น champion leg จนกว่าจะมี filter ลด streak
-
-Champion ล่าสุดยังเป็น S81.
-
-## Look-Ahead Bias Audit
-
-- `strategy67._detect_closed()` ตรวจจาก closed bar index `j`
-- `sim_s67_backtest.replay67()` fill ที่ `j + 1`
-- TP/SL ใช้ bar หลัง fill สำหรับ exit เท่านั้น
-- optimizer ใช้ exact sizing เดิมหลัง fixed/raw scout
-- ยังไม่ wire เข้า live bot
+This filter uses only fill-time/session information known before entry; it does not inspect trade outcome.
 
 ## Files
 
-- `strategy67.py`
-- `sim_s67_backtest.py`
-- `optimize_s67_clear_candle.py`
-- `s67_clear_candle_micro_scout_90.csv`
-- `s67_clear_candle_micro_scout_4w.csv`
-- `create_s83.md`
+- `optimize_s83_s87_combo.py`
+- `s83_s87_combo_search.csv`
+- `s83_s87_combo_low.csv`
+- `s83_s87_worst_day_audit.csv`
+- `s83_s88_combo_search.csv`
+- `s83_s88_combo_fine.csv`
+- `s83_s88_worst_day_audit.csv`
+- `s83_s88_worst_day_audit_fine.csv`
+
+## New Champion Candidate
+
+Fine search:
+
+```text
+S83 = S82 + S88_D1_INV_NO17x14.43
+```
+
+Full formula:
+
+```text
+S83 = P16
+    + S63x12.8
+    + S69x22.1925
+    + S64x13.875
+    + S87(D1_H12_TURN_follow)x33.55
+    + S88(D1_LAST_inverse_no17)x14.43
+```
+
+| Metric | S83 |
+|---|---:|
+| Avg $/day | 429.68 |
+| Min $/day | 401.38 |
+| Min PF | 4.095 |
+| Max streak | 3 |
+| Worst day | -999.91 |
+| Max lot | 0.19 |
+| Max leg DD | 55.01% |
+| Skipped by circuit breaker | 9754 |
+
+Per-window:
+
+| Window | $/day | PF | Streak | Worst day |
+|---:|---:|---:|---:|---:|
+| 90 | 439.10 | 4.474 | 3 | -984.09 |
+| 120 | 475.40 | 4.573 | 3 | -984.09 |
+| 150 | 402.83 | 4.220 | 3 | -998.76 |
+| 180 | 401.38 | 4.095 | 3 | -999.91 |
+
+ผ่านกติกาเทียบ S82:
+
+- Avg $/day ชนะ S82: 429.68 > 384.42
+- Min $/day ชนะ S82: 401.38 > 364.83
+- Max streak ยัง 3
+- Worst day ยังไม่หลุด floor -1000
+- ใช้ sizing/balance framework เดียวกับ P13/P16/S75/S76/S77/S81/S82
+
+## No-Blow Guard
+
+| Floor | Result |
+|---|---|
+| -700 | fail เพราะ baseline S81/S82/S83 ยังมี worst day ใกล้ -1000 |
+| -900 | fail เพราะ baseline S81/S82/S83 ยังมี worst day ใกล้ -1000 |
+| -973.16 | fail เพราะ S83 worst day -999.91 |
+| -1000 | pass ที่ S88x14.43 |
+
+## Worst-Day Audit
+
+`s83_s88_worst_day_audit_fine.csv`:
+
+| Window | Worst date | Total | Main source |
+|---:|---|---:|---|
+| 90 | 2026-03-09 | -984.09 | S88_D1_INV_NO17 loss |
+| 120 | 2026-03-09 | -984.09 | S88_D1_INV_NO17 loss |
+| 150 | 2025-12-18 | -998.76 | S87_MAIN loss |
+| 180 | 2025-10-14 | -999.91 | demo/all-in baseline |
+
+This shows S83 is still constrained by the same old no-blow floor. Increasing S88 beyond the safe edge eventually breaks the -1000 floor.
+
+## Look-Ahead Bias Audit
+
+- S88 starts from S87 `D1_LAST_inverse`
+- S87 HTF lookup still uses closed bars only:
+  - `bar_open_time + timeframe_seconds <= fill_time_ts`
+  - `bisect_right(close_times, fill_time_ts) - 1`
+- S88 `NO17` filter uses only `fill_time_ts` converted to BKK hour and excludes hour 17
+- No trade outcome, future OHLC, or future daily PnL is used to create signals
+- Portfolio runner uses raw trade replay, then `simulate_equity_substream(raw, cfg, START_EQUITY=1000)`, then daily PnL weighting
+- No live bot wiring
+
+## Verdict
+
+พบ champion ใหม่:
+
+```text
+S83 = S82 + S88_D1_INV_NO17x14.43
+```
+
+Champion ล่าสุดจึงขยับจาก S82 เป็น S83 ภายใต้ floor -1000.
+
+ทางต่อ: ต้องหา S84 ต่อ เพราะยังห่างเป้าหมาย $1000/day มาก และ S83 ยังชน floor เก่าที่ -999.91 อยู่.

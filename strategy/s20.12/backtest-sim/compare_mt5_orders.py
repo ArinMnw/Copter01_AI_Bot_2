@@ -102,12 +102,24 @@ def main():
         if not is_target_strat:
              continue
 
+        # ดึง SL/TP จาก opening order ของ position นี้
+        mt5_sl, mt5_tp = None, None
+        orders = mt5.history_orders_get(position=d.position_id)
+        if orders:
+            for o in orders:
+                if o.sl or o.tp:
+                    mt5_sl = o.sl if o.sl else None
+                    mt5_tp = o.tp if o.tp else None
+                    break
+
         act_trades.append({
             "MT5_Open_Time": open_dt_bkk,
             "MT5_Close_Time": dt_bkk,
             "MT5_Type": typ,
             "MT5_Price": d.price,
             "MT5_Volume": d.volume,
+            "MT5_SL": mt5_sl,
+            "MT5_TP": mt5_tp,
             "MT5_P&L": d.profit + d.commission + d.swap,
             "MT5_Comment": d.comment,
             "MT5_Position_ID": d.position_id
@@ -116,13 +128,21 @@ def main():
     df_act = pd.DataFrame(act_trades)
     print(f"✅ พบประวัติการปิดออเดอร์ใน MT5: {len(df_act)} รายการ")
 
-    # Merge logic — จับคู่เฉพาะเมื่อ open+close ตรงกันจริงระดับ ชม:นาที (ไม่สนวินาที) เท่านั้น
+    # Merge logic — open ต้องตรงระดับ ชม:นาที, close ต้องต่างกันไม่เกิน 10 วินาที
+    # (SIM บันทึก close time เป็น bar open time ที่ตรวจเจอ SL/TP ส่วน MT5 execute จริงอาจช้ากว่า
+    # เล็กน้อย ใช้ 10s tolerance กัน mismatch จากความล่าช้าเล็กน้อยหลังบาร์เปิด)
     # ถ้าไม่มี MT5 record ไหนตรงเป๊ะ ให้ปล่อยว่าง (ไม่ force-pair กับแถวที่ใกล้สุดแต่ไม่ใช่คู่จริง
     # เพราะจะหลอกตาว่า "จับคู่ได้" ทั้งที่เป็นออเดอร์คนละตัว)
     def _hhmm_match(a, b) -> bool:
         if a is None or b is None or pd.isna(a) or pd.isna(b):
             return False
         return (a.hour, a.minute) == (b.hour, b.minute)
+
+    def _close_match(a, b) -> bool:
+        # ใช้ HH:MM match เหมือน open — SIM บันทึก bar open time เป็น close time
+        # ดังนั้นความต่างระหว่าง SIM กับ MT5 อาจสูงถึง 60s (M1) หรือ 5 นาที (M5)
+        # การใช้ tolerance วินาทีแคบๆ ทำให้ match ได้น้อยลงแทนที่จะมากขึ้น
+        return _hhmm_match(a, b)
 
     results = []
     matched_indices = set()
@@ -137,7 +157,7 @@ def main():
             for idx, cand in subset.iterrows():
                 cand_open = cand["MT5_Open_Time"].tz_localize(None) if cand["MT5_Open_Time"] is not None else None
                 cand_close = cand["MT5_Close_Time"].tz_localize(None) if cand["MT5_Close_Time"] is not None else None
-                if _hhmm_match(sim_open, cand_open) and _hhmm_match(sim_close, cand_close):
+                if _hhmm_match(sim_open, cand_open) and _close_match(sim_close, cand_close):
                     match = cand
                     matched_indices.add(idx)
                     break
@@ -147,23 +167,27 @@ def main():
 
         res = {
             "SIM_Open_Time":  sim["Time (BKK)"],
+            "MT5_Open_Time":  mt5_open.strftime('%Y-%m-%d %H:%M:%S') if mt5_open is not None else None,
             "SIM_Close_Time": sim["Close Time"],
+            "MT5_Close_Time": mt5_close.strftime('%Y-%m-%d %H:%M:%S') if mt5_close is not None else None,
             "SIM_TF":         sim["TF"],
             "SIM_Type":       sim["Type"],
-            "SIM_Entry":      sim["Entry"],
-            "SIM_Lot":        sim["Lot"] if "Lot" in sim else None,
-            "SIM_P&L":        sim["P&L"],
-            "SIM_Balance":    sim["Balance"] if "Balance" in sim else None,
-            "SIM_Reason":     sim["Reason"],
-            "MT5_Open_Time":  mt5_open.strftime('%Y-%m-%d %H:%M:%S') if mt5_open is not None else None,
-            "MT5_Close_Time": mt5_close.strftime('%Y-%m-%d %H:%M:%S') if mt5_close is not None else None,
             "MT5_Type":       match["MT5_Type"] if match is not None else None,
+            "SIM_Entry":      sim["Entry"],
             "MT5_Price":      match["MT5_Price"] if match is not None else None,
+            "SIM_SL":         sim["SL"] if "SL" in sim else None,
+            "MT5_SL":         match["MT5_SL"] if match is not None else None,
+            "SIM_TP":         sim["TP"] if "TP" in sim else None,
+            "MT5_TP":         match["MT5_TP"] if match is not None else None,
+            "SIM_Lot":        sim["Lot"] if "Lot" in sim else None,
             "MT5_Volume":     match["MT5_Volume"] if match is not None else None,
+            "SIM_P&L":        sim["P&L"],
             "MT5_P&L":        match["MT5_P&L"] if match is not None else None,
+            "SIM_Balance":    sim["Balance"] if "Balance" in sim else None,
             "MT5_Comment":    match["MT5_Comment"] if match is not None else None,
             "MT5_Position_ID": match["MT5_Position_ID"] if match is not None else None,
             "Matched":        match is not None,
+            "SIM_Reason":     sim["Reason"],
         }
         results.append(res)
 
@@ -184,23 +208,27 @@ def main():
                 continue  # นอกช่วงเวลา SIM ที่ขอจริง — ไม่เอามาแสดง กันรก
             results.append({
                 "SIM_Open_Time":  None,
+                "MT5_Open_Time":  act_open.strftime('%Y-%m-%d %H:%M:%S') if act_open is not None else None,
                 "SIM_Close_Time": None,
+                "MT5_Close_Time": act_close.strftime('%Y-%m-%d %H:%M:%S') if act_close is not None else None,
                 "SIM_TF":         None,
                 "SIM_Type":       None,
-                "SIM_Entry":      None,
-                "SIM_Lot":        None,
-                "SIM_P&L":        None,
-                "SIM_Balance":    None,
-                "SIM_Reason":     "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้",
-                "MT5_Open_Time":  act_open.strftime('%Y-%m-%d %H:%M:%S') if act_open is not None else None,
-                "MT5_Close_Time": act_close.strftime('%Y-%m-%d %H:%M:%S') if act_close is not None else None,
                 "MT5_Type":       act["MT5_Type"],
+                "SIM_Entry":      None,
                 "MT5_Price":      act["MT5_Price"],
+                "SIM_SL":         None,
+                "MT5_SL":         act["MT5_SL"],
+                "SIM_TP":         None,
+                "MT5_TP":         act["MT5_TP"],
+                "SIM_Lot":        None,
                 "MT5_Volume":     act["MT5_Volume"],
+                "SIM_P&L":        None,
                 "MT5_P&L":        act["MT5_P&L"],
+                "SIM_Balance":    None,
                 "MT5_Comment":    act["MT5_Comment"],
                 "MT5_Position_ID": act["MT5_Position_ID"],
                 "Matched":        False,
+                "SIM_Reason":     "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้",
             })
 
     df_res = pd.DataFrame(results)
@@ -212,10 +240,66 @@ def main():
     
     out_dir = os.path.join(os.path.dirname(__file__), "..", "excel")
     os.makedirs(out_dir, exist_ok=True)
-    out_file = os.path.join(out_dir, "compare_s20_12.csv")
-    
-    df_res.to_csv(out_file, index=False)
-    print(f"🎉 สร้างไฟล์เปรียบเทียบเสร็จสมบูรณ์!\n📍 บันทึกไว้ที่: {out_file}")
+    out_csv  = os.path.join(out_dir, "compare_s20_12.csv")
+    out_xlsx = os.path.join(out_dir, "compare_s20_12.xlsx")
+
+    df_res.to_csv(out_csv, index=False)
+
+    # ── Excel พร้อมสี SIM (ฟ้า) vs MT5 (ส้ม) ─────────────────────────────
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import PatternFill, Font, Alignment
+        from openpyxl.utils import get_column_letter
+
+        SIM_HEADER = PatternFill(start_color="2E75B6", end_color="2E75B6", fill_type="solid")
+        MT5_HEADER = PatternFill(start_color="C55A11", end_color="C55A11", fill_type="solid")
+        OTH_HEADER = PatternFill(start_color="595959", end_color="595959", fill_type="solid")
+        SIM_ROW    = PatternFill(start_color="DDEEFF", end_color="DDEEFF", fill_type="solid")
+        MT5_ROW    = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+        WHITE_FONT = Font(color="FFFFFF", bold=True)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Compare S20.12"
+
+        cols = list(df_res.columns)
+        for ci, col in enumerate(cols, start=1):
+            cell = ws.cell(row=1, column=ci, value=col)
+            cell.font = WHITE_FONT
+            cell.alignment = Alignment(horizontal="center")
+            if col.startswith("SIM_"):
+                cell.fill = SIM_HEADER
+            elif col.startswith("MT5_"):
+                cell.fill = MT5_HEADER
+            else:
+                cell.fill = OTH_HEADER
+
+        for ri, row in enumerate(df_res.itertuples(index=False), start=2):
+            for ci, col in enumerate(cols, start=1):
+                val = getattr(row, col.replace("&", "_").replace(" ", "_"), None)
+                # pandas มักเปลี่ยน & เป็น _ ใน namedtuple — fallback ดึงจาก dict
+                if val is None:
+                    val = df_res.iloc[ri - 2][col]
+                ws.cell(row=ri, column=ci, value=val)
+                if col.startswith("SIM_"):
+                    ws.cell(row=ri, column=ci).fill = SIM_ROW
+                elif col.startswith("MT5_"):
+                    ws.cell(row=ri, column=ci).fill = MT5_ROW
+
+        # auto width
+        for ci, col in enumerate(cols, start=1):
+            max_len = max(
+                len(str(col)),
+                *(len(str(df_res.iloc[r][col]) if df_res.iloc[r][col] is not None else "") for r in range(len(df_res)))
+            )
+            ws.column_dimensions[get_column_letter(ci)].width = min(max_len + 2, 40)
+
+        wb.save(out_xlsx)
+        print(f"🎉 สร้างไฟล์เปรียบเทียบเสร็จสมบูรณ์!\n📍 CSV : {out_csv}\n📍 XLSX: {out_xlsx}")
+    except ImportError:
+        print(f"🎉 สร้างไฟล์เปรียบเทียบเสร็จสมบูรณ์!\n📍 CSV : {out_csv}\n⚠️  ไม่พบ openpyxl — ข้าม XLSX (pip install openpyxl)")
+    except Exception as _e:
+        print(f"📍 CSV : {out_csv}\n⚠️  สร้าง XLSX ไม่สำเร็จ: {_e}")
     
     # Summary
     matched = df_res[df_res["Matched"] == True]
