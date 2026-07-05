@@ -143,11 +143,15 @@ def _post_filter_raw(raw, args):
     for trade in raw:
         if args.risk_atr_max > 0 and _risk_atr(trade) > args.risk_atr_max:
             continue
+        if args.risk_distance_min > 0 and float(trade.get("risk_distance", 0.0)) < args.risk_distance_min:
+            continue
         if args.risk_distance_max > 0 and float(trade.get("risk_distance", 0.0)) > args.risk_distance_max:
             continue
-        if args.fill_hour_before >= 0:
+        if args.fill_hour_from >= 0 or args.fill_hour_before >= 0:
             hour = config.mt5_ts_to_bkk(int(trade["fill_time_ts"])).hour
-            if hour >= args.fill_hour_before:
+            if args.fill_hour_from >= 0 and hour < args.fill_hour_from:
+                continue
+            if args.fill_hour_before >= 0 and hour >= args.fill_hour_before:
                 continue
         out.append(trade)
     return out
@@ -157,8 +161,12 @@ def _filter_suffix(args):
     parts = []
     if args.risk_atr_max > 0:
         parts.append(f"ratr{args.risk_atr_max:g}")
+    if args.risk_distance_min > 0:
+        parts.append(f"rdmin{args.risk_distance_min:g}")
     if args.risk_distance_max > 0:
         parts.append(f"rd{args.risk_distance_max:g}")
+    if args.fill_hour_from >= 0:
+        parts.append(f"hfrom{args.fill_hour_from}")
     if args.fill_hour_before >= 0:
         parts.append(f"hbefore{args.fill_hour_before}")
     return "" if not parts else "_F" + "_".join(parts)
@@ -335,11 +343,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--windows", default="90,120,150,180")
     ap.add_argument("--base-s86-daily", default="s86_s2010_m30_fsp_fine_daily.csv")
+    ap.add_argument("--base-daily", default="",
+                    help="optional ready-made base daily CSV with days/date/total columns")
+    ap.add_argument("--base-label", default="S87_BASELINE")
+    ap.add_argument("--base-skipped", type=int, default=S87_SKIPPED)
     ap.add_argument("--family", choices=["s84", "s86"], default="s84")
     ap.add_argument("--preset", choices=["micro", "tiny"], default="micro")
     ap.add_argument("--mode", choices=["direct", "inverse", "both"], default="both")
     ap.add_argument("--risk-atr-max", type=float, default=0.0)
+    ap.add_argument("--risk-distance-min", type=float, default=0.0)
     ap.add_argument("--risk-distance-max", type=float, default=0.0)
+    ap.add_argument("--fill-hour-from", type=int, default=-1)
     ap.add_argument("--fill-hour-before", type=int, default=-1)
     ap.add_argument("--max-configs", type=int, default=0)
     ap.add_argument("--skip-configs", type=int, default=0)
@@ -367,7 +381,6 @@ def main():
         configs = configs[:args.max_configs]
 
     tfs = sorted({cfg["ENTRY_TF"] for cfg in configs} | {"M30"})
-    base_s86_daily = _load_base_daily(args.base_s86_daily, windows)
     if not config.mt5_initialize(mt5):
         raise SystemExit(f"MT5 initialize ล้มเหลว: {mt5.last_error()}")
     try:
@@ -379,9 +392,16 @@ def main():
     finally:
         mt5.shutdown()
 
-    base_daily = _build_s87_daily(base_s86_daily, windows, bars_by_tf_days)
-    _write_s87_daily(args.s87_daily_out, base_daily, windows)
-    base_summary = _summ(_daily_rows(base_daily, windows))
+    if args.base_daily:
+        base_daily = _load_base_daily(args.base_daily, windows)
+    else:
+        base_s86_daily = _load_base_daily(args.base_s86_daily, windows)
+        base_daily = _build_s87_daily(base_s86_daily, windows, bars_by_tf_days)
+        _write_s87_daily(args.s87_daily_out, base_daily, windows)
+    base_rows = _daily_rows(base_daily, windows)
+    for row in base_rows:
+        row["skipped"] = args.base_skipped
+    base_summary = _summ(base_rows)
 
     modes = ["direct", "inverse"] if args.mode == "both" else [args.mode]
     candidates = []
@@ -422,7 +442,7 @@ def main():
                         "best_day": float(vals.max()),
                         "max_lot": max(S87_MAX_LOT, float(eq.get("lot_max", 0.0))),
                         "max_dd": max(S87_MAX_DD, float(eq.get("max_dd_pct", 0.0))),
-                        "skipped": S87_SKIPPED + int(eq.get("skipped_by_circuit_breaker", 0)),
+                "skipped": args.base_skipped + int(eq.get("skipped_by_circuit_breaker", 0)),
                     })
                 summary = _summ(rows)
                 beats = (
@@ -454,14 +474,14 @@ def main():
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
-        for r in _daily_rows(base_daily, windows):
+        for r in base_rows:
             w.writerow({
-                "timestamp": ts, "rank": 0, "label": "S87_BASELINE", "add_weight": "",
+                "timestamp": ts, "rank": 0, "label": args.base_label, "add_weight": "",
                 "beats_s87": "", "floor_flags": _floor_flags(base_summary, floors), "score": "",
                 "avg_day": round(base_summary["avg_day"], 2), "min_day": round(base_summary["min_day"], 2),
                 "min_pf": round(base_summary["min_pf"], 3), "max_streak": base_summary["max_streak"],
                 "worst_day": round(base_summary["worst_day"], 2), "max_lot": S87_MAX_LOT,
-                "max_leg_dd_pct": S87_MAX_DD, "skipped_by_cb": S87_SKIPPED,
+                "max_leg_dd_pct": S87_MAX_DD, "skipped_by_cb": args.base_skipped,
                 "days": r["days"], "day": round(r["day"], 2), "daily_pf": round(r["pf"], 3),
                 "window_streak": r["streak"], "window_worst_day": round(r["worst_day"], 2),
                 "best_day": round(r["best_day"], 2), "raw_counts": "",
@@ -485,7 +505,7 @@ def main():
         fields_a = ["label", "days", "date", "total", "base_s87", "overlay", "weight"]
         w = csv.DictWriter(f, fieldnames=fields_a)
         w.writeheader()
-        for label, weight, leg_arrays in [("S87_BASELINE", 0.0, None)] + [
+        for label, weight, leg_arrays in [(args.base_label, 0.0, None)] + [
             (f"{label}x{weight:g}", weight, leg_arrays)
             for _score, label, weight, _rows, _summary, _beats, _raw_counts, leg_arrays in candidates[:20]
         ]:
@@ -502,7 +522,7 @@ def main():
                 })
 
     print(
-        f"S87_BASELINE avg$/d={base_summary['avg_day']:.2f} min$/d={base_summary['min_day']:.2f} "
+        f"{args.base_label} avg$/d={base_summary['avg_day']:.2f} min$/d={base_summary['min_day']:.2f} "
         f"PF={base_summary['min_pf']:.2f} st={base_summary['max_streak']} worst={base_summary['worst_day']:.2f}"
     )
     print(f"S88 family={args.family} configs={len(configs)} preset={args.preset} modes={','.join(modes)}")
