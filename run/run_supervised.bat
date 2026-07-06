@@ -2,6 +2,8 @@
 title Copter Gold Bot (Supervised)
 chcp 65001 >nul
 cd /d "%~dp0.."
+set "BOT_PROFILE="
+set "BOT_PROFILE_ENV="
 
 echo ==================================
 echo   Copter Gold Bot - Supervised

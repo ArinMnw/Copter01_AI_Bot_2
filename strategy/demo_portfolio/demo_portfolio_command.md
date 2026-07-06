@@ -13,6 +13,54 @@ python strategy/demo_portfolio/backtest-sim/<script>.py [args...]
 
 ---
 
+## 0. เลือกบัญชีด้วย `BOT_PROFILE` บน Windows
+
+สคริปต์ในหน้านี้ import `config.py` ดังนั้นถ้าต้องการใช้ profile แยก ต้องตั้ง `BOT_PROFILE` ก่อนรัน
+
+Profile ที่ใช้บ่อย:
+
+- `demo-iux-2101182460` = Demo Portfolio `P13,P16`
+- `demo-iux-2101182461` = Demo Portfolio `AF22,AF34,AF47`
+
+Windows `cmd` ใช้ syntax แบบ bash ไม่ได้ คำสั่งนี้ใช้ไม่ได้:
+
+```bat
+BOT_PROFILE=demo-iux-2101182460 python strategy/demo_portfolio/backtest-sim/export_demo_portfolio_compare.py all --days 7
+```
+
+ให้ใช้แบบ 2 บรรทัด:
+
+```bat
+set BOT_PROFILE=demo-iux-2101182460
+python strategy\demo_portfolio\backtest-sim\export_demo_portfolio_compare.py all --days 7
+```
+
+หรือแบบบรรทัดเดียว:
+
+```bat
+set BOT_PROFILE=demo-iux-2101182460 && python strategy\demo_portfolio\backtest-sim\export_demo_portfolio_compare.py all --days 7
+```
+
+ถ้าใช้ PowerShell:
+
+```powershell
+$env:BOT_PROFILE="demo-iux-2101182460"; python strategy/demo_portfolio/backtest-sim/export_demo_portfolio_compare.py all --days 7
+```
+
+เช็ก profile ก่อนรัน:
+
+```bat
+set BOT_PROFILE=demo-iux-2101182460 && python -c "import config; print(config.BOT_PROFILE, config.MT5_LOGIN, config.DEMO_PORTFOLIO_ACTIVE)"
+```
+
+ตัวอย่างสำหรับบัญชี AF:
+
+```bat
+set BOT_PROFILE=demo-iux-2101182461 && python -c "import config; print(config.BOT_PROFILE, config.MT5_LOGIN, config.DEMO_PORTFOLIO_ACTIVE)"
+```
+
+---
+
 ## 1. Backtest — `backtest_demo_portfolio.py`
 
 รัน backtest จำลองย้อนหลัง (ดึง config จาก `demo_portfolio.py` โดยตรง ไม่มี drift)
