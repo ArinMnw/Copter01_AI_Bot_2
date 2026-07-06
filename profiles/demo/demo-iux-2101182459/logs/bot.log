@@ -948,3 +948,738 @@
 [2026-07-06 17:02:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
 [2026-07-06 17:02:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
 [2026-07-06 17:02:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:08] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 18:01:21] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-06 18:01:21] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339281 | bid=4154.2 | ask=4154.34 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=True
+[2026-07-06 18:01:22] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4155.53 | sweep_bar=18:53 06-Jul-2026 | confirm_bar=18:54 06-Jul-2026
+[2026-07-06 18:01:22] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4159.59 | sweep_bar=15:40 06-Jul-2026 | confirm_bar=15:40 06-Jul-2026
+[2026-07-06 18:01:22] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4147.20 | sweep_bar=16:45 06-Jul-2026 | confirm_bar=16:50 06-Jul-2026
+[2026-07-06 18:01:22] DIVERGENCE_FOUND | S20.12.SweepReversal | tf=M5 | sid=20.12 | signal=BUY | candle_time=17:55 06-Jul-2026 | entry=4158.01 | sl=4150.89 | tp=4161.26 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:01:22] PATTERN_FOUND | S20.12.SweepReversal | tf=M5 | sid=20.12 | signal=BUY | entry=4158.01 | sl=4150.89 | tp=4161.26 | flow_id=M5|S20.12|BUY|T1783338900|E4158.01|SL4150.89|TP4161.26
+[2026-07-06 18:01:24] ORDER_CREATED | S20.12.SweepReversal | tf=M5 | sid=20.12 | signal=BUY | entry=4158.01 | sl=4150.89 | tp=4161.26 | ticket=556768921 | order_type=BUY | trend_filter=- | hhll_last_label=LL | flow_id=M5|S20.12|BUY|T1783338900|E4158.01|SL4150.89|TP4161.26 | htf_ltf=- | scale_out=False
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4037.62 | sweep_bar=22:00 30-Jun-2026 | confirm_bar=23:00 30-Jun-2026
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:24] DIVERGENCE_FOUND | S20.12.NoWickTrap | tf=H4 | sid=20.12 | signal=SELL | candle_time=14:00 06-Jul-2026 | entry=4168.9 | sl=4184.05 | tp=4133.44 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:01:24] PATTERN_FOUND | S20.12.NoWickTrap | tf=H4 | sid=20.12 | signal=SELL | entry=4168.9 | sl=4184.05 | tp=4133.44 | flow_id=H4|S20.12|SELL|T1783324800|E4168.90|SL4184.05|TP4133.44
+[2026-07-06 18:01:24] ML_FILTER | ML Score too low (0.41 < 0.45) [OBSERVABLE] | tf=H4 | sid=20.12 | signal=SELL
+[2026-07-06 18:01:24] ORDER_CREATED | S20.12.NoWickTrap | tf=H4 | sid=20.12 | signal=SELL | entry=4168.9 | sl=4184.05 | tp=4133.44 | ticket=556768932 | order_type=SELL | trend_filter=- | hhll_last_label=HH | flow_id=H4|S20.12|SELL|T1783324800|E4168.90|SL4184.05|TP4133.44 | htf_ltf=- | scale_out=False
+[2026-07-06 18:01:25] DIVERGENCE_FOUND | S20.12.SweepReversal | tf=H12 | sid=20.12 | signal=SELL | candle_time=06:00 06-Jul-2026 | entry=4178.32 | sl=4234.77 | tp=4098.65 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:01:25] PATTERN_FOUND | S20.12.SweepReversal | tf=H12 | sid=20.12 | signal=SELL | entry=4178.32 | sl=4234.77 | tp=4098.65 | flow_id=H12|S20.12|SELL|T1783296000|E4178.32|SL4234.77|TP4098.65
+[2026-07-06 18:01:25] ORDER_CREATED | S20.12.SweepReversal | tf=H12 | sid=20.12 | signal=SELL | entry=4178.32 | sl=4234.77 | tp=4098.65 | ticket=556768974 | order_type=SELL | trend_filter=- | hhll_last_label=LL | flow_id=H12|S20.12|SELL|T1783296000|E4178.32|SL4234.77|TP4098.65 | htf_ltf=- | scale_out=False
+[2026-07-06 18:01:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-06 18:01:25] SCAN_SLOW | scan cycle ใช้เวลา 3.35s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.09s scan_all_tf=3.26s export_trend_state=0.01s
+[2026-07-06 18:01:26] SCAN_SKIP | ⏭️ [38;5;208mM5[0m: เทรดแท่งนี้ไปแล้ว | tf=M5
+[2026-07-06 18:01:26] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:26] SWEEP_RESET | SWEEP_HIGH | tf=H1 | reason=expired
+[2026-07-06 18:01:26] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:26] SCAN_SKIP | ⏭️ [38;5;27mH4[0m: เทรดแท่งนี้ไปแล้ว | tf=H4
+[2026-07-06 18:01:26] SCAN_SKIP | ⏭️ [38;5;129mH12[0m: เทรดแท่งนี้ไปแล้ว | tf=H12
+[2026-07-06 18:01:26] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-06 18:01:27] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101182459` | 📊 Balance: `1000.36` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy: S20.12: FutureKey | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-06 17:02:23` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-06 18:01:28] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *S20.12: FutureKey* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-06 18:01:29] ENTRY_FILL | Limit fill detected | ticket=556768921 | side=BUY | tf=M5 | sid=20.12 | pattern=S20.12.SweepReversal | price=4154.38 | sl=4150.89 | tp=4161.26 | fill_time=18:01:24 06/07/2026 | trend=SIDEWAY/LL | rsi=57.428100623706854 | rsi2_state=BUY_ONLY | pd_h=4166.32 | pd_l=4136.54 | pd_eq=4151.43
+[2026-07-06 18:01:29] ENTRY_FILL | Limit fill detected | ticket=556768932 | side=SELL | tf=H4 | sid=20.12 | pattern=S20.12.NoWickTrap | price=4154.25 | sl=4184.05 | tp=4133.44 | fill_time=18:01:24 06/07/2026 | trend=BULL (weak) | rsi=57.84271063569035 | rsi2_state=BUY_ONLY | pd_h=4195.44 | pd_l=3960.16 | pd_eq=4077.8
+[2026-07-06 18:01:29] ENTRY_FILL | Limit fill detected | ticket=556768974 | side=SELL | tf=H12 | sid=20.12 | pattern=S20.12.SweepReversal | price=4154.25 | sl=4234.77 | tp=4098.65 | fill_time=18:01:25 06/07/2026 | trend=BEAR (weak) | rsi=52.5832804858953 | rsi2_state=BUY_ONLY | pd_h=4382.28 | pd_l=3942.68 | pd_eq=4162.48
+[2026-07-06 18:01:29] TG_SENT | 🟢 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:01 | 📊 *Timeframe: M5* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:45 06-Jul-2026 | Low:`0.00` 16:30 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4154.28` | 📌 *Limit ที่:* `4158.01` (ห่าง 3.73) | 🛑 SL: `4150.89` | 🎯 TP: `4161.26` | ⚖️ R:R `1:0.46` | 📦 `0.03` lot | Flow: `M5-S20.12-BUY-T1783338900`
+[2026-07-06 18:01:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:31] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:31] TG_SENT | 🟢 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:01 | 📊 *Timeframe: M5* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:45 06-Jul-2026 | Low:`0.00` 16:30 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4154.28` | 📌 *Limit ที่:* `4158.01` (ห่าง 3.73) | 🛑 SL: `4150.89` | 🎯 TP: `4161.26` | ⚖️ R:R `1:0.46` | 📦 `0.01` lot | 🔖 Ticket: `556768921` | Flow: `M5-S20.12-BUY-T1783338900`
+[2026-07-06 18:01:33] TG_SENT | 🔴 *S20.12.NoWickTrap* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:01 | 📊 *Timeframe: H4* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 22:00 17-Jun-2026 | Low:`0.00` 06:00 30-Jun-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.NoWickTrap |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4154.24` | 📌 *Limit ที่:* `4168.9` (ห่าง 14.66) | 🛑 SL: `4184.05` | 🎯 TP: `4133.44` | ⚖️ R:R `1:2.34` | 📦 `0.01` lot | Flow: `H4-S20.12-SELL-T1783324800`
+[2026-07-06 18:01:34] TG_SENT | 🔴 *S20.12.NoWickTrap* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:01 | 📊 *Timeframe: H4* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 22:00 17-Jun-2026 | Low:`0.00` 06:00 30-Jun-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.NoWickTrap |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4154.24` | 📌 *Limit ที่:* `4168.9` (ห่าง 14.66) | 🛑 SL: `4184.05` | 🎯 TP: `4133.44` | ⚖️ R:R `1:2.34` | 📦 `0.01` lot | 🔖 Ticket: `556768932` | Flow: `H4-S20.12-SELL-T1783324800`
+[2026-07-06 18:01:35] TG_SENT | 🔴 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:01 | 📊 *Timeframe: H12* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 18:00 17-Jun-2026 | Low:`0.00` 06:00 11-Jun-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4154.25` | 📌 *Limit ที่:* `4178.32` (ห่าง 24.07) | 🛑 SL: `4234.77` | 🎯 TP: `4098.65` | ⚖️ R:R `1:1.41` | 📦 `0.01` lot | Flow: `H12-S20.12-SELL-T1783296000`
+[2026-07-06 18:01:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:36] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:36] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:36] TG_SENT | 🔴 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:01 | 📊 *Timeframe: H12* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 18:00 17-Jun-2026 | Low:`0.00` 06:00 11-Jun-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4154.25` | 📌 *Limit ที่:* `4178.32` (ห่าง 24.07) | 🛑 SL: `4234.77` | 🎯 TP: `4098.65` | ⚖️ R:R `1:1.41` | 📦 `0.01` lot | 🔖 Ticket: `556768974` | Flow: `H12-S20.12-SELL-T1783296000`
+[2026-07-06 18:01:38] TG_SENT | 🔔 *Limit Fill - BUY* | 🟢 Ticket:`556768921` | 📝 Pattern: `S20.12.SweepReversal` | 📌 เปิดที่: `4154.38` | 🛑 SL: `4150.89` | 🎯 TP: `4161.26` | 🕐 Fill Time: `18:01:24 06/07/2026` | 📈 Trend: `M5` → `SIDEWAY/LL` | 📊 RSI(14): `57.43` | Cross: `🟢 BUY_ONLY` | ⚖️ PD [M5]: H:`4166.32` L:`4136.54` EQ:`4151.43`
+[2026-07-06 18:01:38] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556768932` | 📝 Pattern: `S20.12.NoWickTrap` | 📌 เปิดที่: `4154.25` | 🛑 SL: `4184.05` | 🎯 TP: `4133.44` | 🕐 Fill Time: `18:01:24 06/07/2026` | 📈 Trend: `H4` → `BULL (weak)` | 📊 RSI(14): `57.84` | Cross: `🟢 BUY_ONLY` | ⚖️ PD [H4]: H:`4195.44` L:`3960.16` EQ:`4077.80`
+[2026-07-06 18:01:39] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556768974` | 📝 Pattern: `S20.12.SweepReversal` | 📌 เปิดที่: `4154.25` | 🛑 SL: `4234.77` | 🎯 TP: `4098.65` | 🕐 Fill Time: `18:01:25 06/07/2026` | 📈 Trend: `H12` → `BEAR (weak)` | 📊 RSI(14): `52.58` | Cross: `🟢 BUY_ONLY` | ⚖️ PD [H12]: H:`4382.28` L:`3942.68` EQ:`4162.48`
+[2026-07-06 18:01:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:43] SCAN_SLOW | scan cycle ใช้เวลา 3.92s > 3s | breakdown=sl_tp_hits=0.13s cancel_pending=0.07s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.47s export_trend_state=0.25s
+[2026-07-06 18:01:44] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:45] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:49] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:49] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:01:56] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:01:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:01:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:01:56] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:01:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:01:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:08] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339328 | bid=4153.59 | ask=4153.73 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:02:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:14] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:14] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:14] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:14] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:14] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:14] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:20] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:20] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:26] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:26] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:31] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:31] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:41] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:45] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:45] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:02:56] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:02:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:02:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:02:56] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:02:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:02:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:00] DIVERGENCE_FOUND | S20.12.NoWickTrap | tf=M1 | sid=20.12 | signal=SELL | candle_time=18:02 06-Jul-2026 | entry=4158.32 | sl=4158.59 | tp=4148.25 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:03:00] PATTERN_FOUND | S20.12.NoWickTrap | tf=M1 | sid=20.12 | signal=SELL | entry=4158.32 | sl=4158.59 | tp=4148.25 | flow_id=M1|S20.12|SELL|T1783339320|E4158.32|SL4158.59|TP4148.25
+[2026-07-06 18:03:00] ORDER_CREATED | S20.12.NoWickTrap | tf=M1 | sid=20.12 | signal=SELL | entry=4158.32 | sl=4158.59 | tp=4148.25 | ticket=556770355 | order_type=SELL | trend_filter=- | hhll_last_label=HL | flow_id=M1|S20.12|SELL|T1783339320|E4158.32|SL4158.59|TP4148.25 | htf_ltf=- | scale_out=False
+[2026-07-06 18:03:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:01] TG_SENT | 🔴 *S20.12.NoWickTrap* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:03 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.NoWickTrap |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.83` | 📌 *Limit ที่:* `4158.32` (ห่าง 5.49) | 🛑 SL: `4158.59` | 🎯 TP: `4148.25` | ⚖️ R:R `1:37.3` | 📦 `0.74` lot | Flow: `M1-S20.12-SELL-T1783339320`
+[2026-07-06 18:03:02] TG_SENT | 🔴 *S20.12.NoWickTrap* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:03 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.NoWickTrap |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.83` | 📌 *Limit ที่:* `4158.32` (ห่าง 5.49) | 🛑 SL: `4158.59` | 🎯 TP: `4148.25` | ⚖️ R:R `1:37.3` | 📦 `0.01` lot | 🔖 Ticket: `556770355` | Flow: `M1-S20.12-SELL-T1783339320`
+[2026-07-06 18:03:03] ENTRY_FILL | Limit fill detected | ticket=556770355 | side=SELL | tf=M1 | sid=20.12 | pattern=S20.12.NoWickTrap | price=4152.83 | sl=4158.59 | tp=4148.25 | fill_time=18:03:01 06/07/2026 | trend=BULL (strong) | rsi=47.69935312359284 | rsi2_state=SELL_ONLY | pd_h=4155.81 | pd_l=4152.51 | pd_eq=4154.16
+[2026-07-06 18:03:04] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556770355` | 📝 Pattern: `S20.12.NoWickTrap` | 📌 เปิดที่: `4152.83` | 🛑 SL: `4158.59` | 🎯 TP: `4148.25` | 🕐 Fill Time: `18:03:01 06/07/2026` | 📈 Trend: `M1` → `BULL (strong)` | 📊 RSI(14): `47.70` | Cross: `🔴 SELL_ONLY` | ⚖️ PD [M1]: H:`4155.81` L:`4152.51` EQ:`4154.16`
+[2026-07-06 18:03:06] SCAN_SKIP | ⏭️ [38;5;196mM1[0m: เทรดแท่งนี้ไปแล้ว | tf=M1
+[2026-07-06 18:03:06] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:06] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:06] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:06] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:06] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:06] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:08] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339389 | bid=4153.23 | ask=4153.37 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:03:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:14] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:14] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:14] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:14] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:14] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:14] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:19] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:19] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:19] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:19] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:19] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:19] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:24] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:24] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:44] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:44] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:49] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:49] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:03:54] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:03:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:03:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:03:54] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:03:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:03:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:08] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339449 | bid=4152.93 | ask=4153.07 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:04:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:20] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:20] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:26] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:41] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:44] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:44] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:49] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:49] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:04:54] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:04:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:04:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:04:55] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:04:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:04:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:01] DIVERGENCE_FOUND | S20.12.SweepReversal | tf=M5 | sid=20.12 | signal=SELL | candle_time=18:00 06-Jul-2026 | entry=4158.08 | sl=4158.75 | tp=4148.12 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:05:01] PATTERN_FOUND | S20.12.SweepReversal | tf=M5 | sid=20.12 | signal=SELL | entry=4158.08 | sl=4158.75 | tp=4148.12 | flow_id=M5|S20.12|SELL|T1783339200|E4158.08|SL4158.75|TP4148.12
+[2026-07-06 18:05:01] ORDER_CREATED | S20.12.SweepReversal | tf=M5 | sid=20.12 | signal=SELL | entry=4158.08 | sl=4158.75 | tp=4148.12 | ticket=556770928 | order_type=SELL | trend_filter=- | hhll_last_label=LL | flow_id=M5|S20.12|SELL|T1783339200|E4158.08|SL4158.75|TP4148.12 | htf_ltf=- | scale_out=False
+[2026-07-06 18:05:01] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:01] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:02] TG_SENT | 🔴 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:05 | 📊 *Timeframe: M5* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:45 06-Jul-2026 | Low:`0.00` 16:30 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.32` | 📌 *Limit ที่:* `4158.08` (ห่าง 5.76) | 🛑 SL: `4158.75` | 🎯 TP: `4148.12` | ⚖️ R:R `1:14.87` | 📦 `0.3` lot | Flow: `M5-S20.12-SELL-T1783339200`
+[2026-07-06 18:05:03] TG_SENT | 🔴 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:05 | 📊 *Timeframe: M5* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:45 06-Jul-2026 | Low:`0.00` 16:30 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.32` | 📌 *Limit ที่:* `4158.08` (ห่าง 5.76) | 🛑 SL: `4158.75` | 🎯 TP: `4148.12` | ⚖️ R:R `1:14.87` | 📦 `0.01` lot | 🔖 Ticket: `556770928` | Flow: `M5-S20.12-SELL-T1783339200`
+[2026-07-06 18:05:04] ENTRY_FILL | Limit fill detected | ticket=556770928 | side=SELL | tf=M5 | sid=20.12 | pattern=S20.12.SweepReversal | price=4152.32 | sl=4158.75 | tp=4148.12 | fill_time=18:05:01 06/07/2026 | trend=SIDEWAY/LL | rsi=55.54940168881713 | rsi2_state=BUY_ONLY | pd_h=4166.32 | pd_l=4136.54 | pd_eq=4151.43
+[2026-07-06 18:05:04] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556770928` | 📝 Pattern: `S20.12.SweepReversal` | 📌 เปิดที่: `4152.32` | 🛑 SL: `4158.75` | 🎯 TP: `4148.12` | 🕐 Fill Time: `18:05:01 06/07/2026` | 📈 Trend: `M5` → `SIDEWAY/LL` | 📊 RSI(14): `55.55` | Cross: `🟢 BUY_ONLY` | ⚖️ PD [M5]: H:`4166.32` L:`4136.54` EQ:`4151.43`
+[2026-07-06 18:05:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:09] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339509 | bid=4153.68 | ask=4153.82 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:05:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:19] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:19] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:19] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:19] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:19] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:19] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:31] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:31] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:36] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:36] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:36] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:36] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:36] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:36] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:41] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:46] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:46] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:05:55] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:05:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:05:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:05:56] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:05:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:05:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:00] DIVERGENCE_FOUND | S20.12.SweepReversal | tf=M1 | sid=20.12 | signal=BUY | candle_time=18:05 06-Jul-2026 | entry=4158.14 | sl=4151.64 | tp=4159.5 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:06:00] PATTERN_FOUND | S20.12.SweepReversal | tf=M1 | sid=20.12 | signal=BUY | entry=4158.14 | sl=4151.64 | tp=4159.5 | flow_id=M1|S20.12|BUY|T1783339500|E4158.14|SL4151.64|TP4159.50
+[2026-07-06 18:06:00] ORDER_CREATED | S20.12.SweepReversal | tf=M1 | sid=20.12 | signal=BUY | entry=4158.14 | sl=4151.64 | tp=4159.5 | ticket=556771211 | order_type=BUY | trend_filter=- | hhll_last_label=HH | flow_id=M1|S20.12|BUY|T1783339500|E4158.14|SL4151.64|TP4159.50 | htf_ltf=- | scale_out=False
+[2026-07-06 18:06:01] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:01] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:02] TG_SENT | 🟢 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:06 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4153.92` | 📌 *Limit ที่:* `4158.14` (ห่าง 4.22) | 🛑 SL: `4151.64` | 🎯 TP: `4159.5` | ⚖️ R:R `1:0.21` | 📦 `0.03` lot | Flow: `M1-S20.12-BUY-T1783339500`
+[2026-07-06 18:06:03] TG_SENT | 🟢 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:06 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4153.92` | 📌 *Limit ที่:* `4158.14` (ห่าง 4.22) | 🛑 SL: `4151.64` | 🎯 TP: `4159.5` | ⚖️ R:R `1:0.21` | 📦 `0.01` lot | 🔖 Ticket: `556771211` | Flow: `M1-S20.12-BUY-T1783339500`
+[2026-07-06 18:06:03] ENTRY_FILL | Limit fill detected | ticket=556771211 | side=BUY | tf=M1 | sid=20.12 | pattern=S20.12.SweepReversal | price=4153.92 | sl=4151.64 | tp=4159.5 | fill_time=18:06:01 06/07/2026 | trend=BULL (strong) | rsi=52.82824801683285 | rsi2_state=BUY_ONLY | pd_h=4156.39 | pd_l=4152.51 | pd_eq=4154.45
+[2026-07-06 18:06:04] TG_SENT | 🔔 *Limit Fill - BUY* | 🟢 Ticket:`556771211` | 📝 Pattern: `S20.12.SweepReversal` | 📌 เปิดที่: `4153.92` | 🛑 SL: `4151.64` | 🎯 TP: `4159.50` | 🕐 Fill Time: `18:06:01 06/07/2026` | 📈 Trend: `M1` → `BULL (strong)` | 📊 RSI(14): `52.83` | Cross: `🟢 BUY_ONLY` | ⚖️ PD [M1]: H:`4156.39` L:`4152.51` EQ:`4154.45`
+[2026-07-06 18:06:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:08] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339569 | bid=4153.81 | ask=4153.95 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:06:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:16] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:20] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:20] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:45] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:45] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:06:55] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:06:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:06:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:06:55] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:06:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:06:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:01] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:01] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:08] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339629 | bid=4153.37 | ask=4153.51 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:07:11] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:11] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:11] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:11] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:11] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:11] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:21] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:21] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:21] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:21] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:21] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:21] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:31] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:39] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:44] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:44] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:07:54] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:07:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:07:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:07:54] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:07:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:07:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:00] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:BULL→SIDEWAY
+[2026-07-06 18:08:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4152.51 | sweep_bar=19:04 06-Jul-2026 | confirm_bar=19:04 06-Jul-2026
+[2026-07-06 18:08:00] DIVERGENCE_FOUND | S20.12.SweepReversal | tf=M1 | sid=20.12 | signal=SELL | candle_time=18:07 06-Jul-2026 | entry=4158.57 | sl=4158.84 | tp=4148.66 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:08:00] PATTERN_FOUND | S20.12.SweepReversal | tf=M1 | sid=20.12 | signal=SELL | entry=4158.57 | sl=4158.84 | tp=4148.66 | flow_id=M1|S20.12|SELL|T1783339620|E4158.57|SL4158.84|TP4148.66
+[2026-07-06 18:08:00] ORDER_CREATED | S20.12.SweepReversal | tf=M1 | sid=20.12 | signal=SELL | entry=4158.57 | sl=4158.84 | tp=4148.66 | ticket=556771757 | order_type=SELL | trend_filter=- | hhll_last_label=LL | flow_id=M1|S20.12|SELL|T1783339620|E4158.57|SL4158.84|TP4148.66 | htf_ltf=- | scale_out=False
+[2026-07-06 18:08:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:02] TG_SENT | 🔴 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:08 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.59` | 📌 *Limit ที่:* `4158.57` (ห่าง 5.98) | 🛑 SL: `4158.84` | 🎯 TP: `4148.66` | ⚖️ R:R `1:36.7` | 📦 `0.74` lot | Flow: `M1-S20.12-SELL-T1783339620`
+[2026-07-06 18:08:03] ENTRY_FILL | Limit fill detected | ticket=556771757 | side=SELL | tf=M1 | sid=20.12 | pattern=S20.12.SweepReversal | price=4152.59 | sl=4158.84 | tp=4148.66 | fill_time=18:08:01 06/07/2026 | trend=SIDEWAY/LL | rsi=47.069946212094386 | rsi2_state=SELL_ONLY | pd_h=4156.39 | pd_l=4151.93 | pd_eq=4154.16
+[2026-07-06 18:08:03] TG_SENT | 🔴 *S20.12.SweepReversal* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:08 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.SweepReversal |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.59` | 📌 *Limit ที่:* `4158.57` (ห่าง 5.98) | 🛑 SL: `4158.84` | 🎯 TP: `4148.66` | ⚖️ R:R `1:36.7` | 📦 `0.01` lot | 🔖 Ticket: `556771757` | Flow: `M1-S20.12-SELL-T1783339620`
+[2026-07-06 18:08:04] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:04] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:04] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:04] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:04] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:04] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:05] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556771757` | 📝 Pattern: `S20.12.SweepReversal` | 📌 เปิดที่: `4152.59` | 🛑 SL: `4158.84` | 🎯 TP: `4148.66` | 🕐 Fill Time: `18:08:01 06/07/2026` | 📈 Trend: `M1` → `SIDEWAY/LL` | 📊 RSI(14): `47.07` | Cross: `🔴 SELL_ONLY` | ⚖️ PD [M1]: H:`4156.39` L:`4151.93` EQ:`4154.16`
+[2026-07-06 18:08:07] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339689 | bid=4153.02 | ask=4153.16 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:08:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:11] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:11] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:21] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:21] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:21] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:21] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:21] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:21] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:31] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:31] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:36] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:36] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:36] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:36] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:36] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:36] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:41] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:41] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:45] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:46] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:51] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:51] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:51] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:51] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:51] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:51] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:08:56] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:08:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:08:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:08:56] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:08:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:08:56] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:01] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:01] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:08] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339747 | bid=4152.76 | ask=4152.9 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:09:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:11] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:11] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:11] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:20] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:20] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:45] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:46] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:51] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:09:55] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:09:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:09:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:09:55] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:09:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:09:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:10:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:10:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:10:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:10:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:10:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:10:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:10:05] DIVERGENCE_FOUND | S20.12.NoWickTrap | tf=M1 | sid=20.12 | signal=SELL | candle_time=18:09 06-Jul-2026 | entry=4148.85 | sl=4153.53 | tp=4147.58 | div_type=- | pivot_prev_time=- | pivot_cur_time=-
+[2026-07-06 18:10:05] PATTERN_FOUND | S20.12.NoWickTrap | tf=M1 | sid=20.12 | signal=SELL | entry=4148.85 | sl=4153.53 | tp=4147.58 | flow_id=M1|S20.12|SELL|T1783339740|E4148.85|SL4153.53|TP4147.58
+[2026-07-06 18:10:05] ORDER_CREATED | S20.12.NoWickTrap | tf=M1 | sid=20.12 | signal=SELL | entry=4148.85 | sl=4153.53 | tp=4147.58 | ticket=556772311 | order_type=SELL | trend_filter=- | hhll_last_label=LL | flow_id=M1|S20.12|SELL|T1783339740|E4148.85|SL4153.53|TP4147.58 | htf_ltf=- | scale_out=False
+[2026-07-06 18:10:06] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:10:06] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:10:06] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:10:06] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:10:06] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:10:06] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:10:07] TG_SENT | 🔴 *S20.12.NoWickTrap* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:10 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.NoWickTrap |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.20` | 📌 *Limit ที่:* `4148.85` (ห่าง 3.35) | 🛑 SL: `4153.53` | 🎯 TP: `4147.58` | ⚖️ R:R `1:0.27` | 📦 `0.04` lot | Flow: `M1-S20.12-SELL-T1783339740`
+[2026-07-06 18:10:08] TG_SENT | 🔴 *S20.12.NoWickTrap* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:10 | 📊 *Timeframe: M1* | ท่าที่ 20.12 |  |  | 📈 Swing High:`0.00` 14:49 06-Jul-2026 | Low:`0.00` 16:32 06-Jul-2026 |  | 💬 *เหตุผล:* | S20.12 - S20.12.NoWickTrap |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4152.20` | 📌 *Limit ที่:* `4148.85` (ห่าง 3.35) | 🛑 SL: `4153.53` | 🎯 TP: `4147.58` | ⚖️ R:R `1:0.27` | 📦 `0.01` lot | 🔖 Ticket: `556772311` | Flow: `M1-S20.12-SELL-T1783339740`
+[2026-07-06 18:10:09] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783339809 | bid=4152.22 | ask=4152.36 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:10:09] ENTRY_FILL | Limit fill detected | ticket=556772311 | side=SELL | tf=M1 | sid=20.12 | pattern=S20.12.NoWickTrap | price=4152.2 | sl=4153.53 | tp=4147.58 | fill_time=18:10:06 06/07/2026 | trend=SIDEWAY/LL | rsi=44.36810287261425 | rsi2_state=SELL_ONLY | pd_h=4156.39 | pd_l=4151.93 | pd_eq=4154.16
+[2026-07-06 18:10:10] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556772311` | 📝 Pattern: `S20.12.NoWickTrap` | 📌 เปิดที่: `4152.20` | 🛑 SL: `4153.53` | 🎯 TP: `4147.58` | 🕐 Fill Time: `18:10:06 06/07/2026` | 📈 Trend: `M1` → `SIDEWAY/LL` | 📊 RSI(14): `44.37` | Cross: `🔴 SELL_ONLY` | ⚖️ PD [M1]: H:`4156.39` L:`4151.93` EQ:`4154.16`
+[2026-07-06 18:10:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:10:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:10:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:10:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:10:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:10:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:10:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:10:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:10:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:10:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:10:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:10:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:10:18] SCAN_TF_SLOW | scan_one_tf[H12] ใช้เวลา 2.44s > 2s | tf=H12 | duration=2.44
