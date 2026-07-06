@@ -463,6 +463,8 @@ MT5_PATH       = os.getenv("MT5_PATH", MT5_PATH)
 MT5_PORTABLE   = os.getenv("MT5_PORTABLE", str(MT5_PORTABLE)).strip().lower() in ("1", "true", "yes", "on")
 MT5_TIMEOUT_MS = int(os.getenv("MT5_TIMEOUT_MS", str(MT5_TIMEOUT_MS)) or MT5_TIMEOUT_MS)
 MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBER)
+if MT5_PATH and not os.path.isabs(MT5_PATH):
+    MT5_PATH = os.path.abspath(os.path.join(PROFILE_DIR if PROFILE_ACTIVE else ROOT_DIR, MT5_PATH))
 
 AUTO_VOLUME    = 0.01   # lot size สำหรับ auto trade (ฐานของ XAUUSD)
 
