@@ -1,11 +1,31 @@
 import re
 import time
+import os
 import config
 from config import *
 
 _MT5_CONNECTED = False
 _MT5_CONNECTED_CHECK_TS = 0.0
 _MT5_CONNECT_CACHE_SEC = 30.0
+
+
+def _mt5_terminal_path_matches(mt5_path: str) -> bool:
+    if not mt5_path:
+        return True
+    try:
+        term = mt5.terminal_info()
+        actual_dir = os.path.normcase(os.path.abspath(str(getattr(term, "path", "") or "")))
+        expected_dir = os.path.normcase(os.path.abspath(os.path.dirname(mt5_path)))
+        if actual_dir and actual_dir == expected_dir:
+            return True
+        try:
+            from bot_log import log_error
+            log_error("MT5_PATH_MISMATCH", f"expected terminal dir={expected_dir} actual terminal dir={actual_dir}")
+        except Exception:
+            pass
+        return False
+    except Exception:
+        return False
 
 
 def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: float, sid=None) -> float:
@@ -527,23 +547,31 @@ def connect_mt5():
     """เชื่อมต่อ MT5 — ถ้า initialize แล้วและ login อยู่แล้วไม่ต้อง login ซ้ำ"""
     global _MT5_CONNECTED, _MT5_CONNECTED_CHECK_TS
     now_ts = time.time()
+    mt5_path = str(getattr(config, "MT5_PATH", "") or "").strip()
     if _MT5_CONNECTED and (now_ts - _MT5_CONNECTED_CHECK_TS) < _MT5_CONNECT_CACHE_SEC:
-        return True
+        return _mt5_terminal_path_matches(mt5_path)
 
     if _MT5_CONNECTED:
         info = mt5.account_info()
-        if info is not None and int(getattr(info, "login", 0) or 0) == int(config.MT5_LOGIN):
+        if (info is not None
+                and int(getattr(info, "login", 0) or 0) == int(config.MT5_LOGIN)
+                and _mt5_terminal_path_matches(mt5_path)):
             _MT5_CONNECTED_CHECK_TS = now_ts
             return True
         _MT5_CONNECTED = False
 
-    mt5_path = str(getattr(config, "MT5_PATH", "") or "").strip()
     mt5_timeout = int(getattr(config, "MT5_TIMEOUT_MS", 120000) or 120000)
     if mt5_path:
         if not mt5.initialize(path=mt5_path, portable=bool(getattr(config, "MT5_PORTABLE", True)), timeout=mt5_timeout):
             return False
     elif not mt5.initialize(timeout=mt5_timeout):
         return False
+
+    if not _mt5_terminal_path_matches(mt5_path):
+        mt5.shutdown()
+        _MT5_CONNECTED = False
+        return False
+
     # ตรวจว่า login อยู่แล้วหรือยัง
     info = mt5.account_info()
     ok = False
