@@ -345,23 +345,51 @@ async def handle_callback(update, ctx):
                 _log_cb_error("toggle_auto", e)
         await _qanswer(query,f"{'เปิด' if config.auto_active else 'หยุด'} Auto แล้ว")
 
-    elif data in ("demo_p13_toggle", "demo_p16_toggle", "demo_refresh"):
+    elif (
+        data in (
+            "demo_refresh", "demo_af_weight_toggle", "demo_af_weight_scale",
+            "demo_view_xauusd", "demo_view_btcusd",
+        )
+        or (data.startswith("demo_") and data.endswith("_toggle"))
+    ):
         from handlers.btn_demo_portfolio import _build_demo_portfolio_view
+        import demo_portfolio
         is_toggle = data.endswith("_toggle")
-        if is_toggle:
-            portfolio = "P13" if data.startswith("demo_p13_") else "P16"
+        answer_text = "รีเฟรชแล้ว"
+        if data == "demo_view_xauusd":
+            config.DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"
+            answer_text = "แสดงรายละเอียด XAUUSD"
+        elif data == "demo_view_btcusd":
+            config.DEMO_PORTFOLIO_DETAIL_SYMBOL = "BTCUSD"
+            answer_text = "แสดงรายละเอียด BTCUSD"
+        elif data == "demo_af_weight_toggle":
+            config.DEMO_PORTFOLIO_AF_WEIGHT_ENABLED = not config.DEMO_PORTFOLIO_AF_WEIGHT_ENABLED
+            state_txt = "เปิด" if config.DEMO_PORTFOLIO_AF_WEIGHT_ENABLED else "ปิด"
+            answer_text = f"{state_txt} AF weighted sizing แล้ว"
+        elif data == "demo_af_weight_scale":
+            choices = list(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES", [1.0]))
+            cur = float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0))
+            try:
+                idx = choices.index(cur)
+            except ValueError:
+                idx = -1
+            config.DEMO_PORTFOLIO_AF_WEIGHT_SCALE = choices[(idx + 1) % len(choices)]
+            answer_text = f"AF weight scale = {config.DEMO_PORTFOLIO_AF_WEIGHT_SCALE:.2f}x"
+        elif is_toggle:
+            portfolio = data[len("demo_"):-len("_toggle")].upper()
+            if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16")):
+                await _qanswer(query, "ไม่พบ Demo Portfolio นี้")
+                return
             config.DEMO_PORTFOLIO_ACTIVE[portfolio] = not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio, False)
+            state_txt = "เปิด" if config.DEMO_PORTFOLIO_ACTIVE.get(portfolio) else "หยุด"
+            answer_text = f"{state_txt} {portfolio} แล้ว"
         try:
             text, kb = _build_demo_portfolio_view()
             await query.edit_message_text(text, parse_mode="Markdown", reply_markup=kb)
         except Exception as e:
             if "not modified" not in str(e).lower():
                 _log_cb_error("demo_portfolio_toggle", e)
-        if is_toggle:
-            state_txt = "เปิด" if config.DEMO_PORTFOLIO_ACTIVE.get(portfolio) else "หยุด"
-            await _qanswer(query, f"{state_txt} {portfolio} แล้ว")
-        else:
-            await _qanswer(query, "รีเฟรชแล้ว")
+        await _qanswer(query, answer_text)
 
     elif data == "open_strategy_menu":
         active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]

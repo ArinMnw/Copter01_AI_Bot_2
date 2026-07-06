@@ -866,6 +866,37 @@ active_strategies = {
     20.12: False, # ท่าที่ 20.12: FutureKey
 }
 
+
+def _sid_from_env_token(token):
+    token = str(token).strip()
+    if not token:
+        return None
+    try:
+        val = float(token) if "." in token else int(token)
+    except ValueError:
+        return None
+    return int(val) if isinstance(val, float) and val.is_integer() else val
+
+
+def _apply_active_strategies_env_override():
+    raw = os.getenv("ACTIVE_STRATEGIES")
+    if raw is None:
+        return
+    items = [s.strip().upper() for s in raw.split(",") if s.strip()]
+    if not items or items == ["DEFAULT"]:
+        return
+    for sid in active_strategies:
+        active_strategies[sid] = False
+    if items == ["NONE"]:
+        return
+    for item in items:
+        sid = _sid_from_env_token(item)
+        if sid in active_strategies:
+            active_strategies[sid] = True
+
+
+_apply_active_strategies_env_override()
+
 STRATEGY_NAMES = {
     1: "ท่าที่ 1: กลืนกิน/ตำหนิ",
     2: "ท่าที่ 2: FVG",
@@ -1172,6 +1203,39 @@ S20_FIBO_KRH2       = 3.097
 S20_FIBO_KRH3       = 5.165
 S20_FIBO_RUN        = 7.044
 S20_DEFECT_FIBO_RUN = 7.467 # เป้าหมายพิเศษสำหรับท่าที่เล่นกับ Defect
+
+
+def _apply_s20_profile_mode_env_override():
+    mode = str(os.getenv("S20_PROFILE_MODE", "") or "").strip().upper()
+    if not mode:
+        return
+
+    global S20_ENABLED, S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED, S20_8_ENABLED
+    global S20_9_ENABLED, S20_10_ENABLED, S20_11_ENABLED, S20_12_ENABLED
+
+    s20_sids = (20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12)
+    for sid in s20_sids:
+        if sid in active_strategies:
+            active_strategies[sid] = False
+
+    S20_ENABLED = False
+    S20_5_ENABLED = False
+    S20_6_FVG_ENABLED = False
+    S20_7_ENABLED = False
+    S20_8_ENABLED = False
+    S20_9_ENABLED = False
+    S20_10_ENABLED = False
+    S20_11_ENABLED = False
+    S20_12_ENABLED = False
+
+    if mode in ("S20_12_ONLY", "20.12", "S2012"):
+        S20_12_ENABLED = True
+        active_strategies[20.12] = True
+    elif mode in ("OFF", "NONE"):
+        return
+
+
+_apply_s20_profile_mode_env_override()
 
 # ── ท่าที่ 2 FVG Mode ────────────────────────────────────────
 # FVG_NORMAL  = True  → ตั้ง order ทุก TF อิสระ (TF เดียวก็ order)
@@ -1705,20 +1769,42 @@ C_ENTRY = "\033[38;5;226m"   # เหลือง — Entry
 C_SL    = "\033[38;5;196m"   # แดง    — SL
 C_TP    = "\033[38;5;46m"    # เขียว  — TP
 
-# ── Demo Portfolio (P13 "Champion" / P16 "Max-Yield Blend") ──────────────────
+# ── Demo Portfolio (P13/P16 + AF milestone configs) ──────────────────────────
 # ระบบทดสอบแยกอิสระจากบอทหลัก (S1-S20) — ใช้ demo_portfolio.py, state แยกที่
 # demo_portfolio_state.json, magic number แยก (990013/990016), ไม่แตะ
 # active_strategies/bot_state.json/trailing.py — คุมเปิด-ปิดผ่าน Telegram
-# ⚠️ default = เปิดทั้งคู่ (ผู้ใช้ยืนยันแล้ว 2026-07-01) — หลัง bot restart/คอมดับแล้วรันใหม่
-# จะเทรดจริงทันทีโดยไม่ต้องกด Telegram ยืนยันก่อน (ไม่มี safety-net auto-OFF อีกต่อไป)
-# ถ้าต้องการปิดชั่วคราว ใช้ปุ่ม ⏸️ ในเมนู "🧪 Demo Portfolio" บน Telegram
-DEMO_PORTFOLIO_ACTIVE = {"P13": True, "P16": True}     # default เปิดทั้งคู่
+# default หลัก = ปิดทั้งหมด; profile.env แยกแต่ละ profile สามารถ override ได้ด้วย
+# DEMO_PORTFOLIO_ACTIVE=NONE / P13,P16 / AF22,AF34,AF47 / ALL
+DEMO_PORTFOLIO_ACTIVE = {
+    "P13": False,
+    "P16": False,
+    "AF22": False,   # tested target balance ~$1000
+    "AF34": False,   # tested target balance ~$1500
+    "AF47": False,   # tested target balance ~$2000
+}
+_demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
+if _demo_portfolio_active_env is not None:
+    _items = [s.strip().upper() for s in _demo_portfolio_active_env.split(",") if s.strip()]
+    if _items and _items != ["ALL"]:
+        for _name in DEMO_PORTFOLIO_ACTIVE:
+            DEMO_PORTFOLIO_ACTIVE[_name] = False
+        if _items != ["NONE"]:
+            for _name in _items:
+                if _name in DEMO_PORTFOLIO_ACTIVE:
+                    DEMO_PORTFOLIO_ACTIVE[_name] = True
+DEMO_PORTFOLIO_SYMBOL = "XAUUSD"                       # P13/P16/AF trade XAU only; ignore runtime BTC switch
+DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"                # Telegram detail tab: XAUUSD or BTCUSD
 DEMO_PORTFOLIO_SCAN_INTERVAL = 5                       # นาที (เท่ากับ SCAN_INTERVAL เดิม)
 DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg เดียวซ้อนกันจนบัญชีเล็กโดน
                                                         # margin หมด (เจอจริง 2026-07-02: leg D/K
                                                         # ยิงไม้ใหม่ทุกแท่งช่วงเทรนด์แรง จนออเดอร์อื่น
                                                         # โดน 10019 No money) — backtest ไม่ cap ไว้
                                                         # เพราะไม่ได้ simulate margin ของบัญชีจริง
+DEMO_PORTFOLIO_AF_WEIGHT_ENABLED = False               # default OFF: เปิดผ่าน Telegram เท่านั้น
+DEMO_PORTFOLIO_AF_WEIGHT_SCALE = 1.0                    # 1.0 = ใช้ weight เต็มตาม AF backtest
+DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
+DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
+DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely
 
 # ── Triple Scale-Out (TSO) — Config ───────────────────────────
 # เปิด/ปิด ผ่านปุ่ม Telegram (📈 Scale-Out 4X)
@@ -3018,6 +3104,9 @@ def restore_runtime_state():
             ("entry_candle", "entry_candle_focus_suppress_until_flat"),
         ):
             _focus_suppress_until_flat[feature_key] = bool(state.get(state_key, False))
+
+        _apply_active_strategies_env_override()
+        _apply_s20_profile_mode_env_override()
 
         return {
             "restored": True,

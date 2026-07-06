@@ -9,6 +9,8 @@ research portfolios, fully independent from the S1-S20 live bot.
   volume/filter สัญญาณแบบไม่ตรงกับสมมติฐานที่ backtest ใช้ (MIN_LOT คงที่, fixed SL/TP)
 - SL/TP ฝากไว้กับ broker ตรงๆ (research พิสูจน์แล้วว่า fixed SL/TP ดีกว่า trailing/breakeven/
   partial-TP ทุกแบบที่ทดสอบ — ดู create_exit_optimization.md) ไม่ต้องมี exit-management เพิ่ม
+- AF22/AF34/AF47 มี optional weighted sizing แยกต่างหาก ปิดไว้เป็น default และเปิด/ปรับ scale
+  ผ่าน Telegram เท่านั้น เพื่อ forward-run แบบ lot เล็กก่อนหรือจำลอง weight backtest เมื่อพร้อม
 
 ⚠️ สำคัญ (เจอบั๊กจริงตอน deploy 2026-07-01): trailing.py มีฟังก์ชัน generic position-management
 หลายสิบตัว (check_fill_trend_recheck, SL Guard Group, PD Zone fill check ฯลฯ) ที่สแกน
@@ -48,16 +50,53 @@ from strategy47 import S47_DEFAULTS, detect_s47
 from strategy49 import S49_DEFAULTS, detect_s49
 from strategy51 import S51_DEFAULTS, detect_s51
 from strategy56 import S56_DEFAULTS, detect_s56
+from strategy_af import (
+    AF_LADDER_LEGS,
+    AF_PORTFOLIO_LEGS,
+    AF_STRATEGIES,
+    af_raw_cooldown_active,
+    apply_af_filters,
+)
 
 from bot_log import log_event, log_error
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), "demo_portfolio_state.json")
 MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โดยสิ้นเชิง — P13=990013, P16=990016
+AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
 MIN_LOT = 0.01
 BKK_TZ = timezone(timedelta(hours=7))
 
-_TF_MAP = {"M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15}
-_TF_SECS = {"M5": 300, "M15": 900}
+_TF_MAP = {"M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, "M30": mt5.TIMEFRAME_M30}
+_TF_SECS = {"M5": 300, "M15": 900, "M30": 1800}
+
+
+def _demo_symbol():
+    return config.resolve_mt5_symbol(
+        mt5,
+        getattr(config, "DEMO_PORTFOLIO_SYMBOL", "XAUUSD"),
+        set_runtime=False,
+    )
+
+
+def _demo_market_open(symbol):
+    info = mt5.symbol_info(symbol)
+    if info is None or getattr(info, "trade_mode", 0) == 0:
+        return False, "trade disabled"
+    tick = mt5.symbol_info_tick(symbol)
+    if tick is None:
+        return False, "no tick"
+    bid = float(getattr(tick, "bid", 0.0) or 0.0)
+    ask = float(getattr(tick, "ask", 0.0) or 0.0)
+    if bid <= 0 and ask <= 0:
+        return False, "no bid/ask"
+    tick_ts = int(getattr(tick, "time", 0) or 0)
+    if tick_ts <= 0:
+        return False, "no tick time"
+    now_ts = int(datetime.now().timestamp())
+    if abs(now_ts - tick_ts) > 180:
+        return False, "stale tick"
+    return True, "open"
+
 
 # ── tuned cfg เดียวกับที่ backtest ใช้เป๊ะๆ (จาก scratch/blend_17way.py) ──────────
 _CFG_A = dict(S31_DEFAULTS); _CFG_A.update(SL_ATR_MULT=1.2, TP_RR=1.0)
@@ -116,19 +155,42 @@ _LEG_DEFS = {
     "R": ("S56 PrevWeekHL",        detect_s56, _CFG_R, False, "prev_week_hl"),
 }
 
+AF_DEFS = AF_LADDER_LEGS
+
 P13_KEYS = list("BCDFGHIKMNPQR")  # Champion — ถอด A(S31)/E(S38)/L(S45) ที่เป็น sharpe-drag
 P16_KEYS = list("ABCDEFGHIKLMNPQR")  # Max-Yield Blend — ครบทุก leg
 
-PORTFOLIOS = {"P13": P13_KEYS, "P16": P16_KEYS}
-PORTFOLIO_DISPLAY_NAME = {"P13": "🏆 Champion (P13)", "P16": "💰 Max-Yield Blend (P16)"}
+PORTFOLIOS = {"P13": P13_KEYS, "P16": P16_KEYS, **AF_PORTFOLIO_LEGS}
+PORTFOLIO_DISPLAY_NAME = {
+    "P13": "🏆 Champion (P13)",
+    "P16": "💰 Max-Yield Blend (P16)",
+    "AF22": "🎯 AF22 $1000",
+    "AF34": "🎯 AF34 $1500",
+    "AF47": "🎯 AF47 $2000",
+}
+PORTFOLIO_ORDER = ("P13", "P16", "AF22", "AF34", "AF47")
 
 
 def _now_bkk():
     return datetime.now(BKK_TZ)
 
 
+def _portfolio_magic(portfolio_name: str) -> int:
+    if portfolio_name.startswith("AF"):
+        return AF_MAGIC_BASE + int(portfolio_name[2:])
+    return MAGIC_BASE + int(portfolio_name[1:])
+
+
+def _leg_label(key: str) -> str:
+    if key in _LEG_DEFS:
+        return _LEG_DEFS[key][0]
+    if key in AF_DEFS:
+        return AF_DEFS[key]["label"]
+    return key
+
+
 def _fetch_bars(tf_str, count):
-    rates = mt5.copy_rates_from_pos(config.SYMBOL, _TF_MAP[tf_str], 0, count)
+    rates = mt5.copy_rates_from_pos(_demo_symbol(), _TF_MAP[tf_str], 0, count)
     if rates is None or len(rates) == 0:
         return None
     return rates
@@ -153,7 +215,7 @@ def _build_bar_dt_list(bars):
 
 def _prev_week_hl_now(entry_ts):
     """high/low ของสัปดาห์ก่อนหน้า (W1 bar ก่อนหน้าสัปดาห์ปัจจุบัน) — เหมือน sim_s56_backtest"""
-    w1 = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_W1, 0, 12)
+    w1 = mt5.copy_rates_from_pos(_demo_symbol(), mt5.TIMEFRAME_W1, 0, 12)
     if w1 is None or len(w1) == 0:
         return None
     starts = sorted(int(b["time"]) for b in w1)
@@ -167,12 +229,17 @@ def _prev_week_hl_now(entry_ts):
 
 def _load_state():
     if not os.path.exists(STATE_FILE):
-        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "trades": []}
+        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "trades": []}
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            state = json.load(f)
+            state.setdefault("active", {"P13": False, "P16": False})
+            state.setdefault("last_signal_ts", {})
+            state.setdefault("last_raw_signal_ts", {})
+            state.setdefault("trades", [])
+            return state
     except Exception:
-        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "trades": []}
+        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "trades": []}
 
 
 def _save_state(state):
@@ -182,29 +249,71 @@ def _save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
-def _count_open_positions(magic, leg_id):
-    """นับไม้ที่เปิดค้างอยู่ของ leg นี้โดยเฉพาะ (แยกด้วย comment prefix DEMO-<leg_id>) —
+def _demo_comment(leg_id, entry_tf):
+    return f"DEMO-{entry_tf}-{leg_id}"
+
+
+def _count_open_positions(magic, leg_id, entry_tf=None):
+    """นับไม้ที่เปิดค้างอยู่ของ leg นี้โดยเฉพาะ (แยกด้วย comment prefix ของ leg_id) —
     ใช้กัน leg เดียวยิงไม้ใหม่ซ้อนกันไม่จำกัดตอนเทรนด์แรง (เจอจริง 2026-07-02: leg D/K
     ค้าง 5-6 ไม้พร้อมกัน จน margin บัญชีเล็กหมด ออเดอร์อื่นโดน 10019 No money)"""
-    positions = mt5.positions_get(symbol=config.SYMBOL)
+    positions = mt5.positions_get(symbol=_demo_symbol())
     if not positions:
         return 0
-    prefix = f"DEMO-{leg_id}"
-    return sum(1 for p in positions if p.magic == magic and p.comment.startswith(prefix))
+    prefixes = [f"DEMO-{leg_id}"]  # legacy format before TF was moved after DEMO
+    if entry_tf:
+        prefixes.append(_demo_comment(leg_id, entry_tf))
+    return sum(1 for p in positions if p.magic == magic and any(p.comment.startswith(prefix) for prefix in prefixes))
 
 
-def _place_market_order(signal, sl, tp, comment, magic):
+def _round_volume(volume, info):
+    vol_min = float(getattr(info, "volume_min", 0.01) or 0.01)
+    vol_max = float(getattr(info, "volume_max", 100.0) or 100.0)
+    vol_step = float(getattr(info, "volume_step", 0.01) or 0.01)
+    cap_cfg = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", 0.0) or 0.0)
+    cap = min(vol_max, cap_cfg) if cap_cfg > 0 else vol_max
+    volume = max(vol_min, min(float(volume), cap))
+    steps = round((volume - vol_min) / vol_step)
+    return round(vol_min + steps * vol_step, 2)
+
+
+def _af_order_volume(af_def):
+    if not getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_ENABLED", False):
+        return MIN_LOT, {
+            "weighted": False,
+            "weight": float(af_def.get("weight", 1.0)),
+            "scale": float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0)),
+            "raw_volume": MIN_LOT,
+        }
+    weight = float(af_def.get("weight", 1.0))
+    scale = float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0))
+    raw_volume = MIN_LOT * weight * scale
+    info = mt5.symbol_info(_demo_symbol())
+    volume = _round_volume(raw_volume, info) if info else round(raw_volume, 2)
+    return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
+
+
+def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT):
     """วางออเดอร์ตรงๆ ผ่าน mt5.order_send() — ไม่ผ่าน mt5_utils.open_order_market() เพื่อเลี่ยง
     ML_SCORING_ENABLED / SCALE_OUT_ENABLED ที่เป็น global toggle ของบอทเดิม (ดู docstring บนไฟล์)"""
-    tick = mt5.symbol_info_tick(config.SYMBOL)
+    symbol = _demo_symbol()
+    tick = mt5.symbol_info_tick(symbol)
     if not tick:
         return {"success": False, "error": "ดึงราคาไม่ได้"}
     price = tick.ask if signal == "BUY" else tick.bid
     order_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
+    try:
+        margin = mt5.order_calc_margin(order_type, symbol, float(volume), price)
+        account = mt5.account_info()
+        free_margin = float(getattr(account, "margin_free", 0.0) or 0.0) if account else 0.0
+        if margin is not None and free_margin > 0 and float(margin) > free_margin:
+            return {"success": False, "error": f"margin not enough: need {float(margin):.2f}, free {free_margin:.2f}"}
+    except Exception:
+        pass
     result = mt5.order_send({
         "action": mt5.TRADE_ACTION_DEAL,
-        "symbol": config.SYMBOL,
-        "volume": MIN_LOT,
+        "symbol": symbol,
+        "volume": float(volume),
         "type": order_type,
         "price": price,
         "sl": sl,
@@ -222,15 +331,247 @@ def _place_market_order(signal, sl, tp, comment, magic):
     return {"success": False, "error": f"{result.retcode} — {result.comment}"}
 
 
+async def _demo_scan_af(app, portfolio_name: str):
+    af_def = AF_DEFS[portfolio_name]
+    state = _load_state()
+    magic = _portfolio_magic(portfolio_name)
+    cfg = af_def["cfg"]
+    entry_tf = cfg["ENTRY_TF"]
+    bars = _fetch_bars(entry_tf, 500)
+    if bars is None:
+        log_error("DEMO_PORTFOLIO", f"{portfolio_name}: fetch {entry_tf} bars failed")
+        return
+
+    entry_ts = int(bars[-1]["time"])
+    leg_id = f"{portfolio_name}-{af_def['key']}"
+    if state["last_signal_ts"].get(leg_id) == entry_ts:
+        return
+    if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
+        return
+
+    now = _now_bkk()
+    fill_dt = config.mt5_ts_to_bkk(entry_ts)
+    try:
+        res = af_def["detect_fn"](bars, tf=entry_tf, dt_bkk=fill_dt, cfg=cfg)
+    except Exception as e:
+        log_error("DEMO_PORTFOLIO", f"{leg_id} detect error: {type(e).__name__}: {e}")
+        return
+
+    if res.get("signal") in ("BUY", "SELL"):
+        state["last_raw_signal_ts"][leg_id] = entry_ts
+
+    filtered, reason = apply_af_filters(res, af_def, entry_ts)
+    if filtered is None:
+        if reason != "no_signal":
+            _save_state(state)
+            log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped — {reason}")
+        return
+
+    state["last_signal_ts"][leg_id] = entry_ts
+    open_count = _count_open_positions(magic, leg_id, entry_tf)
+    if open_count >= config.DEMO_PORTFOLIO_MAX_POS_PER_LEG:
+        log_event("DEMO_PORTFOLIO_SKIP",
+                  f"{leg_id} {filtered['signal']} skipped — {open_count} positions already open "
+                  f"(cap={config.DEMO_PORTFOLIO_MAX_POS_PER_LEG})")
+        return
+
+    sig = filtered["signal"]
+    sl, tp = float(filtered["sl"]), float(filtered["tp"])
+    volume, volume_meta = _af_order_volume(af_def)
+    comment = _demo_comment(leg_id, entry_tf)
+    result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
+
+    if result.get("success") and result.get("ticket"):
+        try:
+            from trailing import position_sid
+            position_sid[result["ticket"]] = 21
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+
+    trade_log = {
+        "ts": now.isoformat(),
+        "entry_bar_ts": entry_ts,
+        "leg": leg_id,
+        "label": af_def["label"],
+        "signal": sig,
+        "sl": sl,
+        "tp": tp,
+        "success": result.get("success"),
+        "ticket": result.get("ticket"),
+        "error": result.get("error"),
+        "risk_distance": filtered["risk_distance"],
+        "fill_hour": filtered["fill_hour"],
+        "volume": volume,
+        "weighted_sizing": volume_meta["weighted"],
+        "weight": volume_meta["weight"],
+        "weight_scale": volume_meta["scale"],
+        "raw_volume": volume_meta["raw_volume"],
+        "doc": af_def["doc"],
+    }
+    state["trades"].append(trade_log)
+    state["trades"] = state["trades"][-500:]
+    _save_state(state)
+
+    log_event("DEMO_PORTFOLIO_SIGNAL",
+              f"{leg_id} {sig} lot={volume:.2f} sl={sl} tp={tp} rd={filtered['risk_distance']:.2f} "
+              f"weight={volume_meta['weight']:.3f} scale={volume_meta['scale']:.2f} "
+              f"h={filtered['fill_hour']} success={result.get('success')} "
+              f"ticket={result.get('ticket')} err={result.get('error')}")
+
+    if app is not None and result.get("success"):
+        try:
+            msg = (f"📡 *{PORTFOLIO_DISPLAY_NAME[portfolio_name]}*\n"
+                   f"Leg: `{af_def['label']}`\n"
+                   f"{'🟢 BUY' if sig=='BUY' else '🔴 SELL'} @ market lot `{volume:.2f}`\n"
+                   f"SL `{sl:.2f}` TP `{tp:.2f}`\n"
+                   f"RD `{filtered['risk_distance']:.2f}` H`{filtered['fill_hour']}`\n"
+                   f"Weight `x{volume_meta['weight']:.3f}` Scale `{volume_meta['scale']:.2f}`\n"
+                   f"Ticket: `{result.get('ticket')}`")
+            await app.bot.send_message(chat_id=config.MY_USER_ID, text=msg, parse_mode="Markdown")
+        except Exception:
+            pass
+    elif app is not None and not result.get("success") and not result.get("skipped"):
+        try:
+            await app.bot.send_message(
+                chat_id=config.MY_USER_ID,
+                text=f"⚠️ Demo Portfolio {leg_id} order failed: {result.get('error')}",
+            )
+        except Exception:
+            pass
+
+
+async def _demo_scan_af_ladder(app, portfolio_name: str):
+    state = _load_state()
+    magic = _portfolio_magic(portfolio_name)
+    now = _now_bkk()
+    bars_cache = {}
+
+    for key in PORTFOLIOS[portfolio_name]:
+        af_def = AF_DEFS[key]
+        cfg = af_def["cfg"]
+        entry_tf = cfg["ENTRY_TF"]
+        if entry_tf not in bars_cache:
+            bars_cache[entry_tf] = _fetch_bars(entry_tf, 500)
+        bars = bars_cache[entry_tf]
+        if bars is None:
+            log_error("DEMO_PORTFOLIO", f"{portfolio_name}: fetch {entry_tf} bars failed")
+            continue
+
+        entry_ts = int(bars[-1]["time"])
+        leg_id = f"{portfolio_name}-{af_def['key']}"
+        if state["last_signal_ts"].get(leg_id) == entry_ts:
+            continue
+        if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
+            continue
+
+        fill_dt = config.mt5_ts_to_bkk(entry_ts)
+        try:
+            res = af_def["detect_fn"](bars, tf=entry_tf, dt_bkk=fill_dt, cfg=cfg)
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"{leg_id} detect error: {type(e).__name__}: {e}")
+            continue
+
+        if res.get("signal") in ("BUY", "SELL"):
+            state["last_raw_signal_ts"][leg_id] = entry_ts
+
+        filtered, reason = apply_af_filters(res, af_def, entry_ts)
+        if filtered is None:
+            if reason != "no_signal":
+                _save_state(state)
+                log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped - {reason}")
+            continue
+
+        state["last_signal_ts"][leg_id] = entry_ts
+        cap = int(getattr(config, "DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG", 0) or 0)
+        open_count = _count_open_positions(magic, leg_id, entry_tf)
+        if cap > 0 and open_count >= cap:
+            log_event(
+                "DEMO_PORTFOLIO_SKIP",
+                f"{leg_id} {filtered['signal']} skipped - {open_count} positions already open "
+                f"(af_cap={cap})",
+            )
+            continue
+
+        sig = filtered["signal"]
+        sl, tp = float(filtered["sl"]), float(filtered["tp"])
+        volume, volume_meta = _af_order_volume(af_def)
+        comment = _demo_comment(leg_id, entry_tf)
+        result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
+
+        if result.get("success") and result.get("ticket"):
+            try:
+                from trailing import position_sid
+                position_sid[result["ticket"]] = 21
+            except Exception as e:
+                log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+
+        state["trades"].append({
+            "ts": now.isoformat(),
+            "entry_bar_ts": entry_ts,
+            "leg": leg_id,
+            "label": af_def["label"],
+            "signal": sig,
+            "sl": sl,
+            "tp": tp,
+            "success": result.get("success"),
+            "ticket": result.get("ticket"),
+            "error": result.get("error"),
+            "risk_distance": filtered["risk_distance"],
+            "fill_hour": filtered["fill_hour"],
+            "volume": volume,
+            "weighted_sizing": volume_meta["weighted"],
+            "weight": volume_meta["weight"],
+            "weight_scale": volume_meta["scale"],
+            "raw_volume": volume_meta["raw_volume"],
+            "doc": af_def["doc"],
+        })
+        state["trades"] = state["trades"][-1000:]
+        _save_state(state)
+
+        log_event(
+            "DEMO_PORTFOLIO_SIGNAL",
+            f"{leg_id} {sig} lot={volume:.2f} sl={sl} tp={tp} rd={filtered['risk_distance']:.2f} "
+            f"weight={volume_meta['weight']:.3f} scale={volume_meta['scale']:.2f} "
+            f"h={filtered['fill_hour']} success={result.get('success')} "
+            f"ticket={result.get('ticket')} err={result.get('error')}",
+        )
+
+        if app is not None and result.get("success"):
+            try:
+                msg = (
+                    f"[AF SIGNAL] *{PORTFOLIO_DISPLAY_NAME[portfolio_name]}*\n"
+                    f"Leg: `{af_def['label']}`\n"
+                    f"{sig} @ market lot `{volume:.2f}`\n"
+                    f"SL `{sl:.2f}` TP `{tp:.2f}`\n"
+                    f"RD `{filtered['risk_distance']:.2f}` H`{filtered['fill_hour']}`\n"
+                    f"Weight `x{volume_meta['weight']:.3f}` Scale `{volume_meta['scale']:.2f}`\n"
+                    f"Ticket: `{result.get('ticket')}`"
+                )
+                await app.bot.send_message(chat_id=config.MY_USER_ID, text=msg, parse_mode="Markdown")
+            except Exception:
+                pass
+        elif app is not None and not result.get("success") and not result.get("skipped"):
+            try:
+                await app.bot.send_message(
+                    chat_id=config.MY_USER_ID,
+                    text=f"Demo Portfolio {leg_id} order failed: {result.get('error')}",
+                )
+            except Exception:
+                pass
+
+
 async def demo_scan(app, portfolio_name: str):
     """สแกน 1 รอบสำหรับ portfolio ที่ระบุ (P13 หรือ P16) — เรียก detect_s<N>() ของทุก leg
     ด้วยข้อมูล live ล่าสุด ถ้ามี signal ใหม่ (และไม่ติด cooldown) วางออเดอร์ตลาดทันที"""
     if not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False):
         return
+    if portfolio_name in AF_PORTFOLIO_LEGS:
+        await _demo_scan_af_ladder(app, portfolio_name)
+        return
 
     state = _load_state()
     keys = PORTFOLIOS[portfolio_name]
-    magic = MAGIC_BASE + int(portfolio_name[1:])  # P13->990013, P16->990016
+    magic = _portfolio_magic(portfolio_name)  # P13->990013, P16->990016
 
     entry_bars = _fetch_bars("M5", 400)
     if entry_bars is None:
@@ -272,7 +613,7 @@ async def demo_scan(app, portfolio_name: str):
 
         state["last_signal_ts"][leg_id] = entry_ts
 
-        open_count = _count_open_positions(magic, leg_id)
+        open_count = _count_open_positions(magic, leg_id, "M5")
         if open_count >= config.DEMO_PORTFOLIO_MAX_POS_PER_LEG:
             log_event("DEMO_PORTFOLIO_SKIP",
                        f"{leg_id} {sig} skipped — {open_count} positions already open "
@@ -280,7 +621,7 @@ async def demo_scan(app, portfolio_name: str):
             continue
 
         sl, tp = float(res["sl"]), float(res["tp"])
-        comment = f"DEMO-{leg_id}"
+        comment = _demo_comment(leg_id, "M5")
         result = _place_market_order(sig, sl, tp, comment, magic)
 
         if result.get("success") and result.get("ticket"):
@@ -334,7 +675,12 @@ async def demo_scan_job(app):
     portfolio ไหน active เลย"""
     if not any(config.DEMO_PORTFOLIO_ACTIVE.values()):
         return
-    for name in ("P13", "P16"):
+    symbol = _demo_symbol()
+    market_open, reason = _demo_market_open(symbol)
+    if not market_open:
+        log_event("DEMO_PORTFOLIO_SKIP", f"{symbol} market closed - {reason}")
+        return
+    for name in PORTFOLIO_ORDER:
         if config.DEMO_PORTFOLIO_ACTIVE.get(name, False):
             try:
                 await demo_scan(app, name)
@@ -365,10 +711,10 @@ def _fetch_leg_pnl(portfolio_name: str):
     if not tickets:
         return result
 
-    magic = MAGIC_BASE + int(portfolio_name[1:])
+    magic = _portfolio_magic(portfolio_name)
 
     # ── floating (ไม้ที่ยังเปิดอยู่ตอนนี้) ──────────────────────────────────
-    open_positions = mt5.positions_get(symbol=config.SYMBOL)
+    open_positions = mt5.positions_get(symbol=_demo_symbol())
     if open_positions:
         for p in open_positions:
             if p.magic != magic:
@@ -404,12 +750,42 @@ def _fetch_leg_pnl(portfolio_name: str):
     return result
 
 
+def get_symbol_exposure_text(symbol_root: str) -> str:
+    symbol_root = str(symbol_root or "").upper()
+    symbol = config.resolve_mt5_symbol(mt5, symbol_root, set_runtime=False)
+    lines = [
+        f"*{symbol_root} Detail*",
+        f"Symbol: {symbol}",
+    ]
+    if symbol_root != "XAUUSD":
+        lines.append("P13/P16/AF ถูกตั้งให้เทรดเฉพาะ XAUUSD เท่านั้น")
+
+    open_positions = mt5.positions_get(symbol=symbol)
+    pf_positions = []
+    if open_positions:
+        allowed_magic = {_portfolio_magic(name) for name in PORTFOLIO_ORDER}
+        pf_positions = [p for p in open_positions if p.magic in allowed_magic]
+
+    if not pf_positions:
+        lines.append("ไม่มี position ของ Demo Portfolio บน symbol นี้")
+        return "\n".join(lines)
+
+    lines.append(f"โพซิชั่นเปิดอยู่: {len(pf_positions)} ไม้")
+    for p in pf_positions[:20]:
+        portfolio = next((name for name in PORTFOLIO_ORDER if _portfolio_magic(name) == p.magic), str(p.magic))
+        lines.append(
+            f"  `{portfolio}` #{p.ticket} {'BUY' if p.type == 0 else 'SELL'} "
+            f"{p.volume} comment:`{p.comment}` PnL:`{p.profit:.2f}`"
+        )
+    return "\n".join(lines)
+
+
 def get_status_text(portfolio_name: str) -> str:
     """สรุปสถานะสำหรับ Telegram status view — รวมกำไรเฉลี่ยต่อวัน/เดือน/กำไรรวม แยกราย leg"""
     state = _load_state()
     is_active = config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False)
     keys = PORTFOLIOS[portfolio_name]
-    magic = MAGIC_BASE + int(portfolio_name[1:])
+    magic = _portfolio_magic(portfolio_name)
 
     today = _now_bkk().date().isoformat()
     trades_today = [t for t in state["trades"]
@@ -419,12 +795,26 @@ def get_status_text(portfolio_name: str) -> str:
     lines = [
         f"{PORTFOLIO_DISPLAY_NAME[portfolio_name]}",
         f"สถานะ: {'🟢 ทำงานอยู่' if is_active else '⚪ หยุดอยู่'}",
+        f"Symbol: {_demo_symbol()}",
         f"จำนวน leg: {len(keys)}",
         f"Magic: {magic}",
         f"ออเดอร์วันนี้: {n_success} ไม้",
     ]
+    if portfolio_name in AF_PORTFOLIO_LEGS:
+        weights = [float(AF_DEFS[k].get("weight", 1.0)) for k in keys]
+        scale = float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0))
+        sizing_on = getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_ENABLED", False)
+        lot_min = MIN_LOT * (min(weights) * scale if sizing_on and weights else 1.0)
+        lot_max = MIN_LOT * (max(weights) * scale if sizing_on and weights else 1.0)
+        lines.extend([
+            f"AF ladder mode: full {portfolio_name} = AF1..AF{len(keys)}",
+            f"AF weighted sizing: {'ON' if sizing_on else 'OFF'} | scale {scale:.2f}",
+            f"Leg weight range: x{min(weights):.3f}-x{max(weights):.3f}",
+            f"Lot preview per leg: ~{lot_min:.2f}-{lot_max:.2f}",
+            f"AF max positions/leg: {getattr(config, 'DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG', 0) or 'no cap'}",
+        ])
 
-    open_positions = mt5.positions_get(symbol=config.SYMBOL)
+    open_positions = mt5.positions_get(symbol=_demo_symbol())
     if open_positions:
         pf_positions = [p for p in open_positions if p.magic == magic]
         if pf_positions:
@@ -444,7 +834,7 @@ def get_status_text(portfolio_name: str) -> str:
         for leg_id in sorted(pnl_by_leg, key=sort_key, reverse=True):
             d = pnl_by_leg[leg_id]
             key = leg_id.split("-", 1)[1]  # "P13-D" -> "D"
-            label = _LEG_DEFS.get(key, (key,))[0]
+            label = _leg_label(key)
             first_dt = datetime.fromisoformat(d["first_ts"])
             days_elapsed = max((now - first_dt).total_seconds() / 86400.0, 1.0)
             per_day = d["total"] / days_elapsed
