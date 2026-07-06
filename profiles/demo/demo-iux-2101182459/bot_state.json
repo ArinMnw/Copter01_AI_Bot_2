@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-06 16:39:08",
+  "saved_at": "2026-07-06 17:02:23",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -203,12 +203,12 @@
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
     "date": "2026-07-06",
-    "realized": 0.0,
+    "realized": -1.72,
     "wins": 0,
-    "losses": 0,
-    "count": 0,
+    "losses": 1,
+    "count": 1,
     "gross_win": 0.0,
-    "gross_loss": 0.0
+    "gross_loss": -1.72
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -255,15 +255,69 @@
   "sl_guard_group_count": 2,
   "sl_guard_state": {},
   "sl_guard_combined_state": {},
-  "sl_guard_group_state": {},
+  "sl_guard_group_state": {
+    "XAUUSD.IUX": {
+      "SELL": {
+        "M5+M15+M30": {
+          "count": 1,
+          "active": false,
+          "tf_blocked": {},
+          "tf_since": {},
+          "tf_swing_ref": {},
+          "tf_swing_bar_time": {},
+          "tf_blocked_signals": {},
+          "tf_retry_signals": {}
+        },
+        "M1+M5+M15": {
+          "count": 1,
+          "active": false,
+          "tf_blocked": {},
+          "tf_since": {},
+          "tf_swing_ref": {},
+          "tf_swing_bar_time": {},
+          "tf_blocked_signals": {},
+          "tf_retry_signals": {}
+        },
+        "M1+M5": {
+          "count": 1,
+          "active": false,
+          "tf_blocked": {},
+          "tf_since": {},
+          "tf_swing_ref": {},
+          "tf_swing_bar_time": {},
+          "tf_blocked_signals": {},
+          "tf_retry_signals": {}
+        }
+      }
+    }
+  },
   "pdfiboplus_fill_state": {},
   "s10_last_fired_armed_at": {},
-  "last_traded_per_tf": {},
-  "last_traded_sid_tf": {},
+  "last_traded_per_tf": {
+    "M5": 1783334700,
+    "M1": 1783335660
+  },
+  "last_traded_sid_tf": {
+    "M5": {
+      "20.12": 1783334700
+    },
+    "M1": {
+      "20.12": 1783335660
+    }
+  },
   "pending_order_tf": {},
-  "position_tf": {},
-  "position_sid": {},
-  "position_pattern": {},
+  "position_tf": {
+    "556743002": "M5",
+    "556746090": "M1"
+  },
+  "position_sid": {
+    "556743002": 20.12,
+    "556746090": 20.12
+  },
+  "position_pattern": {
+    "556743002": "S20.12.NoWickTrap",
+    "556746090": "S20.12.NoWickTrap"
+  },
   "position_trend_filter": {},
   "position_zone_meta": {},
   "position_forward_meta": {},
@@ -301,5 +355,8 @@
   "s20_session_filter": false,
   "s20_entry_buffer": 390.0,
   "s20_sl_2l2h": 100.0,
-  "fill_notified": []
+  "fill_notified": [
+    556743002,
+    556746090
+  ]
 }
