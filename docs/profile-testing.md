@@ -33,6 +33,8 @@
 - S20 ตัวอื่น / S20 ย่อยอื่น: ปิด
 - Demo Portfolio: ปิดทั้งหมด
 - External S20.12 supervisor: เปิด
+- Auto scan summary / scan swing: ปิดทั้ง Telegram และ command log
+- Trade management extras: ปิด Trail SL, จุดกลับตัว Trail SL, Trail Focus, Opposite Order, Limit Guard, Trend Filter submenu, และ TSO4x
 - เหมาะสำหรับ: forward test S20.12 แบบไม่ปน strategy อื่น
 
 ## demo-iux-2101182460
@@ -48,6 +50,8 @@
   - `AF34 = OFF`
   - `AF47 = OFF`
 - External S20.12 supervisor: ไม่เปิด
+- Auto scan summary / scan swing: ปิดทั้ง Telegram และ command log
+- Trade management extras: ปิด Trail SL, จุดกลับตัว Trail SL, Trail Focus, Opposite Order, Limit Guard, Trend Filter submenu, และ TSO4x
 - เหมาะสำหรับ: forward test P13/P16 เทียบกับ backtest โดยไม่ปน AF หรือ strategy หลัก
 
 ## demo-iux-2101182461
@@ -63,6 +67,8 @@
   - `AF34 = ON`
   - `AF47 = ON`
 - External S20.12 supervisor: ไม่เปิด
+- Auto scan summary / scan swing: ปิดทั้ง Telegram และ command log
+- Trade management extras: ปิด Trail SL, จุดกลับตัว Trail SL, Trail Focus, Opposite Order, Limit Guard, Trend Filter submenu, และ TSO4x
 - เหมาะสำหรับ: forward test AF22/AF34/AF47 แบบ full ladder แยกจาก P13/P16 และ strategy หลัก
 
 ## Config Source
@@ -72,6 +78,21 @@
 - `ACTIVE_STRATEGIES`
 - `S20_PROFILE_MODE`
 - `DEMO_PORTFOLIO_ACTIVE`
+- `SCAN_SUMMARY_TELEGRAM_ENABLED`
+- `SCAN_SWING_TELEGRAM_ENABLED`
+- `SCAN_SUMMARY_LOG_ENABLED`
+- `SCAN_SWING_LOG_ENABLED`
+- `TRAIL_SL_ENABLED`
+- `TRAIL_SL_REVERSAL_OVERRIDE_ENABLED`
+- `TRAIL_SL_FOCUS_NEW_ENABLED`
+- `OPPOSITE_ORDER_ENABLED`
+- `LIMIT_GUARD`
+- `TREND_FILTER_PER_TF_ALL_OFF`
+- `TREND_FILTER_HIGHER_TF_ENABLED`
+- `TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED`
+- `TREND_FILTER_SIDEWAY_HHLL`
+- `TREND_FILTER_SCAN_BLOCK`
+- `SCALE_OUT_ENABLED`
 
 `config.py` จะอ่านค่าเหล่านี้ตอนเริ่มโปรแกรม และ apply ซ้ำหลัง `restore_runtime_state()` เพื่อให้ค่า profile ชนะ `bot_state.json`
 

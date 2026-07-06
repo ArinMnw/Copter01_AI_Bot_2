@@ -1756,7 +1756,7 @@ def _format_scan_summary_telegram_clean(show_tfs: list[str]) -> tuple[str, str]:
         swing_lines.append(f"│ 📈 HH:{_hfmt(_hh_pt)}  LH:{_hfmt(_lh_pt)}")
         swing_lines.append(f"│ 📉 HL:{_hfmt(_hl_pt)}  LL:{_hfmt(_ll_pt)}")
         swing_lines.append("└────────────────")
-    if swing_lines:
+    if getattr(config, "SCAN_SWING_TELEGRAM_ENABLED", True) and swing_lines:
         body_lines.append("━━━━━━━━━━━━━━━━━\n📊 Scan Swing\n\n" + "\n".join(swing_lines))
 
     if _s12_scan_status and active_strategies.get(12, False) and not _s12_scan_status.get("cooldown"):
@@ -2274,16 +2274,20 @@ async def _auto_scan_inner(app):
                 swing_lines.append(f"  │ 📈 {C_SW}HH:{_hfmt_c(_hh_c)}  LH:{_hfmt_c(_lh_c)}{RESET}")
                 swing_lines.append(f"  │ 📉 {C_SW}HL:{_hfmt_c(_hl_c)}  LL:{_hfmt_c(_ll_c)}{RESET}")
                 swing_lines.append("  └────────────────")
-            if swing_lines:
+            if getattr(config, "SCAN_SWING_LOG_ENABLED", True) and swing_lines:
                 blocks.append("\n".join(swing_lines))
             _now_t = _time.time()
             _force_log = (_now_t - _last_scan_summary_log_time) >= SCAN_SUMMARY_FORCE_INTERVAL
-            if tg_key and (tg_key != _last_scan_summary_cmd or _force_log):
+            if (getattr(config, "SCAN_SUMMARY_LOG_ENABLED", True)
+                    and tg_key
+                    and (tg_key != _last_scan_summary_cmd or _force_log)):
                 print("\n".join(blocks))
                 log_block("SCAN_SUMMARY", tg_text)
                 _last_scan_summary_cmd = tg_key
                 _last_scan_summary_log_time = _now_t
-            if tg_key and (tg_key != _last_scan_summary_telegram or _force_log):
+            if (getattr(config, "SCAN_SUMMARY_TELEGRAM_ENABLED", True)
+                    and tg_key
+                    and (tg_key != _last_scan_summary_telegram or _force_log)):
                 await tg(app, tg_text, parse_mode=None)
                 _last_scan_summary_telegram = tg_key
                 print(f"[{now_bkk().strftime('%H:%M:%S')}] SCAN_SUMMARY_TG queued")

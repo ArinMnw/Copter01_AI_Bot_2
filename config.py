@@ -467,6 +467,13 @@ MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBE
 AUTO_VOLUME    = 0.01   # lot size สำหรับ auto trade (ฐานของ XAUUSD)
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
+
+
 def points_scale() -> float:
     """
     Multiplier สำหรับ point/lot ตาม SYMBOL ปัจจุบัน
@@ -488,6 +495,10 @@ TIMEFRAME      = mt5.TIMEFRAME_H1
 TP_MULTIPLIER  = 1.0  # fallback RR 1:1
 SWING_LOOKBACK = 20  # default
 SWING_SUMMARY_MODE = "pivot"  # pair | pivot (used by scanner summary / trend export)
+SCAN_SUMMARY_TELEGRAM_ENABLED = _env_bool("SCAN_SUMMARY_TELEGRAM_ENABLED", True)
+SCAN_SWING_TELEGRAM_ENABLED = _env_bool("SCAN_SWING_TELEGRAM_ENABLED", True)
+SCAN_SUMMARY_LOG_ENABLED = _env_bool("SCAN_SUMMARY_LOG_ENABLED", True)
+SCAN_SWING_LOG_ENABLED = _env_bool("SCAN_SWING_LOG_ENABLED", True)
 SWING_PIVOT_LEFT = 15
 SWING_PIVOT_RIGHT = 10
 TG_QUEUE_DEBUG = False
@@ -1891,6 +1902,47 @@ def compute_tso_effective_steps(tp_orig_dist: float, sid="") -> list:
     return [s1, s2, s3, s4]
 
 
+def _apply_profile_feature_env_overrides():
+    global TRAIL_SL_ENABLED, TRAIL_SL_REVERSAL_OVERRIDE_ENABLED, TRAIL_SL_FOCUS_NEW_ENABLED
+    global OPPOSITE_ORDER_ENABLED, LIMIT_GUARD, SCALE_OUT_ENABLED
+    global TREND_FILTER_SCAN_BLOCK, TREND_FILTER_HIGHER_TF_ENABLED
+    global TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED, TREND_FILTER_SIDEWAY_HHLL
+
+    if os.getenv("TRAIL_SL_ENABLED") is not None:
+        TRAIL_SL_ENABLED = _env_bool("TRAIL_SL_ENABLED", TRAIL_SL_ENABLED)
+    if os.getenv("TRAIL_SL_REVERSAL_OVERRIDE_ENABLED") is not None:
+        TRAIL_SL_REVERSAL_OVERRIDE_ENABLED = _env_bool(
+            "TRAIL_SL_REVERSAL_OVERRIDE_ENABLED", TRAIL_SL_REVERSAL_OVERRIDE_ENABLED
+        )
+    if os.getenv("TRAIL_SL_FOCUS_NEW_ENABLED") is not None:
+        TRAIL_SL_FOCUS_NEW_ENABLED = _env_bool("TRAIL_SL_FOCUS_NEW_ENABLED", TRAIL_SL_FOCUS_NEW_ENABLED)
+    if os.getenv("OPPOSITE_ORDER_ENABLED") is not None:
+        OPPOSITE_ORDER_ENABLED = _env_bool("OPPOSITE_ORDER_ENABLED", OPPOSITE_ORDER_ENABLED)
+    if os.getenv("LIMIT_GUARD") is not None:
+        LIMIT_GUARD = _env_bool("LIMIT_GUARD", LIMIT_GUARD)
+    if os.getenv("SCALE_OUT_ENABLED") is not None:
+        SCALE_OUT_ENABLED = _env_bool("SCALE_OUT_ENABLED", SCALE_OUT_ENABLED)
+
+    if os.getenv("TREND_FILTER_SCAN_BLOCK") is not None:
+        TREND_FILTER_SCAN_BLOCK = _env_bool("TREND_FILTER_SCAN_BLOCK", TREND_FILTER_SCAN_BLOCK)
+    if os.getenv("TREND_FILTER_HIGHER_TF_ENABLED") is not None:
+        TREND_FILTER_HIGHER_TF_ENABLED = _env_bool(
+            "TREND_FILTER_HIGHER_TF_ENABLED", TREND_FILTER_HIGHER_TF_ENABLED
+        )
+    if os.getenv("TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED") is not None:
+        TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED = _env_bool(
+            "TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED", TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
+        )
+    if os.getenv("TREND_FILTER_SIDEWAY_HHLL") is not None:
+        TREND_FILTER_SIDEWAY_HHLL = _env_bool("TREND_FILTER_SIDEWAY_HHLL", TREND_FILTER_SIDEWAY_HHLL)
+    if _env_bool("TREND_FILTER_PER_TF_ALL_OFF", False):
+        for tf_name in TREND_FILTER_PER_TF:
+            TREND_FILTER_PER_TF[tf_name] = False
+
+
+_apply_profile_feature_env_overrides()
+
+
 _RUNTIME_DEFAULTS = {
     "AUTO_VOLUME": AUTO_VOLUME,
     "SCAN_INTERVAL": SCAN_INTERVAL,
@@ -3107,6 +3159,7 @@ def restore_runtime_state():
 
         _apply_active_strategies_env_override()
         _apply_s20_profile_mode_env_override()
+        _apply_profile_feature_env_overrides()
 
         return {
             "restored": True,

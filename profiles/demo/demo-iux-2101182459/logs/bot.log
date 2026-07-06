@@ -1,0 +1,122 @@
+[2026-07-06 16:31:33] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 16:31:36] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-06 16:31:36] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783333895 | bid=4139.91 | ask=4140.05 | tick_ok=True | xau_open=True | current_symbol=XAUUSD | startup=True
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4147.15 | sweep_bar=17:17 06-Jul-2026 | confirm_bar=17:18 06-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4159.59 | sweep_bar=15:40 06-Jul-2026 | confirm_bar=15:40 06-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4147.20 | sweep_bar=16:45 06-Jul-2026 | confirm_bar=16:50 06-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4037.62 | sweep_bar=22:00 30-Jun-2026 | confirm_bar=23:00 30-Jun-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:31:37] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-06 16:31:37] SCAN_SKIP_OVERLAP | auto_scan() กำลังรันอยู่ ข้ามรอบนี้
+[2026-07-06 16:31:37] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 16:31:36 | 🟨 M1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟩 M5 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟦 M15 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟪 M30 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟧 H1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟥 H4 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟫 H12 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | ⬛ D1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด
+[2026-07-06 16:31:37] TG_SENT | 🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux
+[2026-07-06 16:31:39] TG_SENT | ⚡ *สั่งสแกนทันทีหลังสลับ symbol*  | 📈 SYMBOL: `XAUUSD.iux`
+[2026-07-06 16:31:40] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *S20.12: FutureKey* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-06 16:31:41] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:31:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:31:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:31:41] SWEEP_RESET | SWEEP_HIGH | tf=H1 | reason=expired
+[2026-07-06 16:31:41] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:31:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:31:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:31:41] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-06 16:31:41] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 16:31:40 | 🟨 M1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด
+[2026-07-06 16:31:41] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101182459` | 📊 Balance: `1000.00` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy: S20.12: FutureKey | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-06 09:36:24` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-06 16:31:46] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:31:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:31:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:31:46] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:31:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:31:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:31:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:31:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:31:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:31:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:31:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:31:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:32:20] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 16:32:21] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-06 16:32:21] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783333940 | bid=4138.9 | ask=4139.04 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=True
+[2026-07-06 16:32:21] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783333940 | bid=4138.9 | ask=4139.04 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:32:22] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101182459` | 📊 Balance: `1000.00` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy: S20.12: FutureKey | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-06 16:31:48` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4147.15 | sweep_bar=17:17 06-Jul-2026 | confirm_bar=17:18 06-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4159.59 | sweep_bar=15:40 06-Jul-2026 | confirm_bar=15:40 06-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4147.20 | sweep_bar=16:45 06-Jul-2026 | confirm_bar=16:50 06-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4037.62 | sweep_bar=22:00 30-Jun-2026 | confirm_bar=23:00 30-Jun-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:32:26] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-06 16:32:26] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 16:32:25 | 🟨 M1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟩 M5 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟦 M15 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟪 M30 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟧 H1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟥 H4 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | 🟫 H12 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด | ⬛ D1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด
+[2026-07-06 16:32:26] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *S20.12: FutureKey* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-06 16:32:31] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:32:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:32:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:32:31] SWEEP_RESET | SWEEP_HIGH | tf=H1 | reason=expired
+[2026-07-06 16:32:31] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:32:31] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:32:31] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:32:31] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-06 16:32:31] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 16:32:30 | 🟨 M1 | ⏳ WAIT | ⚪ ไม่มีรายละเอียด
+[2026-07-06 16:33:19] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334000 | bid=4139.59 | ask=4139.73 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:34:20] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334059 | bid=4137.1 | ask=4137.24 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:35:19] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334120 | bid=4137.07 | ask=4137.21 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:36:19] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334180 | bid=4140.02 | ask=4140.16 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:37:20] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334240 | bid=4142.4 | ask=4142.54 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:38:19] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334299 | bid=4141.54 | ask=4141.68 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:38:39] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 16:38:40] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-06 16:38:40] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334319 | bid=4141.13 | ask=4141.27 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=True
+[2026-07-06 16:38:40] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783334319 | bid=4141.13 | ask=4141.27 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 16:38:40] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101182459` | 📊 Balance: `1000.00` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy: S20.12: FutureKey | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-06 16:38:20` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4159.59 | sweep_bar=15:40 06-Jul-2026 | confirm_bar=15:40 06-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4147.20 | sweep_bar=16:45 06-Jul-2026 | confirm_bar=16:50 06-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4037.62 | sweep_bar=22:00 30-Jun-2026 | confirm_bar=23:00 30-Jun-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:38:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-06 16:38:41] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *S20.12: FutureKey* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-06 16:38:46] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:38:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:38:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:38:46] SWEEP_RESET | SWEEP_HIGH | tf=H1 | reason=expired
+[2026-07-06 16:38:46] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:38:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:38:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:38:46] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-06 16:38:51] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:38:51] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:38:51] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:38:51] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:38:51] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:38:51] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:38:54] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:38:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:38:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:38:54] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:38:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:38:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:38:59] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:38:59] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:38:59] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:38:59] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:38:59] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:38:59] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 16:39:04] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 16:39:04] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 16:39:04] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 16:39:04] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 16:39:04] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 16:39:04] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
