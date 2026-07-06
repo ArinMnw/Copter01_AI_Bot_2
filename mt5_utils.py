@@ -548,13 +548,14 @@ def connect_mt5():
     global _MT5_CONNECTED, _MT5_CONNECTED_CHECK_TS
     now_ts = time.time()
     mt5_path = str(getattr(config, "MT5_PATH", "") or "").strip()
+    desired_login = int(getattr(config, "MT5_LOGIN", 0) or 0)
     if _MT5_CONNECTED and (now_ts - _MT5_CONNECTED_CHECK_TS) < _MT5_CONNECT_CACHE_SEC:
         return _mt5_terminal_path_matches(mt5_path)
 
     if _MT5_CONNECTED:
         info = mt5.account_info()
         if (info is not None
-                and int(getattr(info, "login", 0) or 0) == int(config.MT5_LOGIN)
+                and (desired_login <= 0 or int(getattr(info, "login", 0) or 0) == desired_login)
                 and _mt5_terminal_path_matches(mt5_path)):
             _MT5_CONNECTED_CHECK_TS = now_ts
             return True
@@ -575,10 +576,12 @@ def connect_mt5():
     # ตรวจว่า login อยู่แล้วหรือยัง
     info = mt5.account_info()
     ok = False
-    if info is not None and int(getattr(info, "login", 0) or 0) == int(config.MT5_LOGIN):
+    if desired_login <= 0:
+        ok = info is not None
+    elif info is not None and int(getattr(info, "login", 0) or 0) == desired_login:
         ok = True  # เชื่อมอยู่แล้ว ไม่ต้อง login ซ้ำ
     else:
-        ok = bool(mt5.login(login=config.MT5_LOGIN, password=config.MT5_PASSWORD, server=config.MT5_SERVER))
+        ok = bool(mt5.login(login=desired_login, password=config.MT5_PASSWORD, server=config.MT5_SERVER))
     if ok:
         _MT5_CONNECTED = True
         _MT5_CONNECTED_CHECK_TS = time.time()

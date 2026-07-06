@@ -325,8 +325,8 @@ def _symbol_root(symbol: str) -> str:
 def _symbol_config_key(symbol: str) -> str:
     root = _symbol_root(symbol)
     if root.startswith("BTCUSD"):
-        return "BTCUSD.iux"
-    return "XAUUSD.iux"
+        return "BTCUSD"
+    return "XAUUSD"
 
 
 def _symbol_candidate_names(symbol: str) -> list[str]:
@@ -441,12 +441,14 @@ symbol_switch_in_progress = False  # True ระหว่าง check_symbol_swi
 
 # ── config ต่อ symbol ─────────────────────────────────────────
 SYMBOL_CONFIG = {
+    "XAUUSD": {"sl_buffer": 2.0,  "volume": 0.01},
+    "BTCUSD": {"sl_buffer": 50.0, "volume": 0.01},
     "XAUUSD.iux": {"sl_buffer": 2.0,  "volume": 0.01},
     "BTCUSD.iux": {"sl_buffer": 50.0, "volume": 0.01},
 }
-MT5_LOGIN      = 2101114448
-MT5_PASSWORD   = "cop04TERZ_18"
-MT5_SERVER     = "IUXMarkets-Demo"
+MT5_LOGIN      = 0
+MT5_PASSWORD   = ""
+MT5_SERVER     = ""
 MT5_PATH       = ""
 MT5_PORTABLE   = True
 MT5_TIMEOUT_MS = 120000
