@@ -1229,3 +1229,605 @@
 [2026-07-06 18:03:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
 [2026-07-06 18:03:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
 [2026-07-06 18:03:05] TG_SENT | ⚠️ FVG SELL [M1] ตั้ง order ไม่สำเร็จ: ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว
+[2026-07-06 18:22:35] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 18:22:39] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-06 18:22:39] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783340558 | bid=4156.45 | ask=4156.59 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=True
+[2026-07-06 18:22:39] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101114448` | 📊 Balance: `1674.98` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy: ท่าที่ 1: กลืนกิน/ตำหนิ, ท่าที่ 2: FVG, ท่าที่ 3: DM SP, ท่าที่ 4: นัยยะสำคัญ FVG, ท่าที่ 6: 2H2L, ท่าที่ 6i: 2H2L อิสระ, ท่าที่ 10: CRT TBS, ท่าที่ 11: Fibo S1, ท่าที่ 14: Sweep RSI, ท่าที่ 15: VP POC, ท่าที่ 16: AMD iFVG, ท่าที่ 17: Sweep Sniper, ท่าที่ 18: TJR ICT, ท่าที่ 19: ICT Silver Bullet | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-06 18:02:56` | 📦 pending map: `0` | 📍 position tf: `2` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-06 18:22:40] ENTRY_FILL | Limit fill detected | ticket=556769879 | side=SELL | tf=M1 | sid=1 | pattern=ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว | price=4154.31 | sl=4159.18 | tp=4148.6 | fill_time=18:14:07 06/07/2026 | trend=BEAR (weak) | rsi=59.496908730454095 | rsi2_state=SELL_ONLY | pd_h=4154.19 | pd_l=4151.48 | pd_eq=4152.83
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4152.51 | sweep_bar=19:04 06-Jul-2026 | confirm_bar=19:04 06-Jul-2026
+[2026-07-06 18:22:41] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4159.59 | sweep_bar=15:40 06-Jul-2026 | confirm_bar=15:40 06-Jul-2026
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4147.20 | sweep_bar=16:45 06-Jul-2026 | confirm_bar=16:50 06-Jul-2026
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 18:22:41] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4037.62 | sweep_bar=22:00 30-Jun-2026 | confirm_bar=23:00 30-Jun-2026
+[2026-07-06 18:22:41] SCAN_SKIP | ⏭️ [38;5;51mH1[0m: เทรดแท่งนี้ไปแล้ว | tf=H1
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:22:41] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:22:41] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:22:41] SCAN_SKIP | ⏳ [38;5;27mH4[0m ท่า2 FVG: FVG SELL [H4] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | tf=H4
+[2026-07-06 18:22:41] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:22:41] SCAN_SKIP | ⏳ [38;5;129mH12[0m ท่า3: ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12
+[2026-07-06 18:22:41] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-06 18:22:41] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-06 18:22:43] ORDER_SKIPPED | ⏭️ ราคาผ่าน Entry BUY ไปแล้ว | Entry:4176.18 | Ask:4156.51 | ต้องการ Entry < 4156.49 | tf=D1 | sid=2 | signal=BUY | entry=4176.18 | sl=3933.62 | tp=4515.42
+[2026-07-06 18:22:43] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:22:42 | 🟩 M5 | ⏳ WAIT | 🟡 ท่า1 ไม่มี Setup ที่ตรงเงื่อนไข | 🔵 ท่า2 FVG BUY gap ถูกปิด (Low[0]=4153.70 <= High[2]=4154.19) | 🟣 ท่า3 DM SP BUY: [1] ต้องเป็นแดง/doji หรือเขียว Close < High[2] (O:4152.64 C:4154.89 High[2]:4154.19 body:58%) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: TF M5 ไม่อยู่ใน HTF/LTF mapping | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ M5) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4154.18 | VAL=4147.72 | VAH=4162.69 | ATR=3.40 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า19] S19: อยู่นอกช่วง Silver Bullet (London 13-15 / NY 21-23) | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 🟦 M15 | ⏳ WAIT | 🟡 ท่า1 ❌ แท่ง[0] Doji | 🔵 ท่า2 FVG BUY: Close[1]=4155.01 <= High[2]+gap=4155.73 [1] not engulfing [2] yet | 🟣 ท่า3 DM SP BUY: [0] ยังไม่ปิดเขียว (O:4154.96 C:4154.89) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: invalidate D1 BUY arm (LTF แตะ TP 4112.07 ก่อน trigger @ 05:00 06-Jul-2026) | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ M15) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4164.14 | VAL=4160.22 | VAH=4186.34 | ATR=6.53 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 🟧 H1 | ⏳ WAIT | ⚪ เทรดแท่งนี้ไปแล้ว | 🟥 H4 | ⏳ WAIT | ⚪ FVG SELL [H4] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | 🟫 H12 | 📌 ENTRY | 🟡 ท่า1 ไม่มี Setup ที่ตรงเงื่อนไข | 🔵 ท่า2 FVG BUY gap ถูกปิด (Low[0]=4136.54 <= High[2]=4186.29) | 🟣 ท่า3 [2]แดง body:7% [1]G [0]แดงกลืน Close:4155.01<Low[1]:4176.84 Entry:4179.75 SL:4319.41 TP:4023.84 RR1:1.12 | Entry:4179.75 | SL:4319.41 | TP:4023.84 | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: HTF H12 [2bar] Parent body เล็กไป (Doji-like) (body:8.44 / range:14.70 = 57.4% < 60.0%) | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ H12) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4539.33 | VAL=4206.88 | VAH=4731.14 | ATR=63.93 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4179.75 | SL:4319.41 | TP:4023.84 | ⬛ D1 | ⏳ WAIT | 🟡 ท่า1 ไม่มี Setup ที่ตรงเงื่อนไข | 🔵 ท่า2 รอราคาย้อน Entry:4176.18 | 🟣 ท่า3 DM SP BUY: [1] ต้องเป็นแดง/doji หรือเขียว Close < High[2] (O:4124.76 C:4174.86 High[2]:4144.02 body:67%) | 🟢 ท่า4 ⚠️ [1] Close:4174.86 ยังไม่ห่าง Swing High:4382.28 ขั้นต่ำ 0.20 | ⚪ [ท่า10] S10 MTF: armed BUY on D1 → รอ color shift บน M15 | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ D1) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4705.62 | VAL=4443.15 | VAH=5183.68 | ATR=93.74 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | ━━━━━━━━━━━━━━━━━ | 📊 Scan Swing | ┌─ 🟨 M1 | │ 🧭 Trend:🔴 Bear (weak)  🚀 BREAK↑ | │ 📐 AMP:  — | │ 🕯️ 18:21 06-Jul-2026  O:4156.09  H:4156.21  L:4155.60  C:4155.78 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ HH | │ 📈 HH:4156.39 18:00 06-Jul  LH:4154.19 18:07 06-Jul | │ 📉 HL:4152.51 17:56 06-Jul  LL:4151.48 18:12 06-Jul | └──────────────── | ┌─ 🟩 M5 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:20 06-Jul-2026  O:4154.96  H:4158.42  L:4153.70  C:4157.56 | │ 🏷️ HHLL: LL ▸ LL ▸ HH ▸ HL | │ 📈 HH:4166.32 14:45 06-Jul  LH:4159.59 13:35 06-Jul | │ 📉 HL:4147.20 14:10 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟦 M15 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:15 06-Jul-2026  O:4154.96  H:4156.39  L:4151.48  C:4154.89 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ HH | │ 📈 HH:4202.80 08:45 06-Jul  LH:4166.32 14:45 06-Jul | │ 📉 HL:4170.41 07:00 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟪 M30 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4148.94  H:4155.81  L:4148.78  C:4155.01 | │ 🏷️ HHLL: LH ▸ LL ▸ HH ▸ LL | │ 📈 HH:4202.80 08:30 06-Jul  LH:4166.32 14:30 06-Jul | │ 📉 HL:4168.48 16:30 03-Jul  LL:4144.81 12:30 06-Jul | └──────────────── | ┌─ 🟧 H1 | │ 🧭 Trend:🟢 Bull (strong)  💥 BREAK↓ | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4143.25  H:4155.81  L:4142.12  C:4155.01 | │ 🏷️ HHLL: HH ▸ HL ▸ HH ▸ HH | │ 📈 HH:4202.80 08:00 06-Jul  LH:4037.62 15:00 30-Jun | │ 📉 HL:4155.45 21:00 03-Jul  LL:3960.16 14:00 01-Jul | └──────────────── | ┌─ 🟥 H4 | │ 🧭 Trend:🟢 Bull (weak) | │ 📐 AMP:  — | │ 🕯️ 14:00 06-Jul-2026  O:4150.43  H:4166.32  L:4136.54  C:4155.01 | │ 🏷️ HHLL: HH ▸ HH ▸ HL ▸ LH | │ 📈 HH:4195.44 06:00 03-Jul  LH:4063.40 18:00 30-Jun | │ 📉 HL:3960.16 14:00 01-Jul  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ 🟫 H12 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 06:00 06-Jul-2026  O:4188.16  H:4202.80  L:4136.54  C:4155.01 | │ 🏷️ HHLL: LL ▸ LL ▸ LH ▸ LL | │ 📈 HH:4595.29 18:00 29-May  LH:4382.28 18:00 17-Jun | │ 📉 HL:4643.75 18:00 12-Apr  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ ⬛ D1 | │ 🧭 Trend:🔴 Bear (strong) | │ 📐 AMP:  — | │ 🕯️ 06:00 05-Jul-2026  O:4179.75  H:4191.54  L:4176.84  C:4188.19 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ LH | │ 📈 HH:5419.14 06:00 02-Mar  LH:4382.28 06:00 17-Jun | │ 📉 HL:4500.83 06:00 04-May  LL:3942.68 06:00 30-Jun | └────────────────
+[2026-07-06 18:22:43] TG_SENT | 🔔 *Limit Fill - SELL* | 🔴 Ticket:`556769879` | 📝 Pattern: `ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว` | 📌 เปิดที่: `4154.31` | 🛑 SL: `4159.18` | 🎯 TP: `4148.60` | 🕐 Fill Time: `18:14:07 06/07/2026` | 📈 Trend: `M1` → `BEAR (weak)` | 📊 RSI(14): `59.50` | Cross: `🔴 SELL_ONLY` | ⚖️ PD [M1]: H:`4154.19` L:`4151.48` EQ:`4152.83`
+[2026-07-06 18:22:45] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ท่าที่ 1: กลืนกิน/ตำหนิ,ท่าที่ 2: FVG,ท่าที่ 3: DM SP,ท่าที่ 4: นัยยะสำคัญ FVG,ท่าที่ 6: 2H2L,ท่าที่ 6i: 2H2L อิสระ,ท่าที่ 10: CRT TBS,ท่าที่ 11: Fibo S1,ท่าที่ 14: Sweep RSI,ท่าที่ 15: VP POC,ท่าที่ 16: AMD iFVG,ท่าที่ 17: Sweep Sniper,ท่าที่ 18: TJR ICT,ท่าที่ 19: ICT Silver Bullet* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-06 18:22:46] EXPORT_TREND_STATE_ERROR | MT5_NOT_CONNECTED: terminal_info() returned None | err_type=MT5_NOT_CONNECTED | err_message=terminal_info() returned None | detail=-
+[2026-07-06 18:25:44] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 18:27:11] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-06 18:27:11] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4152.51 | sweep_bar=19:04 06-Jul-2026 | confirm_bar=19:04 06-Jul-2026
+[2026-07-06 18:27:12] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:12] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71 | htf_ltf=-
+[2026-07-06 18:27:12] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4159.59 | sweep_bar=15:40 06-Jul-2026 | confirm_bar=15:40 06-Jul-2026
+[2026-07-06 18:27:12] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4147.20 | sweep_bar=16:45 06-Jul-2026 | confirm_bar=16:50 06-Jul-2026
+[2026-07-06 18:27:12] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:12] SCAN_SKIP | ⏳ [38;5;208mM5[0m ท่า2 FVG: FVG BUY [M5] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | tf=M5
+[2026-07-06 18:27:12] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:12] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:12] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 18:27:12] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 18:27:12] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:13] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4037.62 | sweep_bar=22:00 30-Jun-2026 | confirm_bar=23:00 30-Jun-2026
+[2026-07-06 18:27:13] SWEEP_RESET | SWEEP_HIGH | tf=H1 | reason=expired
+[2026-07-06 18:27:13] SCAN_SKIP | ⏭️ [38;5;51mH1[0m ท่า1: setup เดิมถูกใช้แล้ว ticket=556768374 source=mt5_pending entry=4148.97 | tf=H1
+[2026-07-06 18:27:13] ORDER_SKIPPED | sid=1 duplicate setup ticket=556768374 source=mt5_pending signal=BUY entry=4148.97 sl=4103.68 tp=4202.8 | tf=H1
+[2026-07-06 18:27:13] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:13] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:13] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:13] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:13] SCAN_SKIP | ⏳ [38;5;27mH4[0m ท่า2 FVG: FVG SELL [H4] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | tf=H4
+[2026-07-06 18:27:13] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:13] SCAN_SKIP | ⏳ [38;5;129mH12[0m ท่า3: ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12
+[2026-07-06 18:27:13] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-06 18:27:13] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-06 18:27:13] ORDER_SKIPPED | ⏭️ ราคาผ่าน Entry BUY ไปแล้ว | Entry:4176.18 | Ask:4159.13 | ต้องการ Entry < 4159.11 | tf=D1 | sid=2 | signal=BUY | entry=4176.18 | sl=3933.62 | tp=4515.42
+[2026-07-06 18:27:13] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:27:14 | 🟨 M1 | 📌 ENTRY | 🟡 ท่า1 ✅ แท่ง[2] แดง Body:47% | ✅ แท่ง[1] เขียวกลืน Close:4158.52 > High[2]:4157.45 Body:82% | ✅ แท่ง[0] เขียวกลืน Close:4159.13 > High[1]:4158.88 | ✅ ใกล้ Swing Low:4151.48 | 📌 Entry Fibo 50% High-Low[1] | SL Low ต่ำสุด-SL_BUFFER | 🎯 TP: RR1:1 (ไม่พบ Swing ≥1:1) | Entry:4157.76 | SL:4153.81 | TP:4161.71 | 🔵 ท่า2 ⏳ [0] ตัน รอ confirm แท่งถัดไป | Entry:4158.06 SL:4154.0 TP:? | 🟣 ท่า3 DM SP SELL: [0] ยังไม่ปิดแดง (O:4158.55 C:4159.13) | 🟢 ท่า4 ⚠️ [1] Close:4158.52 ยังไม่ห่าง Swing High:4158.42 ขั้นต่ำ 0.20 | ⚪ [ท่า10] S10 MTF: TF M1 ไม่อยู่ใน HTF/LTF mapping | ⚪ [ท่า11] S11 armed [BUY] triggered=— รอแตะ 1.617/3.097/5.165/7.044 | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4153.22 | VAL=4147.51 | VAH=4156.80 | ATR=1.33 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า18] S18: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า19] S19: อยู่นอกช่วง Silver Bullet (London 13-15 / NY 21-23) | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4157.76 | SL:4153.81 | TP:4161.71 | 🟩 M5 | ⏳ WAIT | ⚪ FVG BUY [M5] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | 🟦 M15 | ⏳ WAIT | 🟡 ท่า1 ❌ แท่ง[0] Doji | 🔵 ท่า2 FVG BUY: Close[1]=4155.01 <= High[2]+gap=4155.73 [1] not engulfing [2] yet | 🟣 ท่า3 DM SP BUY: [0] ยังไม่ปิดเขียว (O:4154.96 C:4154.89) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: HTF M15 [2bar] Parent body เล็กไป (Doji-like) (body:0.65 / range:3.30 = 19.7% < 60.0%) | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ M15) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4164.14 | VAL=4160.22 | VAH=4186.34 | ATR=6.53 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 🟧 H1 | 📌 ENTRY | 🟡 ท่า1 ✅ แท่ง[2] แดง | ✅ แท่ง[1] แดง | ✅ แท่ง[0] เขียวกลืน Close:4155.01 > High[1]:4151.29 Body:86% | ✅ ใกล้ Swing Low:4155.45 | 📌 Entry 50% Body[0] | ยกเลิกหลัง 1 แท่ง | 🎯 TP: Swing High:4202.8 | Entry:4148.97 | SL:4103.68 | TP:4202.8 | 🔵 ท่า2 FVG SELL gap ถูกปิด (High[0]=4155.81 >= Low[2]=4147.15) | 🟣 ท่า3 DM SP SELL: [1] ต้องเป็นเขียว/doji หรือแดง Close > Low[2] (O:4150.53 C:4143.24 Low[2]:4147.15 body:49%) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: HTF H1 [2bar] Parent body เล็กไป (Doji-like) (body:7.29 / range:14.75 = 49.4% < 60.0%) | ⚪ [ท่า11] S11 armed [BUY] triggered=— รอแตะ 1.617/3.097/5.165/7.044 | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4126.91 | VAL=4026.70 | VAH=4189.34 | ATR=16.43 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4148.97 | SL:4103.68 | TP:4202.8 | 🟥 H4 | ⏳ WAIT | ⚪ FVG SELL [H4] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | 🟫 H12 | 📌 ENTRY | 🟡 ท่า1 ไม่มี Setup ที่ตรงเงื่อนไข | 🔵 ท่า2 FVG BUY gap ถูกปิด (Low[0]=4136.54 <= High[2]=4186.29) | 🟣 ท่า3 [2]แดง body:7% [1]G [0]แดงกลืน Close:4155.01<Low[1]:4176.84 Entry:4179.75 SL:4319.41 TP:4023.84 RR1:1.12 | Entry:4179.75 | SL:4319.41 | TP:4023.84 | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: HTF H12 [2bar] Parent body เล็กไป (Doji-like) (body:8.44 / range:14.70 = 57.4% < 60.0%) | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ H12) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4539.33 | VAL=4206.88 | VAH=4731.14 | ATR=63.93 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4179.75 | SL:4319.41 | TP:4023.84 | ⬛ D1 | ⏳ WAIT | 🟡 ท่า1 ไม่มี Setup ที่ตรงเงื่อนไข | 🔵 ท่า2 รอราคาย้อน Entry:4176.18 | 🟣 ท่า3 DM SP BUY: [1] ต้องเป็นแดง/doji หรือเขียว Close < High[2] (O:4124.76 C:4174.86 High[2]:4144.02 body:67%) | 🟢 ท่า4 ⚠️ [1] Close:4174.86 ยังไม่ห่าง Swing High:4382.28 ขั้นต่ำ 0.20 | ⚪ [ท่า10] S10 MTF: armed BUY on D1 → รอ color shift บน M15 | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ D1) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4705.62 | VAL=4443.15 | VAH=5183.68 | ATR=93.74 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | ━━━━━━━━━━━━━━━━━ | 📊 Scan Swing | ┌─ 🟨 M1 | │ 🧭 Trend:⚪ SIDEWAY  🚀 BREAK↑ | │ 📐 AMP:  — | │ 🕯️ 18:26 06-Jul-2026  O:4158.55  H:4159.18  L:4158.07  C:4159.13 | │ 🏷️ HHLL: HH ▸ LL ▸ LH ▸ LL | │ 📈 HH:4158.42 18:18 06-Jul  LH:4154.19 18:07 06-Jul | │ 📉 HL:4152.51 17:56 06-Jul  LL:4151.48 18:12 06-Jul | └──────────────── | ┌─ 🟩 M5 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:25 06-Jul-2026  O:4157.47  H:4157.47  L:4155.60  C:4156.65 | │ 🏷️ HHLL: LL ▸ LL ▸ HH ▸ HL | │ 📈 HH:4166.32 14:45 06-Jul  LH:4159.59 13:35 06-Jul | │ 📉 HL:4147.20 14:10 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟦 M15 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:15 06-Jul-2026  O:4154.96  H:4156.39  L:4151.48  C:4154.89 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ HH | │ 📈 HH:4202.80 08:45 06-Jul  LH:4166.32 14:45 06-Jul | │ 📉 HL:4170.41 07:00 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟪 M30 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4148.94  H:4155.81  L:4148.78  C:4155.01 | │ 🏷️ HHLL: LH ▸ LL ▸ HH ▸ LL | │ 📈 HH:4202.80 08:30 06-Jul  LH:4166.32 14:30 06-Jul | │ 📉 HL:4168.48 16:30 03-Jul  LL:4144.81 12:30 06-Jul | └──────────────── | ┌─ 🟧 H1 | │ 🧭 Trend:🟢 Bull (strong)  💥 BREAK↓ | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4143.25  H:4155.81  L:4142.12  C:4155.01 | │ 🏷️ HHLL: HH ▸ HL ▸ HH ▸ HH | │ 📈 HH:4202.80 08:00 06-Jul  LH:4037.62 15:00 30-Jun | │ 📉 HL:4155.45 21:00 03-Jul  LL:3960.16 14:00 01-Jul | └──────────────── | ┌─ 🟥 H4 | │ 🧭 Trend:🟢 Bull (weak) | │ 📐 AMP:  — | │ 🕯️ 14:00 06-Jul-2026  O:4150.43  H:4166.32  L:4136.54  C:4155.01 | │ 🏷️ HHLL: HH ▸ HH ▸ HL ▸ LH | │ 📈 HH:4195.44 06:00 03-Jul  LH:4063.40 18:00 30-Jun | │ 📉 HL:3960.16 14:00 01-Jul  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ 🟫 H12 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 06:00 06-Jul-2026  O:4188.16  H:4202.80  L:4136.54  C:4155.01 | │ 🏷️ HHLL: LL ▸ LL ▸ LH ▸ LL | │ 📈 HH:4595.29 18:00 29-May  LH:4382.28 18:00 17-Jun | │ 📉 HL:4643.75 18:00 12-Apr  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ ⬛ D1 | │ 🧭 Trend:🔴 Bear (strong) | │ 📐 AMP:  — | │ 🕯️ 06:00 05-Jul-2026  O:4179.75  H:4191.54  L:4176.84  C:4188.19 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ LH | │ 📈 HH:5419.14 06:00 02-Mar  LH:4382.28 06:00 17-Jun | │ 📉 HL:4500.83 06:00 04-May  LL:3942.68 06:00 30-Jun | └────────────────
+[2026-07-06 18:27:14] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:14] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71 | htf_ltf=-
+[2026-07-06 18:27:14] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:14] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:14] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:14] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:14] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:14] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:14] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:14] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:14] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:15] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:27:15 | 🟨 M1 | 📌 ENTRY | 🟡 ท่า1 ✅ แท่ง[2] แดง Body:47% | ✅ แท่ง[1] เขียวกลืน Close:4158.52 > High[2]:4157.45 Body:82% | ✅ แท่ง[0] เขียวกลืน Close:4159.13 > High[1]:4158.88 | ✅ ใกล้ Swing Low:4151.48 | 📌 Entry Fibo 50% High-Low[1] | SL Low ต่ำสุด-SL_BUFFER | 🎯 TP: RR1:1 (ไม่พบ Swing ≥1:1) | Entry:4157.76 | SL:4153.81 | TP:4161.71 | 🔵 ท่า2 ⏳ [0] ตัน รอ confirm แท่งถัดไป | Entry:4158.06 SL:4154.0 TP:? | 🟣 ท่า3 DM SP SELL: [0] ยังไม่ปิดแดง (O:4158.55 C:4159.13) | 🟢 ท่า4 ⚠️ [1] Close:4158.52 ยังไม่ห่าง Swing High:4158.42 ขั้นต่ำ 0.20 | ⚪ [ท่า10] S10 MTF: invalidate M30 BUY arm (LTF แตะ TP 4151.29 ก่อน trigger @ 17:33 06-Jul-2026) | ⚪ [ท่า11] S11 armed [BUY] triggered=— รอแตะ 1.617/3.097/5.165/7.044 | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4153.22 | VAL=4147.51 | VAH=4156.80 | ATR=1.33 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า18] S18: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า19] S19: อยู่นอกช่วง Silver Bullet (London 13-15 / NY 21-23) | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4157.76 | SL:4153.81 | TP:4161.71 | ━━━━━━━━━━━━━━━━━ | 📊 Scan Swing | ┌─ 🟨 M1 | │ 🧭 Trend:⚪ SIDEWAY  🚀 BREAK↑ | │ 📐 AMP:  — | │ 🕯️ 18:26 06-Jul-2026  O:4158.55  H:4159.18  L:4158.07  C:4159.13 | │ 🏷️ HHLL: HH ▸ LL ▸ LH ▸ LL | │ 📈 HH:4158.42 18:18 06-Jul  LH:4154.19 18:07 06-Jul | │ 📉 HL:4152.51 17:56 06-Jul  LL:4151.48 18:12 06-Jul | └──────────────── | ┌─ 🟩 M5 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:25 06-Jul-2026  O:4157.47  H:4157.47  L:4155.60  C:4156.65 | │ 🏷️ HHLL: LL ▸ LL ▸ HH ▸ HL | │ 📈 HH:4166.32 14:45 06-Jul  LH:4159.59 13:35 06-Jul | │ 📉 HL:4147.20 14:10 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟦 M15 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:15 06-Jul-2026  O:4154.96  H:4156.39  L:4151.48  C:4154.89 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ HH | │ 📈 HH:4202.80 08:45 06-Jul  LH:4166.32 14:45 06-Jul | │ 📉 HL:4170.41 07:00 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟪 M30 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4148.94  H:4155.81  L:4148.78  C:4155.01 | │ 🏷️ HHLL: LH ▸ LL ▸ HH ▸ LL | │ 📈 HH:4202.80 08:30 06-Jul  LH:4166.32 14:30 06-Jul | │ 📉 HL:4168.48 16:30 03-Jul  LL:4144.81 12:30 06-Jul | └──────────────── | ┌─ 🟧 H1 | │ 🧭 Trend:🟢 Bull (strong)  💥 BREAK↓ | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4143.25  H:4155.81  L:4142.12  C:4155.01 | │ 🏷️ HHLL: HH ▸ HL ▸ HH ▸ HH | │ 📈 HH:4202.80 08:00 06-Jul  LH:4037.62 15:00 30-Jun | │ 📉 HL:4155.45 21:00 03-Jul  LL:3960.16 14:00 01-Jul | └──────────────── | ┌─ 🟥 H4 | │ 🧭 Trend:🟢 Bull (weak) | │ 📐 AMP:  — | │ 🕯️ 14:00 06-Jul-2026  O:4150.43  H:4166.32  L:4136.54  C:4155.01 | │ 🏷️ HHLL: HH ▸ HH ▸ HL ▸ LH | │ 📈 HH:4195.44 06:00 03-Jul  LH:4063.40 18:00 30-Jun | │ 📉 HL:3960.16 14:00 01-Jul  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ 🟫 H12 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 06:00 06-Jul-2026  O:4188.16  H:4202.80  L:4136.54  C:4155.01 | │ 🏷️ HHLL: LL ▸ LL ▸ LH ▸ LL | │ 📈 HH:4595.29 18:00 29-May  LH:4382.28 18:00 17-Jun | │ 📉 HL:4643.75 18:00 12-Apr  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ ⬛ D1 | │ 🧭 Trend:🔴 Bear (strong) | │ 📐 AMP:  — | │ 🕯️ 06:00 05-Jul-2026  O:4179.75  H:4191.54  L:4176.84  C:4188.19 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ LH | │ 📈 HH:5419.14 06:00 02-Mar  LH:4382.28 06:00 17-Jun | │ 📉 HL:4500.83 06:00 04-May  LL:3942.68 06:00 30-Jun | └────────────────
+[2026-07-06 18:27:17] TG_SENT | [retry-plain] ❌ *MT5 เชื่อมต่อไม่ได้!* | ━━━━━━━━━━━━━━━━━ | กรุณาตรวจสอบ: | • เปิด MT5 ทิ้งไว้ | • Login/Password ถูกต้อง | • Server: ``
+[2026-07-06 18:27:17] TG_SENT | ❌ [M1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M1-S1-BUY-T1783340760`
+[2026-07-06 18:27:19] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:19] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71 | htf_ltf=-
+[2026-07-06 18:27:19] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:19] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:19] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:19] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:19] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:19] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:19] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:19] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:19] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:19] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:20] TG_SENT | ❌ [M1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M1-S1-BUY-T1783340760`
+[2026-07-06 18:27:22] TG_SENT | ❌ [M1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M1-S1-BUY-T1783340760`
+[2026-07-06 18:27:23] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ท่าที่ 1: กลืนกิน/ตำหนิ,ท่าที่ 2: FVG,ท่าที่ 3: DM SP,ท่าที่ 4: นัยยะสำคัญ FVG,ท่าที่ 6: 2H2L,ท่าที่ 6i: 2H2L อิสระ,ท่าที่ 10: CRT TBS,ท่าที่ 11: Fibo S1,ท่าที่ 14: Sweep RSI,ท่าที่ 15: VP POC,ท่าที่ 16: AMD iFVG,ท่าที่ 17: Sweep Sniper,ท่าที่ 18: TJR ICT,ท่าที่ 19: ICT Silver Bullet* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-06 18:27:24] TG_SENT | ⏳ *ท่า2 FVG BUY Marubozu* | 🟢 [M1] [0] แท่งตัน | 📌 Entry:`4158.06` 🛑 SL:`4154.0` 🎯 TP:`0` | รอแท่งถัดไป...
+[2026-07-06 18:27:24] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:24] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71 | htf_ltf=-
+[2026-07-06 18:27:24] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:24] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:24] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:24] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:24] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:24] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:24] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:25] TG_SENT | 🟢 *ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:27 | 📊 *Timeframe: M1* | ท่าที่ 1 |  | 🔴 แท่ง[2]: O:`4157.12` H:`4157.45` L:`4156.46` C:`4156.65` 18:24 06-Jul-2026 | 🟢 แท่ง[1]: O:`4156.70` H:`4158.88` L:`4156.65` C:`4158.52` 18:25 06-Jul-2026 | 🟢 แท่ง[0]: O:`4158.55` H:`4159.18` L:`4158.07` C:`4159.13` 18:26 06-Jul-2026 |  | 📈 Swing High:`4158.42` 18:00 06-Jul-2026 | Low:`4151.48` 18:12 06-Jul-2026 |  | 💬 *เหตุผล:* | ✅ แท่ง\[2] แดง Body:47% | ✅ แท่ง\[1] เขียวกลืน Close:4158.52 > High\[2]:4157.45 Body:82% | ✅ แท่ง\[0] เขียวกลืน Close:4159.13 > High\[1]:4158.88 | ✅ ใกล้ Swing Low:4151.48 | 📌 Entry Fibo 50% High-Low\[1] | SL Low ต่ำสุด-SL\_BUFFER | 🎯 TP: RR1:1 (ไม่พบ Swing ≥1:1) |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4159.17` | 📌 *Limit ที่:* `4157.76` (ห่าง 1.41) | 🛑 SL: `4153.81` | 🎯 TP: `4161.71` | ⚖️ R:R `1:1.0` | 📦 `0.01` lot | Flow: `M1-S1-BUY-T1783340760` | 🧭 *Trend Filter* | • Per-TF: `M1` = ⚪ SIDEWAY 🚀 BREAK↑
+[2026-07-06 18:27:27] TG_SENT | ❌ [M1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M1-S1-BUY-T1783340760`
+[2026-07-06 18:27:28] TG_SENT | ⏭️ *[H1] ท่า1 setup เดิมถูกใช้แล้ว* | Ticket:`556768374` source:`mt5_pending` | Entry:`4148.97` | SL:`4103.68` | TP:`4202.80`
+[2026-07-06 18:27:30] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:30] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71 | htf_ltf=-
+[2026-07-06 18:27:30] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:30] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:30] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:30] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:30] TG_SENT | ❌ [M1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M1-S1-BUY-T1783340760`
+[2026-07-06 18:27:35] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:35] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71 | htf_ltf=-
+[2026-07-06 18:27:35] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:35] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:35] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:35] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:35] TG_SENT | ❌ [M1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M1-S1-BUY-T1783340760`
+[2026-07-06 18:27:40] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:40] SCAN_SKIP | ⏭️ [38;5;196mM1[0m ท่า1: Entry BUY ผ่านไปแล้ว | Entry:4157.76 | tf=M1
+[2026-07-06 18:27:40] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:40] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:40] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:40] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783340864 | bid=4157.59 | ask=4157.73 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:27:45] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:45] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:45] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:45] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:45] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:45] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:45] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:45] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:50] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:50] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:50] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:50] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:50] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:50] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:50] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:50] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:27:55] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน | tf=M1 | sid=1 | signal=BUY | entry=4157.76 | sl=4153.81 | tp=4161.71 | flow_id=M1|S1|BUY|T1783340760|E4157.76|SL4153.81|TP4161.71
+[2026-07-06 18:27:55] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:27:55] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:27:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:27:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:27:55] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:27:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:27:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:27:55] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:27:55] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:27:55] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:00] SCAN_SKIP | 🧭 [38;5;196mM1[0m ท่า1: sweep_low_block_sell [M1] | tf=M1
+[2026-07-06 18:28:00] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:00] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:00] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:28:00 | 🟨 M1 | 📌 ENTRY | 🟡 ท่า1 ✅ แท่ง[2] เขียว | ✅ แท่ง[1] เขียว | ✅ แท่ง[0] แดงกลืน Close:4156.96 < Low[1]:4158.07 Body:83% | ✅ ใกล้ Swing High:4158.42 | 📌 Entry 50% Body[0] | ยกเลิกหลัง 1 แท่ง | 🎯 TP: Swing Low:4151.48 | Entry:4158.25 | SL:4162.38 | TP:4151.48 | 🔵 ท่า2 FVG BUY gap ถูกปิด (Low[0]=4156.95 <= High[2]=4158.88) | 🟣 ท่า3 DM SP BUY: [1] ต้องเป็นแดง/doji หรือเขียว Close < High[2] (O:4158.55 C:4159.13 High[2]:4158.88 body:52%) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: invalidate M30 BUY arm (LTF แตะ TP 4151.29 ก่อน trigger @ 17:33 06-Jul-2026) | ⚪ [ท่า11] S11 armed [SELL] triggered=— รอแตะ 1.617/3.097/5.165/7.044 | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4153.22 | VAL=4147.55 | VAH=4156.76 | ATR=1.42 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า18] S18: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า19] S19: อยู่นอกช่วง Silver Bullet (London 13-15 / NY 21-23) | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4158.25 | SL:4162.38 | TP:4151.48 | ━━━━━━━━━━━━━━━━━ | 📊 Scan Swing | ┌─ 🟨 M1 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:27 06-Jul-2026  O:4159.11  H:4159.55  L:4156.95  C:4156.96 | │ 🏷️ HHLL: HH ▸ LL ▸ LH ▸ LL | │ 📈 HH:4158.42 18:18 06-Jul  LH:4154.19 18:07 06-Jul | │ 📉 HL:4152.51 17:56 06-Jul  LL:4151.48 18:12 06-Jul | └──────────────── | ┌─ 🟩 M5 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:25 06-Jul-2026  O:4157.47  H:4157.47  L:4155.60  C:4156.65 | │ 🏷️ HHLL: LL ▸ LL ▸ HH ▸ HL | │ 📈 HH:4166.32 14:45 06-Jul  LH:4159.59 13:35 06-Jul | │ 📉 HL:4147.20 14:10 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟦 M15 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:15 06-Jul-2026  O:4154.96  H:4156.39  L:4151.48  C:4154.89 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ HH | │ 📈 HH:4202.80 08:45 06-Jul  LH:4166.32 14:45 06-Jul | │ 📉 HL:4170.41 07:00 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟪 M30 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4148.94  H:4155.81  L:4148.78  C:4155.01 | │ 🏷️ HHLL: LH ▸ LL ▸ HH ▸ LL | │ 📈 HH:4202.80 08:30 06-Jul  LH:4166.32 14:30 06-Jul | │ 📉 HL:4168.48 16:30 03-Jul  LL:4144.81 12:30 06-Jul | └──────────────── | ┌─ 🟧 H1 | │ 🧭 Trend:🟢 Bull (strong)  💥 BREAK↓ | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4143.25  H:4155.81  L:4142.12  C:4155.01 | │ 🏷️ HHLL: HH ▸ HL ▸ HH ▸ HH | │ 📈 HH:4202.80 08:00 06-Jul  LH:4037.62 15:00 30-Jun | │ 📉 HL:4155.45 21:00 03-Jul  LL:3960.16 14:00 01-Jul | └──────────────── | ┌─ 🟥 H4 | │ 🧭 Trend:🟢 Bull (weak) | │ 📐 AMP:  — | │ 🕯️ 14:00 06-Jul-2026  O:4150.43  H:4166.32  L:4136.54  C:4155.01 | │ 🏷️ HHLL: HH ▸ HH ▸ HL ▸ LH | │ 📈 HH:4195.44 06:00 03-Jul  LH:4063.40 18:00 30-Jun | │ 📉 HL:3960.16 14:00 01-Jul  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ 🟫 H12 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 06:00 06-Jul-2026  O:4188.16  H:4202.80  L:4136.54  C:4155.01 | │ 🏷️ HHLL: LL ▸ LL ▸ LH ▸ LL | │ 📈 HH:4595.29 18:00 29-May  LH:4382.28 18:00 17-Jun | │ 📉 HL:4643.75 18:00 12-Apr  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ ⬛ D1 | │ 🧭 Trend:🔴 Bear (strong) | │ 📐 AMP:  — | │ 🕯️ 06:00 05-Jul-2026  O:4179.75  H:4191.54  L:4176.84  C:4188.19 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ LH | │ 📈 HH:5419.14 06:00 02-Mar  LH:4382.28 06:00 17-Jun | │ 📉 HL:4500.83 06:00 04-May  LL:3942.68 06:00 30-Jun | └────────────────
+[2026-07-06 18:28:01] TG_SENT | ❌ *ท่า3 BUY Marubozu ยกเลิก* | 🟢 [M1] [0] `18:26` → แท่งยืนยัน `18:27` จบแดง | Entry:4158.06 ไม่ตั้ง Limit
+[2026-07-06 18:28:05] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:05] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:10] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:10] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:10] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:10] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:10] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:15] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:15] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:20] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:20] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:20] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:20] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:20] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:20] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:20] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:25] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:25] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:29] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:29] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:29] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:29] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:29] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:29] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:29] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:29] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:29] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:29] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:29] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:34] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:34] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:34] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:34] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:34] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:34] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:34] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:34] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:34] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:34] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:34] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:39] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:39] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:39] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:39] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:39] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:39] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:39] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:39] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:39] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:39] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:39] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783340923 | bid=4156.81 | ask=4156.95 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:28:44] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:44] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:44] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:44] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:44] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:44] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:44] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:49] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:49] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:49] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:49] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:49] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:49] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:49] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:54] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=1 | signal=SELL
+[2026-07-06 18:28:54] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:28:54] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:28:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:28:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:28:54] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:28:54] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:28:54] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:28:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:28:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:28:54] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:28:54] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:28:54] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:28:55] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:28:56] TG_SENT | 🟢 *ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง* | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:28 | 📊 *Timeframe: H1* | ท่าที่ 1 |  | 🔴 แท่ง[2]: O:`4164.52` H:`4166.01` L:`4147.15` C:`4150.55` 15:00 06-Jul-2026 | 🔴 แท่ง[1]: O:`4150.53` H:`4151.29` L:`4136.54` C:`4143.24` 16:00 06-Jul-2026 | 🟢 แท่ง[0]: O:`4143.25` H:`4155.81` L:`4142.12` C:`4155.01` 17:00 06-Jul-2026 |  | 📈 Swing High:`4202.80` 08:00 03-Jul-2026 | Low:`4155.45` 14:00 01-Jul-2026 |  | 💬 *เหตุผล:* | ✅ แท่ง\[2] แดง | ✅ แท่ง\[1] แดง | ✅ แท่ง\[0] เขียวกลืน Close:4155.01 > High\[1]:4151.29 Body:86% | ✅ ใกล้ Swing Low:4155.45 | 📌 Entry 50% Body\[0] | ยกเลิกหลัง 1 แท่ง | 🎯 TP: Swing High:4202.8 |  | ━━━━━━━━━━━━━━━━━ | 💰 ราคาปัจจุบัน: `4156.23` | 📌 *Limit ที่:* `4148.97` (ห่าง 7.26) | 🛑 SL: `4103.68` | 🎯 TP: `4202.8` | ⚖️ R:R `1:1.19` | 📦 `0.01` lot | Flow: `H1-S1-BUY-T1783335600` | 🧭 *Trend Filter* | • Per-TF: `H1` = 🟢 Bull (strong) 💥 BREAK↓
+[2026-07-06 18:29:00] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:00] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:00] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:00] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:00] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:05] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:05] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:05] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:05] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:05] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:05] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:05] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:10] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:10] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:10] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:10] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:10] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:10] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:10] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:10] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:10] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:10] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:10] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:10] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:15] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:15] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:15] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:15] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:15] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:15] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:15] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:15] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:15] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:15] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:19] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:20] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:20] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:20] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:20] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:20] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:20] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:20] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:20] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:20] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:20] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:20] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:25] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:25] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:25] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:25] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:25] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:25] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:25] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:25] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:25] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:25] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:30] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:30] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:30] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:30] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:30] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:30] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:30] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:30] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:30] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:30] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:30] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:30] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:35] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:35] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:35] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:35] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:35] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:35] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:35] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:35] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:35] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:35] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:35] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:35] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:40] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:40] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:40] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:40] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:40] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:40] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:40] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:40] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:40] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:40] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:40] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:40] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1783340984 | bid=4155.44 | ask=4155.58 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-06 18:29:44] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:44] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:44] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:44] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:44] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:44] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:44] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:44] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:44] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:44] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:44] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:44] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:48] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:48] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:48] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:49] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:49] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:49] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:49] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:49] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:49] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:49] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:49] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:49] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:53] TREND_FILTER_BLOCK | sweep_low_block_sell S2 [M1] | tf=M1 | sid=2 | signal=SELL
+[2026-07-06 18:29:53] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M5 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — แดง
+[2026-07-06 18:29:53] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:29:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:29:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:29:54] TREND_FILTER_BLOCK | sweep_high_block_buy S2 [M30] | tf=M30 | sid=2 | signal=BUY
+[2026-07-06 18:29:54] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:29:54] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:29:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:29:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:29:54] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:29:54] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:29:54] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:29:54] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:29:58] SCAN_SKIP | 🧭 [38;5;196mM1[0m ท่า11: sweep_low_block_sell [M1] | tf=M1
+[2026-07-06 18:29:58] TREND_FILTER_BLOCK | sweep_low_block_sell [M1] | tf=M1 | sid=11 | signal=SELL
+[2026-07-06 18:30:00] SCAN_SKIP | 🧭 [38;5;208mM5[0m ท่า1: sweep_low_block_sell [M5] | tf=M5
+[2026-07-06 18:30:00] TREND_FILTER_BLOCK | sweep_low_block_sell [M5] | tf=M5 | sid=1 | signal=SELL
+[2026-07-06 18:30:00] PATTERN_FOUND | ท่าที่ 10 CRT TBS 🟢 BUY — MTF TBS [H4→M5] Model1 | tf=M5 | sid=10 | signal=BUY | entry=4150.29 | sl=4136.04 | tp=4176.4 | flow_id=M5|S10|BUY|T1783340700|E4150.29|SL4136.04|TP4176.40
+[2026-07-06 18:30:00] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M5 | sid=10 | signal=BUY | entry=4150.29 | sl=4136.04 | tp=4176.4 | model=1 | flow_id=M5|S10|BUY|T1783340700|E4150.29|SL4136.04|TP4176.40|M1 | parent_flow_id=M5|S10|BUY|T1783340700|E4150.29|SL4136.04|TP4176.40 | htf_ltf=H4_M5
+[2026-07-06 18:30:00] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=M5 | sid=10 | signal=BUY | entry=4152.51 | sl=4136.04 | tp=4176.4 | model=2 | flow_id=M5|S10|BUY|T1783340700|E4152.51|SL4136.04|TP4176.40|M2 | parent_flow_id=M5|S10|BUY|T1783340700|E4150.29|SL4136.04|TP4176.40 | htf_ltf=H4_M5
+[2026-07-06 18:30:00] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-06 18:30:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M15 | ref_price=4174.45 | sweep_bar=00:45 04-Jul-2026 | confirm_bar=00:45 04-Jul-2026
+[2026-07-06 18:30:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4170.41 | sweep_bar=10:30 06-Jul-2026 | confirm_bar=10:45 06-Jul-2026
+[2026-07-06 18:30:00] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-06 18:30:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4168.48 | sweep_bar=21:30 03-Jul-2026 | confirm_bar=22:30 03-Jul-2026
+[2026-07-06 18:30:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4186.29 | sweep_bar=06:30 06-Jul-2026 | confirm_bar=06:30 06-Jul-2026
+[2026-07-06 18:30:00] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-06 18:30:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=M30 | sid=2 | signal=BUY | pattern=ท่าที่ 2 FVG 🟢 BUY — ปฏิเสธราคา
+[2026-07-06 18:30:00] SCAN_SKIP | ⏳ [38;5;46mM30[0m ท่า2 FVG: FVG BUY [M30] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | tf=M30
+[2026-07-06 18:30:00] PATTERN_FOUND | ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80
+[2026-07-06 18:30:00] ORDER_FAILED | ⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว | tf=H1 | sid=1 | signal=BUY | entry=4148.97 | sl=4103.68 | tp=4202.8 | flow_id=H1|S1|BUY|T1783335600|E4148.97|SL4103.68|TP4202.80 | htf_ltf=-
+[2026-07-06 18:30:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H4 | ref_price=3959.09 | sweep_bar=07:00 30-Jun-2026 | confirm_bar=11:00 30-Jun-2026
+[2026-07-06 18:30:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4063.40 | sweep_bar=19:00 01-Jul-2026 | confirm_bar=03:00 02-Jul-2026
+[2026-07-06 18:30:00] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-06 18:30:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H4 | sid=2 | signal=SELL | pattern=ท่าที่ 2 FVG 🔴 SELL — ปฏิเสธราคา
+[2026-07-06 18:30:00] CONFIRM_LOOKBACK_BLOCK | ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกันใน 8 แท่งย้อนหลัง | tf=H12 | sid=3 | signal=SELL | pattern=ท่าที่ 3 DM SP 🔴 SELL [C1:G]
+[2026-07-06 18:30:00] SCAN_SUMMARY | 🔍 Scan Summary | ━━━━━━━━━━━━━━━━━ | 🕐 06/07/2026 18:30:00 | 🟨 M1 | 📌 ENTRY | 🟡 ท่า1 ไม่มี Setup ที่ตรงเงื่อนไข | 🔵 ท่า2 ⏳ [0] ตัน รอ confirm แท่งถัดไป | Entry:4156.2 SL:4159.84 TP:? | 🟣 ท่า3 DM SP SELL: [1] ต้องเป็นเขียว/doji หรือแดง Close > Low[2] (O:4156.92 C:4156.30 Low[2]:4156.95 body:63%) | 🟢 ท่า4 ⚠️ [1] Close:4156.30 ยังไม่ห่าง Swing Low:4151.48 ขั้นต่ำ 0.20 | ⚪ [ท่า10] S10 MTF: invalidate M30 BUY arm (LTF แตะ TP 4151.29 ก่อน trigger @ 17:33 06-Jul-2026) | ⚪ [ท่า11] Pattern 1: แตะ KRH1 → LIMIT @ 50% | Anchor [H:4159.55 L:4156.95] | แตะ Fibo 1.617 (KRH1) @ 4155.35 | LIMIT @ Fibo 0.5 (50%) = 4158.25 | SL: Fibo -0.31 (XXL) = 4160.36 | TP: Fibo 7.044 (Run Engulfing) = 4141.24 | Entry:4158.25 | SL:4160.36 | TP:4141.24 | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4153.17 | VAL=4147.49 | VAH=4156.64 | ATR=1.39 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า18] S18: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า19] S19: อยู่นอกช่วง Silver Bullet (London 13-15 / NY 21-23) | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4158.25 | SL:4160.36 | TP:4141.24 | 🟩 M5 | 📌 ENTRY | 🟡 ท่า1 ✅ แท่ง[2] เขียว | ✅ แท่ง[1] แดง (ไม่ต้องกลืนกิน) | ✅ แท่ง[0] แดงกลืน Close:4154.96 < Low[1]:4155.60 | ✅ ใกล้ Swing High:4166.32 | 📍 Entry 50% Body[1] | SL High สูงสุด+200 | 🎯 TP: Swing Low:4136.54 | Entry:4156.53 | SL:4166.34 | TP:4136.54 | 🔵 ท่า2 FVG SELL: Close[1]=4156.65 >= Low[2]-gap=4153.50 [1] not engulfing [2] yet | 🟣 ท่า3 DM SP BUY: [0] ยังไม่ปิดเขียว (O:4156.70 C:4154.96) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] [MTF H4→M5] HTF armed at bar=1783324800 | Parent[H:4176.40 L:4144.81] | Phase 1 (failed-push): bar=104 @ 16:40 06-Jul-2026 close=4139.47 | Phase 2: disabled (use Phase 1 as trigger) | Model 1 (OB.open):  4150.29 @ 17:30 06-Jul-2026 | Model 2 (FVG 98%):  4152.51 @ 17:35 06-Jul-2026 | Model 3 (MSS lookback from Phase 1): 4166.32 @ 14:45 06-Jul-2026 | USING Model 1 = 4150.29 | SL:4136.04 | TP:4176.4 | RR1:1.83 | Entry:4150.29 | SL:4136.04 | TP:4176.4 | ⚪ [ท่า11] S11 armed [SELL] triggered=— รอแตะ 1.617/3.097/5.165/7.044 | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4154.27 | VAL=4147.82 | VAH=4162.42 | ATR=3.39 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: อยู่นอกช่วง Killzones London/NY | ⚪ [ท่า19] S19: อยู่นอกช่วง Silver Bullet (London 13-15 / NY 21-23) | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 💰 Entry:4156.53 | SL:4166.34 | TP:4136.54 | 🟦 M15 | ⏳ WAIT | 🟡 ท่า1 ❌ แท่ง[0] Doji | 🔵 ท่า2 FVG SELL: Close[1]=4154.89 >= Low[2]-gap=4152.31 [1] not engulfing [2] yet | 🟣 ท่า3 DM SP BUY: [0] ยังไม่ปิดเขียว (O:4154.96 C:4154.96) | 🟢 ท่า4 ไม่พบ Setup นัยยะสำคัญ FVG | ⚪ [ท่า10] S10 MTF: invalidate D1 BUY arm (LTF แตะ TP 4112.07 ก่อน trigger @ 05:00 06-Jul-2026) | ⚪ [ท่า11] S11 ยังไม่มี anchor (รอ S1 pattern ที่ M15) | 🟦 ท่า14 S14: ไม่พบ Sweep RSI setup | ⚪ [ท่า15] S15: ไม่พบ Absorption — POC=4163.94 | VAL=4139.96 | VAH=4178.20 | ATR=6.48 | ⚪ [ท่า16] อยู่นอกเวลา Killzones (14:00-17:00 / 19:00-22:00) | ⚪ [ท่า17] S17: ใช้เฉพาะ TF M1,M30,H1 (backtest: TF อื่นขาดทุน) | ⚪ [ท่า18] S18: ใช้เฉพาะ TF M1,M5 | ⚪ [ท่า19] S19: ใช้เฉพาะ TF M1,M5 | 🟠 ท่า6 ไม่มี position ท่า 2/3 | 🟤 ท่า6i ไม่มี position | 🟪 M30 | ⏳ WAIT | ⚪ FVG BUY [M30] ยังไม่เจอ S1/S2/S3 ฝั่งเดียวกัน ใน 8 แท่งย้อนหลัง | ━━━━━━━━━━━━━━━━━ | 📊 Scan Swing | ┌─ 🟨 M1 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:29 06-Jul-2026  O:4156.14  H:4156.18  L:4154.92  C:4154.96 | │ 🏷️ HHLL: HH ▸ LL ▸ LH ▸ LL | │ 📈 HH:4158.42 18:18 06-Jul  LH:4154.19 18:07 06-Jul | │ 📉 HL:4152.51 17:56 06-Jul  LL:4151.48 18:12 06-Jul | └──────────────── | ┌─ 🟩 M5 | │ 🧭 Trend:⚪ SIDEWAY | │ 📐 AMP:  — | │ 🕯️ 18:30 06-Jul-2026  O:4156.70  H:4159.55  L:4154.92  C:4154.96 | │ 🏷️ HHLL: LL ▸ LL ▸ HH ▸ HL | │ 📈 HH:4166.32 14:45 06-Jul  LH:4159.59 13:35 06-Jul | │ 📉 HL:4147.20 14:10 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟦 M15 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:30 06-Jul-2026  O:4154.96  H:4159.55  L:4153.70  C:4154.96 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ HH | │ 📈 HH:4202.80 08:45 06-Jul  LH:4166.32 14:45 06-Jul | │ 📉 HL:4170.41 07:00 06-Jul  LL:4136.54 16:30 06-Jul | └──────────────── | ┌─ 🟪 M30 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 18:30 06-Jul-2026  O:4154.96  H:4159.55  L:4151.48  C:4154.96 | │ 🏷️ HHLL: LH ▸ LL ▸ HH ▸ LL | │ 📈 HH:4202.80 08:30 06-Jul  LH:4166.32 14:30 06-Jul | │ 📉 HL:4168.48 16:30 03-Jul  LL:4144.81 12:30 06-Jul | └──────────────── | ┌─ 🟧 H1 | │ 🧭 Trend:🟢 Bull (strong)  💥 BREAK↓ | │ 📐 AMP:  — | │ 🕯️ 18:00 06-Jul-2026  O:4143.25  H:4155.81  L:4142.12  C:4155.01 | │ 🏷️ HHLL: HH ▸ HL ▸ HH ▸ HH | │ 📈 HH:4202.80 08:00 06-Jul  LH:4037.62 15:00 30-Jun | │ 📉 HL:4155.45 21:00 03-Jul  LL:3960.16 14:00 01-Jul | └──────────────── | ┌─ 🟥 H4 | │ 🧭 Trend:🟢 Bull (weak) | │ 📐 AMP:  — | │ 🕯️ 14:00 06-Jul-2026  O:4150.43  H:4166.32  L:4136.54  C:4155.01 | │ 🏷️ HHLL: HH ▸ HH ▸ HL ▸ LH | │ 📈 HH:4195.44 06:00 03-Jul  LH:4063.40 18:00 30-Jun | │ 📉 HL:3960.16 14:00 01-Jul  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ 🟫 H12 | │ 🧭 Trend:🔴 Bear (weak) | │ 📐 AMP:  — | │ 🕯️ 06:00 06-Jul-2026  O:4188.16  H:4202.80  L:4136.54  C:4155.01 | │ 🏷️ HHLL: LL ▸ LL ▸ LH ▸ LL | │ 📈 HH:4595.29 18:00 29-May  LH:4382.28 18:00 17-Jun | │ 📉 HL:4643.75 18:00 12-Apr  LL:3942.68 06:00 30-Jun | └──────────────── | ┌─ ⬛ D1 | │ 🧭 Trend:🔴 Bear (strong) | │ 📐 AMP:  — | │ 🕯️ 06:00 05-Jul-2026  O:4179.75  H:4191.54  L:4176.84  C:4188.19 | │ 🏷️ HHLL: LL ▸ LH ▸ LL ▸ LH | │ 📈 HH:5419.14 06:00 02-Mar  LH:4382.28 06:00 17-Jun | │ 📉 HL:4500.83 06:00 04-May  LL:3942.68 06:00 30-Jun | └────────────────
+[2026-07-06 18:30:00] TG_SENT | ❌ [M5] ท่า10 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M5-S10-BUY-T1783340700-M1`
+[2026-07-06 18:30:01] TG_SENT | ❌ [M5] ท่า10 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `M5-S10-BUY-T1783340700-M2`
+[2026-07-06 18:30:02] TG_SENT | ❌ [H1] ท่า1 Limit ไม่สำเร็จ: `⚠️ AutoTrading ปิดอยู่ใน MT5 กด Ctrl+E ให้เป็นสีเขียว` | Flow: `H1-S1-BUY-T1783335600`
+[2026-07-06 18:31:41] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 18:31:42] WATCHDOG_MT5_DOWN | MT5 connection lost
+[2026-07-06 18:31:42] TG_SENT | ❌ *MT5 เชื่อมต่อไม่ได้!* | ━━━━━━━━━━━━━━━━━ | กรุณาตรวจสอบ: | • เปิด MT5 ทิ้งไว้ | • Login/Password ถูกต้อง | • Server: ``
+[2026-07-06 18:31:43] TG_SENT | 🚨 *Watchdog: MT5 หลุดการเชื่อมต่อ* | บอทจะลองเชื่อมต่อใหม่อัตโนมัติ
+[2026-07-06 18:31:46] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:31:51] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:31:56] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:01] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:11] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:16] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:21] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:26] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:31] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:36] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:41] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:46] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:51] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:32:56] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:01] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:11] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:16] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:21] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:26] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:31] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:36] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:41] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:46] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:51] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:33:56] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:01] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:11] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:16] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:21] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:25] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:29] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:34] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:39] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:44] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:49] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:34:54] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:01] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:11] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:16] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:21] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:26] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:31] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:36] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:41] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:46] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:51] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:35:56] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:01] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:11] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:16] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:21] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:26] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:36:31] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:23] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 18:41:29] TG_SENT | ❌ *MT5 เชื่อมต่อไม่ได้!* | ━━━━━━━━━━━━━━━━━ | กรุณาตรวจสอบ: | • เปิด MT5 ทิ้งไว้ | • Login/Password ถูกต้อง | • Server: ``
+[2026-07-06 18:41:30] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:31] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:36] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:41] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:46] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:51] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:41:56] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:01] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:11] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:16] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:21] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:23] WATCHDOG_MT5_DOWN | MT5 connection lost
+[2026-07-06 18:42:23] TG_SENT | 🚨 *Watchdog: MT5 หลุดการเชื่อมต่อ* | บอทจะลองเชื่อมต่อใหม่อัตโนมัติ
+[2026-07-06 18:42:26] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:31] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:36] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:42:41] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:43:59] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-06 18:44:00] WATCHDOG_MT5_DOWN | MT5 connection lost
+[2026-07-06 18:44:01] TG_SENT | ❌ *MT5 เชื่อมต่อไม่ได้!* | ━━━━━━━━━━━━━━━━━ | กรุณาตรวจสอบ: | • เปิด MT5 ทิ้งไว้ | • Login/Password ถูกต้อง | • Server: ``
+[2026-07-06 18:44:02] TG_SENT | 🚨 *Watchdog: MT5 หลุดการเชื่อมต่อ* | บอทจะลองเชื่อมต่อใหม่อัตโนมัติ
+[2026-07-06 18:44:03] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:44:06] TG_SENT | ⚠️ MT5 ไม่ได้เชื่อมต่อ
+[2026-07-06 18:44:13] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1

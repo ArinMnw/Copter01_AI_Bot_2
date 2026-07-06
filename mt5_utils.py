@@ -576,6 +576,18 @@ def connect_mt5():
     # ตรวจว่า login อยู่แล้วหรือยัง
     info = mt5.account_info()
     ok = False
+    if (desired_login <= 0
+            and not bool(getattr(config, "PROFILE_ACTIVE", False))
+            and info is not None
+            and "IUX" in str(getattr(info, "server", "") or "").upper()):
+        try:
+            from bot_log import log_error
+            log_error("ROOT_MT5_IUX_BLOCK", f"root bot connected to IUX account login={getattr(info, 'login', '')} server={getattr(info, 'server', '')}")
+        except Exception:
+            pass
+        mt5.shutdown()
+        _MT5_CONNECTED = False
+        return False
     if desired_login <= 0:
         ok = info is not None
     elif info is not None and int(getattr(info, "login", 0) or 0) == desired_login:

@@ -1204,7 +1204,7 @@ def _export_trend_state_for_mt5():
             )
         payload = "\n".join(lines) + "\n"
         for target in (target_default, target_symbol):
-            tmp = target + ".tmp"
+            tmp = f"{target}.{os.getpid()}.tmp"
             import time as _t
             try:
                 with open(tmp, "w", encoding="utf-8") as f:

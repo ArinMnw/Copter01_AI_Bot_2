@@ -465,6 +465,12 @@ MT5_PATH       = os.getenv("MT5_PATH", MT5_PATH)
 MT5_PORTABLE   = os.getenv("MT5_PORTABLE", str(MT5_PORTABLE)).strip().lower() in ("1", "true", "yes", "on")
 MT5_TIMEOUT_MS = int(os.getenv("MT5_TIMEOUT_MS", str(MT5_TIMEOUT_MS)) or MT5_TIMEOUT_MS)
 MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBER)
+if not PROFILE_ACTIVE and not MT5_PATH:
+    _default_mt5_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
+    if os.path.exists(_default_mt5_path):
+        MT5_PATH = _default_mt5_path
+        if os.getenv("MT5_PORTABLE") is None:
+            MT5_PORTABLE = False
 if MT5_PATH and not os.path.isabs(MT5_PATH):
     MT5_PATH = os.path.abspath(os.path.join(PROFILE_DIR if PROFILE_ACTIVE else ROOT_DIR, MT5_PATH))
 
@@ -2605,7 +2611,14 @@ def restore_runtime_state():
 
         saved_symbol = state.get("symbol")
         if saved_symbol and saved_symbol != SYMBOL:
-            set_runtime_symbol(saved_symbol)
+            if PROFILE_ACTIVE:
+                set_runtime_symbol(saved_symbol)
+            else:
+                # Root bot uses the normal MT5 terminal. Do not let a persisted
+                # broker suffix from a prior IUX session force the root back to IUX.
+                saved_root = _symbol_root(saved_symbol)
+                if saved_root and saved_root != _symbol_root(SYMBOL):
+                    set_runtime_symbol(saved_root)
 
         positions = mt5.positions_get(symbol=SYMBOL) or []
         orders = mt5.orders_get(symbol=SYMBOL) or []
