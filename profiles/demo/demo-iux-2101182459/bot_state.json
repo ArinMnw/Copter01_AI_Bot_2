@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-06 18:47:58",
+  "saved_at": "2026-07-06 20:07:51",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -203,12 +203,12 @@
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
     "date": "2026-07-06",
-    "realized": -1.72,
-    "wins": 0,
-    "losses": 1,
-    "count": 1,
-    "gross_win": 0.0,
-    "gross_loss": -1.72
+    "realized": 109.76,
+    "wins": 3,
+    "losses": 5,
+    "count": 8,
+    "gross_win": 298.78,
+    "gross_loss": -189.02
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -269,7 +269,89 @@
           "tf_retry_signals": {}
         },
         "M1+M5+M15": {
-          "count": 1,
+          "count": 2,
+          "active": true,
+          "tf_blocked": {
+            "M1": true,
+            "M5": true,
+            "M15": true
+          },
+          "tf_since": {
+            "M1": 1783342851,
+            "M5": 1783342851,
+            "M15": 1783342851
+          },
+          "tf_swing_ref": {
+            "M1": 4142.05,
+            "M5": 4142.7,
+            "M15": 4142.7
+          },
+          "tf_swing_bar_time": {
+            "M1": 1783346580
+          },
+          "tf_blocked_signals": {
+            "M1": [],
+            "M5": [],
+            "M15": []
+          },
+          "tf_retry_signals": {}
+        },
+        "M1+M5": {
+          "count": 2,
+          "active": true,
+          "tf_blocked": {
+            "M1": true,
+            "M5": true
+          },
+          "tf_since": {
+            "M1": 1783342851,
+            "M5": 1783342851
+          },
+          "tf_swing_ref": {
+            "M1": 4142.05,
+            "M5": 4142.7
+          },
+          "tf_swing_bar_time": {
+            "M1": 1783346580
+          },
+          "tf_blocked_signals": {
+            "M1": [],
+            "M5": []
+          },
+          "tf_retry_signals": {}
+        }
+      },
+      "BUY": {
+        "M1+M5+M15": {
+          "count": 3,
+          "active": true,
+          "tf_blocked": {
+            "M1": false,
+            "M5": false,
+            "M15": true
+          },
+          "tf_since": {
+            "M1": 1783340487,
+            "M5": 1783340487,
+            "M15": 1783340487
+          },
+          "tf_swing_ref": {
+            "M1": 4152.94,
+            "M5": 4155.09,
+            "M15": 4153.71
+          },
+          "tf_swing_bar_time": {
+            "M15": 1783344600
+          },
+          "tf_blocked_signals": {
+            "M1": [],
+            "M5": [],
+            "M15": []
+          },
+          "tf_retry_signals": {}
+        },
+        "M1+M5": {
+          "count": 0,
           "active": false,
           "tf_blocked": {},
           "tf_since": {},
@@ -278,7 +360,7 @@
           "tf_blocked_signals": {},
           "tf_retry_signals": {}
         },
-        "M1+M5": {
+        "M5+M15+M30": {
           "count": 1,
           "active": false,
           "tf_blocked": {},
@@ -294,17 +376,19 @@
   "pdfiboplus_fill_state": {},
   "s10_last_fired_armed_at": {},
   "last_traded_per_tf": {
-    "M5": 1783339200,
-    "M1": 1783339740,
+    "M5": 1783342200,
+    "M1": 1783346580,
     "H4": 1783324800,
     "H12": 1783296000
   },
   "last_traded_sid_tf": {
     "M5": {
-      "20.12": 1783339200
+      "20.12": 1783339200,
+      "20.12": 1783342200
     },
     "M1": {
-      "20.12": 1783339740
+      "20.12": 1783339740,
+      "20.12": 1783346580
     },
     "H4": {
       "20.12": 1783324800
@@ -314,9 +398,39 @@
     }
   },
   "pending_order_tf": {},
-  "position_tf": {},
-  "position_sid": {},
-  "position_pattern": {},
+  "position_tf": {
+    "556790827": "M5",
+    "556795330": "M1",
+    "556800306": "M1",
+    "556811655": "M1",
+    "556817612": "M1",
+    "556835985": "M1",
+    "556836525": "M1",
+    "556838955": "M1",
+    "556840883": "M1"
+  },
+  "position_sid": {
+    "556790827": 20.12,
+    "556795330": 20.12,
+    "556800306": 20.12,
+    "556811655": 20.12,
+    "556817612": 20.12,
+    "556835985": 20.12,
+    "556836525": 20.12,
+    "556838955": 20.12,
+    "556840883": 20.12
+  },
+  "position_pattern": {
+    "556790827": "S20.12.SweepReversal",
+    "556795330": "S20.12.SweepReversal",
+    "556800306": "S20.12.NoWickTrap",
+    "556811655": "S20.12.SweepReversal",
+    "556817612": "S20.12.NoWickTrap",
+    "556835985": "S20.12.SweepReversal",
+    "556836525": "S20.12.SweepReversal",
+    "556838955": "S20.12.SweepReversal",
+    "556840883": "S20.12.SweepReversal"
+  },
   "position_trend_filter": {},
   "position_zone_meta": {},
   "position_forward_meta": {},
@@ -354,5 +468,15 @@
   "s20_session_filter": false,
   "s20_entry_buffer": 390.0,
   "s20_sl_2l2h": 100.0,
-  "fill_notified": []
+  "fill_notified": [
+    556790827,
+    556795330,
+    556800306,
+    556811655,
+    556817612,
+    556835985,
+    556836525,
+    556838955,
+    556840883
+  ]
 }
