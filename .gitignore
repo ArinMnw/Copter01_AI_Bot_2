@@ -20,4 +20,15 @@ __pycache__/
 optimized_params.json  
 
 # local MT5/profile runtime files
-profiles/
+profiles/*
+!profiles/**/
+profiles/**/*
+!profiles/**/
+!profiles/**/logs/**
+!profiles/**/*.log
+!profiles/**/bot_state.json
+!profiles/**/bot_heartbeat.txt
+!profiles/**/*heartbeat*.txt
+!profiles/**/*stall*.log
+!profiles/**/supervisor.lock
+!profiles/**/*supervisor*.log
