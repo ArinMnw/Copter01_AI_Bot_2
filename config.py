@@ -468,11 +468,16 @@ MT5_TIMEOUT_MS = int(os.getenv("MT5_TIMEOUT_MS", str(MT5_TIMEOUT_MS)) or MT5_TIM
 MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBER)
 ROOT_IUX_ALLOWED_LOGINS = os.getenv("ROOT_IUX_ALLOWED_LOGINS", ROOT_IUX_ALLOWED_LOGINS)
 if not PROFILE_ACTIVE and not MT5_PATH:
-    _default_mt5_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
-    if os.path.exists(_default_mt5_path):
-        MT5_PATH = _default_mt5_path
-        if os.getenv("MT5_PORTABLE") is None:
-            MT5_PORTABLE = False
+    _default_mt5_paths = (
+        r"C:\MT5\terminal64.exe",
+        r"C:\Program Files\MetaTrader 5\terminal64.exe",
+    )
+    for _default_mt5_path in _default_mt5_paths:
+        if os.path.exists(_default_mt5_path):
+            MT5_PATH = _default_mt5_path
+            if os.getenv("MT5_PORTABLE") is None:
+                MT5_PORTABLE = False
+            break
 if MT5_PATH and not os.path.isabs(MT5_PATH):
     MT5_PATH = os.path.abspath(os.path.join(PROFILE_DIR if PROFILE_ACTIVE else ROOT_DIR, MT5_PATH))
 
