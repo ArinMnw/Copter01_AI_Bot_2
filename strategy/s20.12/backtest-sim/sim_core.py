@@ -118,6 +118,16 @@ def run_sim(symbol: str, start_dt_bkk: datetime, end_dt_bkk=None,
                     return "WIN", c_dt + timedelta(minutes=1), pnl_per_lot
         return None, None, None
 
+    def _entry_at_open_time(open_dt, sig):
+        open_naive = _naive(open_dt)
+        for c in m1_rates:
+            c_dt = mt5_ts_to_bkk(c["time"])
+            if _naive(c_dt) < open_naive:
+                continue
+            bid_open = float(c["open"])
+            return bid_open + spread if sig == "BUY" else bid_open
+        return None
+
     for tf_name, tf_code in tfs.items():
         lookback_days_needed = {
             "M1": 1, "M5": 1, "M15": 2, "M30": 3,
@@ -160,7 +170,6 @@ def run_sim(symbol: str, start_dt_bkk: datetime, end_dt_bkk=None,
             sl      = res["sl"]
             tp      = res["tp"]
             pattern = res["pattern"]
-            sl_dist = abs(entry - sl) or 1.0
 
             if i + 1 >= len(rates):
                 continue
@@ -169,6 +178,12 @@ def run_sim(symbol: str, start_dt_bkk: datetime, end_dt_bkk=None,
             _open_naive = _naive(open_dt)
             if _open_naive < start_time_bkk or _open_naive > end_time_bkk:
                 continue
+
+            actual_entry = _entry_at_open_time(open_dt, sig)
+            if actual_entry is None:
+                continue
+            entry = actual_entry
+            sl_dist = abs(entry - sl) or 1.0
 
             # เข้า order ทันทีแบบ market (ไม่รอ limit fill): pattern confirm ตอนแท่ง i ปิด
             # (c_curr=rates[-1]=window[i] หลังตัด lag แล้ว) → ถือว่าเปิด order ทันที ที่ entry
