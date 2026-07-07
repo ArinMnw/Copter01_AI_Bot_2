@@ -160,7 +160,38 @@ def _is_s20_12_comment(comment: str, sim_tf: str = "") -> tuple[bool, str]:
     return False, ""
 
 
-def find_open_position(sim_type: str, sim_open: datetime, symbol: str, positions, sim_tf: str = ""):
+def _to_float(value):
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except Exception:
+        return None
+
+
+def _price_close(actual, expected, tol: float = 0.08) -> bool:
+    expected = _to_float(expected)
+    if expected is None:
+        return True
+    try:
+        return abs(float(actual) - expected) <= tol
+    except Exception:
+        return False
+
+
+def _sim_prices_match(pos, sim_sl=None, sim_tp=None) -> bool:
+    return _price_close(getattr(pos, "sl", None), sim_sl) and _price_close(getattr(pos, "tp", None), sim_tp)
+
+
+def find_open_position(
+    sim_type: str,
+    sim_open: datetime,
+    symbol: str,
+    positions,
+    sim_tf: str = "",
+    sim_sl=None,
+    sim_tp=None,
+):
     """Find the live S20.12 position matching a SIM row."""
     want_type = mt5.POSITION_TYPE_BUY if sim_type == "BUY" else mt5.POSITION_TYPE_SELL
     for pos in positions:
@@ -170,16 +201,51 @@ def find_open_position(sim_type: str, sim_open: datetime, symbol: str, positions
             continue
         if _hhmm(_mt5_to_bkk_naive(pos.time)) != _hhmm(sim_open):
             continue
+        if not _sim_prices_match(pos, sim_sl, sim_tp):
+            continue
         comment = getattr(pos, "comment", "") or ""
         ok, mode = _is_s20_12_comment(comment, sim_tf)
         if ok:
             if mode != "exact":
                 print(
                     f"     match fallback ticket={pos.ticket} comment={comment!r} "
-                    f"sim_tf={sim_tf or '-'} open={sim_open.strftime('%H:%M')}"
+                    f"sim_tf={sim_tf or '-'} open={sim_open.strftime('%H:%M')} "
+                    f"sl={getattr(pos, 'sl', 0)} tp={getattr(pos, 'tp', 0)}"
             )
             return pos
     return None
+
+
+def wait_for_open_position(
+    sim_type: str,
+    sim_open: datetime,
+    sim_close: datetime,
+    symbol: str,
+    sim_tf: str = "",
+    sim_sl=None,
+    sim_tp=None,
+    deadline_sec: int = 6,
+):
+    """Poll briefly for just-filled positions when SIM closes in the same minute."""
+    deadline = sim_close + timedelta(seconds=deadline_sec)
+    last_positions = mt5.positions_get(symbol=symbol) or []
+    pos = find_open_position(sim_type, sim_open, symbol, last_positions, sim_tf, sim_sl, sim_tp)
+    if pos is not None:
+        return pos, last_positions
+
+    now = datetime.now()
+    if now >= deadline:
+        return None, last_positions
+
+    print(f"     wait fill-match until {deadline.strftime('%H:%M:%S')} (tf/type/sl/tp)")
+    while datetime.now() < deadline:
+        time.sleep(0.5)
+        last_positions = mt5.positions_get(symbol=symbol) or []
+        pos = find_open_position(sim_type, sim_open, symbol, last_positions, sim_tf, sim_sl, sim_tp)
+        if pos is not None:
+            print(f"     delayed match ticket={pos.ticket} at {datetime.now().strftime('%H:%M:%S')}")
+            return pos, last_positions
+    return None, last_positions
 
 
 def _live_s20_12_positions(symbol: str, positions):
@@ -346,6 +412,7 @@ def main():
 
         # ── 3. หา SIM order ที่ควรปิดแล้ว ────────────────────────────
         due = df[df["Close Time"] <= now]
+        unmatched_due_anchors = []
         for _, row in due.iterrows():
             sim_tf = str(row.get("TF", "") or "")
             key = (sim_tf, str(row["Time (BKK)"]), row["Type"])
@@ -356,6 +423,8 @@ def main():
             sim_close = row["Close Time"].to_pydatetime()
             sim_type  = row["Type"]
             reason    = row.get("Reason", "")
+            sim_sl     = row.get("SL", None)
+            sim_tp     = row.get("TP", None)
 
             print(f"  📋 SIM {sim_type} open={sim_open.strftime('%H:%M')} "
                   f"close={sim_close.strftime('%H:%M')} [{reason}]")
@@ -366,10 +435,18 @@ def main():
                 processed.add(key)
                 continue
 
-            pos = find_open_position(sim_type, sim_open, symbol, positions, sim_tf)
+            pos = find_open_position(sim_type, sim_open, symbol, positions, sim_tf, sim_sl, sim_tp)
             if pos is None:
-                print(f"     → ไม่มี open position ที่ match (MT5 ปิดไปแล้ว หรือ live ไม่มี order นี้)")
-                processed.add(key)
+                pos, positions = wait_for_open_position(
+                    sim_type, sim_open, sim_close, symbol, sim_tf, sim_sl, sim_tp
+                )
+            if pos is None:
+                if (datetime.now() - sim_close).total_seconds() <= 90:
+                    print("     → ยังไม่เจอ match แต่ SIM เพิ่ง close — ไม่ mark processed, จะ keep --start ไว้ retry")
+                    unmatched_due_anchors.append(sim_open)
+                else:
+                    print(f"     → ไม่มี open position ที่ match (MT5 ปิดไปแล้ว หรือ live ไม่มี order นี้)")
+                    processed.add(key)
             else:
                 print(f"     → พบ ticket={pos.ticket} ยังเปิดอยู่ — force-close ทันทีตาม SIM reason={reason_norm}")
                 if close_position(pos, symbol, reason_norm):
@@ -390,7 +467,9 @@ def main():
             sim_open = row["Time (BKK)"].to_pydatetime()
             sim_type = row["Type"]
             sim_tf = str(row.get("TF", "") or "")
-            pos = find_open_position(sim_type, sim_open, symbol, positions, sim_tf)
+            pos = find_open_position(
+                sim_type, sim_open, symbol, positions, sim_tf, row.get("SL", None), row.get("TP", None)
+            )
             if pos is None:
                 print(f"  ↪ pending SIM open={sim_open.strftime('%H:%M')} {sim_type} ไม่มี live position match — ไม่ใช้ลาก --start")
                 continue
@@ -410,6 +489,14 @@ def main():
                       f"-> rewind --start to {live_anchor.strftime('%H:%M')}")
                 current_start = live_anchor
                 _save_state(current_start)
+        elif unmatched_due_anchors:
+            retry_start = min(unmatched_due_anchors).replace(second=0, microsecond=0)
+            if retry_start != current_start:
+                print(f"  ANCHOR unmatched fresh SIM close -> keep --start at {retry_start.strftime('%H:%M')}")
+                current_start = retry_start
+                _save_state(current_start)
+            else:
+                print(f"  ANCHOR unmatched fresh SIM close -> keep --start {current_start.strftime('%H:%M')}")
         else:
             next_start = live_anchor if live_anchor is not None else now.replace(second=0, microsecond=0)
             if next_start > current_start:
