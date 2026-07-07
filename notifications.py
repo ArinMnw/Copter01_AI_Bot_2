@@ -18,7 +18,7 @@ def _parse_bot_comment(comment: str):
     """
     if not comment:
         return None, None
-    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S(\w+))?", comment)
+    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S([A-Za-z0-9]+(?:\.\d+)?))?", comment)
     if not m:
         return None, None
     tf = m.group(1)
@@ -28,10 +28,14 @@ def _parse_bot_comment(comment: str):
     # "3" → 3, "6i" → 7 (S6i = active_strategies key 7)
     if sid_raw == "6i":
         return tf, 7
-    m_sid = re.match(r"(\d+)", sid_raw)
-    if m_sid:
+    if re.fullmatch(r"\d+\.\d+", sid_raw):
         try:
-            return tf, int(m_sid.group(1))
+            return tf, float(sid_raw)
+        except ValueError:
+            return tf, None
+    if re.fullmatch(r"\d+", sid_raw):
+        try:
+            return tf, int(sid_raw)
         except ValueError:
             return tf, None
     try:
@@ -476,4 +480,3 @@ async def check_sl_tp_hits(app):
                     _config.tracked_positions[p.ticket]["trend_filter"] = position_trend_filter.get(p.ticket, "")
                 if not _config.tracked_positions[p.ticket].get("comment"):
                     _config.tracked_positions[p.ticket]["comment"] = getattr(p, "comment", "") or ""
-

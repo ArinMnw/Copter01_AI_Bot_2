@@ -60,7 +60,12 @@ from strategy_af import (
 
 from bot_log import log_event, log_error
 
-STATE_FILE = os.path.join(os.path.dirname(__file__), "demo_portfolio_state.json")
+STATE_FILE = os.path.join(
+    getattr(config, "PROFILE_DIR", os.path.dirname(__file__))
+    if getattr(config, "PROFILE_ACTIVE", False)
+    else os.path.dirname(__file__),
+    "demo_portfolio_state.json",
+)
 MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โดยสิ้นเชิง — P13=990013, P16=990016
 AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
 MIN_LOT = 0.01
@@ -93,7 +98,7 @@ def _demo_market_open(symbol):
     if tick_ts <= 0:
         return False, "no tick time"
     now_ts = int(datetime.now().timestamp())
-    if abs(now_ts - tick_ts) > 180:
+    if (now_ts - tick_ts) > 180:
         return False, "stale tick"
     return True, "open"
 
@@ -673,19 +678,21 @@ async def demo_scan(app, portfolio_name: str):
 async def demo_scan_job(app):
     """เรียกจาก scheduler ใน main.py ทุก DEMO_PORTFOLIO_SCAN_INTERVAL นาที — no-op ถ้าไม่มี
     portfolio ไหน active เลย"""
-    if not any(config.DEMO_PORTFOLIO_ACTIVE.values()):
+    active_names = [name for name in PORTFOLIO_ORDER if config.DEMO_PORTFOLIO_ACTIVE.get(name, False)]
+    if not active_names:
         return
     symbol = _demo_symbol()
     market_open, reason = _demo_market_open(symbol)
     if not market_open:
-        log_event("DEMO_PORTFOLIO_SKIP", f"{symbol} market closed - {reason}")
+        log_event("DEMO_PORTFOLIO_SKIP", f"{symbol} market closed - {reason}", active=",".join(active_names))
         return
-    for name in PORTFOLIO_ORDER:
-        if config.DEMO_PORTFOLIO_ACTIVE.get(name, False):
-            try:
-                await demo_scan(app, name)
-            except Exception as e:
-                log_error("DEMO_PORTFOLIO", f"{name} scan error: {type(e).__name__}: {e}")
+    log_event("DEMO_PORTFOLIO_SCAN", f"{symbol} open active={','.join(active_names)}")
+    for name in active_names:
+        try:
+            await demo_scan(app, name)
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"{name} scan error: {type(e).__name__}: {e}")
+    log_event("DEMO_PORTFOLIO_SCAN", f"{symbol} done active={','.join(active_names)}")
 
 
 def _fetch_leg_pnl(portfolio_name: str):

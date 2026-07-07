@@ -1031,7 +1031,11 @@ def _parse_bot_comment(comment: str):
     """Parse comment like M1_S2, H4_S3, M1_S6i_buy -> (tf, sid)."""
     if not comment:
         return None, None
-    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S(\w+))?", comment)
+    if str(comment).startswith("DEMO-"):
+        parts = str(comment).split("-")
+        tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
+        return tf, 21
+    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S([A-Za-z0-9]+(?:\.\d+)?))?", comment)
     if not m:
         return None, None
     tf = m.group(1)
@@ -1040,10 +1044,14 @@ def _parse_bot_comment(comment: str):
         return tf, None
     if sid_raw == "6i":
         return tf, 7
-    m_sid = re.match(r"(\d+)", sid_raw)
-    if m_sid:
+    if re.fullmatch(r"\d+\.\d+", sid_raw):
         try:
-            return tf, int(m_sid.group(1))
+            return tf, float(sid_raw)
+        except ValueError:
+            return tf, None
+    if re.fullmatch(r"\d+", sid_raw):
+        try:
+            return tf, int(sid_raw)
         except ValueError:
             return tf, None
     try:
@@ -3209,6 +3217,8 @@ def _resolve_pos_sid(ticket, comment: str = ""):
     _info = _t.get(ticket) or _t.get(str(ticket))
     if isinstance(_info, dict) and _info.get("sid") is not None:
         return _info.get("sid")
+    if str(comment or "").startswith("DEMO-"):
+        return 21
     m = _SID_COMMENT_RE.search(str(comment or ""))
     if m:
         txt = m.group(1)

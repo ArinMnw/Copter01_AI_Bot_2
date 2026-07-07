@@ -77,6 +77,30 @@ _last_pattern_notify_by_key: dict = {}
 _swing_data: dict = {}   # {tf_name: {"sh": str, "sl": str, "prev_sh": str, "prev_sl": str, "hh": str, "ll": str}}
 
 
+def _s20_12_start_gate() -> tuple[bool, str]:
+    raw = str(os.getenv("S20_12_START_NOT_BEFORE", "") or "").strip()
+    if not raw:
+        return True, ""
+
+    target = None
+    for fmt in ("%d-%m-%Y %H:%M", "%Y-%m-%d %H:%M"):
+        try:
+            from datetime import datetime as _dt
+            target = _dt.strptime(raw, fmt)
+            break
+        except ValueError:
+            continue
+    if target is None:
+        return True, ""
+
+    now = config.now_bkk()
+    if getattr(now, "tzinfo", None) is not None:
+        now = now.replace(tzinfo=None)
+    if now < target:
+        return False, f"S20.12 รอเริ่ม {target.strftime('%H:%M')}"
+    return True, ""
+
+
 def clear_symbol_caches():
     """ล้าง cache ระดับ scanner ที่ผูกกับ symbol — เรียกตอนสลับ symbol (XAU<->BTC)
     กันข้อมูล swing/summary ของ symbol เก่าค้างปนเข้า scan ของ symbol ใหม่"""
@@ -2934,7 +2958,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_11.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.11, r20_11["signal"], last_candle_time, r20_11)
 
-    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if active_strategies.get(20.12, False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.12 ปิด หรือ TF ปิด"}
+    _s20_12_start_ok, _s20_12_start_reason = _s20_12_start_gate()
+    r20_12 = strategy_20_12(rates, tf_name=tf_name, config=config) if active_strategies.get(20.12, False) and getattr(config, "S20_12_TF_ENABLED", {}).get(tf_name, True) and _s20_ok and _s20_12_start_ok else {"signal": "WAIT", "reason": _s20_12_start_reason or "S20.12 ปิด หรือ TF ปิด"}
     if r20_12.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 

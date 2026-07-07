@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-06 20:07:51",
+  "saved_at": "2026-07-07 10:34:30",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -131,8 +131,8 @@
     "M30": true,
     "H1": true,
     "H4": true,
-    "H12": true,
-    "D1": true
+    "H12": false,
+    "D1": false
   },
   "s20_12_compounding_enabled": true,
   "s20_12_risk_pct": 2.0,
@@ -202,13 +202,13 @@
   "daily_loss_limit_enabled": false,
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
-    "date": "2026-07-06",
-    "realized": 109.76,
-    "wins": 3,
-    "losses": 5,
-    "count": 8,
-    "gross_win": 298.78,
-    "gross_loss": -189.02
+    "date": "2026-07-07",
+    "realized": -87.45,
+    "wins": 10,
+    "losses": 13,
+    "count": 23,
+    "gross_win": 398.93,
+    "gross_loss": -486.38
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -251,7 +251,7 @@
     "H12",
     "D1"
   ],
-  "sl_guard_group_enabled": true,
+  "sl_guard_group_enabled": false,
   "sl_guard_group_count": 2,
   "sl_guard_state": {},
   "sl_guard_combined_state": {},
@@ -272,7 +272,7 @@
           "count": 2,
           "active": true,
           "tf_blocked": {
-            "M1": true,
+            "M1": false,
             "M5": true,
             "M15": true
           },
@@ -287,7 +287,7 @@
             "M15": 4142.7
           },
           "tf_swing_bar_time": {
-            "M1": 1783346580
+            "M5": 1783347600
           },
           "tf_blocked_signals": {
             "M1": [],
@@ -300,7 +300,7 @@
           "count": 2,
           "active": true,
           "tf_blocked": {
-            "M1": true,
+            "M1": false,
             "M5": true
           },
           "tf_since": {
@@ -312,7 +312,7 @@
             "M5": 4142.7
           },
           "tf_swing_bar_time": {
-            "M1": 1783346580
+            "M5": 1783347600
           },
           "tf_blocked_signals": {
             "M1": [],
@@ -376,60 +376,46 @@
   "pdfiboplus_fill_state": {},
   "s10_last_fired_armed_at": {},
   "last_traded_per_tf": {
-    "M5": 1783342200,
-    "M1": 1783346580,
+    "M5": 1783394700,
+    "M1": 1783397100,
     "H4": 1783324800,
-    "H12": 1783296000
+    "H12": 1783296000,
+    "M30": 1783393200,
+    "D1": 1783296000,
+    "M15": 1783394100
   },
   "last_traded_sid_tf": {
     "M5": {
-      "20.12": 1783339200,
-      "20.12": 1783342200
+      "20.12": 1783394700
     },
     "M1": {
-      "20.12": 1783339740,
-      "20.12": 1783346580
+      "20.12": 1783397100
     },
     "H4": {
       "20.12": 1783324800
     },
     "H12": {
       "20.12": 1783296000
+    },
+    "M30": {
+      "20.12": 1783393200
+    },
+    "D1": {
+      "20.12": 1783296000
+    },
+    "M15": {
+      "20.12": 1783394100
     }
   },
   "pending_order_tf": {},
   "position_tf": {
-    "556790827": "M5",
-    "556795330": "M1",
-    "556800306": "M1",
-    "556811655": "M1",
-    "556817612": "M1",
-    "556835985": "M1",
-    "556836525": "M1",
-    "556838955": "M1",
-    "556840883": "M1"
+    "557067195": "D1"
   },
   "position_sid": {
-    "556790827": 20.12,
-    "556795330": 20.12,
-    "556800306": 20.12,
-    "556811655": 20.12,
-    "556817612": 20.12,
-    "556835985": 20.12,
-    "556836525": 20.12,
-    "556838955": 20.12,
-    "556840883": 20.12
+    "557067195": 20.12
   },
   "position_pattern": {
-    "556790827": "S20.12.SweepReversal",
-    "556795330": "S20.12.SweepReversal",
-    "556800306": "S20.12.NoWickTrap",
-    "556811655": "S20.12.SweepReversal",
-    "556817612": "S20.12.NoWickTrap",
-    "556835985": "S20.12.SweepReversal",
-    "556836525": "S20.12.SweepReversal",
-    "556838955": "S20.12.SweepReversal",
-    "556840883": "S20.12.SweepReversal"
+    "557067195": "S20.12.SweepReversal"
   },
   "position_trend_filter": {},
   "position_zone_meta": {},
@@ -469,14 +455,6 @@
   "s20_entry_buffer": 390.0,
   "s20_sl_2l2h": 100.0,
   "fill_notified": [
-    556790827,
-    556795330,
-    556800306,
-    556811655,
-    556817612,
-    556835985,
-    556836525,
-    556838955,
-    556840883
+    557067195
   ]
 }

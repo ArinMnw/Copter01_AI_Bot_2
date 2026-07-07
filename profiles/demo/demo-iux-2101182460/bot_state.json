@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-06 20:11:29",
+  "saved_at": "2026-07-07 10:32:32",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -202,7 +202,7 @@
   "daily_loss_limit_enabled": false,
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
-    "date": "2026-07-06",
+    "date": "2026-07-07",
     "realized": 0.0,
     "wins": 0,
     "losses": 0,
@@ -251,7 +251,7 @@
     "H12",
     "D1"
   ],
-  "sl_guard_group_enabled": true,
+  "sl_guard_group_enabled": false,
   "sl_guard_group_count": 2,
   "sl_guard_state": {},
   "sl_guard_combined_state": {},
@@ -261,8 +261,14 @@
   "last_traded_per_tf": {},
   "last_traded_sid_tf": {},
   "pending_order_tf": {},
-  "position_tf": {},
-  "position_sid": {},
+  "position_tf": {
+    "557100802": "M5",
+    "557100803": "M5"
+  },
+  "position_sid": {
+    "557100802": 21,
+    "557100803": 21
+  },
   "position_pattern": {},
   "position_trend_filter": {},
   "position_zone_meta": {},
@@ -301,5 +307,8 @@
   "s20_session_filter": false,
   "s20_entry_buffer": 390.0,
   "s20_sl_2l2h": 100.0,
-  "fill_notified": []
+  "fill_notified": [
+    557100802,
+    557100803
+  ]
 }

@@ -453,6 +453,7 @@ MT5_PATH       = ""
 MT5_PORTABLE   = True
 MT5_TIMEOUT_MS = 120000
 MAGIC_NUMBER   = 234001
+ROOT_IUX_ALLOWED_LOGINS = "2101114448"
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", TELEGRAM_TOKEN)
 MY_USER_ID     = int(os.getenv("MY_USER_ID", os.getenv("TELEGRAM_USER_ID", str(MY_USER_ID))) or MY_USER_ID)
@@ -465,6 +466,7 @@ MT5_PATH       = os.getenv("MT5_PATH", MT5_PATH)
 MT5_PORTABLE   = os.getenv("MT5_PORTABLE", str(MT5_PORTABLE)).strip().lower() in ("1", "true", "yes", "on")
 MT5_TIMEOUT_MS = int(os.getenv("MT5_TIMEOUT_MS", str(MT5_TIMEOUT_MS)) or MT5_TIMEOUT_MS)
 MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBER)
+ROOT_IUX_ALLOWED_LOGINS = os.getenv("ROOT_IUX_ALLOWED_LOGINS", ROOT_IUX_ALLOWED_LOGINS)
 if not PROFILE_ACTIVE and not MT5_PATH:
     _default_mt5_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
     if os.path.exists(_default_mt5_path):
@@ -979,7 +981,7 @@ S20_11_RISK_PCT       = 2.0
 S20_11_MAX_LOT        = 50.0
 
 S20_12_ENABLED        = False
-S20_12_TF_ENABLED     = {"M1": True, "M5": True, "M15": True, "M30": True, "H1": True, "H4": True, "H12": True, "D1": True}
+S20_12_TF_ENABLED     = {"M1": True, "M5": True, "M15": True, "M30": True, "H1": True, "H4": True, "H12": False, "D1": False}
 S20_12_COMPOUNDING_ENABLED = True
 S20_12_RISK_PCT       = 2.0
 S20_12_MAX_LOT        = 50.0
@@ -1917,6 +1919,7 @@ def _apply_profile_feature_env_overrides():
     global OPPOSITE_ORDER_ENABLED, LIMIT_GUARD, SCALE_OUT_ENABLED
     global TREND_FILTER_SCAN_BLOCK, TREND_FILTER_HIGHER_TF_ENABLED
     global TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED, TREND_FILTER_SIDEWAY_HHLL
+    global SL_GUARD_ENABLED, SL_GUARD_COMBINED_ENABLED, SL_GUARD_GROUP_ENABLED
 
     if os.getenv("TRAIL_SL_ENABLED") is not None:
         TRAIL_SL_ENABLED = _env_bool("TRAIL_SL_ENABLED", TRAIL_SL_ENABLED)
@@ -1932,6 +1935,12 @@ def _apply_profile_feature_env_overrides():
         LIMIT_GUARD = _env_bool("LIMIT_GUARD", LIMIT_GUARD)
     if os.getenv("SCALE_OUT_ENABLED") is not None:
         SCALE_OUT_ENABLED = _env_bool("SCALE_OUT_ENABLED", SCALE_OUT_ENABLED)
+    if os.getenv("SL_GUARD_ENABLED") is not None:
+        SL_GUARD_ENABLED = _env_bool("SL_GUARD_ENABLED", SL_GUARD_ENABLED)
+    if os.getenv("SL_GUARD_COMBINED_ENABLED") is not None:
+        SL_GUARD_COMBINED_ENABLED = _env_bool("SL_GUARD_COMBINED_ENABLED", SL_GUARD_COMBINED_ENABLED)
+    if os.getenv("SL_GUARD_GROUP_ENABLED") is not None:
+        SL_GUARD_GROUP_ENABLED = _env_bool("SL_GUARD_GROUP_ENABLED", SL_GUARD_GROUP_ENABLED)
 
     if os.getenv("TREND_FILTER_SCAN_BLOCK") is not None:
         TREND_FILTER_SCAN_BLOCK = _env_bool("TREND_FILTER_SCAN_BLOCK", TREND_FILTER_SCAN_BLOCK)

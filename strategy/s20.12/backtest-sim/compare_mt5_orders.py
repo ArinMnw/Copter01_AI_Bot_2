@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import re
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 import MetaTrader5 as mt5
@@ -10,6 +11,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 import config
 
 BKK = timezone(timedelta(hours=7))
+
+
+def _tf_from_comment(comment: str) -> str:
+    comment = str(comment or "")
+    m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S[\w.]+)?", comment)
+    if not m:
+        return ""
+    return m.group(1).strip("[]").replace("-", "_")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Compare S20.12 SIM vs MT5 orders")
@@ -93,11 +102,13 @@ def main():
         in_deals = mt5.history_deals_get(position=d.position_id)
         is_target_strat = False
         open_dt_bkk = None
+        mt5_tf = ""
         if in_deals:
             for ind in in_deals:
                 if ind.entry == mt5.DEAL_ENTRY_IN and ind.comment and ("20.12" in str(ind.comment)):
                     is_target_strat = True
                     open_dt_bkk = config.mt5_ts_to_bkk(ind.time)
+                    mt5_tf = _tf_from_comment(ind.comment)
                     break
         if not is_target_strat:
              continue
@@ -115,6 +126,7 @@ def main():
         act_trades.append({
             "MT5_Open_Time": open_dt_bkk,
             "MT5_Close_Time": dt_bkk,
+            "MT5_TF": mt5_tf,
             "MT5_Type": typ,
             "MT5_Price": d.price,
             "MT5_Volume": d.volume,
@@ -150,10 +162,15 @@ def main():
         sim_open = sim["Time (BKK)"]
         sim_close = sim["Close Time"]
         sim_type = sim["Type"]
+        sim_tf = str(sim["TF"])
 
         match = None
         if not df_act.empty:
-            subset = df_act[(df_act["MT5_Type"] == sim_type) & (~df_act.index.isin(matched_indices))].copy()
+            subset = df_act[
+                (df_act["MT5_Type"] == sim_type)
+                & (df_act["MT5_TF"].astype(str) == sim_tf)
+                & (~df_act.index.isin(matched_indices))
+            ].copy()
             for idx, cand in subset.iterrows():
                 cand_open = cand["MT5_Open_Time"].tz_localize(None) if cand["MT5_Open_Time"] is not None else None
                 cand_close = cand["MT5_Close_Time"].tz_localize(None) if cand["MT5_Close_Time"] is not None else None
@@ -171,6 +188,7 @@ def main():
             "SIM_Close_Time": sim["Close Time"],
             "MT5_Close_Time": mt5_close.strftime('%Y-%m-%d %H:%M:%S') if mt5_close is not None else None,
             "SIM_TF":         sim["TF"],
+            "MT5_TF":         match["MT5_TF"] if match is not None else None,
             "SIM_Type":       sim["Type"],
             "MT5_Type":       match["MT5_Type"] if match is not None else None,
             "SIM_Entry":      sim["Entry"],
@@ -212,6 +230,7 @@ def main():
                 "SIM_Close_Time": None,
                 "MT5_Close_Time": act_close.strftime('%Y-%m-%d %H:%M:%S') if act_close is not None else None,
                 "SIM_TF":         None,
+                "MT5_TF":         act["MT5_TF"],
                 "SIM_Type":       None,
                 "MT5_Type":       act["MT5_Type"],
                 "SIM_Entry":      None,
