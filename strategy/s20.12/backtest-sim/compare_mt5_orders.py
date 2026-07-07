@@ -20,6 +20,56 @@ def _tf_from_comment(comment: str) -> str:
         return ""
     return m.group(1).strip("[]").replace("-", "_")
 
+
+def _deal_delta(deal) -> float:
+    try:
+        return float(deal.profit) + float(deal.commission) + float(deal.swap)
+    except Exception:
+        return 0.0
+
+
+def _balance_deal_delta(deal) -> float:
+    balance_types = [
+        getattr(mt5, "DEAL_TYPE_BALANCE", None),
+        getattr(mt5, "DEAL_TYPE_CREDIT", None),
+        getattr(mt5, "DEAL_TYPE_CHARGE", None),
+        getattr(mt5, "DEAL_TYPE_CORRECTION", None),
+        getattr(mt5, "DEAL_TYPE_BONUS", None),
+        getattr(mt5, "DEAL_TYPE_COMMISSION", None),
+        getattr(mt5, "DEAL_TYPE_COMMISSION_DAILY", None),
+        getattr(mt5, "DEAL_TYPE_COMMISSION_MONTHLY", None),
+        getattr(mt5, "DEAL_TYPE_INTEREST", None),
+    ]
+    balance_types = {t for t in balance_types if t is not None}
+    if getattr(deal, "type", None) in balance_types:
+        return _deal_delta(deal)
+    if getattr(deal, "entry", None) == mt5.DEAL_ENTRY_OUT:
+        return _deal_delta(deal)
+    return 0.0
+
+
+def _build_balance_after_by_deal(deals, current_balance: float) -> dict[int, float]:
+    """Reconstruct account balance after each balance-affecting deal in history."""
+    balance_deals = [d for d in deals if abs(_balance_deal_delta(d)) > 1e-9]
+    if not balance_deals:
+        return {}
+    total_delta = sum(_balance_deal_delta(d) for d in balance_deals)
+    running = float(current_balance) - total_delta
+    result = {}
+    for d in sorted(balance_deals, key=lambda x: (x.time, getattr(x, "ticket", 0))):
+        running += _balance_deal_delta(d)
+        result[int(getattr(d, "ticket", 0))] = running
+    return result
+
+
+def _fmt_money(value):
+    try:
+        if value is None or pd.isna(value):
+            return None
+        return f"{float(value):.2f}"
+    except Exception:
+        return None
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Compare S20.12 SIM vs MT5 orders")
     parser.add_argument("--start", type=str, default=None,
@@ -81,6 +131,11 @@ def main():
 
     print("📥 กำลังดึงประวัติการเทรดจาก MT5...")
     deals = mt5.history_deals_get(start_utc, end_utc)
+    account = mt5.account_info()
+    current_balance = float(account.balance) if account else 0.0
+    balance_end_utc = datetime.now(timezone.utc) + timedelta(hours=6)
+    balance_deals = mt5.history_deals_get(start_utc, balance_end_utc) or deals or []
+    mt5_balance_after = _build_balance_after_by_deal(balance_deals, current_balance)
     if deals is None or len(deals) == 0:
         print("⚠️ ไม่พบประวัติการเทรดใน MT5 ในช่วงเวลานี้")
         mt5.shutdown()
@@ -102,12 +157,14 @@ def main():
         in_deals = mt5.history_deals_get(position=d.position_id)
         is_target_strat = False
         open_dt_bkk = None
+        mt5_open_price = None
         mt5_tf = ""
         if in_deals:
             for ind in in_deals:
                 if ind.entry == mt5.DEAL_ENTRY_IN and ind.comment and ("20.12" in str(ind.comment)):
                     is_target_strat = True
                     open_dt_bkk = config.mt5_ts_to_bkk(ind.time)
+                    mt5_open_price = ind.price
                     mt5_tf = _tf_from_comment(ind.comment)
                     break
         if not is_target_strat:
@@ -128,11 +185,13 @@ def main():
             "MT5_Close_Time": dt_bkk,
             "MT5_TF": mt5_tf,
             "MT5_Type": typ,
-            "MT5_Price": d.price,
+            "MT5_Entry": mt5_open_price,
+            "MT5_Close_Price": d.price,
             "MT5_Volume": d.volume,
             "MT5_SL": mt5_sl,
             "MT5_TP": mt5_tp,
             "MT5_P&L": d.profit + d.commission + d.swap,
+            "MT5_Balance": _fmt_money(mt5_balance_after.get(int(getattr(d, "ticket", 0)))),
             "MT5_Comment": d.comment,
             "MT5_Position_ID": d.position_id
         })
@@ -151,10 +210,26 @@ def main():
         return (a.hour, a.minute) == (b.hour, b.minute)
 
     def _close_match(a, b) -> bool:
-        # ใช้ HH:MM match เหมือน open — SIM บันทึก bar open time เป็น close time
-        # ดังนั้นความต่างระหว่าง SIM กับ MT5 อาจสูงถึง 60s (M1) หรือ 5 นาที (M5)
-        # การใช้ tolerance วินาทีแคบๆ ทำให้ match ได้น้อยลงแทนที่จะมากขึ้น
-        return _hhmm_match(a, b)
+        if a is None or b is None or pd.isna(a) or pd.isna(b):
+            return False
+        try:
+            return abs((a - b).total_seconds()) <= 65
+        except Exception:
+            return _hhmm_match(a, b)
+
+    def _price_match(a, b, tol: float = 0.08) -> bool:
+        try:
+            if a is None or b is None or pd.isna(a) or pd.isna(b):
+                return False
+            return abs(float(a) - float(b)) <= tol
+        except Exception:
+            return False
+
+    def _sl_tp_match(sim, cand) -> bool:
+        return (
+            _price_match(sim.get("SL"), cand.get("MT5_SL"))
+            and _price_match(sim.get("TP"), cand.get("MT5_TP"))
+        )
 
     results = []
     matched_indices = set()
@@ -174,7 +249,11 @@ def main():
             for idx, cand in subset.iterrows():
                 cand_open = cand["MT5_Open_Time"].tz_localize(None) if cand["MT5_Open_Time"] is not None else None
                 cand_close = cand["MT5_Close_Time"].tz_localize(None) if cand["MT5_Close_Time"] is not None else None
-                if _hhmm_match(sim_open, cand_open) and _close_match(sim_close, cand_close):
+                if (
+                    _hhmm_match(sim_open, cand_open)
+                    and _close_match(sim_close, cand_close)
+                    and _sl_tp_match(sim, cand)
+                ):
                     match = cand
                     matched_indices.add(idx)
                     break
@@ -192,7 +271,8 @@ def main():
             "SIM_Type":       sim["Type"],
             "MT5_Type":       match["MT5_Type"] if match is not None else None,
             "SIM_Entry":      sim["Entry"],
-            "MT5_Price":      match["MT5_Price"] if match is not None else None,
+            "MT5_Entry":      match["MT5_Entry"] if match is not None else None,
+            "MT5_Close_Price": match["MT5_Close_Price"] if match is not None else None,
             "SIM_SL":         sim["SL"] if "SL" in sim else None,
             "MT5_SL":         match["MT5_SL"] if match is not None else None,
             "SIM_TP":         sim["TP"] if "TP" in sim else None,
@@ -202,6 +282,7 @@ def main():
             "SIM_P&L":        sim["P&L"],
             "MT5_P&L":        match["MT5_P&L"] if match is not None else None,
             "SIM_Balance":    sim["Balance"] if "Balance" in sim else None,
+            "MT5_Balance":    match["MT5_Balance"] if match is not None else None,
             "MT5_Comment":    match["MT5_Comment"] if match is not None else None,
             "MT5_Position_ID": match["MT5_Position_ID"] if match is not None else None,
             "Matched":        match is not None,
@@ -234,7 +315,8 @@ def main():
                 "SIM_Type":       None,
                 "MT5_Type":       act["MT5_Type"],
                 "SIM_Entry":      None,
-                "MT5_Price":      act["MT5_Price"],
+                "MT5_Entry":      act["MT5_Entry"],
+                "MT5_Close_Price": act["MT5_Close_Price"],
                 "SIM_SL":         None,
                 "MT5_SL":         act["MT5_SL"],
                 "SIM_TP":         None,
@@ -244,6 +326,7 @@ def main():
                 "SIM_P&L":        None,
                 "MT5_P&L":        act["MT5_P&L"],
                 "SIM_Balance":    None,
+                "MT5_Balance":    act["MT5_Balance"],
                 "MT5_Comment":    act["MT5_Comment"],
                 "MT5_Position_ID": act["MT5_Position_ID"],
                 "Matched":        False,

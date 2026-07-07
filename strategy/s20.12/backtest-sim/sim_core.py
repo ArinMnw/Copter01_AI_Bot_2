@@ -79,6 +79,54 @@ def run_sim(symbol: str, start_dt_bkk: datetime, end_dt_bkk=None,
     print(f"\n--- Running Backtest S20.12 for {days_label} ---")
 
     candidates = []
+    m1_rates = mt5.copy_rates_range(
+        symbol,
+        mt5.TIMEFRAME_M1,
+        start_time - timedelta(days=1),
+        end_time,
+    )
+    if m1_rates is None:
+        m1_rates = []
+
+    def _naive(dt):
+        return dt.replace(tzinfo=None) if getattr(dt, "tzinfo", None) else dt
+
+    def _find_exit_on_m1(open_dt, sig, entry, sl, tp):
+        """Use M1 bars for exit timing so higher-TF exits do not use bar-open labels."""
+        open_naive = _naive(open_dt)
+        for c in m1_rates:
+            c_dt = mt5_ts_to_bkk(c["time"])
+            if _naive(c_dt) < open_naive:
+                continue
+            if sig == "BUY":
+                if c["low"] <= sl:
+                    exec_price = sl - spread
+                    pnl_per_lot = -(entry - exec_price) * contract_size
+                    return "LOSS", c_dt + timedelta(minutes=1), pnl_per_lot
+                if c["high"] >= tp:
+                    exec_price = tp - spread
+                    pnl_per_lot = (exec_price - entry) * contract_size
+                    return "WIN", c_dt + timedelta(minutes=1), pnl_per_lot
+            else:
+                if c["high"] + spread >= sl:
+                    exec_price = sl + spread
+                    pnl_per_lot = -(exec_price - entry) * contract_size
+                    return "LOSS", c_dt + timedelta(minutes=1), pnl_per_lot
+                if c["low"] <= tp:
+                    exec_price = tp + spread
+                    pnl_per_lot = (entry - exec_price) * contract_size
+                    return "WIN", c_dt + timedelta(minutes=1), pnl_per_lot
+        return None, None, None
+
+    def _entry_at_open_time(open_dt, sig):
+        open_naive = _naive(open_dt)
+        for c in m1_rates:
+            c_dt = mt5_ts_to_bkk(c["time"])
+            if _naive(c_dt) < open_naive:
+                continue
+            bid_open = float(c["open"])
+            return bid_open + spread if sig == "BUY" else bid_open
+        return None
 
     for tf_name, tf_code in tfs.items():
         lookback_days_needed = {
@@ -122,47 +170,25 @@ def run_sim(symbol: str, start_dt_bkk: datetime, end_dt_bkk=None,
             sl      = res["sl"]
             tp      = res["tp"]
             pattern = res["pattern"]
+
+            if i + 1 >= len(rates):
+                continue
+
+            open_dt = mt5_ts_to_bkk(rates[i + 1]['time'])
+            _open_naive = _naive(open_dt)
+            if _open_naive < start_time_bkk or _open_naive > end_time_bkk:
+                continue
+
+            actual_entry = _entry_at_open_time(open_dt, sig)
+            if actual_entry is None:
+                continue
+            entry = actual_entry
             sl_dist = abs(entry - sl) or 1.0
 
             # เข้า order ทันทีแบบ market (ไม่รอ limit fill): pattern confirm ตอนแท่ง i ปิด
             # (c_curr=rates[-1]=window[i] หลังตัด lag แล้ว) → ถือว่าเปิด order ทันที ที่ entry
             # ที่ strategy คำนวณไว้ แล้วไล่หา SL/TP จากแท่งถัดไป (i+1) เป็นต้นไป
-            trade_result  = None
-            close_bar_idx = None
-            for j in range(i + 1, min(i + 2000, len(rates))):
-                c = rates[j]
-                if sig == "BUY":
-                    # BUY SL: MT5 ใช้ BID ≤ SL → bar low (bid) ≤ sl ✓
-                    if c['low'] <= sl:
-                        trade_result  = "LOSS"
-                        exec_price    = sl - spread
-                        pnl_per_lot   = -(entry - exec_price) * contract_size
-                        close_bar_idx = j
-                        break
-                    # BUY TP: MT5 ใช้ BID ≥ TP → bar high (bid) ≥ tp ✓
-                    elif c['high'] >= tp:
-                        trade_result  = "WIN"
-                        exec_price    = tp - spread
-                        pnl_per_lot   = (exec_price - entry) * contract_size
-                        close_bar_idx = j
-                        break
-                else:  # SELL
-                    # SELL SL: MT5 ใช้ ASK ≥ SL → bar high (bid) + spread ≥ sl
-                    # ถ้าไม่บวก spread backtest จะ miss SL ที่ MT5 trigger ได้แล้ว
-                    # (bid_high อยู่ระหว่าง sl-spread กับ sl แต่ ask ข้าม sl แล้ว)
-                    if c['high'] + spread >= sl:
-                        trade_result  = "LOSS"
-                        exec_price    = sl + spread
-                        pnl_per_lot   = -(exec_price - entry) * contract_size
-                        close_bar_idx = j
-                        break
-                    # SELL TP: MT5 ใช้ BID ≤ TP → bar low (bid) ≤ tp ✓
-                    elif c['low'] <= tp:
-                        trade_result  = "WIN"
-                        exec_price    = tp + spread
-                        pnl_per_lot   = (entry - exec_price) * contract_size
-                        close_bar_idx = j
-                        break
+            trade_result, close_dt, pnl_per_lot = _find_exit_on_m1(open_dt, sig, entry, sl, tp)
 
             if not trade_result:
                 continue
@@ -170,14 +196,8 @@ def run_sim(symbol: str, start_dt_bkk: datetime, end_dt_bkk=None,
             # rates[i]['time'] คือเวลา "เปิด" ของแท่งสัญญาณ แต่ order จริงถูกสร้าง
             # ตอนแท่งนั้น "ปิด" (=เวลาเปิดของแท่งถัดไป) ต้องใช้ rates[i+1] ไม่งั้น
             # เวลาที่โชว์จะช้ากว่าจริงไป 1 ความยาวแท่งเสมอ (เทียบ ORDER_CREATED จริง)
-            open_dt = mt5_ts_to_bkk(rates[i + 1]['time'])
             # กรองด้วยเวลาเปิดจริง (ไม่ใช่เวลาแท่งอ้างอิง) — TF ใหญ่แท่งอ้างอิงอาจปิด
             # ก่อน start_time_bkk นานแล้ว แต่ order เปิดจริงอยู่ในช่วงที่ขอได้
-            _open_naive = open_dt.replace(tzinfo=None)
-            if _open_naive < start_time_bkk or _open_naive > end_time_bkk:
-                continue
-
-            close_dt = mt5_ts_to_bkk(rates[close_bar_idx]['time'])
             candidates.append({
                 "open_dt":     open_dt,
                 "close_dt":    close_dt,
