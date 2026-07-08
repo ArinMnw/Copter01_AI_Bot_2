@@ -133,3 +133,19 @@
 [2026-07-07 15:58:33] Supervisor started (profile='demo-iux-2101182459', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
 [2026-07-07 15:58:33] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
 [2026-07-07 15:58:33] main.py running (pid=30212)
+[2026-07-07 21:12:19] WARN: อ่าน lock file ไม่ได้ (Cannot convert value "<<<<<<< HEAD" to type "System.Int32". Error: "Input string was not in a correct format.") — เคลียร์แล้วรันต่อ
+[2026-07-07 21:12:34] Supervisor started (profile='demo-iux-2101182459', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
+[2026-07-07 21:12:34] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-07 21:12:35] main.py running (pid=6104)
+[2026-07-07 21:21:30] STALL: heartbeat age=193s > 180s (loop hang) -> kill pid=6104 + restart
+[2026-07-07 21:21:45] Restarting in 5 s ...
+[2026-07-07 21:21:51] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-07 21:22:00] main.py running (pid=3536)
+[2026-07-07 21:35:58] STALL: heartbeat age=201s > 180s (loop hang) -> kill pid=3536 + restart
+[2026-07-07 21:35:58] Restarting in 5 s ...
+[2026-07-07 21:36:08] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-07 21:36:10] main.py running (pid=4952)
+[2026-07-07 21:42:22] STALL: heartbeat age=212s > 180s (loop hang) -> kill pid=4952 + restart
+[2026-07-07 21:42:35] Restarting in 5 s ...
+[2026-07-07 21:42:40] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-07 21:42:40] main.py running (pid=3540)
