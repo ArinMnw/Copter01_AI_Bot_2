@@ -61,20 +61,37 @@ def _write_csv(path, rows, fields):
 
 
 def _formula_from_doc(n):
-    text = (ROOT / f"create_af{n}.md").read_text(encoding="utf-8")
-    matches = re.findall(rf"AF{n}\s*=\s*([^\n`]+)", text)
-    if not matches:
-        raise ValueError(f"Cannot find AF{n} formula")
-    formula = matches[-1].strip()
-    leg = formula.split("+", 1)[1].strip() if "+" in formula else formula
-    m = re.search(r"x([0-9]+(?:\.[0-9]+)?)$", leg)
-    if not m:
-        raise ValueError(f"Cannot parse AF{n} weight from {leg}")
+    path = ROOT / f"create_af{n}.md"
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
+        matches = re.findall(rf"AF{n}\s*=\s*([^\n`]+)", text)
+        if not matches:
+            raise ValueError(f"Cannot find AF{n} formula")
+        formula = matches[-1].strip()
+        leg = formula.split("+", 1)[1].strip() if "+" in formula else formula
+        m = re.search(r"x([0-9]+(?:\.[0-9]+)?)$", leg)
+        if not m:
+            raise ValueError(f"Cannot parse AF{n} weight from {leg}")
+        name = leg[:m.start()].rstrip()
+        weight = float(m.group(1))
+    else:
+        text = (ROOT / "auto_ladder_log.md").read_text(encoding="utf-8")
+        matches = re.findall(rf"- AF{n} = AF\d+ \+ ([^\s]+x[0-9.]+)\s*->", text)
+        if not matches:
+            raise ValueError(f"Cannot find AF{n} in auto_ladder_log")
+        leg = matches[-1]
+        m = re.search(r"x([0-9]+(?:\.[0-9]+)?)$", leg)
+        if not m:
+            raise ValueError(f"Cannot parse AF{n} weight from {leg}")
+        name = leg[:m.start()].replace("INVERSE_", "AMBFIX_INV_").replace("DIRECT_", "AMBFIX_DIR_").replace("-", "_").replace("S86c", "S86RUNc").replace("S84c", "S84RUNc")
+        weight = float(m.group(1))
+        formula = f"AF{n-1} + {name} x{weight}"
+
     return {
         "component_no": n,
         "formula": formula,
-        "component_name": leg[:m.start()].rstrip(),
-        "weight": float(m.group(1)),
+        "component_name": name,
+        "weight": weight,
     }
 
 

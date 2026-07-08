@@ -282,9 +282,9 @@ Demo Portfolio ฝั่ง MT5 ใช้ full AF ladder แล้ว:
 
 MT5 order comment ของ AF:
 
-- รูปแบบ `DEMO-{entry_tf}-{portfolio}-{leg}`
-- ตัวอย่าง `DEMO-M15-AF22-AF1`, `DEMO-M30-AF47-AF43`
-- P13/P16 ใช้รูปแบบเดียวกัน เช่น `DEMO-M5-P13-B`, `DEMO-M5-P16-Q`
+- รูปแบบ `{entry_tf}-{portfolio}-{leg}`
+- ตัวอย่าง `M15-AF22-AF1`, `M30-AF47-AF43`
+- P13/P16 ใช้รูปแบบเดียวกัน เช่น `M5-P13-B`, `M5-P16-Q`
 
 Sizing:
 

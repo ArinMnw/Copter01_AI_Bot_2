@@ -137,7 +137,7 @@ confirmation (M15) หรือ weekly reference (W1, เฉพาะ R) — Ent
 
 - **ไม่แตะ** `scanner.py` / `active_strategies` / `bot_state.json`'s save-load logic
 - **Magic number แยก**: P13=990013, P16=990016 (บอทเดิมใช้ 234001 ตัวเดียวหมด)
-- **Comment แยก**: `DEMO-P13-<leg>` / `DEMO-P16-<leg>` เช่น `DEMO-P13-D`
+- **Comment แยก**: `{TF}-P13-<leg>` / `{TF}-P16-<leg>` เช่น `M5-P13-D`
 - **State แยก**: `demo_portfolio_state.json` (ไม่ใช้ `bot_state.json`)
 - **วางออเดอร์ผ่าน `mt5.order_send()` ตรงๆ** ไม่ผ่าน `mt5_utils.open_order_market()` — เพราะจะโดน
   `ML_SCORING_ENABLED`/`SCALE_OUT_ENABLED` (เปิดอยู่โดย default ในบอทเดิม) เปลี่ยน volume/filter

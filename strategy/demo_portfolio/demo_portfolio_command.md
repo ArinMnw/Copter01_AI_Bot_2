@@ -21,6 +21,8 @@ Profile ที่ใช้บ่อย:
 
 - `demo-iux-2101182460` = Demo Portfolio `P13,P16`
 - `demo-iux-2101182461` = Demo Portfolio `AF22,AF34,AF47`
+- `demo-iux-2101183586` = Demo Portfolio `LTS44`
+- `demo-iux-2101183587` = Demo Portfolio `LTS890`
 
 Windows `cmd` ใช้ syntax แบบ bash ไม่ได้ คำสั่งนี้ใช้ไม่ได้:
 

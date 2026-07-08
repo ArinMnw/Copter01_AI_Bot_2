@@ -13,7 +13,7 @@ from config import *
 import config
 from config import wrap_bot
 from scanner import auto_scan
-from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
+from trailing import (check_smart_cutloss, check_atr_trailing, check_entry_candle_quality, check_engulf_trail_sl,
                       check_breakeven_tp, check_opposite_order_tp,
                       check_cancel_pending_orders, check_s1_zone_rules, check_s1_forward_confirm_rules, check_s6_trail,
                       check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
@@ -425,6 +425,8 @@ def main():
         try:
             # Limit Fill notify ก่อน (อิสระจาก ENTRY_CANDLE_ENABLED)
             await check_limit_fill_notify(app); _lap("limit_fill_notify")
+            await check_smart_cutloss(app); _lap("smart_cutloss")
+            await check_atr_trailing(app); _lap("atr_trailing")
             # RSI Fill Recheck รันก่อน entry candle — ถ้า fail ปิด position ทันที
             await check_fill_rsi_recheck(app); _lap("fill_rsi_recheck")
             # Pending Trend Check on Approach — เช็ค trend ของ pending ก่อน fill (200pt)

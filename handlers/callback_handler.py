@@ -347,14 +347,15 @@ async def handle_callback(update, ctx):
 
     elif (
         data in (
-            "demo_refresh", "demo_af_weight_toggle", "demo_af_weight_scale",
-            "demo_view_xauusd", "demo_view_btcusd",
+            "demo_refresh", "demo_weight_toggle", "demo_scale_toggle",
+            "demo_view_xauusd", "demo_view_btcusd", "demo_manage_back"
         )
+        or data.startswith("demo_manage_")
         or (data.startswith("demo_") and data.endswith("_toggle"))
     ):
         from handlers.btn_demo_portfolio import _build_demo_portfolio_view
         import demo_portfolio
-        is_toggle = data.endswith("_toggle")
+        is_toggle = data.startswith("demo_") and data.endswith("_toggle") and data not in ("demo_weight_toggle", "demo_scale_toggle")
         answer_text = "รีเฟรชแล้ว"
         if data == "demo_view_xauusd":
             config.DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"
@@ -362,29 +363,43 @@ async def handle_callback(update, ctx):
         elif data == "demo_view_btcusd":
             config.DEMO_PORTFOLIO_DETAIL_SYMBOL = "BTCUSD"
             answer_text = "แสดงรายละเอียด BTCUSD"
-        elif data == "demo_af_weight_toggle":
-            config.DEMO_PORTFOLIO_AF_WEIGHT_ENABLED = not config.DEMO_PORTFOLIO_AF_WEIGHT_ENABLED
-            state_txt = "เปิด" if config.DEMO_PORTFOLIO_AF_WEIGHT_ENABLED else "ปิด"
-            answer_text = f"{state_txt} AF weighted sizing แล้ว"
-        elif data == "demo_af_weight_scale":
-            choices = list(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES", [1.0]))
-            cur = float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0))
-            try:
-                idx = choices.index(cur)
-            except ValueError:
-                idx = -1
-            config.DEMO_PORTFOLIO_AF_WEIGHT_SCALE = choices[(idx + 1) % len(choices)]
-            answer_text = f"AF weight scale = {config.DEMO_PORTFOLIO_AF_WEIGHT_SCALE:.2f}x"
+        elif data == "demo_manage_back":
+            ctx.user_data.pop("demo_manage_portfolio", None)
+            answer_text = "กลับหน้าหลัก"
+        elif data.startswith("demo_manage_") and data != "demo_manage_back":
+            portfolio = data[len("demo_manage_"):].upper()
+            ctx.user_data["demo_manage_portfolio"] = portfolio
+            answer_text = f"จัดการ {portfolio}"
+        elif data == "demo_weight_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio:
+                current = config.DEMO_PORTFOLIO_WEIGHT_ENABLED.get(portfolio, False)
+                config.DEMO_PORTFOLIO_WEIGHT_ENABLED[portfolio] = not current
+                state_txt = "เปิด" if not current else "ปิด"
+                answer_text = f"{state_txt} Weight {portfolio} แล้ว"
+        elif data == "demo_scale_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio:
+                choices = list(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES", [0.01, 0.05, 0.10, 0.25, 0.50, 1.0]))
+                cur = float(config.DEMO_PORTFOLIO_WEIGHT_SCALE.get(portfolio, 1.0))
+                try:
+                    idx = choices.index(cur)
+                except ValueError:
+                    idx = -1
+                new_scale = choices[(idx + 1) % len(choices)]
+                config.DEMO_PORTFOLIO_WEIGHT_SCALE[portfolio] = new_scale
+                answer_text = f"Scale {portfolio} = {new_scale:.2f}x"
         elif is_toggle:
             portfolio = data[len("demo_"):-len("_toggle")].upper()
-            if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16")):
+            if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890")):
                 await _qanswer(query, "ไม่พบ Demo Portfolio นี้")
                 return
             config.DEMO_PORTFOLIO_ACTIVE[portfolio] = not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio, False)
             state_txt = "เปิด" if config.DEMO_PORTFOLIO_ACTIVE.get(portfolio) else "หยุด"
             answer_text = f"{state_txt} {portfolio} แล้ว"
+        
         try:
-            text, kb = _build_demo_portfolio_view()
+            text, kb = _build_demo_portfolio_view(ctx)
             await query.edit_message_text(text, parse_mode="Markdown", reply_markup=kb)
         except Exception as e:
             if "not modified" not in str(e).lower():
