@@ -1035,6 +1035,9 @@ def _parse_bot_comment(comment: str):
         parts = str(comment).split("-")
         tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
         return tf, 21
+    m_demo = re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+)-", str(comment))
+    if m_demo:
+        return m_demo.group(1), 21
     m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S([A-Za-z0-9]+(?:\.\d+)?))?", comment)
     if not m:
         return None, None
@@ -3217,9 +3220,10 @@ def _resolve_pos_sid(ticket, comment: str = ""):
     _info = _t.get(ticket) or _t.get(str(ticket))
     if isinstance(_info, dict) and _info.get("sid") is not None:
         return _info.get("sid")
-    if str(comment or "").startswith("DEMO-"):
+    comment_text = str(comment or "")
+    if comment_text.startswith("DEMO-") or re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+)-", comment_text):
         return 21
-    m = _SID_COMMENT_RE.search(str(comment or ""))
+    m = _SID_COMMENT_RE.search(comment_text)
     if m:
         txt = m.group(1)
         try:

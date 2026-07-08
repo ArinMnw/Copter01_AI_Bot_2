@@ -39,7 +39,7 @@ _TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 1440
 
 def fetch_bars(symbol, tf_str, days, extra_bars=400):
     per_day = _PER_DAY[tf_str]
-    count = min(days * per_day + extra_bars, 95000)
+    count = min(days * per_day + extra_bars, 2000000)
     rates = mt5.copy_rates_from_pos(symbol, _TF_MAP[tf_str], 0, count)
     if rates is None or len(rates) == 0:
         return None

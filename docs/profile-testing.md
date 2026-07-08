@@ -71,6 +71,44 @@
 - Trade management extras: ปิด Trail SL, จุดกลับตัว Trail SL, Trail Focus, Opposite Order, Limit Guard, Trend Filter submenu, และ TSO4x
 - เหมาะสำหรับ: forward test AF22/AF34/AF47 แบบ full ladder แยกจาก P13/P16 และ strategy หลัก
 
+## demo-iux-2101183586
+
+วัตถุประสงค์: isolate LTS44 Demo Portfolio
+
+- Strategy หลัก: ปิดทั้งหมด
+- S20 / S20 ย่อย: ปิดทั้งหมด
+- Demo Portfolio:
+  - `P13 = OFF`
+  - `P16 = OFF`
+  - `AF22 = OFF`
+  - `AF34 = OFF`
+  - `AF47 = OFF`
+  - `LTS44 = ON`
+  - `LTS890 = OFF`
+- External S20.12 supervisor: ไม่เปิด
+- Auto scan summary / scan swing: ปิดทั้ง Telegram และ command log
+- Trade management extras: ปิด Trail SL, จุดกลับตัว Trail SL, Trail Focus, Opposite Order, Limit Guard, Trend Filter submenu, และ TSO4x
+- เหมาะสำหรับ: forward test LTS44 แยกจาก P13/P16/AF และ strategy หลัก
+
+## demo-iux-2101183587
+
+วัตถุประสงค์: isolate LTS890 Demo Portfolio
+
+- Strategy หลัก: ปิดทั้งหมด
+- S20 / S20 ย่อย: ปิดทั้งหมด
+- Demo Portfolio:
+  - `P13 = OFF`
+  - `P16 = OFF`
+  - `AF22 = OFF`
+  - `AF34 = OFF`
+  - `AF47 = OFF`
+  - `LTS44 = OFF`
+  - `LTS890 = ON`
+- External S20.12 supervisor: ไม่เปิด
+- Auto scan summary / scan swing: ปิดทั้ง Telegram และ command log
+- Trade management extras: ปิด Trail SL, จุดกลับตัว Trail SL, Trail Focus, Opposite Order, Limit Guard, Trend Filter submenu, และ TSO4x
+- เหมาะสำหรับ: forward test LTS890 แยกจาก P13/P16/AF และ strategy หลัก
+
 ## Config Source
 
 ค่าแยก profile อยู่ใน `profile.env` ของแต่ละ profile:

@@ -29,6 +29,8 @@ save/restore ผ่าน bot_state.json อยู่แล้ว (ของเ�
 
 import json
 import os
+import threading
+import time
 from datetime import datetime, timezone, timedelta
 
 import mt5_worker as mt5
@@ -57,6 +59,7 @@ from strategy_af import (
     af_raw_cooldown_active,
     apply_af_filters,
 )
+from strategy_lts import LTS_PORTFOLIO_LEGS, LTS_STRATEGIES, detect_lts
 
 from bot_log import log_event, log_error
 
@@ -68,8 +71,10 @@ STATE_FILE = os.path.join(
 )
 MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โดยสิ้นเชิง — P13=990013, P16=990016
 AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
+LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890
 MIN_LOT = 0.01
 BKK_TZ = timezone(timedelta(hours=7))
+_STATE_SAVE_LOCK = threading.Lock()
 
 _TF_MAP = {"M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, "M30": mt5.TIMEFRAME_M30}
 _TF_SECS = {"M5": 300, "M15": 900, "M30": 1800}
@@ -160,20 +165,22 @@ _LEG_DEFS = {
     "R": ("S56 PrevWeekHL",        detect_s56, _CFG_R, False, "prev_week_hl"),
 }
 
-AF_DEFS = AF_LADDER_LEGS
+AF_DEFS = {**AF_LADDER_LEGS, **LTS_STRATEGIES}
 
 P13_KEYS = list("BCDFGHIKMNPQR")  # Champion — ถอด A(S31)/E(S38)/L(S45) ที่เป็น sharpe-drag
 P16_KEYS = list("ABCDEFGHIKLMNPQR")  # Max-Yield Blend — ครบทุก leg
 
-PORTFOLIOS = {"P13": P13_KEYS, "P16": P16_KEYS, **AF_PORTFOLIO_LEGS}
+PORTFOLIOS = {"P13": P13_KEYS, "P16": P16_KEYS, **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS}
 PORTFOLIO_DISPLAY_NAME = {
     "P13": "🏆 Champion (P13)",
     "P16": "💰 Max-Yield Blend (P16)",
     "AF22": "🎯 AF22 $1000",
     "AF34": "🎯 AF34 $1500",
     "AF47": "🎯 AF47 $2000",
+    "LTS44": "🛡️ LTS44 $500",
+    "LTS890": "🌌 LTS890 $10K",
 }
-PORTFOLIO_ORDER = ("P13", "P16", "AF22", "AF34", "AF47")
+PORTFOLIO_ORDER = ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890")
 
 
 def _now_bkk():
@@ -181,6 +188,8 @@ def _now_bkk():
 
 
 def _portfolio_magic(portfolio_name: str) -> int:
+    if portfolio_name.startswith("LTS"):
+        return LTS_MAGIC_BASE + int(portfolio_name.replace("LTS", ""))
     if portfolio_name.startswith("AF"):
         return AF_MAGIC_BASE + int(portfolio_name[2:])
     return MAGIC_BASE + int(portfolio_name[1:])
@@ -248,14 +257,47 @@ def _load_state():
 
 
 def _save_state(state):
-    tmp = STATE_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, STATE_FILE)
+    os.makedirs(os.path.dirname(STATE_FILE) or ".", exist_ok=True)
+    last_error = None
+    with _STATE_SAVE_LOCK:
+        for attempt in range(5):
+            tmp = f"{STATE_FILE}.{os.getpid()}.{threading.get_ident()}.{attempt}.tmp"
+            try:
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(state, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, STATE_FILE)
+                return True
+            except PermissionError as e:
+                last_error = e
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
+                time.sleep(0.15 * (attempt + 1))
+            except Exception as e:
+                last_error = e
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
+                break
+    try:
+        log_error("DEMO_PORTFOLIO_STATE", f"save failed: {type(last_error).__name__}: {last_error}")
+    except Exception:
+        pass
+    return False
 
 
 def _demo_comment(leg_id, entry_tf):
-    return f"DEMO-{entry_tf}-{leg_id}"
+    return f"{entry_tf}-{leg_id}"
+
+
+def _strategy_doc(af_def):
+    return af_def.get("doc") or af_def.get("formula") or af_def.get("label") or af_def.get("key", "")
 
 
 def _count_open_positions(magic, leg_id, entry_tf=None):
@@ -265,9 +307,13 @@ def _count_open_positions(magic, leg_id, entry_tf=None):
     positions = mt5.positions_get(symbol=_demo_symbol())
     if not positions:
         return 0
-    prefixes = [f"DEMO-{leg_id}"]  # legacy format before TF was moved after DEMO
+    prefixes = [
+        leg_id,
+        f"DEMO-{leg_id}",  # legacy format before TF was moved after DEMO
+    ]
     if entry_tf:
         prefixes.append(_demo_comment(leg_id, entry_tf))
+        prefixes.append(f"DEMO-{entry_tf}-{leg_id}")  # legacy format with TF after DEMO
     return sum(1 for p in positions if p.magic == magic and any(p.comment.startswith(prefix) for prefix in prefixes))
 
 
@@ -282,16 +328,18 @@ def _round_volume(volume, info):
     return round(vol_min + steps * vol_step, 2)
 
 
-def _af_order_volume(af_def):
-    if not getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_ENABLED", False):
+def _af_order_volume(af_def, portfolio_name):
+    weight_enabled = getattr(config, "DEMO_PORTFOLIO_WEIGHT_ENABLED", {}).get(portfolio_name, False)
+    weight_scale = getattr(config, "DEMO_PORTFOLIO_WEIGHT_SCALE", {}).get(portfolio_name, 1.0)
+    if not weight_enabled:
         return MIN_LOT, {
             "weighted": False,
             "weight": float(af_def.get("weight", 1.0)),
-            "scale": float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0)),
+            "scale": float(weight_scale),
             "raw_volume": MIN_LOT,
         }
     weight = float(af_def.get("weight", 1.0))
-    scale = float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0))
+    scale = float(weight_scale)
     raw_volume = MIN_LOT * weight * scale
     info = mt5.symbol_info(_demo_symbol())
     volume = _round_volume(raw_volume, info) if info else round(raw_volume, 2)
@@ -348,7 +396,8 @@ async def _demo_scan_af(app, portfolio_name: str):
         return
 
     entry_ts = int(bars[-1]["time"])
-    leg_id = f"{portfolio_name}-{af_def['key']}"
+    k = af_def['key']
+    leg_id = k if k.startswith(portfolio_name) else f"{portfolio_name}-{k}"
     if state["last_signal_ts"].get(leg_id) == entry_ts:
         return
     if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
@@ -382,7 +431,7 @@ async def _demo_scan_af(app, portfolio_name: str):
 
     sig = filtered["signal"]
     sl, tp = float(filtered["sl"]), float(filtered["tp"])
-    volume, volume_meta = _af_order_volume(af_def)
+    volume, volume_meta = _af_order_volume(af_def, portfolio_name)
     comment = _demo_comment(leg_id, entry_tf)
     result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
 
@@ -411,7 +460,7 @@ async def _demo_scan_af(app, portfolio_name: str):
         "weight": volume_meta["weight"],
         "weight_scale": volume_meta["scale"],
         "raw_volume": volume_meta["raw_volume"],
-        "doc": af_def["doc"],
+        "doc": _strategy_doc(af_def),
     }
     state["trades"].append(trade_log)
     state["trades"] = state["trades"][-500:]
@@ -463,7 +512,8 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
             continue
 
         entry_ts = int(bars[-1]["time"])
-        leg_id = f"{portfolio_name}-{af_def['key']}"
+        k = af_def['key']
+        leg_id = k if k.startswith(portfolio_name) else f"{portfolio_name}-{k}"
         if state["last_signal_ts"].get(leg_id) == entry_ts:
             continue
         if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
@@ -499,7 +549,7 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
 
         sig = filtered["signal"]
         sl, tp = float(filtered["sl"]), float(filtered["tp"])
-        volume, volume_meta = _af_order_volume(af_def)
+        volume, volume_meta = _af_order_volume(af_def, portfolio_name)
         comment = _demo_comment(leg_id, entry_tf)
         result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
 
@@ -528,7 +578,7 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
             "weight": volume_meta["weight"],
             "weight_scale": volume_meta["scale"],
             "raw_volume": volume_meta["raw_volume"],
-            "doc": af_def["doc"],
+            "doc": _strategy_doc(af_def),
         })
         state["trades"] = state["trades"][-1000:]
         _save_state(state)
@@ -570,7 +620,7 @@ async def demo_scan(app, portfolio_name: str):
     ด้วยข้อมูล live ล่าสุด ถ้ามี signal ใหม่ (และไม่ติด cooldown) วางออเดอร์ตลาดทันที"""
     if not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False):
         return
-    if portfolio_name in AF_PORTFOLIO_LEGS:
+    if portfolio_name in AF_PORTFOLIO_LEGS or portfolio_name.startswith("LTS"):
         await _demo_scan_af_ladder(app, portfolio_name)
         return
 
@@ -807,10 +857,10 @@ def get_status_text(portfolio_name: str) -> str:
         f"Magic: {magic}",
         f"ออเดอร์วันนี้: {n_success} ไม้",
     ]
-    if portfolio_name in AF_PORTFOLIO_LEGS:
+    if portfolio_name in AF_PORTFOLIO_LEGS or portfolio_name.startswith("LTS"):
         weights = [float(AF_DEFS[k].get("weight", 1.0)) for k in keys]
-        scale = float(getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_SCALE", 1.0))
-        sizing_on = getattr(config, "DEMO_PORTFOLIO_AF_WEIGHT_ENABLED", False)
+        scale = float(getattr(config, "DEMO_PORTFOLIO_WEIGHT_SCALE", {}).get(portfolio_name, 1.0))
+        sizing_on = getattr(config, "DEMO_PORTFOLIO_WEIGHT_ENABLED", {}).get(portfolio_name, False)
         lot_min = MIN_LOT * (min(weights) * scale if sizing_on and weights else 1.0)
         lot_max = MIN_LOT * (max(weights) * scale if sizing_on and weights else 1.0)
         lines.extend([

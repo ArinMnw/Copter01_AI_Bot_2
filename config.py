@@ -1809,6 +1809,8 @@ DEMO_PORTFOLIO_ACTIVE = {
     "AF22": False,   # tested target balance ~$1000
     "AF34": False,   # tested target balance ~$1500
     "AF47": False,   # tested target balance ~$2000
+    "LTS44": False,
+    "LTS890": False,
 }
 _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
 if _demo_portfolio_active_env is not None:
@@ -1828,8 +1830,22 @@ DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg 
                                                         # ยิงไม้ใหม่ทุกแท่งช่วงเทรนด์แรง จนออเดอร์อื่น
                                                         # โดน 10019 No money) — backtest ไม่ cap ไว้
                                                         # เพราะไม่ได้ simulate margin ของบัญชีจริง
-DEMO_PORTFOLIO_AF_WEIGHT_ENABLED = False               # default OFF: เปิดผ่าน Telegram เท่านั้น
-DEMO_PORTFOLIO_AF_WEIGHT_SCALE = 1.0                    # 1.0 = ใช้ weight เต็มตาม AF backtest
+DEMO_PORTFOLIO_WEIGHT_ENABLED = {
+    "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False
+}
+DEMO_PORTFOLIO_WEIGHT_SCALE = {
+    "P13": 1.0, "P16": 1.0, "AF22": 1.0, "AF34": 1.0, "AF47": 1.0, "LTS44": 1.0, "LTS890": 1.0
+}
+for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
+    _env_w = os.getenv(f"DEMO_PORTFOLIO_WEIGHT_ENABLED_{_name}")
+    if _env_w is not None:
+        DEMO_PORTFOLIO_WEIGHT_ENABLED[_name] = str(_env_w).strip().lower() == "true"
+    _env_s = os.getenv(f"DEMO_PORTFOLIO_WEIGHT_SCALE_{_name}")
+    if _env_s is not None:
+        try:
+            DEMO_PORTFOLIO_WEIGHT_SCALE[_name] = float(_env_s)
+        except ValueError:
+            pass
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
 DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
 DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely

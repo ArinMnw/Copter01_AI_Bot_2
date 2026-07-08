@@ -24,7 +24,11 @@ async def fetch_news_loop(app=None):
         try:
             await _fetch_news()
         except Exception as e:
-            if isinstance(e, httpx.RequestError):
+            if isinstance(e, httpx.HTTPStatusError) and e.response is not None and e.response.status_code == 429:
+                msg = f"rate limited 429; keeping cached events={len(_news_events)}"
+                print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] [News Filter] {msg}")
+                log_event("NEWS_FILTER_TRANSIENT", msg)
+            elif isinstance(e, httpx.RequestError):
                 print(f"[{datetime.now(BKK).strftime('%H:%M:%S')}] [News Filter] transient fetch issue: {type(e).__name__}: {e}")
                 log_event("NEWS_FILTER_TRANSIENT", f"fetch: {type(e).__name__}: {e}")
             else:
@@ -36,7 +40,7 @@ async def fetch_news_loop(app=None):
 async def _fetch_news():
     global _news_events, _last_fetch_time
     async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(NEWS_URL)
+        response = await client.get(NEWS_URL, headers={"User-Agent": "Copter01-AI-Bot/1.0"})
         response.raise_for_status()
         data = response.json()
         
