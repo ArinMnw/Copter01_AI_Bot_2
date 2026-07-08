@@ -85,3 +85,5 @@ def detect_lts(name, bars):
     res = af_def["detect_fn"](bars, tf=cfg["ENTRY_TF"], dt_bkk=fill_dt, cfg=cfg)
     filtered, reason = apply_af_filters(res, af_def, fill_ts)
     return res, filtered, reason
+
+_load_lts_weights(os.path.join(_dir, "lts_optimized_weights.txt"), "LTS10K")

@@ -902,6 +902,30 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             time_bkk = datetime.now(timezone(timedelta(hours=7)))
             features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
             prob = ml_scoring.predict_success_probability(features)
+
+            # Dynamic Lot Sizing based on ML Prob and ATR
+            atr_val = features[1] if isinstance(features, (list, tuple)) and len(features) > 1 else 20.0
+            if isinstance(features, dict):
+                atr_val = features.get('atr', 20.0)
+            
+            if getattr(config, "ML_LOT_SCALING_ENABLED", True):
+                mult = 1.0
+                if prob >= 0.75:
+                    mult *= 1.5
+                elif prob < 0.50:
+                    mult *= 0.5
+                if atr_val > 35:
+                    mult *= 0.7
+                elif atr_val < 15:
+                    mult *= 1.2
+                if mult != 1.0:
+                    volume = volume * mult
+                    info = mt5.symbol_info(SYMBOL)
+                    if info:
+                        v_step = info.volume_step
+                        volume = round(volume / v_step) * v_step
+                        volume = max(info.volume_min, min(volume, info.volume_max))
+                    print(f"[{time_bkk.strftime('%H:%M:%S')}] ⚖️ [Dynamic Lot] Adjusted volume to {volume} (Prob: {prob:.2f}, ATR: {atr_val:.1f}, Mult: {mult:.2f})")
             
             # If probability is too low (e.g. < 45%), reject the trade
             threshold = getattr(config, "ML_PROB_THRESHOLD", 0.45)
@@ -1040,6 +1064,30 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
             time_bkk = datetime.now(timezone(timedelta(hours=7)))
             features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
             prob = ml_scoring.predict_success_probability(features)
+
+            # Dynamic Lot Sizing based on ML Prob and ATR
+            atr_val = features[1] if isinstance(features, (list, tuple)) and len(features) > 1 else 20.0
+            if isinstance(features, dict):
+                atr_val = features.get('atr', 20.0)
+            
+            if getattr(config, "ML_LOT_SCALING_ENABLED", True):
+                mult = 1.0
+                if prob >= 0.75:
+                    mult *= 1.5
+                elif prob < 0.50:
+                    mult *= 0.5
+                if atr_val > 35:
+                    mult *= 0.7
+                elif atr_val < 15:
+                    mult *= 1.2
+                if mult != 1.0:
+                    volume = volume * mult
+                    info = mt5.symbol_info(SYMBOL)
+                    if info:
+                        v_step = info.volume_step
+                        volume = round(volume / v_step) * v_step
+                        volume = max(info.volume_min, min(volume, info.volume_max))
+                    print(f"[{time_bkk.strftime('%H:%M:%S')}] ⚖️ [Dynamic Lot] Adjusted volume to {volume} (Prob: {prob:.2f}, ATR: {atr_val:.1f}, Mult: {mult:.2f})")
             
             # If probability is too low (e.g. < 45%), reject the trade
             threshold = getattr(config, "ML_PROB_THRESHOLD", 0.45)
