@@ -753,7 +753,7 @@ async def demo_scan(app, portfolio_name: str):
         if app is not None and result.get("success"):
             try:
                 msg = (f"📡 *{PORTFOLIO_DISPLAY_NAME[portfolio_name]}*\n"
-                       f"Leg: `{label}` ({key})\n"
+                       f"Leg: `{label}` (`{key}`)\n"
                        f"{'🟢 BUY' if sig=='BUY' else '🔴 SELL'} @ market\n"
                        f"SL `{sl:.2f}` TP `{tp:.2f}`\n"
                        f"Ticket: `{result.get('ticket')}`")
@@ -945,7 +945,7 @@ def get_status_text(portfolio_name: str) -> str:
             total_floating += d["floating"]
             float_part = f" | ลอยอยู่ `${d['floating']:+.2f}` (ยังไม่ปิด)" if d["floating"] != 0 else ""
             lines.append(
-                f"  `{key}` {label}: ปิดแล้ว `${d['total']:+.2f}` "
+                f"  `{key}` `{label}`: ปิดแล้ว `${d['total']:+.2f}` "
                 f"({d['n_closed']} ไม้){float_part}\n"
                 f"      เฉลี่ย/วัน `${per_day:+.2f}` | เฉลี่ย/เดือน `${per_month:+.2f}`"
             )
