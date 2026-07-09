@@ -466,6 +466,11 @@ async def _demo_scan_af(app, portfolio_name: str):
     sl, tp = float(filtered["sl"]), float(filtered["tp"])
     original_entry = float(filtered.get("entry", 0.0))
     volume, volume_meta = _af_order_volume(af_def, portfolio_name, entry_tf, sig)
+    
+    if volume_meta.get("weighted") and volume_meta.get("weight", 1.0) <= 0.0:
+        log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped - weight is 0.0")
+        return
+        
     comment = _demo_comment(leg_id, entry_tf)
     result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, original_entry=original_entry)
     
@@ -588,6 +593,11 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
         sl, tp = float(filtered["sl"]), float(filtered["tp"])
         original_entry = float(filtered.get("entry", 0.0))
         volume, volume_meta = _af_order_volume(af_def, portfolio_name)
+        
+        if volume_meta.get("weighted") and volume_meta.get("weight", 1.0) <= 0.0:
+            log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped - weight is 0.0")
+            continue
+
         comment = _demo_comment(leg_id, entry_tf)
         result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, original_entry=original_entry)
 
