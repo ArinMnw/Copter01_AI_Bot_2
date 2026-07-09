@@ -2714,9 +2714,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     current_bar_time = int(current_bar[0]["time"])
 
     # ดึงแท่งที่ปิดแล้ว (start=1 ข้ามแท่งปัจจุบัน)
-    rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback + 6)
-    if rates is None or len(rates) < lookback + 4:
+    _normal_rate_count = lookback + 6
+    _s14_warmup_count = (
+        max(_normal_rate_count, int(getattr(config, "S14_RSI_WARMUP_BARS", 300)))
+        if active_strategies.get(14, False)
+        else _normal_rate_count
+    )
+    _fetched_rates = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, _s14_warmup_count)
+    if _fetched_rates is None or len(_fetched_rates) < lookback + 4:
         return False
+    s14_rsi_rates = _fetched_rates
+    rates = _fetched_rates[-_normal_rate_count:]
     last_candle_time = int(rates[-1]["time"])
 
     # ── SL Guard: re-place blocked signals ถ้า guard เพิ่ง deactivate ──
@@ -2910,7 +2918,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     else:
         r11 = {"signal": "WAIT", "reason": "S11 ปิด"}
     r13 = strategy_13(rates) if active_strategies.get(13, False) else {"signal": "WAIT", "reason": "S13 ปิด"}
-    r14 = strategy_14(rates, tf=tf_name) if active_strategies.get(14, False) else {"signal": "WAIT", "reason": "S14 ปิด"}
+    r14 = (
+        strategy_14(rates, tf=tf_name, rsi_rates=s14_rsi_rates)
+        if active_strategies.get(14, False)
+        else {"signal": "WAIT", "reason": "S14 ปิด"}
+    )
     if r14.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 14, r14["signal"], last_candle_time, r14)
     elif r14.get("signal") == "MULTI":

@@ -967,6 +967,18 @@ async def handle_callback(update, ctx):
         status = "ON" if config.S14_ENGULF_SWING else "OFF"
         await _show_strategy_detail(query, 14, f"✅ ท่า 14 Engulf Swing: {status}")
 
+    elif data in ("toggle_s14_engulf_swing_in_tf", "toggle_s14_engulf_in_tf"):
+        config.S14_ENGULF_SWING_IN_TF = not getattr(config, "S14_ENGULF_SWING_IN_TF", True)
+        save_runtime_state()
+        status = "ON" if config.S14_ENGULF_SWING_IN_TF else "OFF"
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 Engulf In TF (BEIT/SEIT): {status}")
+
+    elif data == "toggle_s14_rsi_div_enabled":
+        config.S14_RSI_DIV_ENABLED = not getattr(config, "S14_RSI_DIV_ENABLED", False)
+        save_runtime_state()
+        status = "ON" if config.S14_RSI_DIV_ENABLED else "OFF"
+        await _show_strategy_detail(query, 14, f"✅ ท่า 14 RSI Div First Check: {status}")
+
     elif data == "toggle_s14_sweep_return":
         config.S14_SWEEP_RETURN = not getattr(config, "S14_SWEEP_RETURN", True)
         save_runtime_state()

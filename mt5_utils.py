@@ -391,7 +391,11 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
         # Sweep กลับตัว: ไส้ยาวกลับมา (local ref)          → BRS / SRS
         is_buy    = "BUY"    in text
         is_engulf = "ENGULF" in text
+        is_in_tf  = "IN TF"   in text
         is_swing  = "SWING"  in text and not is_engulf
+
+        if is_engulf and is_in_tf:
+            return "BEIT" if is_buy else "SEIT"
 
         sec_suffix = ""
         for tf_item in ["M30", "H1", "H4", "D1", "M15"]:

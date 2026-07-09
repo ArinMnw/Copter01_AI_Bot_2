@@ -1136,6 +1136,8 @@ def build_strategy_detail_keyboard(sid: int):
         flip_on        = getattr(config, "S14_FLIP_ENABLED",      True)
         swing_on       = getattr(config, "S14_SWEEP_SWING",       True)
         eswing_on      = getattr(config, "S14_ENGULF_SWING",      True)
+        eswing_tf_on   = getattr(config, "S14_ENGULF_SWING_IN_TF", True)
+        rsi_div_on     = getattr(config, "S14_RSI_DIV_ENABLED",   False)
         sweep_ret_on   = getattr(config, "S14_SWEEP_RETURN",      True)
         ebeven_on      = getattr(config, "S14_ENGULF_BREAKEVEN",  True)
         rows.append([
@@ -1146,6 +1148,16 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(
                 f"{'🟢' if eswing_on else '⬜'} Engulf Swing (BES)",
                 callback_data="toggle_s14_engulf_swing"
+            ),
+        ])
+        rows.append([
+            InlineKeyboardButton(
+                f"{'🟢' if eswing_tf_on else '⬜'} Engulf In TF (BEIT/SEIT)",
+                callback_data="toggle_s14_engulf_swing_in_tf"
+            ),
+            InlineKeyboardButton(
+                f"{'🟢' if rsi_div_on else '⬜'} RSI Div First Check",
+                callback_data="toggle_s14_rsi_div_enabled"
             ),
         ])
         rows.append([

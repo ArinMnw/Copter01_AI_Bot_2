@@ -1051,6 +1051,7 @@ S13_TP3_RR            = 1.5
 # (ถ้า SL_ATR_ENABLED=True จะใช้ ATR × SL_ATR_MULT อัตโนมัติ)
 S14_RSI_PERIOD        = 14     # RSI period
 S14_RSI_APPLIED_PRICE = "close"
+S14_RSI_WARMUP_BARS   = 300    # Match MT5 iRSI/Wilder values without changing other strategy lookbacks
 S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับตัว + LL/HH zone
 # เปิด/ปิด sub-pattern (ใช้ร่วมกันทั้ง BUY และ SELL)
 # S14_SWEEP_SWING  : BSS/SSS  — Engulf ใน TF + HTF swept กลับมาเหนือ ref (ใช้ HHLL สำหรับ ref)
@@ -1058,6 +1059,7 @@ S14_REVERSAL_LOOKBACK = 50     # bars ย้อนหาจุดกลับต
 # S14_SWEEP_RETURN : BRS/SRS  — ไส้ยาวกลับมา ไม่มี HTF check
 S14_SWEEP_SWING       = True
 S14_ENGULF_SWING      = True
+S14_ENGULF_SWING_IN_TF = True  # Engulf + RSI divergence + 2 same-side confirms; no HTF gate
 S14_SWEEP_RETURN      = False   # BRS/SRS — ไส้เกิน LL/HH แต่ปิดกลับมา
 S14_ENGULF_BREAKEVEN  = True   # ถ้า sec_HTF ปิดต่ำกว่า ref_low หลัง entry → ตั้ง TP = entry price
 S14_BLOCK_SIDEWAY     = False   # block S14 ใน SIDEWAY trend (data 06-2026: 0% WR, -$58 จาก 4 orders)
@@ -2085,6 +2087,7 @@ _RUNTIME_DEFAULTS = {
     # S14 sub-pattern toggles (runtime-resettable)
     "S14_SWEEP_SWING":    S14_SWEEP_SWING,
     "S14_ENGULF_SWING":   S14_ENGULF_SWING,
+    "S14_ENGULF_SWING_IN_TF": S14_ENGULF_SWING_IN_TF,
     "S14_SWEEP_RETURN":   S14_SWEEP_RETURN,
     "S14_FLIP_ENABLED":       S14_FLIP_ENABLED,
     "S14_ENGULF_BREAKEVEN":   S14_ENGULF_BREAKEVEN,
@@ -2489,6 +2492,7 @@ def save_runtime_state():
             "s10_retry_after_sl": S10_RETRY_AFTER_SL,
             "s14_sweep_swing":      S14_SWEEP_SWING,
             "s14_engulf_swing":     S14_ENGULF_SWING,
+            "s14_engulf_swing_in_tf": S14_ENGULF_SWING_IN_TF,
             "s14_sweep_return":     S14_SWEEP_RETURN,
             "s14_engulf_breakeven": S14_ENGULF_BREAKEVEN,
             "s14_rsi_div_enabled":   S14_RSI_DIV_ENABLED,
@@ -2724,7 +2728,7 @@ def restore_runtime_state():
         global CRT_BAR_MODE, CRT_SWEEP_DEPTH_PCT, CRT_ENTRY_MODE, CRT_WAIT_HTF_CLOSE, CRT_PARENT_MIN_BODY_PCT
         global CRT_SWEEP_CONTAIN_ENABLED, CRT_SWEEP_CLOSE_MAX_PCT
         global S10_RETRY_AFTER_SL
-        global S14_SWEEP_SWING, S14_ENGULF_SWING, S14_SWEEP_RETURN, S14_ENGULF_BREAKEVEN, S14_RSI_DIV_ENABLED
+        global S14_SWEEP_SWING, S14_ENGULF_SWING, S14_ENGULF_SWING_IN_TF, S14_SWEEP_RETURN, S14_ENGULF_BREAKEVEN, S14_RSI_DIV_ENABLED
         global RSI9_PLOT_BULLISH, RSI9_PLOT_HIDDEN_BULLISH, RSI9_PLOT_BEARISH, RSI9_PLOT_HIDDEN_BEARISH
         global S20_ENABLED, S20_SUB_CONFIG, S20_MIN_BODY_ATR_PCT, S20_SL_BUFFER, S20_FIBO_TP_LEVEL, S20_TREND_FILTER, S20_SESSION_FILTER, S20_ENTRY_BUFFER, S20_SL_2L2H
         global S20_5_ENABLED, S20_5_COMPOUNDING_ENABLED, S20_5_RISK_PCT, S20_5_MAX_LOT, S20_5_TF_ENABLED
@@ -2997,6 +3001,9 @@ def restore_runtime_state():
         S10_RETRY_AFTER_SL = bool(state.get("s10_retry_after_sl", S10_RETRY_AFTER_SL))
         S14_SWEEP_SWING   = bool(state.get("s14_sweep_swing",   S14_SWEEP_SWING))
         S14_ENGULF_SWING  = bool(state.get("s14_engulf_swing",  S14_ENGULF_SWING))
+        S14_ENGULF_SWING_IN_TF = bool(
+            state.get("s14_engulf_swing_in_tf", S14_ENGULF_SWING_IN_TF)
+        )
         S14_SWEEP_RETURN      = bool(state.get("s14_sweep_return",      S14_SWEEP_RETURN))
         S14_ENGULF_BREAKEVEN  = bool(state.get("s14_engulf_breakeven",  S14_ENGULF_BREAKEVEN))
         try:
