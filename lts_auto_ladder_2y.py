@@ -32,6 +32,7 @@ def main():
     ap.add_argument("--base", required=True)
     ap.add_argument("--start-idx", type=int, required=True)
     ap.add_argument("--target", type=float, default=10000.0)
+    ap.add_argument("--max-idx", type=int, default=999)
     ap.add_argument("--keep-all", action="store_true")
     args = ap.parse_args()
 
@@ -46,7 +47,7 @@ def main():
 
     current_avg = 0.0
 
-    while current_avg < args.target:
+    while curr_idx <= args.max_idx:
         fam, cfg_idx = CONFIG_POOL[pool_idx % len(CONFIG_POOL)]
         pool_idx += 1
         

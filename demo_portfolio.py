@@ -71,7 +71,7 @@ STATE_FILE = os.path.join(
 )
 MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โดยสิ้นเชิง — P13=990013, P16=990016
 AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
-LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890
+LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890, LTS999=992999
 MIN_LOT = 0.01
 BKK_TZ = timezone(timedelta(hours=7))
 _STATE_SAVE_LOCK = threading.Lock()
@@ -179,8 +179,9 @@ PORTFOLIO_DISPLAY_NAME = {
     "AF47": "🎯 AF47 $2000",
     "LTS44": "🛡️ LTS44 $500",
     "LTS890": "🌌 LTS890 $10K",
+    "LTS999": "🚀 LTS999 Ultra Safe",
 }
-PORTFOLIO_ORDER = ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890")
+PORTFOLIO_ORDER = ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890", "LTS999")
 
 
 def _now_bkk():
@@ -328,19 +329,27 @@ def _round_volume(volume, info):
     return round(vol_min + steps * vol_step, 2)
 
 
-def _af_order_volume(af_def, portfolio_name):
+def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     weight_enabled = getattr(config, "DEMO_PORTFOLIO_WEIGHT_ENABLED", {}).get(portfolio_name, False)
     weight_scale = getattr(config, "DEMO_PORTFOLIO_WEIGHT_SCALE", {}).get(portfolio_name, 1.0)
+    
+    from mt5_utils import get_dynamic_volume
+    base_raw = MIN_LOT
+    if portfolio_name.startswith("LTS") and tf and signal:
+        base_raw = get_dynamic_volume(tf, signal, base_vol=MIN_LOT, portfolio=portfolio_name)
+        
     if not weight_enabled:
-        return MIN_LOT, {
+        info = mt5.symbol_info(_demo_symbol())
+        volume = _round_volume(base_raw, info) if info else round(base_raw, 2)
+        return volume, {
             "weighted": False,
             "weight": float(af_def.get("weight", 1.0)),
             "scale": float(weight_scale),
-            "raw_volume": MIN_LOT,
+            "raw_volume": base_raw,
         }
     weight = float(af_def.get("weight", 1.0))
     scale = float(weight_scale)
-    raw_volume = MIN_LOT * weight * scale
+    raw_volume = base_raw * weight * scale
     info = mt5.symbol_info(_demo_symbol())
     volume = _round_volume(raw_volume, info) if info else round(raw_volume, 2)
     return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
@@ -431,7 +440,7 @@ async def _demo_scan_af(app, portfolio_name: str):
 
     sig = filtered["signal"]
     sl, tp = float(filtered["sl"]), float(filtered["tp"])
-    volume, volume_meta = _af_order_volume(af_def, portfolio_name)
+    volume, volume_meta = _af_order_volume(af_def, portfolio_name, entry_tf, sig)
     comment = _demo_comment(leg_id, entry_tf)
     result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
 
@@ -913,3 +922,98 @@ def get_status_text(portfolio_name: str) -> str:
         lines.append("\n_ยังไม่มีไม้เข้าเลย — รอสัญญาณแรกก่อน_")
 
     return "\n".join(lines)
+
+
+async def lts_exit_manager(app):
+    """
+    Phase 4 Exit Manager for LTS Portfolios
+    Runs periodically (e.g. 5s) to check Smart Cutloss and Momentum Stall Exit for LTS.
+    """
+    import mt5_worker as mt5
+    import pandas as pd
+    import config
+    from bot_log import log_event
+    from trailing import _close_position
+    
+    positions = mt5.positions_get(symbol=config.SYMBOL)
+    if not positions:
+        return
+        
+    rates = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_M15, 0, 60)
+    if rates is None or len(rates) < 50:
+        return
+        
+    df = pd.DataFrame(rates)
+    df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
+    df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
+    
+    current_price = df['close'].iloc[-1]
+    ema20 = df['ema20'].iloc[-1]
+    ema50 = df['ema50'].iloc[-1]
+    
+    # Pre-calculate Momentum Stall components
+    recent_highs = df['high'].iloc[-6:-1]
+    recent_lows = df['low'].iloc[-6:-1]
+    mult = 100000 if "USD" in config.SYMBOL or "EUR" in config.SYMBOL or "GBP" in config.SYMBOL else 1000
+    if config.SYMBOL == "XAUUSD":
+        mult = 100
+        
+    for pos in positions:
+        ticket = pos.ticket
+        magic = pos.magic
+        
+        # Check if it's an LTS position (LTS_MAGIC_BASE = 992000)
+        if not (magic >= 992000 and magic <= 992999):
+            continue
+            
+        portfolio = f"LTS{magic - 992000}"
+        
+        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+        pos_type = "BUY" if is_buy else "SELL"
+        
+        # 1. Smart Cutloss Check
+        if config.SMART_CUTLOSS_ENABLED.get(portfolio, False):
+            should_cut = False
+            reason = ""
+            if is_buy:
+                if current_price < ema50 and ema20 < ema50:
+                    should_cut = True
+                    reason = "ราคาหลุด EMA50 และเกิด Death Cross (Momentum Reversal)"
+            else:
+                if current_price > ema50 and ema20 > ema50:
+                    should_cut = True
+                    reason = "ราคาทะลุ EMA50 และเกิด Golden Cross (Momentum Reversal)"
+                    
+            if should_cut:
+                ok, cp = _close_position(pos, pos_type, "LTS Smart Cut-loss (EMA)")
+                if ok:
+                    log_event("SMART_CUTLOSS", f"[{portfolio}] Closed {pos_type} {ticket} due to {reason}", ticket=ticket)
+                    if app:
+                        from notifications import tg
+                        await tg(app, f"🛡️ *LTS Smart Cut-loss ทำงาน* [{portfolio}]\nTicket: `{ticket}` ({pos_type})\nเหตุผล: {reason}\nเพื่อรักษาทุนก่อนชน SL")
+                continue # Skip momentum check if already closed
+                
+        # 2. Momentum Stall Check
+        if config.MOMENTUM_STALL_EXIT_ENABLED.get(portfolio, False):
+            profit_points = (pos.price_current - pos.price_open) * mult
+            if not is_buy:
+                profit_points = -profit_points
+                
+            if profit_points >= 150:
+                is_stalled = False
+                if is_buy:
+                    max_recent_high = recent_highs.max()
+                    if pos.price_current < max_recent_high:
+                        is_stalled = True
+                else:
+                    min_recent_low = recent_lows.min()
+                    if pos.price_current > min_recent_low:
+                        is_stalled = True
+                        
+                if is_stalled:
+                    ok, cp = _close_position(pos, pos_type, "LTS Momentum Stall Exit")
+                    if ok:
+                        log_event("MOMENTUM_STALL", f"[{portfolio}] Closed {pos_type} {ticket} due to Momentum Stall (+{profit_points:.0f} pts)", ticket=ticket)
+                        if app:
+                            from notifications import tg
+                            await tg(app, f"🛑 *LTS Momentum Stall Exit* [{portfolio}]\nTicket: `{ticket}` ({pos_type})\nกำไร: `{profit_points:.0f}` จุด\nเหตุผล: กราฟยึกยัก ไม่ทำยอดใหม่ใน 5 แท่งล่าสุด (M15)")

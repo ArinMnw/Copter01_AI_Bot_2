@@ -389,9 +389,27 @@ async def handle_callback(update, ctx):
                 new_scale = choices[(idx + 1) % len(choices)]
                 config.DEMO_PORTFOLIO_WEIGHT_SCALE[portfolio] = new_scale
                 answer_text = f"Scale {portfolio} = {new_scale:.2f}x"
-        elif is_toggle:
+        elif data == "demo_p3_dyn_lot_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio:
+                cur = config.DYNAMIC_LOT_ENABLED.get(portfolio, False)
+                config.DYNAMIC_LOT_ENABLED[portfolio] = not cur
+                answer_text = f"{'เปิด' if not cur else 'ปิด'} Dynamic Lot สำหรับ {portfolio}"
+        elif data == "demo_p4_smart_exit_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio:
+                cur = config.SMART_CUTLOSS_ENABLED.get(portfolio, False)
+                config.SMART_CUTLOSS_ENABLED[portfolio] = not cur
+                answer_text = f"{'เปิด' if not cur else 'ปิด'} Smart Exit สำหรับ {portfolio}"
+        elif data == "demo_p4_mom_stall_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio:
+                cur = config.MOMENTUM_STALL_EXIT_ENABLED.get(portfolio, False)
+                config.MOMENTUM_STALL_EXIT_ENABLED[portfolio] = not cur
+                answer_text = f"{'เปิด' if not cur else 'ปิด'} Momentum Stall Exit สำหรับ {portfolio}"
+        elif is_toggle and not data.startswith("demo_p3_") and not data.startswith("demo_p4_"):
             portfolio = data[len("demo_"):-len("_toggle")].upper()
-            if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890")):
+            if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890", "LTS999")):
                 await _qanswer(query, "ไม่พบ Demo Portfolio นี้")
                 return
             config.DEMO_PORTFOLIO_ACTIVE[portfolio] = not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio, False)
@@ -1660,6 +1678,22 @@ async def handle_callback(update, ctx):
         save_runtime_state()
         await show_main_settings_menu(query, is_query=True)
         await _qanswer(query, f"ML Scoring: {'ON' if new_val else 'OFF'}")
+
+    elif data == "toggle_p3_dyn_lot":
+        new_val = not getattr(config, "DYNAMIC_LOT_ENABLED", False)
+        setattr(config, "DYNAMIC_LOT_ENABLED", new_val)
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await _qanswer(query, f"Phase 3 Dyn. Lot: {'ON' if new_val else 'OFF'}")
+
+    elif data == "toggle_p4_smart_exit":
+        # Toggle both Smart Cutloss and Momentum Stall Exit
+        new_val = not getattr(config, "SMART_CUTLOSS_ENABLED", False)
+        setattr(config, "SMART_CUTLOSS_ENABLED", new_val)
+        setattr(config, "MOMENTUM_STALL_EXIT_ENABLED", new_val)
+        save_runtime_state()
+        await show_main_settings_menu(query, is_query=True)
+        await _qanswer(query, f"Phase 4 Smart Exit: {'ON' if new_val else 'OFF'}")
 
     elif data == "toggle_observable_mode":
         new_val = not getattr(config, "OBSERVABLE_MODE", False)

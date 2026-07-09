@@ -31,6 +31,18 @@ def _build_demo_portfolio_view(context=None):
                 InlineKeyboardButton(label_s, callback_data=f"demo_scale_toggle")
             ])
             
+            if managed.startswith("LTS"):
+                dyn_lot = getattr(config, "DYNAMIC_LOT_ENABLED", {}).get(managed, False)
+                smart_cut = getattr(config, "SMART_CUTLOSS_ENABLED", {}).get(managed, False)
+                mom_stall = getattr(config, "MOMENTUM_STALL_EXIT_ENABLED", {}).get(managed, False)
+                rows.append([
+                    InlineKeyboardButton(f"📦 P3 Dyn. Lot: {'🟢' if dyn_lot else '🔴'}", callback_data="demo_p3_dyn_lot_toggle"),
+                    InlineKeyboardButton(f"🚪 P4 Smart Exit: {'🟢' if smart_cut else '🔴'}", callback_data="demo_p4_smart_exit_toggle")
+                ])
+                rows.append([
+                    InlineKeyboardButton(f"🛑 P4 Mom. Stall: {'🟢' if mom_stall else '🔴'}", callback_data="demo_p4_mom_stall_toggle")
+                ])
+            
         rows.append([
             InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh"),
             InlineKeyboardButton("◀️ กลับ", callback_data="demo_manage_back")

@@ -5,7 +5,7 @@ import importlib.util as _importlib_util
 from pathlib import Path as _Path
 import time as _time
 from bot_log import log_block, log_event
-from mt5_utils import connect_mt5, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
+from mt5_utils import connect_mt5, get_dynamic_volume, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
 from strategy1 import strategy_1
 from strategy2 import strategy_2
 from strategy3 import strategy_3
@@ -52,6 +52,25 @@ try:
 except ModuleNotFoundError:
     def strategy_21(*args, **kwargs):
         return {"signal": "WAIT", "reason": "S21 module not found"}
+
+try:
+    from strategy95 import strategy_95
+except ImportError:
+    def strategy_95(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S95 module not found"}
+
+try:
+    from strategy96 import strategy_96
+except ImportError:
+    def strategy_96(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S96 module not found"}
+
+try:
+    from strategy97 import strategy_97
+except ImportError:
+    def strategy_97(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S97 module not found"}
+
 from pending import check_fvg_pending, check_pb_pending
 from trailing import check_engulf_trail_sl, check_fvg_candle_quality, check_opposite_order_tp, check_entry_candle_quality, fvg_order_tickets, pending_order_tf, check_cancel_pending_orders, position_tf, check_breakeven_tp, position_sid, position_pattern, check_s6_trail, _s6_state, _s6i_state, _entry_state, _s8_fill_sl, check_s12_management, _get_filling_mode, _close_position, _build_s1_forward_meta, _latest_pending_rsi
 from notifications import check_sl_tp_hits
@@ -2967,6 +2986,18 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
 
+    r95 = strategy_95(rates, tf=tf_name) if active_strategies.get(95, False) else {"signal": "WAIT", "reason": "S95 ปิด"}
+    if r95.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 95, r95["signal"], last_candle_time, r95)
+
+    r96 = strategy_96(rates, tf=tf_name) if active_strategies.get(96, False) else {"signal": "WAIT", "reason": "S96 ปิด"}
+    if r96.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 96, r96["signal"], last_candle_time, r96)
+
+    r97 = strategy_97(rates, tf=tf_name) if active_strategies.get(97, False) else {"signal": "WAIT", "reason": "S97 ปิด"}
+    if r97.get("signal") in ("BUY", "SELL"):
+        _log_divergence_once(tf_name, 97, r97["signal"], last_candle_time, r97)
+
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
         fvg     = r2["fvg"]
@@ -3383,7 +3414,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21), (95, r95), (96, r96), (97, r97)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3415,7 +3446,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21), (95, r95), (96, r96), (97, r97)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3895,7 +3926,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     place_flow_id = _build_order_flow_id(tf_name, sid, signal, last_candle_time, place_entry, sl, tp, place_model)
                     order_sl = 0.0 if use_delay_sl else sl
                     # Apply Quant Lot Multiplier
-                    final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
+                    final_volume = round(get_dynamic_volume(tf_name, signal, get_volume()) * result.get("quant_lot_multiplier", 1.0), 2)
                     
                     if order_mode == "stop":
                         order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=place_entry, tf=tf_name, sid=sid, pattern=place_pattern)
@@ -4292,7 +4323,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             swing_l_text = _fmt_swing_dt(_sl_info["time"]) if _sl_info else ""
             # Apply Quant Lot Multiplier — คำนวณก่อน เพื่อให้ข้อความ Telegram โชว์ lot จริงที่จะส่ง
             # order (ไม่ใช่ AUTO_VOLUME เฉยๆ) เคยเจอบั๊ก S20.12 compound แล้วแต่ Telegram ยังโชว์ 0.01
-            final_volume = round(get_volume() * result.get("quant_lot_multiplier", 1.0), 2)
+            final_volume = round(get_dynamic_volume(tf_name, signal, get_volume()) * result.get("quant_lot_multiplier", 1.0), 2)
             await _notify_pattern_found_once(
                 app,
                 f"pattern|{base_flow_id}",

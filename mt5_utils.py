@@ -877,6 +877,65 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
     return {"success": False, "error": f"{err}"}
 
 
+def get_dynamic_volume(tf, signal, base_vol=None, portfolio=None):
+    """
+    ปรับ Lot Size อัตโนมัติตาม Market Regime (ADX & Trend)
+    - ถ้าเทรดตาม Strong Trend -> 1.5x (Aggressive)
+    - ถ้าเทรดสวน หรือ Sideway -> 0.5x (Conservative)
+    """
+    import config
+    dyn_enabled = getattr(config, 'DYNAMIC_LOT_ENABLED', {})
+    if isinstance(dyn_enabled, dict) and portfolio:
+        enabled = dyn_enabled.get(portfolio, False)
+    else:
+        enabled = False
+        
+    if not enabled:
+        if base_vol is None:
+            return config.get_volume()
+        return base_vol
+    try:
+        if base_vol is None:
+            import config
+            base_vol = config.get_volume()
+            
+        import ml_scoring
+        from config import SYMBOL
+        import mt5_worker as mt5
+        
+        # Convert string to int if necessary
+        mt5_tf = tf
+        if isinstance(tf, str):
+            tf_clean = tf.strip("[]").split("_")[0] # handle "[M15_H1]" -> "M15"
+            tf_map = {
+                "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15,
+                "M30": mt5.TIMEFRAME_M30, "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4,
+                "D1": mt5.TIMEFRAME_D1, "W1": mt5.TIMEFRAME_W1, "MN1": mt5.TIMEFRAME_MN1
+            }
+            mt5_tf = tf_map.get(tf_clean, mt5.TIMEFRAME_M15)
+            
+        regime = ml_scoring.detect_market_regime(SYMBOL, mt5_tf)
+        if not regime: 
+            return base_vol
+            
+        is_strong = regime.get("is_strong_trend", False)
+        trend_dir = regime.get("trend_direction")
+        
+        if is_strong:
+            if trend_dir == signal:
+                new_lot = base_vol * 1.5
+            else:
+                new_lot = base_vol * 0.5
+        else:
+            new_lot = base_vol * 0.5
+            
+        final_lot = max(0.01, round(new_lot, 2))
+        return final_lot
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return base_vol if base_vol else 0.01
+
 def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern="",
                parallel_tfs=None, parallel_patterns=None, order_index=None):
     """
@@ -896,10 +955,25 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
 
     try:
         import config
-        if getattr(config, "ML_SCORING_ENABLED", False):
+        if getattr(config, "ML_SCORING_ENABLED", False) and str(sid).isdigit() and int(sid) >= 80:
             import ml_scoring
             from datetime import datetime, timezone, timedelta
             time_bkk = datetime.now(timezone(timedelta(hours=7)))
+            
+            # --- Regime Detection Filter ---
+            try:
+                regime = ml_scoring.detect_market_regime(SYMBOL, tf)
+                if regime["is_strong_trend"]:
+                    if (regime["trend_direction"] == "BUY" and signal == "SELL") or \
+                       (regime["trend_direction"] == "SELL" and signal == "BUY"):
+                        print(f"[{time_bkk.strftime('%H:%M:%S')}] 🛑 [Regime Filter] Blocked counter-trend {signal} for LTS (sid={sid}). Market is in strong {regime['trend_direction']} trend (ADX: {regime['adx']:.1f}).")
+                        from bot_log import log_event
+                        log_event("REGIME_FILTER", f"Blocked counter-trend {signal} (ADX: {regime['adx']:.1f})", tf=tf, sid=sid, signal=signal)
+                        return {"success": False, "skipped": True, "error": f"Regime blocked counter-trend {signal}"}
+            except Exception as e:
+                print(f"⚠️ [Regime Filter] Error: {e}")
+            # -------------------------------
+            
             features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
             prob = ml_scoring.predict_success_probability(features)
 
@@ -1058,10 +1132,25 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     
     try:
         import config
-        if getattr(config, "ML_SCORING_ENABLED", False):
+        if getattr(config, "ML_SCORING_ENABLED", False) and str(sid).isdigit() and int(sid) >= 80:
             import ml_scoring
             from datetime import datetime, timezone, timedelta
             time_bkk = datetime.now(timezone(timedelta(hours=7)))
+            
+            # --- Regime Detection Filter ---
+            try:
+                regime = ml_scoring.detect_market_regime(SYMBOL, tf)
+                if regime["is_strong_trend"]:
+                    if (regime["trend_direction"] == "BUY" and signal == "SELL") or \
+                       (regime["trend_direction"] == "SELL" and signal == "BUY"):
+                        print(f"[{time_bkk.strftime('%H:%M:%S')}] 🛑 [Regime Filter] Blocked counter-trend {signal} for LTS (sid={sid}). Market is in strong {regime['trend_direction']} trend (ADX: {regime['adx']:.1f}).")
+                        from bot_log import log_event
+                        log_event("REGIME_FILTER", f"Blocked counter-trend {signal} (ADX: {regime['adx']:.1f})", tf=tf, sid=sid, signal=signal)
+                        return {"success": False, "skipped": True, "error": f"Regime blocked counter-trend {signal}"}
+            except Exception as e:
+                print(f"⚠️ [Regime Filter] Error: {e}")
+            # -------------------------------
+            
             features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
             prob = ml_scoring.predict_success_probability(features)
 

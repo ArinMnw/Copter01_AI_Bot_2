@@ -334,3 +334,59 @@ def train_from_mt5_history(days=30):
     except Exception as e:
         print(f"[ML Scoring] Error during training: {e}")
         return False
+
+def detect_market_regime(symbol: str, tf: int) -> dict:
+    """
+    Detects if the market is in a strong trend or ranging.
+    Returns: {"is_strong_trend": bool, "trend_direction": "BUY" | "SELL" | None, "adx": float}
+    """
+    import mt5_worker as mt5
+    import pandas as pd
+    import numpy as np
+    
+    result = {"is_strong_trend": False, "trend_direction": None, "adx": 0.0}
+    
+    if mt5.terminal_info() is None:
+        return result
+        
+    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 100)
+    if rates is None or len(rates) < 50:
+        return result
+        
+    df = pd.DataFrame(rates)
+    
+    # Calculate ADX (14)
+    high_low = df['high'] - df['low']
+    high_close = np.abs(df['high'] - df['close'].shift())
+    low_close = np.abs(df['low'] - df['close'].shift())
+    true_range = np.max(pd.concat([high_low, high_close, low_close], axis=1), axis=1)
+    
+    plus_dm = df['high'].diff()
+    minus_dm = df['low'].shift() - df['low']
+    plus_dm = np.where((plus_dm > minus_dm) & (plus_dm > 0), plus_dm, 0.0)
+    minus_dm = np.where((minus_dm > plus_dm) & (minus_dm > 0), minus_dm, 0.0)
+    
+    tr14 = true_range.rolling(14).sum()
+    plus_di14 = 100 * (pd.Series(plus_dm).rolling(14).sum() / tr14)
+    minus_di14 = 100 * (pd.Series(minus_dm).rolling(14).sum() / tr14)
+    dx = 100 * (np.abs(plus_di14 - minus_di14) / (plus_di14 + minus_di14))
+    adx_series = dx.rolling(14).mean()
+    
+    current_adx = float(adx_series.iloc[-1])
+    if np.isnan(current_adx):
+        return result
+        
+    # Calculate EMA 50 to determine direction
+    ema50 = df['close'].ewm(span=50, adjust=False).mean()
+    current_close = df['close'].iloc[-1]
+    
+    direction = "BUY" if current_close > ema50.iloc[-1] else "SELL"
+    
+    # ADX > 25 is typically considered a strong trend
+    is_strong = current_adx > 25.0
+    
+    return {
+        "is_strong_trend": is_strong,
+        "trend_direction": direction if is_strong else None,
+        "adx": current_adx
+    }

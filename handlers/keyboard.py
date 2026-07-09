@@ -131,6 +131,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
             InlineKeyboardButton(f"📰 News Filter: {'🟢' if getattr(config, 'NEWS_FILTER_ENABLED', False) else '🔴'}", callback_data="toggle_news_filter"),
             InlineKeyboardButton(f"🤖 ML Scoring: {'🟢' if getattr(config, 'ML_SCORING_ENABLED', False) else '🔴'}", callback_data="toggle_ml_scoring")
         ],
+
         [InlineKeyboardButton(f"👀 Observable Mode (Ghost Mode): {'🟢ON' if getattr(config, 'OBSERVABLE_MODE', False) else '🔴OFF'}", callback_data="toggle_observable_mode")],
         [InlineKeyboardButton("♻️ Reset Config", callback_data="reset_config_prompt")],
         [InlineKeyboardButton("🔙 กลับ", callback_data="close_settings")],
@@ -158,6 +159,7 @@ async def show_main_settings_menu(update_or_query, is_query=False):
         f"📈 Scale-Out {config.SCALE_OUT_MULTIPLIER}X: *{scale_out_suffix}*\n"
         f"📰 News Filter: *{'🟢ON' if getattr(config, 'NEWS_FILTER_ENABLED', False) else '🔴OFF'}*\n"
         f"🤖 ML Scoring: *{'🟢ON' if getattr(config, 'ML_SCORING_ENABLED', False) else '🔴OFF'}*\n"
+
         f"👀 Observable Mode: *{'🟢ON' if getattr(config, 'OBSERVABLE_MODE', False) else '🔴OFF'}*\n\n"
         f"เลือกเมนูที่ต้องการ:"
     )

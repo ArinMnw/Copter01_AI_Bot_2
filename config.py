@@ -507,6 +507,11 @@ def get_volume():
     return round(AUTO_VOLUME * points_scale(), 2)
 LOT_OPTIONS    = [0.01, 0.02, 0.03, 0.05, 0.10, 0.20]  # ตัวเลือก lot size
 MAX_ORDERS     = 9999
+
+# --- Phase 3 & 4 Toggles ---
+DYNAMIC_LOT_ENABLED = {}
+SMART_CUTLOSS_ENABLED = {}
+MOMENTUM_STALL_EXIT_ENABLED = {}
 SCAN_INTERVAL  = 1
 TIMEFRAME      = mt5.TIMEFRAME_H1
 TP_MULTIPLIER  = 1.0  # fallback RR 1:1
@@ -1810,8 +1815,8 @@ DEMO_PORTFOLIO_ACTIVE = {
     "AF34": False,   # tested target balance ~$1500
     "AF47": False,   # tested target balance ~$2000
     "LTS44": False,
-    "LTS890": False, "LTS10K": False,
-    "LTS10K": True,
+    "LTS890": False,
+    "LTS999": True,
 }
 _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
 if _demo_portfolio_active_env is not None:
@@ -1832,10 +1837,10 @@ DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg 
                                                         # โดน 10019 No money) — backtest ไม่ cap ไว้
                                                         # เพราะไม่ได้ simulate margin ของบัญชีจริง
 DEMO_PORTFOLIO_WEIGHT_ENABLED = {
-    "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False, "LTS10K": False
+    "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False, "LTS999": False
 }
 DEMO_PORTFOLIO_WEIGHT_SCALE = {
-    "P13": 1.0, "P16": 1.0, "AF22": 1.0, "AF34": 1.0, "AF47": 1.0, "LTS44": 1.0, "LTS890": 1.0, "LTS10K": 1.0
+    "P13": 1.0, "P16": 1.0, "AF22": 1.0, "AF34": 1.0, "AF47": 1.0, "LTS44": 1.0, "LTS890": 1.0, "LTS999": 1.0
 }
 for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _env_w = os.getenv(f"DEMO_PORTFOLIO_WEIGHT_ENABLED_{_name}")
@@ -1847,6 +1852,9 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
             DEMO_PORTFOLIO_WEIGHT_SCALE[_name] = float(_env_s)
         except ValueError:
             pass
+    DYNAMIC_LOT_ENABLED[_name] = _env_bool(f"DYNAMIC_LOT_ENABLED_{_name}", False)
+    SMART_CUTLOSS_ENABLED[_name] = _env_bool(f"SMART_CUTLOSS_ENABLED_{_name}", False)
+    MOMENTUM_STALL_EXIT_ENABLED[_name] = _env_bool(f"MOMENTUM_STALL_EXIT_ENABLED_{_name}", False)
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
 DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
 DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely
@@ -2040,6 +2048,12 @@ _RUNTIME_DEFAULTS = {
     "TREND_FILTER_HIGHER_TF": TREND_FILTER_HIGHER_TF,
     "TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
     "TREND_FILTER_SIDEWAY_HHLL": TREND_FILTER_SIDEWAY_HHLL,
+    "DEMO_PORTFOLIO_ACTIVE": copy.deepcopy(DEMO_PORTFOLIO_ACTIVE),
+    "DEMO_PORTFOLIO_WEIGHT_ENABLED": copy.deepcopy(DEMO_PORTFOLIO_WEIGHT_ENABLED),
+    "DEMO_PORTFOLIO_WEIGHT_SCALE": copy.deepcopy(DEMO_PORTFOLIO_WEIGHT_SCALE),
+    "DYNAMIC_LOT_ENABLED": copy.deepcopy(DYNAMIC_LOT_ENABLED),
+    "SMART_CUTLOSS_ENABLED": copy.deepcopy(SMART_CUTLOSS_ENABLED),
+    "MOMENTUM_STALL_EXIT_ENABLED": copy.deepcopy(MOMENTUM_STALL_EXIT_ENABLED),
     "SWEEP_FILTER_ENABLED": SWEEP_FILTER_ENABLED,
     "SWEEP_FILTER_RSI_DIV_ENABLED": SWEEP_FILTER_RSI_DIV_ENABLED,
     "TREND_FILTER_MODE": TREND_FILTER_MODE,
@@ -2451,6 +2465,12 @@ def save_runtime_state():
             "trend_filter_higher_tf": TREND_FILTER_HIGHER_TF,
             "trend_filter_trail_sl_override_enabled": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
             "trend_filter_sideway_hhll": TREND_FILTER_SIDEWAY_HHLL,
+            "demo_portfolio_active": DEMO_PORTFOLIO_ACTIVE,
+            "demo_portfolio_weight_enabled": DEMO_PORTFOLIO_WEIGHT_ENABLED,
+            "demo_portfolio_weight_scale": DEMO_PORTFOLIO_WEIGHT_SCALE,
+            "dynamic_lot_enabled": DYNAMIC_LOT_ENABLED,
+            "smart_cutloss_enabled": SMART_CUTLOSS_ENABLED,
+            "momentum_stall_exit_enabled": MOMENTUM_STALL_EXIT_ENABLED,
             "sweep_filter_enabled": SWEEP_FILTER_ENABLED,
             "sweep_filter_rsi_div_enabled": SWEEP_FILTER_RSI_DIV_ENABLED,
             "trend_filter_mode": TREND_FILTER_MODE,
@@ -2695,6 +2715,8 @@ def restore_runtime_state():
         global ENTRY_CANDLE_FOCUS_NEW_ENABLED, ENTRY_CANDLE_FOCUS_NEW_POINTS, ENTRY_CANDLE_FOCUS_NEW_TF_MODE
         global TREND_FILTER_HIGHER_TF_ENABLED, TREND_FILTER_HIGHER_TF, TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
         global TREND_FILTER_SIDEWAY_HHLL
+        global DEMO_PORTFOLIO_ACTIVE, DEMO_PORTFOLIO_WEIGHT_ENABLED, DEMO_PORTFOLIO_WEIGHT_SCALE
+        global DYNAMIC_LOT_ENABLED, SMART_CUTLOSS_ENABLED, MOMENTUM_STALL_EXIT_ENABLED
         global SWEEP_FILTER_ENABLED, SWEEP_FILTER_RSI_DIV_ENABLED
         global TREND_FILTER_MODE
         global SWING_SUMMARY_MODE, SWING_PIVOT_LEFT, SWING_PIVOT_RIGHT
@@ -2906,6 +2928,28 @@ def restore_runtime_state():
         TREND_FILTER_SIDEWAY_HHLL = bool(
             state.get("trend_filter_sideway_hhll", TREND_FILTER_SIDEWAY_HHLL)
         )
+        saved_demo_active = state.get("demo_portfolio_active")
+        if isinstance(saved_demo_active, dict):
+            DEMO_PORTFOLIO_ACTIVE.update(saved_demo_active)
+        saved_weight_enabled = state.get("demo_portfolio_weight_enabled")
+        if isinstance(saved_weight_enabled, dict):
+            DEMO_PORTFOLIO_WEIGHT_ENABLED.update(saved_weight_enabled)
+        saved_weight_scale = state.get("demo_portfolio_weight_scale")
+        if isinstance(saved_weight_scale, dict):
+            for name, value in saved_weight_scale.items():
+                try:
+                    DEMO_PORTFOLIO_WEIGHT_SCALE[name] = float(value)
+                except (TypeError, ValueError):
+                    continue
+        saved_dyn_lot = state.get("dynamic_lot_enabled")
+        if isinstance(saved_dyn_lot, dict):
+            DYNAMIC_LOT_ENABLED.update(saved_dyn_lot)
+        saved_smart_cut = state.get("smart_cutloss_enabled")
+        if isinstance(saved_smart_cut, dict):
+            SMART_CUTLOSS_ENABLED.update(saved_smart_cut)
+        saved_mom_stall = state.get("momentum_stall_exit_enabled")
+        if isinstance(saved_mom_stall, dict):
+            MOMENTUM_STALL_EXIT_ENABLED.update(saved_mom_stall)
         SWEEP_FILTER_ENABLED = bool(
             state.get("sweep_filter_enabled", state.get("trend_filter_sweep_enabled", SWEEP_FILTER_ENABLED))
         )

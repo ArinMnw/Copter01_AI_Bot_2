@@ -72,7 +72,8 @@ def main():
         # Write out to a new log-like format or CSV
         with open("lts_optimized_weights.txt", "w") as f:
             for i in range(num_legs):
-                f.write(f"{labels[i]} : {w_opt[i]:.3f}\n")
+                if w_opt[i] > 1e-4:
+                    f.write(f"{labels[i]} : {w_opt[i]:.3f}\n")
         print("Saved lts_W_opt.npy and lts_optimized_weights.txt")
     else:
         print("Optimization failed:", res.message)

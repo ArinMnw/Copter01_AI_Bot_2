@@ -36,7 +36,7 @@ Read AGENTS.md first.
 วิธีที่แนะนำ:
 1. เมื่อได้จำนวนขาครบที่ต้องการ (เช่น ได้ 999 ขาแล้ว) ให้ใช้ข้อมูล `lts_auto_ladder_log.md` เป็น Base Vector
 2. หากต้องการหาจุด Optimum (Minimize Worst Day) ให้ใช้ `lts_optimize_worst_day.py`
-3. ได้ไฟล์ Weights ใหม่ (เช่น `lts999_optimized_weights.txt`) และนำไปเสียบใน `strategy_lts.py` เพื่อใช้งานต่อไป
+3. ได้ไฟล์ Weights ใหม่ (เช่น `strategy/lts/optimized_weights/lts_optimized_weights.txt`) และนำไปเสียบใน `strategy_lts.py` เพื่อใช้งานต่อไป
 4. ทำการรัน `simulate_compounding.py` เพื่อหาสัดส่วนการทบต้น (Compounding) ที่ปลอดภัยที่สุด (Ultra Safe)
 
 ═══ PHASE 3: ขุดข้อมูลจากมันสมองของ AI (True ML Feature Scoring) ═══
