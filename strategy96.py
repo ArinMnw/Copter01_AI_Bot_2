@@ -2,7 +2,7 @@ from config import *
 import pandas as pd
 import numpy as np
 
-def strategy_96(rates, tf=""):
+def strategy_96(rates, tf="", dt_bkk=None, cfg=None, **kwargs):
     """
     LTS S96: Volume Profile Point of Control (PoC) Pullback
     Approximates the PoC using candle volume and price. Trades pullbacks to PoC.

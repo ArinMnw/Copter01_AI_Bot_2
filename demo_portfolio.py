@@ -76,8 +76,11 @@ MIN_LOT = 0.01
 BKK_TZ = timezone(timedelta(hours=7))
 _STATE_SAVE_LOCK = threading.Lock()
 
-_TF_MAP = {"M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, "M30": mt5.TIMEFRAME_M30}
-_TF_SECS = {"M5": 300, "M15": 900, "M30": 1800}
+_TF_MAP = {
+    "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, 
+    "M30": mt5.TIMEFRAME_M30, "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4, "D1": mt5.TIMEFRAME_D1
+}
+_TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400, "D1": 86400}
 
 
 def _demo_symbol():
@@ -355,7 +358,7 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
 
 
-def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT):
+def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original_entry=0.0):
     """วางออเดอร์ตรงๆ ผ่าน mt5.order_send() — ไม่ผ่าน mt5_utils.open_order_market() เพื่อเลี่ยง
     ML_SCORING_ENABLED / SCALE_OUT_ENABLED ที่เป็น global toggle ของบอทเดิม (ดู docstring บนไฟล์)"""
     symbol = _demo_symbol()
@@ -363,13 +366,34 @@ def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT):
     if not tick:
         return {"success": False, "error": "ดึงราคาไม่ได้"}
     price = tick.ask if signal == "BUY" else tick.bid
+    
+    # 1. Shift SL/TP by the difference between execution price and original signal entry
+    if original_entry > 0:
+        delta = price - original_entry
+        sl += delta
+        if tp > 0:
+            tp += delta
+            
+    # 2. Clamp SL/TP to respect broker's SYMTBOL_TRADE_STOPS_LEVEL
+    info = mt5.symbol_info(symbol)
+    if info:
+        min_stops = float(getattr(info, "trade_stops_level", 0.0) or 0.0) * float(getattr(info, "point", 0.0) or 0.0)
+        if min_stops > 0:
+            min_stops += float(getattr(info, "point", 0.0) or 0.0) * 2.0  # +2 points buffer
+        if signal == "BUY":
+            if sl > price - min_stops: sl = price - min_stops
+            if tp > 0 and tp < price + min_stops: tp = price + min_stops
+        else:
+            if sl > 0 and sl < price + min_stops: sl = price + min_stops
+            if tp > 0 and tp > price - min_stops: tp = price - min_stops
+
     order_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
     try:
         margin = mt5.order_calc_margin(order_type, symbol, float(volume), price)
         account = mt5.account_info()
         free_margin = float(getattr(account, "margin_free", 0.0) or 0.0) if account else 0.0
         if margin is not None and free_margin > 0 and float(margin) > free_margin:
-            return {"success": False, "error": f"margin not enough: need {float(margin):.2f}, free {free_margin:.2f}"}
+            return {"success": False, "error": f"margin not enough: need {float(margin):.2f}, free {free_margin:.2f}", "sl": sl, "tp": tp}
     except Exception:
         pass
     result = mt5.order_send({
@@ -387,10 +411,10 @@ def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT):
         "type_filling": mt5.ORDER_FILLING_FOK,
     })
     if result is None:
-        return {"success": False, "error": f"order_send returned None — {mt5.last_error()}"}
+        return {"success": False, "error": f"order_send returned None — {mt5.last_error()}", "sl": sl, "tp": tp}
     if result.retcode == mt5.TRADE_RETCODE_DONE:
-        return {"success": True, "ticket": result.order, "price": price}
-    return {"success": False, "error": f"{result.retcode} — {result.comment}"}
+        return {"success": True, "ticket": result.order, "price": price, "sl": sl, "tp": tp}
+    return {"success": False, "error": f"{result.retcode} — {result.comment}", "sl": sl, "tp": tp}
 
 
 async def _demo_scan_af(app, portfolio_name: str):
@@ -440,9 +464,13 @@ async def _demo_scan_af(app, portfolio_name: str):
 
     sig = filtered["signal"]
     sl, tp = float(filtered["sl"]), float(filtered["tp"])
+    original_entry = float(filtered.get("entry", 0.0))
     volume, volume_meta = _af_order_volume(af_def, portfolio_name, entry_tf, sig)
     comment = _demo_comment(leg_id, entry_tf)
-    result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
+    result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, original_entry=original_entry)
+    
+    sl = result.get("sl", sl)
+    tp = result.get("tp", tp)
 
     if result.get("success") and result.get("ticket"):
         try:
@@ -558,9 +586,13 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
 
         sig = filtered["signal"]
         sl, tp = float(filtered["sl"]), float(filtered["tp"])
+        original_entry = float(filtered.get("entry", 0.0))
         volume, volume_meta = _af_order_volume(af_def, portfolio_name)
         comment = _demo_comment(leg_id, entry_tf)
-        result = _place_market_order(sig, sl, tp, comment, magic, volume=volume)
+        result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, original_entry=original_entry)
+
+        sl = result.get("sl", sl)
+        tp = result.get("tp", tp)
 
         if result.get("success") and result.get("ticket"):
             try:
@@ -685,8 +717,12 @@ async def demo_scan(app, portfolio_name: str):
             continue
 
         sl, tp = float(res["sl"]), float(res["tp"])
+        original_entry = float(res.get("entry", 0.0))
         comment = _demo_comment(leg_id, "M5")
-        result = _place_market_order(sig, sl, tp, comment, magic)
+        result = _place_market_order(sig, sl, tp, comment, magic, original_entry=original_entry)
+
+        sl = result.get("sl", sl)
+        tp = result.get("tp", tp)
 
         if result.get("success") and result.get("ticket"):
             # ⚠️ ต้องลงทะเบียนด้วย sid=21 ทันที ไม่งั้น trailing.py จะเห็น sid=None แล้วไม่ skip

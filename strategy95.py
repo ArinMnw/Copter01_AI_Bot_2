@@ -1,7 +1,7 @@
 from config import *
 from strategy4 import _find_prev_swing_high, _find_prev_swing_low
 
-def strategy_95(rates, tf=""):
+def strategy_95(rates, tf="", dt_bkk=None, cfg=None, **kwargs):
     """
     LTS S95: Liquidity Sweep (SMC)
     Detects if the recent candle sweeps a major swing high/low and reverses (closes inside the range).
