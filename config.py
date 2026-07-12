@@ -1823,6 +1823,17 @@ DEMO_PORTFOLIO_ACTIVE = {
     "LTS44": False,
     "LTS890": False,
     "LTS999": True,
+    "LTS_AVENGERS_BASE": False,
+    "LTS_AVENGERS_P34": False,
+    "LTS_AVENGERS_HIGH_RISK": False,
+    "LTS_AVENGERS_ULTRA_SAFE": False,
+    "LTS_AVENGERS_HIGH_FREQ": False,
+    "P18": False,
+    "S101": False,
+    "S102": False,
+    "S105": False,
+    "S106": False,
+    "S111": False,
 }
 _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
 if _demo_portfolio_active_env is not None:
@@ -1843,10 +1854,16 @@ DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg 
                                                         # โดน 10019 No money) — backtest ไม่ cap ไว้
                                                         # เพราะไม่ได้ simulate margin ของบัญชีจริง
 DEMO_PORTFOLIO_WEIGHT_ENABLED = {
-    "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False, "LTS999": False
+    "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False, "LTS999": False,
+    "LTS_AVENGERS_BASE": False, "LTS_AVENGERS_P34": False, "LTS_AVENGERS_HIGH_RISK": False,
+    "LTS_AVENGERS_ULTRA_SAFE": False, "LTS_AVENGERS_HIGH_FREQ": False,
+    "P18": False, "S101": False, "S102": False, "S105": False, "S106": False, "S111": False,
 }
 DEMO_PORTFOLIO_WEIGHT_SCALE = {
-    "P13": 1.0, "P16": 1.0, "AF22": 1.0, "AF34": 1.0, "AF47": 1.0, "LTS44": 1.0, "LTS890": 1.0, "LTS999": 1.0
+    "P13": 1.0, "P16": 1.0, "AF22": 1.0, "AF34": 1.0, "AF47": 1.0, "LTS44": 1.0, "LTS890": 1.0, "LTS999": 1.0,
+    "LTS_AVENGERS_BASE": 1.0, "LTS_AVENGERS_P34": 1.0, "LTS_AVENGERS_HIGH_RISK": 1.0,
+    "LTS_AVENGERS_ULTRA_SAFE": 1.0, "LTS_AVENGERS_HIGH_FREQ": 1.0,
+    "P18": 1.0, "S101": 1.0, "S102": 1.0, "S105": 1.0, "S106": 1.0, "S111": 1.0,
 }
 for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _env_w = os.getenv(f"DEMO_PORTFOLIO_WEIGHT_ENABLED_{_name}")

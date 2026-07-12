@@ -66,9 +66,9 @@ except ImportError:
         return {"signal": "WAIT", "reason": "S96 module not found"}
 
 try:
-    from strategy97 import strategy_97
+    from strategy97 import detect_s97
 except ImportError:
-    def strategy_97(*args, **kwargs):
+    def detect_s97(*args, **kwargs):
         return {"signal": "WAIT", "reason": "S97 module not found"}
 
 from pending import check_fvg_pending, check_pb_pending
@@ -3006,7 +3006,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r96.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 96, r96["signal"], last_candle_time, r96)
 
-    r97 = strategy_97(rates, tf=tf_name) if active_strategies.get(97, False) else {"signal": "WAIT", "reason": "S97 ปิด"}
+    r97 = detect_s97(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(97, False) else {"signal": "WAIT", "reason": "S97 ปิด"}
     if r97.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 97, r97["signal"], last_candle_time, r97)
 
