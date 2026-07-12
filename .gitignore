@@ -17,7 +17,15 @@ bot_heartbeat.txt
 *.zip
 __pycache__/
 *.pyc
-optimized_params.json  
+optimized_params.json
+
+# archived logs — ไม่ต้อง track ใน git ทั้งข้างนอกสุดและใน profile
+logs/old_logs/
+*.archiving
+
+# backtest/sweep output ที่ regenerate ได้เสมอ (ambfix ladder, af/lts export) — ไม่ต้อง track
+*_probe.csv
+*_daily.csv
 
 # local MT5/profile runtime files
 profiles/*
@@ -32,3 +40,5 @@ profiles/**/*
 !profiles/**/*stall*.log
 !profiles/**/supervisor.lock
 !profiles/**/*supervisor*.log
+profiles/**/logs/old_logs/
+profiles/**/*.archiving
