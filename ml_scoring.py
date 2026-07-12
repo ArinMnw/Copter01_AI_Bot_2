@@ -27,10 +27,10 @@ def _load_model():
             except Exception:
                 pass
 
-def extract_features(symbol, tf, signal, current_price, time_bkk):
+def extract_features(symbol, tf, signal, current_price, time_bkk, historical_rates=None):
     """
     Extract basic + advanced features for ML model.
-    Fetches real RSI, ATR, EMA distance, Z-Score, BB Width, and ADX from MT5.
+    Fetches real RSI, ATR, EMA distance, Z-Score, BB Width, and ADX from MT5 or historical_rates.
     """
     import mt5_worker as mt5
     import pandas as pd
@@ -39,64 +39,66 @@ def extract_features(symbol, tf, signal, current_price, time_bkk):
     rsi_val, atr_val, ema_dist = 50.0, 20.0, 0.0
     z_score, bb_width, adx_val = 0.0, 1.0, 25.0
     
-    if mt5.terminal_info() is not None:
+    rates = historical_rates
+    if rates is None and mt5.terminal_info() is not None:
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 100)
-        if rates is not None and len(rates) > 80:
-            df = pd.DataFrame(rates)
+        
+    if rates is not None and len(rates) > 80:
+        df = pd.DataFrame(rates)
             
-            # 1. RSI
-            delta = df['close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            rsi_series = 100 - (100 / (1 + rs))
-            
-            # 2. ATR
-            high_low = df['high'] - df['low']
-            high_close = np.abs(df['high'] - df['close'].shift())
-            low_close = np.abs(df['low'] - df['close'].shift())
-            true_range = np.max(pd.concat([high_low, high_close, low_close], axis=1), axis=1)
-            atr_series = true_range.rolling(14).mean()
-            
-            # 3. EMA Dist
-            ema_series = df['close'].ewm(span=50, adjust=False).mean()
-            
-            # 4. Z-Score (20 period)
-            sma_20 = df['close'].rolling(20).mean()
-            std_20 = df['close'].rolling(20).std()
-            z_score_series = (df['close'] - sma_20) / std_20
-            
-            # 5. Bollinger Band Width
-            upper_bb = sma_20 + (2 * std_20)
-            lower_bb = sma_20 - (2 * std_20)
-            bb_width_series = (upper_bb - lower_bb) / sma_20
-            
-            # 6. ADX (14 period)
-            plus_dm = df['high'].diff()
-            minus_dm = df['low'].shift() - df['low']
-            plus_dm = np.where((plus_dm > minus_dm) & (plus_dm > 0), plus_dm, 0.0)
-            minus_dm = np.where((minus_dm > plus_dm) & (minus_dm > 0), minus_dm, 0.0)
-            
-            tr14 = true_range.rolling(14).sum()
-            plus_di14 = 100 * (pd.Series(plus_dm).rolling(14).sum() / tr14)
-            minus_di14 = 100 * (pd.Series(minus_dm).rolling(14).sum() / tr14)
-            dx = 100 * (np.abs(plus_di14 - minus_di14) / (plus_di14 + minus_di14))
-            adx_series = dx.rolling(14).mean()
-            
-            # Extract latest
-            rsi_val = float(rsi_series.iloc[-1])
-            atr_val = float(atr_series.iloc[-1])
-            ema_dist = float(df['close'].iloc[-1] - ema_series.iloc[-1])
-            z_score = float(z_score_series.iloc[-1])
-            bb_width = float(bb_width_series.iloc[-1])
-            adx_val = float(adx_series.iloc[-1])
-            
-            if np.isnan(rsi_val): rsi_val = 50.0
-            if np.isnan(atr_val): atr_val = 20.0
-            if np.isnan(ema_dist): ema_dist = 0.0
-            if np.isnan(z_score): z_score = 0.0
-            if np.isnan(bb_width): bb_width = 1.0
-            if np.isnan(adx_val): adx_val = 25.0
+        # 1. RSI
+        delta = df['close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        rsi_series = 100 - (100 / (1 + rs))
+        
+        # 2. ATR
+        high_low = df['high'] - df['low']
+        high_close = np.abs(df['high'] - df['close'].shift())
+        low_close = np.abs(df['low'] - df['close'].shift())
+        true_range = np.max(pd.concat([high_low, high_close, low_close], axis=1), axis=1)
+        atr_series = true_range.rolling(14).mean()
+        
+        # 3. EMA Dist
+        ema_series = df['close'].ewm(span=50, adjust=False).mean()
+        
+        # 4. Z-Score (20 period)
+        sma_20 = df['close'].rolling(20).mean()
+        std_20 = df['close'].rolling(20).std()
+        z_score_series = (df['close'] - sma_20) / std_20
+        
+        # 5. Bollinger Band Width
+        upper_bb = sma_20 + (2 * std_20)
+        lower_bb = sma_20 - (2 * std_20)
+        bb_width_series = (upper_bb - lower_bb) / sma_20
+        
+        # 6. ADX (14 period)
+        plus_dm = df['high'].diff()
+        minus_dm = df['low'].shift() - df['low']
+        plus_dm = np.where((plus_dm > minus_dm) & (plus_dm > 0), plus_dm, 0.0)
+        minus_dm = np.where((minus_dm > plus_dm) & (minus_dm > 0), minus_dm, 0.0)
+        
+        tr14 = true_range.rolling(14).sum()
+        plus_di14 = 100 * (pd.Series(plus_dm).rolling(14).sum() / tr14)
+        minus_di14 = 100 * (pd.Series(minus_dm).rolling(14).sum() / tr14)
+        dx = 100 * (np.abs(plus_di14 - minus_di14) / (plus_di14 + minus_di14))
+        adx_series = dx.rolling(14).mean()
+        
+        # Extract latest
+        rsi_val = float(rsi_series.iloc[-1])
+        atr_val = float(atr_series.iloc[-1])
+        ema_dist = float(df['close'].iloc[-1] - ema_series.iloc[-1])
+        z_score = float(z_score_series.iloc[-1])
+        bb_width = float(bb_width_series.iloc[-1])
+        adx_val = float(adx_series.iloc[-1])
+        
+        if np.isnan(rsi_val): rsi_val = 50.0
+        if np.isnan(atr_val): atr_val = 20.0
+        if np.isnan(ema_dist): ema_dist = 0.0
+        if np.isnan(z_score): z_score = 0.0
+        if np.isnan(bb_width): bb_width = 1.0
+        if np.isnan(adx_val): adx_val = 25.0
 
     return {
         "hour_of_day": time_bkk.hour,
@@ -149,12 +151,12 @@ def predict_success_probability(features: dict) -> float:
             pass
         return 0.5
 
-def score_signal(symbol, tf, signal, current_price, time_bkk):
+def score_signal(symbol, tf, signal, current_price, time_bkk, historical_rates=None):
     """
     Helper function to extract features and return probability score.
     Used by strategy_af.py
     """
-    features = extract_features(symbol, tf, signal, current_price, time_bkk)
+    features = extract_features(symbol, tf, signal, current_price, time_bkk, historical_rates)
     return predict_success_probability(features)
 
 def train_dummy_model():

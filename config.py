@@ -529,22 +529,22 @@ TRADE_DEBUG = False
 
 # ── Standalone Strategy / Filter Skip Configs ──────────────
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
-PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
 # เดิม hardcode tuple แยกอยู่ตรงจุดใช้งานใน trailing.py/scanner.py แต่ละจุด แล้ว drift ไม่ตรงกัน
 # (ขาด sid บางตัวไปทีละจุด เช่น 20.12 หายไปจากหลายจุดพร้อมกัน) — ย้ายมารวมไว้ที่นี่ที่เดียว
-RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
-TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21}
+RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
 
@@ -897,6 +897,8 @@ active_strategies = {
     20.10: False, # ท่าที่ 20.10: Allin4s_2 (Reversal Trap)
     20.11: False, # ท่าที่ 20.11: Candle Strength
     20.12: False, # ท่าที่ 20.12: FutureKey
+    95: False, # ท่าที่ 95: Liquidity Sweep (SMC)
+    96: False, # ท่าที่ 96: Volume Profile POC Pullback
 }
 
 
@@ -959,6 +961,8 @@ STRATEGY_NAMES = {
     20.10: "S20.10: Wick Purge",
     20.11: "S20.11: Candle Strength",
     20.12: "S20.12: FutureKey",
+    95: "S95: LiqSweep",
+    96: "S96: PoC Pullback",
 }
 
 # ── Strategy 20: All in 4s (Reversal & Retracement) ─────────
@@ -1855,8 +1859,9 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
         except ValueError:
             pass
     DYNAMIC_LOT_ENABLED[_name] = _env_bool(f"DYNAMIC_LOT_ENABLED_{_name}", False)
-    SMART_CUTLOSS_ENABLED[_name] = _env_bool(f"SMART_CUTLOSS_ENABLED_{_name}", False)
-    MOMENTUM_STALL_EXIT_ENABLED[_name] = _env_bool(f"MOMENTUM_STALL_EXIT_ENABLED_{_name}", False)
+    _default_phase4 = True if _name in ("P15", "P16") else False
+    SMART_CUTLOSS_ENABLED[_name] = _env_bool(f"SMART_CUTLOSS_ENABLED_{_name}", _default_phase4)
+    MOMENTUM_STALL_EXIT_ENABLED[_name] = _env_bool(f"MOMENTUM_STALL_EXIT_ENABLED_{_name}", _default_phase4)
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
 DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
 DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely

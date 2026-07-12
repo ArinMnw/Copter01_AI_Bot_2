@@ -52,6 +52,12 @@ from strategy47 import S47_DEFAULTS, detect_s47
 from strategy49 import S49_DEFAULTS, detect_s49
 from strategy51 import S51_DEFAULTS, detect_s51
 from strategy56 import S56_DEFAULTS, detect_s56
+from strategy96 import detect_s96
+from strategy101 import DEFAULT_CFG as S101_DEFAULTS, detect_s101
+from strategy102 import DEFAULT_CFG as S102_DEFAULTS, detect_s102
+from strategy105 import DEFAULT_CFG as S105_DEFAULTS, detect_s105
+from strategy106 import DEFAULT_CFG as S106_DEFAULTS, detect_s106
+from strategy111 import DEFAULT_CFG as S111_DEFAULTS, detect_s111
 from strategy_af import (
     AF_LADDER_LEGS,
     AF_PORTFOLIO_LEGS,
@@ -146,6 +152,12 @@ _CFG_Q = dict(S51_DEFAULTS); _CFG_Q.update(TOUCH_ATR_MULT=0.5, REJECT_ATR_MULT=0
                                             TP_RR=1.5, SESSION_FILTER=False)
 _CFG_R = dict(S56_DEFAULTS); _CFG_R.update(TOUCH_ATR_MULT=0.8, REJECT_ATR_MULT=0.15, SL_ATR_MULT=1.0,
                                             TP_RR=1.5, CONFIRMATION_TYPE="none", SESSION_FILTER=False)
+_CFG_S96 = {"ENTRY_TF": "M5", "SL_ATR_MULT": 1.0, "TP_RR": 1.5, "CONFIRMATION_TYPE": "htf_trend", "HTF_TF": "H1", "HTF_EMA_PERIOD": 50, "HTF_SLOPE_BARS": 5}
+_CFG_T = dict(S101_DEFAULTS)
+_CFG_U = dict(S102_DEFAULTS)
+_CFG_V = dict(S105_DEFAULTS)
+_CFG_W = dict(S106_DEFAULTS)
+_CFG_X = dict(S111_DEFAULTS)
 
 # leg registry: (label, detect_fn, cfg, needs_htf, extra_kind)
 # extra_kind: None | "bar_dt_list" (S46/S49/S51) | "prev_week_hl" (S56)
@@ -166,25 +178,60 @@ _LEG_DEFS = {
     "P": ("S49 VWAP",              detect_s49, _CFG_P, True,  "bar_dt_list"),
     "Q": ("S51 PDH/PDL",           detect_s51, _CFG_Q, True,  "bar_dt_list"),
     "R": ("S56 PrevWeekHL",        detect_s56, _CFG_R, False, "prev_week_hl"),
+    "S": ("S96 VolPoC Pullback",   detect_s96, _CFG_S96, True, None),
+    "T": ("S101 Micro-Fractal",    detect_s101, _CFG_T, False, None),
+    "U": ("S102 Session Breakout", detect_s102, _CFG_U, False, None),
+    "V": ("S105 Liquidity Sweep",  detect_s105, _CFG_V, False, None),
+    "W": ("S106 Volume Shift",     detect_s106, _CFG_W, False, None),
+    "X": ("S111 Gap Magnet",       detect_s111, _CFG_X, False, None),
 }
 
 AF_DEFS = {**AF_LADDER_LEGS, **LTS_STRATEGIES}
 
 P13_KEYS = list("BCDFGHIKMNPQR")  # Champion — ถอด A(S31)/E(S38)/L(S45) ที่เป็น sharpe-drag
-P16_KEYS = list("ABCDEFGHIKLMNPQR")  # Max-Yield Blend — ครบทุก leg
+P16_KEYS = list("ABCDEFGHIKLMNPQRS")  # Max-Yield Blend — ครบทุก leg รวม S96
+P18_KEYS = P13_KEYS + list("TUVWX")  # 18-Way Ultimate Hybrid (P13 + 5 จตุรเทพ)
 
-PORTFOLIOS = {"P13": P13_KEYS, "P16": P16_KEYS, **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS}
+PORTFOLIOS = {
+    "P13": P13_KEYS, "P16": P16_KEYS, "P18": P18_KEYS, 
+    "S101": ["T"], "S102": ["U"], "S105": ["V"], "S106": ["W"], "S111": ["X"],
+    **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS
+}
 PORTFOLIO_DISPLAY_NAME = {
     "P13": "🏆 Champion (P13)",
-    "P16": "💰 Max-Yield Blend (P16)",
+    "P16": "💰 Max-Yield (P16)",
+    "P18": "👑 18-Way Hybrid",
     "AF22": "🎯 AF22 $1000",
     "AF34": "🎯 AF34 $1500",
     "AF47": "🎯 AF47 $2000",
     "LTS44": "🛡️ LTS44 $500",
     "LTS890": "🌌 LTS890 $10K",
-    "LTS999": "🚀 LTS999 Ultra Safe",
+    "LTS999": "🚀 LTS999 Ultra",
+    "LTS_AVENGERS_BASE": "🦸‍♂️ Avengers Base",
+    "LTS_AVENGERS_P34": "⚡ Avengers P34",
+    "LTS_AVENGERS_HIGH_RISK": "🔥 Avengers High Risk",
+    "LTS_AVENGERS_ULTRA_SAFE": "💎 Avengers Ultra Safe",
+    "LTS_AVENGERS_HIGH_FREQ": "⚡ Avengers High Freq",
+    "S101": "⚔️ S101 Micro-Fractal",
+    "S102": "🚀 S102 Session Breakout",
+    "S105": "🧹 S105 Liquidity Sweep",
+    "S106": "🎭 S106 Volume Shift",
+    "S111": "🧲 S111 Gap Magnet",
 }
-PORTFOLIO_ORDER = ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890", "LTS999")
+PORTFOLIO_ORDER = (
+    "P13", "P16", "P18",
+    "AF22", "AF34", "AF47",
+    "LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34",
+    "LTS_AVENGERS_HIGH_RISK", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_FREQ",
+    "S101", "S102", "S105", "S106", "S111"
+)
+
+DEMO_GROUPS = {
+    "AF": {"title": "🎯 AF Auto-Ladder", "keys": ["AF22", "AF34", "AF47"]},
+    "P": {"title": "🏆 P Lean Blend", "keys": ["P13", "P16", "P18"]},
+    "LTS": {"title": "🧠 LTS Avengers", "keys": ["LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34", "LTS_AVENGERS_HIGH_RISK", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_FREQ"]},
+    "100": {"title": "⚔️ 5 จตุรเทพ 100", "keys": ["S101", "S102", "S105", "S106", "S111"]},
+}
 
 
 def _now_bkk():
@@ -1008,12 +1055,16 @@ async def lts_exit_manager(app):
         ticket = pos.ticket
         magic = pos.magic
         
-        # Check if it's an LTS position (LTS_MAGIC_BASE = 992000)
-        if not (magic >= 992000 and magic <= 992999):
+        # Check if it's an LTS position (LTS_MAGIC_BASE = 992000) or P15/P16
+        if magic >= 992000 and magic <= 992999:
+            portfolio = f"LTS{magic - 992000}"
+        elif magic == 990016:
+            portfolio = "P16"
+        elif magic == 990015:
+            portfolio = "P15"
+        else:
             continue
             
-        portfolio = f"LTS{magic - 992000}"
-        
         is_buy = pos.type == mt5.ORDER_TYPE_BUY
         pos_type = "BUY" if is_buy else "SELL"
         

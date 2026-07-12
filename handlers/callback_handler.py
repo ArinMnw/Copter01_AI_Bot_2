@@ -348,9 +348,10 @@ async def handle_callback(update, ctx):
     elif (
         data in (
             "demo_refresh", "demo_weight_toggle", "demo_scale_toggle",
-            "demo_view_xauusd", "demo_view_btcusd", "demo_manage_back"
+            "demo_view_xauusd", "demo_view_btcusd", "demo_manage_back", "demo_group_back"
         )
         or data.startswith("demo_manage_")
+        or data.startswith("demo_group_")
         or (data.startswith("demo_") and data.endswith("_toggle"))
     ):
         from handlers.btn_demo_portfolio import _build_demo_portfolio_view
@@ -365,7 +366,14 @@ async def handle_callback(update, ctx):
             answer_text = "แสดงรายละเอียด BTCUSD"
         elif data == "demo_manage_back":
             ctx.user_data.pop("demo_manage_portfolio", None)
-            answer_text = "กลับหน้าหลัก"
+            answer_text = "กลับหน้าจัดการ"
+        elif data == "demo_group_back":
+            ctx.user_data.pop("demo_manage_group", None)
+            answer_text = "กลับหน้ารวมกลุ่ม"
+        elif data.startswith("demo_group_") and data != "demo_group_back":
+            group = data[len("demo_group_"):].upper()
+            ctx.user_data["demo_manage_group"] = group
+            answer_text = f"เปิดกลุ่ม {group}"
         elif data.startswith("demo_manage_") and data != "demo_manage_back":
             portfolio = data[len("demo_manage_"):].upper()
             ctx.user_data["demo_manage_portfolio"] = portfolio

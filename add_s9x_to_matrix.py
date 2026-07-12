@@ -6,9 +6,18 @@ import MetaTrader5 as mt5
 
 import config
 import sim_s30_backtest as s30sim
-from strategy95 import strategy_95
-from strategy96 import strategy_96
-from strategy97 import strategy_97
+
+from strategy99 import detect_s99
+from strategy100 import detect_s100
+from strategy101 import detect_s101
+from strategy102 import detect_s102
+from strategy103 import detect_s103
+from strategy104 import detect_s104
+from strategy105 import detect_s105
+from strategy106 import detect_s106
+from strategy107 import detect_s107
+from strategy109 import detect_s109
+
 from optimize_s75_champion_formula import _simulate_leg
 from optimize_s88_allin4s_fast import OVERLAY_CFG
 
@@ -80,9 +89,16 @@ def main():
     }
     
     strategies = {
-        "S95": strategy_95,
-        "S96": strategy_96,
-        "S97": strategy_97
+        "S99": detect_s99,
+        "S100": detect_s100,
+        "S101": detect_s101,
+        "S102": detect_s102,
+        "S103": detect_s103,
+        "S104": detect_s104,
+        "S105": detect_s105,
+        "S106": detect_s106,
+        "S107": detect_s107,
+        "S109": detect_s109
     }
     
     # Load alignment dates

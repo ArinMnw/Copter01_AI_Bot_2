@@ -5,11 +5,11 @@ from handlers.keyboard import main_keyboard
 def _build_demo_portfolio_view(context=None):
     import demo_portfolio
     import config
-    names = list(getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16")))
     
     managed = context.user_data.get("demo_manage_portfolio") if context else None
+    group_id = context.user_data.get("demo_manage_group") if context else None
     
-    if managed and managed in names:
+    if managed and managed in demo_portfolio.PORTFOLIO_ORDER:
         active = config.DEMO_PORTFOLIO_ACTIVE.get(managed, False)
         text = f"⚙️ *จัดการ {managed}*\n━━━━━━━━━━━━━━━━━\n\n"
         if active:
@@ -50,7 +50,7 @@ def _build_demo_portfolio_view(context=None):
         return text, InlineKeyboardMarkup(rows)
 
     detail_symbol = str(getattr(config, "DEMO_PORTFOLIO_DETAIL_SYMBOL", "XAUUSD") or "XAUUSD").upper()
-    active_names = [name for name in names if config.DEMO_PORTFOLIO_ACTIVE.get(name)]
+    active_names = [name for name in demo_portfolio.PORTFOLIO_ORDER if config.DEMO_PORTFOLIO_ACTIVE.get(name)]
 
     if detail_symbol == "BTCUSD":
         if active_names:
@@ -69,6 +69,7 @@ def _build_demo_portfolio_view(context=None):
         f"รายละเอียด: *{detail_symbol}*\n\n"
         + "\n\n━━━━━━━━━━━━━━━━━\n\n".join(sections)
     )
+    
     rows = []
     rows.append([
         InlineKeyboardButton(
@@ -80,20 +81,41 @@ def _build_demo_portfolio_view(context=None):
             callback_data="demo_view_btcusd",
         ),
     ])
-    for i in range(0, len(names), 2):
-        row = []
-        for name in names[i:i + 2]:
-            icon = "✅" if config.DEMO_PORTFOLIO_ACTIVE.get(name) else "⚙️"
-            row.append(InlineKeyboardButton(f"{icon} จัดการ {name}", callback_data=f"demo_manage_{name.lower()}"))
-        rows.append(row)
-    
-    rows.append([InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh")])
+
+    if group_id and group_id in demo_portfolio.DEMO_GROUPS:
+        # Show Portfolios in the selected group
+        group_info = demo_portfolio.DEMO_GROUPS[group_id]
+        names = group_info["keys"]
+        for i in range(0, len(names), 2):
+            row = []
+            for name in names[i:i + 2]:
+                icon = "✅" if config.DEMO_PORTFOLIO_ACTIVE.get(name) else "⚙️"
+                row.append(InlineKeyboardButton(f"{icon} {name}", callback_data=f"demo_manage_{name.lower()}"))
+            rows.append(row)
+        rows.append([
+            InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh"),
+            InlineKeyboardButton("◀️ กลับหน้ารวมกลุ่ม", callback_data="demo_group_back")
+        ])
+    else:
+        # Show Groups
+        groups = list(demo_portfolio.DEMO_GROUPS.items())
+        for i in range(0, len(groups), 2):
+            row = []
+            for g_id, g_info in groups[i:i + 2]:
+                # Check if any portfolio in group is active
+                is_active = any(config.DEMO_PORTFOLIO_ACTIVE.get(k) for k in g_info["keys"])
+                title = f"{'✅ ' if is_active else ''}{g_info['title']}"
+                row.append(InlineKeyboardButton(title, callback_data=f"demo_group_{g_id.lower()}"))
+            rows.append(row)
+        rows.append([InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh")])
+
     kb = InlineKeyboardMarkup(rows)
     return text, kb
 
 
 async def handle_btn_demo_portfolio(update, context):
     context.user_data.pop("demo_manage_portfolio", None)
+    context.user_data.pop("demo_manage_group", None)
     text, kb = _build_demo_portfolio_view(context)
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_keyboard())
     await update.message.reply_text("ควบคุม Demo Portfolio:", reply_markup=kb)

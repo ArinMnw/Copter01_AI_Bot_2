@@ -54,15 +54,15 @@ except ModuleNotFoundError:
         return {"signal": "WAIT", "reason": "S21 module not found"}
 
 try:
-    from strategy95 import strategy_95
+    from strategy95 import detect_s95
 except ImportError:
-    def strategy_95(*args, **kwargs):
+    def detect_s95(*args, **kwargs):
         return {"signal": "WAIT", "reason": "S95 module not found"}
 
 try:
-    from strategy96 import strategy_96
+    from strategy96 import detect_s96
 except ImportError:
-    def strategy_96(*args, **kwargs):
+    def detect_s96(*args, **kwargs):
         return {"signal": "WAIT", "reason": "S96 module not found"}
 
 try:
@@ -2998,11 +2998,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
 
-    r95 = strategy_95(rates, tf=tf_name) if active_strategies.get(95, False) else {"signal": "WAIT", "reason": "S95 ปิด"}
+    r95 = detect_s95(rates, tf=tf_name) if active_strategies.get(95, False) else {"signal": "WAIT", "reason": "S95 ปิด"}
     if r95.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 95, r95["signal"], last_candle_time, r95)
 
-    r96 = strategy_96(rates, tf=tf_name) if active_strategies.get(96, False) else {"signal": "WAIT", "reason": "S96 ปิด"}
+    r96 = detect_s96(rates, tf=tf_name) if active_strategies.get(96, False) else {"signal": "WAIT", "reason": "S96 ปิด"}
     if r96.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 96, r96["signal"], last_candle_time, r96)
 

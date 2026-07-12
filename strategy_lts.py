@@ -22,21 +22,20 @@ def _load_lts_weights(filepath, prefix):
             label = parts[0].strip()
             weight = float(parts[1].strip())
             
-            # Check for S9X format first: INVERSE_S95_M30
-            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S95|S96|S97)_(M15|M30|H1)", label)
+            # Check for S9X/S1XX format first: INVERSE_S95_M30, DIRECT_S101_M5
+            # รองรับซีรีส์ใหม่ S99-S110 (2026-07: The Full Assembly)
+            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110)_(M5|M15|M30|H1|H4)", label)
             if m_s9x:
                 n = i + 1
                 key = f"{prefix}_{n}"
                 mode = "inverse" if m_s9x.group(1) == "INVERSE" else "direct"
                 family = m_s9x.group(2)
                 tf_str = m_s9x.group(3)
-                
-                if family == "S95":
-                    from strategy95 import strategy_95 as detect_fn
-                elif family == "S96":
-                    from strategy96 import strategy_96 as detect_fn
-                else:
-                    from strategy97 import strategy_97 as detect_fn
+
+                import importlib
+                _num = family[1:]  # "95".."110"
+                _mod = importlib.import_module(f"strategy{_num}")
+                detect_fn = getattr(_mod, f"detect_s{_num}")
                     
                 cfg = {"ENTRY_TF": tf_str}
                 LTS_STRATEGIES[key] = {
@@ -123,7 +122,9 @@ def detect_lts(name, bars):
     fill_ts = int(bars[-1]["time"])
     
     if af_def.get("is_s9x"):
-        res = af_def["detect_fn"](bars, tf=cfg["ENTRY_TF"])
+        # ส่ง dt_bkk ให้ด้วย — ซีรีส์ S99+ มี time filter ภายใน (ทุกตัวรับ signature เดียวกัน)
+        res = af_def["detect_fn"](bars, tf=cfg["ENTRY_TF"],
+                                  dt_bkk=config.mt5_ts_to_bkk(fill_ts))
         if not res or res.get("signal") not in ("BUY", "SELL"):
             return res, None, "no_signal"
             
@@ -153,3 +154,8 @@ def detect_lts(name, bars):
     return res, filtered, reason
 
 _load_lts_weights(os.path.join(weights_dir, "lts_optimized_weights.txt"), "LTS999")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_weights.txt"), "LTS_AVENGERS_BASE")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_p34_weights.txt"), "LTS_AVENGERS_P34")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_risk_weights.txt"), "LTS_AVENGERS_HIGH_RISK")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_ultra_safe_weights.txt"), "LTS_AVENGERS_ULTRA_SAFE")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_freq_weights.txt"), "LTS_AVENGERS_HIGH_FREQ")

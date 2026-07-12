@@ -35,7 +35,8 @@ SYSTEM_LOG_FILE = (
 )
 DEBUG_LOG_DIR   = getattr(_runtime_config, "DEBUG_LOG_DIR", os.path.join(LOG_DIR, "debug"))
 LOG_RETENTION_DAYS = 15
-_MAX_BOT_LOG_BYTES = 100 * 1024 * 1024  # 100 MB
+_MAX_BOT_LOG_BYTES = 80 * 1024 * 1024  # 80 MB
+_MAX_SYSTEM_LOG_BYTES = 80 * 1024 * 1024  # 80 MB
 
 _TS_LINE_RE          = re.compile(r"^\[?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
 _MONTHLY_LOG_RE      = re.compile(rf"^{re.escape(_BOT_LOG_PREFIX)}-\d{{4}}-\d{{2}}\.log$")
@@ -376,6 +377,25 @@ class _MonthlyRotatingFileHandler(logging.FileHandler):
         except OSError:
             pass
 
+    def _do_rotate_by_size(self, now_dt: datetime) -> None:
+        """ถ้า system.log > 80 MB → rotate เป็น system-YYYY-MM-DD-NN.log ใน old_logs/
+        (เหมือน _rotate_bot_log_by_size ของ bot.log — กันไฟล์บวมระหว่างเดือน)"""
+        date_str = now_dt.strftime("%Y-%m-%d")
+        try:
+            self.close()
+            for seq in range(100):
+                archive = os.path.join(OLD_LOG_DIR, f"{_SYSTEM_LOG_PREFIX}-{date_str}-{seq:02d}.log")
+                if not os.path.exists(archive):
+                    if os.path.exists(self.baseFilename):
+                        os.rename(self.baseFilename, archive)
+                    break
+        except OSError:
+            pass
+        try:
+            self.stream = self._open()
+        except OSError:
+            pass
+
     def emit(self, record: logging.LogRecord) -> None:
         try:
             now = _now_bkk()
@@ -386,6 +406,8 @@ class _MonthlyRotatingFileHandler(logging.FileHandler):
             elif cur != self._current_month:
                 self._do_rotate(*self._current_month)
                 self._current_month = cur
+            elif os.path.exists(self.baseFilename) and os.path.getsize(self.baseFilename) >= _MAX_SYSTEM_LOG_BYTES:
+                self._do_rotate_by_size(now)
         except Exception:
             pass
         super().emit(record)
