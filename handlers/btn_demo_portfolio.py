@@ -25,7 +25,7 @@ def _build_demo_portfolio_view(context=None):
             weight_on = getattr(config, "DEMO_PORTFOLIO_WEIGHT_ENABLED", {}).get(managed, False)
             scale = getattr(config, "DEMO_PORTFOLIO_WEIGHT_SCALE", {}).get(managed, 1.0)
             label_w = f"⚖️ {managed} Weight ON" if weight_on else f"⚖️ {managed} Weight OFF"
-            label_s = f"🔍 Scale {scale:.2f}x"
+            label_s = f"🔍 Scale {scale}x"
             rows.append([
                 InlineKeyboardButton(label_w, callback_data=f"demo_weight_toggle"),
                 InlineKeyboardButton(label_s, callback_data=f"demo_scale_toggle")

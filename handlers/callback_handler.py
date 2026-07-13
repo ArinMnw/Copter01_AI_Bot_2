@@ -396,7 +396,7 @@ async def handle_callback(update, ctx):
                     idx = -1
                 new_scale = choices[(idx + 1) % len(choices)]
                 config.DEMO_PORTFOLIO_WEIGHT_SCALE[portfolio] = new_scale
-                answer_text = f"Scale {portfolio} = {new_scale:.2f}x"
+                answer_text = f"Scale {portfolio} = {new_scale}x"
         elif data == "demo_p3_dyn_lot_toggle":
             portfolio = ctx.user_data.get("demo_manage_portfolio")
             if portfolio:

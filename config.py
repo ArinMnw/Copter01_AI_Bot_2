@@ -1879,7 +1879,7 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _default_phase4 = True if _name in ("P15", "P16") else False
     SMART_CUTLOSS_ENABLED[_name] = _env_bool(f"SMART_CUTLOSS_ENABLED_{_name}", _default_phase4)
     MOMENTUM_STALL_EXIT_ENABLED[_name] = _env_bool(f"MOMENTUM_STALL_EXIT_ENABLED_{_name}", _default_phase4)
-DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
+DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
 DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
 DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely
 

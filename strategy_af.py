@@ -405,8 +405,9 @@ def apply_af_filters(res, af_def, fill_ts):
 
     fill_dt = config.mt5_ts_to_bkk(int(fill_ts))
     hour = int(fill_dt.hour)
-    if hour != int(af_def["hour"]):
-        return None, f"hour {hour} != {af_def['hour']}"
+    if af_def.get("hour") is not None:
+        if hour != int(af_def["hour"]):
+            return None, f"hour {hour} != {af_def['hour']}"
 
     entry = float(res.get("entry", 0.0) or 0.0)
     sl = float(res.get("sl", 0.0) or 0.0)

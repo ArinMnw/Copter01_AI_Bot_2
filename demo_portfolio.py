@@ -78,6 +78,15 @@ STATE_FILE = os.path.join(
 MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โดยสิ้นเชิง — P13=990013, P16=990016
 AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
 LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890, LTS999=992999
+# LTS_AVENGERS_* ใช้ชื่อไม่ใช่เลข — เลี่ยง int() parse fail ใน _portfolio_magic()
+# ตั้ง magic ต่ำกว่า LTS44 (992044) เพื่อไม่ชนกับ LTS ตัวเลขใดๆ ที่มีอยู่/จะมีในอนาคต
+_LTS_NAMED_MAGIC = {
+    "LTS_AVENGERS_BASE": 992001,
+    "LTS_AVENGERS_P34": 992002,
+    "LTS_AVENGERS_HIGH_RISK": 992003,
+    "LTS_AVENGERS_ULTRA_SAFE": 992004,
+    "LTS_AVENGERS_HIGH_FREQ": 992005,
+}
 MIN_LOT = 0.01
 BKK_TZ = timezone(timedelta(hours=7))
 _STATE_SAVE_LOCK = threading.Lock()
@@ -239,6 +248,8 @@ def _now_bkk():
 
 
 def _portfolio_magic(portfolio_name: str) -> int:
+    if portfolio_name in _LTS_NAMED_MAGIC:
+        return _LTS_NAMED_MAGIC[portfolio_name]
     if portfolio_name.startswith("LTS"):
         return LTS_MAGIC_BASE + int(portfolio_name.replace("LTS", ""))
     if portfolio_name.startswith("AF"):
@@ -391,6 +402,12 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     if not weight_enabled:
         info = mt5.symbol_info(_demo_symbol())
         volume = _round_volume(base_raw, info) if info else round(base_raw, 2)
+        
+        # Apply safety lot cap
+        max_lot = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", 0.0) or 0.0)
+        if max_lot > 0.0 and volume > max_lot:
+            volume = max_lot
+            
         return volume, {
             "weighted": False,
             "weight": float(af_def.get("weight", 1.0)),
@@ -402,6 +419,12 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     raw_volume = base_raw * weight * scale
     info = mt5.symbol_info(_demo_symbol())
     volume = _round_volume(raw_volume, info) if info else round(raw_volume, 2)
+    
+    # Apply safety lot cap
+    max_lot = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", 0.0) or 0.0)
+    if max_lot > 0.0 and volume > max_lot:
+        volume = max_lot
+        
     return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
 
 
@@ -608,17 +631,20 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
         if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
             continue
 
-        fill_dt = config.mt5_ts_to_bkk(entry_ts)
         try:
-            res = af_def["detect_fn"](bars, tf=entry_tf, dt_bkk=fill_dt, cfg=cfg)
+            if portfolio_name.startswith("LTS"):
+                res, filtered, reason = detect_lts(key, bars)
+            else:
+                fill_dt = config.mt5_ts_to_bkk(entry_ts)
+                res = af_def["detect_fn"](bars, tf=entry_tf, dt_bkk=fill_dt, cfg=cfg)
+                filtered, reason = apply_af_filters(res, af_def, entry_ts)
         except Exception as e:
             log_error("DEMO_PORTFOLIO", f"{leg_id} detect error: {type(e).__name__}: {e}")
             continue
 
-        if res.get("signal") in ("BUY", "SELL"):
+        if res and res.get("signal") in ("BUY", "SELL"):
             state["last_raw_signal_ts"][leg_id] = entry_ts
 
-        filtered, reason = apply_af_filters(res, af_def, entry_ts)
         if filtered is None:
             if reason != "no_signal":
                 _save_state(state)
@@ -639,7 +665,7 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
         sig = filtered["signal"]
         sl, tp = float(filtered["sl"]), float(filtered["tp"])
         original_entry = float(filtered.get("entry", 0.0))
-        volume, volume_meta = _af_order_volume(af_def, portfolio_name)
+        volume, volume_meta = _af_order_volume(af_def, portfolio_name, tf=entry_tf, signal=sig)
         
         if volume_meta.get("weighted") and volume_meta.get("weight", 1.0) <= 0.0:
             log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped - weight is 0.0")
