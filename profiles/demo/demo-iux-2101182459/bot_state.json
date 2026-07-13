@@ -1,6 +1,6 @@
 {
-  "saved_at": "2026-07-12 22:09:42",
-  "symbol": "BTCUSD.iux",
+  "saved_at": "2026-07-13 10:04:50",
+  "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
     "1": false,
@@ -96,7 +96,7 @@
   },
   "s20_6_session_filter": false,
   "s20_6_trend_filter": false,
-  "s20_6_entry_buffer": 0.0,
+  "s20_6_entry_buffer": 0,
   "s20_6_compounding_enabled": false,
   "s20_6_risk_pct": 2.0,
   "s20_6_max_lot": 50.0,
@@ -113,14 +113,14 @@
   "s20_10_use_psychological_numbers": true,
   "s20_11_enabled": false,
   "s20_11_tf_enabled": {
-    "D1": true,
-    "H1": true,
-    "H12": true,
-    "H4": true,
     "M1": true,
+    "M5": true,
     "M15": true,
     "M30": true,
-    "M5": true
+    "H1": true,
+    "H4": true,
+    "H12": true,
+    "D1": true
   },
   "s20_11_compounding_enabled": false,
   "s20_11_risk_pct": 2.0,
@@ -181,7 +181,17 @@
     "LTS44": false,
     "LTS890": false,
     "LTS999": false,
-    "LTS_AVENGERS_P34": true
+    "LTS_AVENGERS_BASE": false,
+    "LTS_AVENGERS_P34": true,
+    "LTS_AVENGERS_HIGH_RISK": false,
+    "LTS_AVENGERS_ULTRA_SAFE": false,
+    "LTS_AVENGERS_HIGH_FREQ": false,
+    "P18": false,
+    "S101": false,
+    "S102": false,
+    "S105": false,
+    "S106": false,
+    "S111": false
   },
   "demo_portfolio_weight_enabled": {
     "P13": false,
@@ -192,7 +202,17 @@
     "LTS44": false,
     "LTS890": false,
     "LTS999": false,
-    "LTS_AVENGERS_P34": true
+    "LTS_AVENGERS_BASE": false,
+    "LTS_AVENGERS_P34": true,
+    "LTS_AVENGERS_HIGH_RISK": false,
+    "LTS_AVENGERS_ULTRA_SAFE": false,
+    "LTS_AVENGERS_HIGH_FREQ": false,
+    "P18": false,
+    "S101": false,
+    "S102": false,
+    "S105": false,
+    "S106": false,
+    "S111": false
   },
   "demo_portfolio_weight_scale": {
     "P13": 1.0,
@@ -203,7 +223,17 @@
     "LTS44": 1.0,
     "LTS890": 1.0,
     "LTS999": 1.0,
-    "LTS_AVENGERS_P34": 1.0
+    "LTS_AVENGERS_BASE": 1.0,
+    "LTS_AVENGERS_P34": 1.0,
+    "LTS_AVENGERS_HIGH_RISK": 1.0,
+    "LTS_AVENGERS_ULTRA_SAFE": 1.0,
+    "LTS_AVENGERS_HIGH_FREQ": 1.0,
+    "P18": 1.0,
+    "S101": 1.0,
+    "S102": 1.0,
+    "S105": 1.0,
+    "S106": 1.0,
+    "S111": 1.0
   },
   "dynamic_lot_enabled": {
     "P13": false,
@@ -213,27 +243,60 @@
     "AF47": false,
     "LTS44": false,
     "LTS890": false,
-    "LTS999": false
+    "LTS999": false,
+    "LTS_AVENGERS_BASE": false,
+    "LTS_AVENGERS_P34": true,
+    "LTS_AVENGERS_HIGH_RISK": false,
+    "LTS_AVENGERS_ULTRA_SAFE": false,
+    "LTS_AVENGERS_HIGH_FREQ": false,
+    "P18": false,
+    "S101": false,
+    "S102": false,
+    "S105": false,
+    "S106": false,
+    "S111": false
   },
   "smart_cutloss_enabled": {
     "P13": false,
-    "P16": false,
+    "P16": true,
     "AF22": false,
     "AF34": false,
     "AF47": false,
     "LTS44": false,
     "LTS890": false,
-    "LTS999": false
+    "LTS999": false,
+    "LTS_AVENGERS_BASE": false,
+    "LTS_AVENGERS_P34": true,
+    "LTS_AVENGERS_HIGH_RISK": false,
+    "LTS_AVENGERS_ULTRA_SAFE": false,
+    "LTS_AVENGERS_HIGH_FREQ": false,
+    "P18": false,
+    "S101": false,
+    "S102": false,
+    "S105": false,
+    "S106": false,
+    "S111": false
   },
   "momentum_stall_exit_enabled": {
     "P13": false,
-    "P16": false,
+    "P16": true,
     "AF22": false,
     "AF34": false,
     "AF47": false,
     "LTS44": false,
     "LTS890": false,
-    "LTS999": false
+    "LTS999": false,
+    "LTS_AVENGERS_BASE": false,
+    "LTS_AVENGERS_P34": false,
+    "LTS_AVENGERS_HIGH_RISK": false,
+    "LTS_AVENGERS_ULTRA_SAFE": false,
+    "LTS_AVENGERS_HIGH_FREQ": false,
+    "P18": false,
+    "S101": false,
+    "S102": false,
+    "S105": false,
+    "S106": false,
+    "S111": false
   },
   "sweep_filter_enabled": true,
   "sweep_filter_rsi_div_enabled": false,
@@ -268,7 +331,7 @@
   "daily_loss_limit_enabled": false,
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
-    "date": "2026-07-12",
+    "date": "",
     "realized": 0.0,
     "wins": 0,
     "losses": 0,
@@ -321,162 +384,11 @@
   "sl_guard_group_count": 2,
   "sl_guard_state": {},
   "sl_guard_combined_state": {},
-  "sl_guard_group_state": {
-    "XAUUSD.IUX": {
-      "SELL": {
-        "M5+M15+M30": {
-          "count": 1,
-          "active": false,
-          "tf_blocked": {},
-          "tf_since": {},
-          "tf_swing_ref": {},
-          "tf_swing_bar_time": {},
-          "tf_blocked_signals": {},
-          "tf_retry_signals": {}
-        },
-        "M1+M5+M15": {
-          "count": 2,
-          "active": true,
-          "tf_blocked": {
-            "M1": false,
-            "M5": true,
-            "M15": true
-          },
-          "tf_since": {
-            "M1": 1783342851,
-            "M5": 1783342851,
-            "M15": 1783342851
-          },
-          "tf_swing_ref": {
-            "M1": 4142.05,
-            "M5": 4142.7,
-            "M15": 4142.7
-          },
-          "tf_swing_bar_time": {
-            "M5": 1783347600
-          },
-          "tf_blocked_signals": {
-            "M1": [],
-            "M5": [],
-            "M15": []
-          },
-          "tf_retry_signals": {}
-        },
-        "M1+M5": {
-          "count": 2,
-          "active": true,
-          "tf_blocked": {
-            "M1": false,
-            "M5": true
-          },
-          "tf_since": {
-            "M1": 1783342851,
-            "M5": 1783342851
-          },
-          "tf_swing_ref": {
-            "M1": 4142.05,
-            "M5": 4142.7
-          },
-          "tf_swing_bar_time": {
-            "M5": 1783347600
-          },
-          "tf_blocked_signals": {
-            "M1": [],
-            "M5": []
-          },
-          "tf_retry_signals": {}
-        }
-      },
-      "BUY": {
-        "M1+M5+M15": {
-          "count": 3,
-          "active": true,
-          "tf_blocked": {
-            "M1": false,
-            "M5": false,
-            "M15": true
-          },
-          "tf_since": {
-            "M1": 1783340487,
-            "M5": 1783340487,
-            "M15": 1783340487
-          },
-          "tf_swing_ref": {
-            "M1": 4152.94,
-            "M5": 4155.09,
-            "M15": 4153.71
-          },
-          "tf_swing_bar_time": {
-            "M15": 1783344600
-          },
-          "tf_blocked_signals": {
-            "M1": [],
-            "M5": [],
-            "M15": []
-          },
-          "tf_retry_signals": {}
-        },
-        "M1+M5": {
-          "count": 0,
-          "active": false,
-          "tf_blocked": {},
-          "tf_since": {},
-          "tf_swing_ref": {},
-          "tf_swing_bar_time": {},
-          "tf_blocked_signals": {},
-          "tf_retry_signals": {}
-        },
-        "M5+M15+M30": {
-          "count": 1,
-          "active": false,
-          "tf_blocked": {},
-          "tf_since": {},
-          "tf_swing_ref": {},
-          "tf_swing_bar_time": {},
-          "tf_blocked_signals": {},
-          "tf_retry_signals": {}
-        }
-      }
-    }
-  },
+  "sl_guard_group_state": {},
   "pdfiboplus_fill_state": {},
   "s10_last_fired_armed_at": {},
-  "last_traded_per_tf": {
-    "M5": 1783651500,
-    "M1": 1783652400,
-    "H4": 1783612800,
-    "H12": 1783296000,
-    "M30": 1783647000,
-    "D1": 1783296000,
-    "M15": 1783645200,
-    "H1": 1783648800
-  },
-  "last_traded_sid_tf": {
-    "M5": {
-      "20.12": 1783651500
-    },
-    "M1": {
-      "20.12": 1783652400
-    },
-    "H4": {
-      "20.12": 1783612800
-    },
-    "H12": {
-      "20.12": 1783296000
-    },
-    "M30": {
-      "20.12": 1783647000
-    },
-    "D1": {
-      "20.12": 1783296000
-    },
-    "M15": {
-      "20.12": 1783645200
-    },
-    "H1": {
-      "20.12": 1783648800
-    }
-  },
+  "last_traded_per_tf": {},
+  "last_traded_sid_tf": {},
   "pending_order_tf": {},
   "position_tf": {},
   "position_sid": {},
@@ -501,7 +413,14 @@
   "s15_strict_mode": true,
   "s15_level_cooldown_bars": 15,
   "s15_rsi_filter": true,
-  "s16_state": {},
+  "s16_state": {
+    "asian_high": 0.0,
+    "asian_low": 0.0,
+    "range_date": "",
+    "swept_high": false,
+    "swept_low": false,
+    "fired": {}
+  },
   "s20_trigger_defect": true,
   "s20_trigger_2l2h": true,
   "s20_trigger_solid_clear": true,
@@ -516,7 +435,7 @@
   "s20_fibo_tp_level": 1.618,
   "s20_trend_filter": false,
   "s20_session_filter": false,
-  "s20_entry_buffer": 390.0,
-  "s20_sl_2l2h": 100.0,
+  "s20_entry_buffer": 390,
+  "s20_sl_2l2h": 100,
   "fill_notified": []
 }
