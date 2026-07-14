@@ -33,9 +33,9 @@ def main():
         print(f"🚀 Running subprocess: run_backtest_sim.py for {pf} ({days} days)")
         print(f"==================================================")
         try:
-            # We run the command directly
+            script_path = os.path.join("strategy", "demo_portfolio", "backtest-sim", "run_backtest_sim.py")
             subprocess.run(
-                [sys.executable, "run_backtest_sim.py", "--portfolio", pf, "--days", str(days)],
+                [sys.executable, script_path, "--portfolio", pf, "--days", str(days)],
                 check=True
             )
         except Exception as e:
