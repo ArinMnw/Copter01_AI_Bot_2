@@ -1822,7 +1822,7 @@ DEMO_PORTFOLIO_ACTIVE = {
     "AF47": False,   # tested target balance ~$2000
     "LTS44": False,
     "LTS890": False,
-    "LTS999": True,
+    "LTS999": False,
     "LTS_AVENGERS_BASE": False,
     "LTS_AVENGERS_P34": False,
     "LTS_AVENGERS_HIGH_RISK": False,
