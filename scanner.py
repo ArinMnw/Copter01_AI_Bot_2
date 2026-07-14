@@ -386,10 +386,8 @@ def _adjacent_sid_blocked(tf_name: str, sid: int, candle_time: int, tf_secs: int
 
 
 def _pattern_allows_adjacent_order(sid: int, pattern: str) -> bool:
-    if int(sid or 0) != 1:
-        return False
-    pattern = str(pattern or "")
-    return ("Pattern กลืนกิน 2 แดง" in pattern) or ("Pattern กลืนกิน 2 เขียว" in pattern)
+    # S1 ทุก pattern สร้าง order แท่งติดกันได้ (เดิมจำกัดแค่ "2 แดง"/"2 เขียว")
+    return int(sid or 0) == 1
 
 
 async def _clear_opposite_s13_exposure(app, tf_name: str, signal: str) -> bool:

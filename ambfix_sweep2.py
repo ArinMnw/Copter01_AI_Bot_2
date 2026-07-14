@@ -35,7 +35,7 @@ def _post_filter_raw(raw, rd_band, fill_hour):
                 continue
                 
         # Hour Filter
-        if fill_hour >= 0:
+        if fill_hour is not None and fill_hour >= 0:
             hour = config.mt5_ts_to_bkk(int(trade["fill_time_ts"])).hour
             if hour != fill_hour:
                 continue

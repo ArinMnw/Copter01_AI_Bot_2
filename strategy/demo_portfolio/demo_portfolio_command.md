@@ -85,6 +85,34 @@ python strategy/demo_portfolio/backtest-sim/backtest_demo_portfolio.py all --env
 
 ---
 
+## 1.1 Unified Portfolio Backtest Simulation — `run_backtest_sim.py`
+
+รัน backtest จำลองการเทรดแบบลึก (สร้างไฟล์สรุปผล `trades`, `daily` และ `monthly` CSV แยกสำหรับทั้ง 19 พอร์ต พร้อมระบบ Caching สปีดสูงประหยัดเวลา)
+
+```bash
+python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio all
+python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio LTS_AVENGERS_HIGH_RISK --days 550
+python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio S102 --start "2026-06-01 08:00" --end "2026-06-10 17:00"
+```
+
+| Argument | ความหมาย | Default |
+|---|---|---|
+| `--portfolio` | ชื่อพอร์ตที่ต้องการรัน (`P13`, `AF22`, `LTS890`, `LTS_AVENGERS_HIGH_RISK` ฯลฯ) หรือ `all` | `all` |
+| `--days` | จำนวนวันย้อนหลัง (ถ้าเลือก `all` พอร์ตแต่ละตัวจะมีจำนวนวันตั้งต้นที่เหมาะสมอยู่แล้ว) | `365` |
+| `--start` / `--end` | กำหนดวันเริ่มต้นและสิ้นสุดแบบเจาะจง (รองรับ YYYY-MM-DD, YYYY-MM-DD HH:MM หรือ YYYY-MM-DD HH:MM:SS) — หากระบุเฉพาะ `--start` ส่วน `--end` จะถูกอ้างอิงถึงเวลาปัจจุบัน (Now) โดยอัตโนมัติ | None |
+| `--balance` | กำหนดเงินทุนเริ่มต้นสำหรับคำนวณ Balance ($) | None (ใช้ตามพอร์ตนั้นๆ) |
+| `--scale` | ตัวคูณ Lot / PnL เพื่อจำลองขนาดพอร์ตที่ใหญ่ขึ้น | `1.0` |
+| `--spread` | ค่า Spread สมมติสำหรับทดสอบ ($) | `0.20` |
+| `--out-dir` | โฟลเดอร์ปลายทางหลักของไฟล์ CSV | `strategy/demo_portfolio/excel` |
+
+**ผลลัพธ์การบันทึกไฟล์รายงาน (แยกโฟลเดอร์ตามประเภทอัตโนมัติ):**
+- `strategy/demo_portfolio/excel/p/` -> รายงานพอร์ตกลุ่ม Blend (`P13`, `P16`, `P18`)
+- `strategy/demo_portfolio/excel/s/` -> รายงานพอร์ตกลุ่ม Standalone (`S101`, `S102`, `S105`, `S106`, `S111`)
+- `strategy/demo_portfolio/excel/af/` -> รายงานพอร์ตกลุ่ม AF (`AF22`, `AF34`, `AF47`)
+- `strategy/demo_portfolio/excel/lts/` -> รายงานพอร์ตกลุ่ม LTS (`LTS44`, `LTS890`, `LTS999` และ Avengers)
+
+---
+
 ## 2. Compare กับผลจริงบน MT5 — `export_demo_portfolio_compare.py`
 
 ดึงไม้จริงที่เข้าไปแล้ว (จาก `demo_portfolio_state.json` + MT5 deal history) มาสรุป realized/floating
@@ -164,4 +192,5 @@ export MT5_SERVER_REAL=your_server
 | ดูกำไรจริง 7 วันล่าสุด | `python strategy/demo_portfolio/backtest-sim/export_demo_portfolio_compare.py all --days 7` |
 | เช็คว่า logic ยังตรงกับ backtest ไหม | `python strategy/demo_portfolio/backtest-sim/verify_signal_consistency.py all --days 7` |
 | ดูตัวเลข backtest อ้างอิง | `python strategy/demo_portfolio/backtest-sim/backtest_demo_portfolio.py all` |
+| รันจำลองประวัติและสร้างรายงานทั้งหมด (19 พอร์ต) | `python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio all` |
 | เตรียมย้ายไป real account | ตั้ง env var 3 ตัว (ข้อ 4) แล้วเติม `--env real` |

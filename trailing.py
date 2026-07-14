@@ -1039,7 +1039,7 @@ def _parse_bot_comment(comment: str):
         parts = str(comment).split("-")
         tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
         return tf, 21
-    m_demo = re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+)-", str(comment))
+    m_demo = re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR|LTS_AUS|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+)-", str(comment))
     if m_demo:
         return m_demo.group(1), 21
     m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S([A-Za-z0-9]+(?:\.\d+)?))?", comment)
@@ -3233,7 +3233,7 @@ def _resolve_pos_sid(ticket, comment: str = ""):
     if isinstance(_info, dict) and _info.get("sid") is not None:
         return _info.get("sid")
     comment_text = str(comment or "")
-    if comment_text.startswith("DEMO-") or re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+)-", comment_text):
+    if comment_text.startswith("DEMO-") or re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR|LTS_AUS|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+)-", comment_text):
         return 21
     m = _SID_COMMENT_RE.search(comment_text)
     if m:
@@ -7786,7 +7786,8 @@ async def check_cancel_pending_orders(app):
 
         # Limit Guard: cancel limits whose entry is too far from an existing open position
         # S15 (VP) วาง limit ที่ POC/VAL/VAH ซึ่งอาจไกลจาก position โดยตั้งใจ (รอราคาย้อนมา) → skip
-        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (10, 12, 13, 15, 16, 17, 18, 19):
+        # S1 skip เหมือน SL_GUARD_SKIP_SIDS/SL_GUARD_GROUP_SKIP_SIDS (ยิงแท่งติดกันได้ตามที่ตั้งใจ)
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (1, 10, 12, 13, 15, 16, 17, 18, 19):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"

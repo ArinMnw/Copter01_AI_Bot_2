@@ -355,7 +355,13 @@ def _save_state(state):
 
 
 def _demo_comment(leg_id, entry_tf):
-    return f"{entry_tf}-{leg_id}"
+    comment = f"{entry_tf}-{leg_id}"
+    comment = comment.replace("LTS_AVENGERS_HIGH_RISK", "LTS_AHR")
+    comment = comment.replace("LTS_AVENGERS_ULTRA_SAFE", "LTS_AUS")
+    comment = comment.replace("LTS_AVENGERS_HIGH_FREQ", "LTS_AHF")
+    comment = comment.replace("LTS_AVENGERS_P34", "LTS_AP34")
+    comment = comment.replace("LTS_AVENGERS_BASE", "LTS_AVB")
+    return comment[:29]
 
 
 def _strategy_doc(af_def):
@@ -886,7 +892,7 @@ def _fetch_leg_pnl(portfolio_name: str):
     """
     state = _load_state()
     tickets = {t["ticket"]: (t["leg"], t["ts"]) for t in state["trades"]
-               if t.get("success") and t.get("ticket") and t["leg"].startswith(f"{portfolio_name}-")}
+               if t.get("success") and t.get("ticket") and (t["leg"].startswith(f"{portfolio_name}-") or t["leg"].startswith(f"{portfolio_name}_"))}
     result = {}
     for leg_id, ts in tickets.values():
         d = result.setdefault(leg_id, {"total": 0.0, "n_closed": 0, "floating": 0.0, "first_ts": ts})
@@ -974,7 +980,7 @@ def get_status_text(portfolio_name: str) -> str:
 
     today = _now_bkk().date().isoformat()
     trades_today = [t for t in state["trades"]
-                    if t["leg"].startswith(f"{portfolio_name}-") and t["ts"].startswith(today)]
+                    if (t["leg"].startswith(f"{portfolio_name}-") or t["leg"].startswith(f"{portfolio_name}_")) and t["ts"].startswith(today)]
     n_success = sum(1 for t in trades_today if t.get("success"))
 
     lines = [
@@ -986,13 +992,14 @@ def get_status_text(portfolio_name: str) -> str:
         f"ออเดอร์วันนี้: {n_success} ไม้",
     ]
     if portfolio_name in AF_PORTFOLIO_LEGS or portfolio_name.startswith("LTS"):
-        weights = [float(AF_DEFS[k].get("weight", 1.0)) for k in keys]
+        weights = [float(AF_DEFS[k].get("weight", 1.0)) for k in keys if k in AF_DEFS]
         scale = float(getattr(config, "DEMO_PORTFOLIO_WEIGHT_SCALE", {}).get(portfolio_name, 1.0))
         sizing_on = getattr(config, "DEMO_PORTFOLIO_WEIGHT_ENABLED", {}).get(portfolio_name, False)
         lot_min = MIN_LOT * (min(weights) * scale if sizing_on and weights else 1.0)
         lot_max = MIN_LOT * (max(weights) * scale if sizing_on and weights else 1.0)
+        portfolio_esc = portfolio_name.replace('_', '\\_')
         lines.extend([
-            f"AF ladder mode: full {portfolio_name} = AF1..AF{len(keys)}",
+            f"AF ladder mode: full {portfolio_esc} = AF1..AF{len(keys)}",
             f"AF weighted sizing: {'ON' if sizing_on else 'OFF'} | scale {scale:.2f}",
             f"Leg weight range: x{min(weights):.3f}-x{max(weights):.3f}",
             f"Lot preview per leg: ~{lot_min:.2f}-{lot_max:.2f}",
@@ -1018,7 +1025,7 @@ def get_status_text(portfolio_name: str) -> str:
         sort_key = lambda k: pnl_by_leg[k]["total"] + pnl_by_leg[k]["floating"]
         for leg_id in sorted(pnl_by_leg, key=sort_key, reverse=True):
             d = pnl_by_leg[leg_id]
-            key = leg_id.split("-", 1)[1]  # "P13-D" -> "D"
+            key = leg_id.replace(f"{portfolio_name}-", "").replace(f"{portfolio_name}_", "")
             label = _leg_label(key)
             first_dt = datetime.fromisoformat(d["first_ts"])
             days_elapsed = max((now - first_dt).total_seconds() / 86400.0, 1.0)

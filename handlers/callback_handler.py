@@ -428,7 +428,16 @@ async def handle_callback(update, ctx):
             text, kb = _build_demo_portfolio_view(ctx)
             await query.edit_message_text(text, parse_mode="Markdown", reply_markup=kb)
         except Exception as e:
-            if "not modified" not in str(e).lower():
+            emsg = str(e).lower()
+            if "can't parse entities" in emsg or "parse entities" in emsg:
+                try:
+                    import re as _re
+                    plain = _re.sub(r'`([^`\n]*)`?', r'\1', text)
+                    plain = plain.replace('`', '').replace('*', '')
+                    await query.edit_message_text(plain, reply_markup=kb)
+                except Exception as ex:
+                    _log_cb_error("demo_portfolio_toggle_fallback", ex)
+            elif "not modified" not in emsg:
                 _log_cb_error("demo_portfolio_toggle", e)
         await _qanswer(query, answer_text)
 

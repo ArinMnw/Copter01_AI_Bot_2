@@ -937,7 +937,7 @@ def s1_rule_close_type(result: dict) -> str:
     return "S1_RULE_EXIT"
 
 
-LIMIT_GUARD_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19}
+LIMIT_GUARD_SKIP_SIDS = {1, 10, 12, 13, 15, 16, 17, 18, 19}
 
 
 def limit_guard_cancel(order: dict, open_trades: list[dict], bar: dict, point: float = 0.01) -> dict:

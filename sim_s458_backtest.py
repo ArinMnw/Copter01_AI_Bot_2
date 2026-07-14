@@ -442,10 +442,8 @@ def _has_active_sid_tf(pending: list[dict], open_trades: list[dict], tf_name: st
 
 
 def _pattern_allows_adjacent_order(sid: int, pattern: str) -> bool:
-    if int(sid or 0) != 1:
-        return False
-    pattern = str(pattern or "")
-    return ("Pattern กลืนกิน 2 แดง" in pattern) or ("Pattern กลืนกิน 2 เขียว" in pattern)
+    # S1 ทุก pattern สร้าง order แท่งติดกันได้ (เดิมจำกัดแค่ "2 แดง"/"2 เขียว") — sync กับ scanner.py
+    return int(sid or 0) == 1
 
 
 def _adjacent_sid_blocked_sim(
@@ -905,7 +903,7 @@ def backtest_tf(
             if break_cancel is not None:
                 trades.append(break_cancel)
                 continue
-            if sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
+            if sid not in config.SL_GUARD_SKIP_SIDS and sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
                 trades.append(trend_cancel_event(order, bt, "SL Guard active near entry"))
                 continue
             s1_rule = s1_pending_rule_check(order, full_rates)
@@ -1094,7 +1092,7 @@ def backtest_tf(
                 if _adjacent_sid_blocked_sim(last_sid_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs):
                     trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
                     continue
-            if sl_guard.is_blocked(tf_name, order["signal"], full_rates):
+            if sid not in config.SL_GUARD_SKIP_SIDS and sl_guard.is_blocked(tf_name, order["signal"], full_rates):
                 guard_meta = sl_guard.block_reason_meta(tf_name, order["signal"])
                 sl_guard.record_blocked_order(tf_name, order, int(bar["time"]))
                 event = trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT")
@@ -1277,7 +1275,7 @@ def backtest_multi_tf(
             if break_cancel is not None:
                 trades.append(break_cancel)
                 continue
-            if sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
+            if sid not in config.SL_GUARD_SKIP_SIDS and sl_guard.near_blocked(tf_name, order["signal"], float(order["entry"]), bar, full_rates):
                 trades.append(trend_cancel_event(order, bt, "SL Guard active near entry"))
                 continue
             lg = limit_guard_cancel(order, open_trades, bar, point)
@@ -1435,7 +1433,7 @@ def backtest_multi_tf(
                 if _adjacent_sid_blocked_sim(last_sid_tf, pending, open_trades, tf_name, sid, int(bar["time"]), tf_secs):
                     trades.append(trend_cancel_event(order, order["detect_time"], "Adjacent same-sid order blocked"))
                     continue
-            if sl_guard.is_blocked(tf_name, order["signal"], full_rates):
+            if sid not in config.SL_GUARD_SKIP_SIDS and sl_guard.is_blocked(tf_name, order["signal"], full_rates):
                 guard_meta = sl_guard.block_reason_meta(tf_name, order["signal"])
                 sl_guard.record_blocked_order(tf_name, order, int(bar["time"]))
                 event = trend_cancel_event(order, order["detect_time"], "SL Guard blocked new LIMIT")

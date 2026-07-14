@@ -11,11 +11,12 @@ def _build_demo_portfolio_view(context=None):
     
     if managed and managed in demo_portfolio.PORTFOLIO_ORDER:
         active = config.DEMO_PORTFOLIO_ACTIVE.get(managed, False)
-        text = f"⚙️ *จัดการ {managed}*\n━━━━━━━━━━━━━━━━━\n\n"
+        managed_esc = managed.replace('_', '\\_')
+        text = f"⚙️ *จัดการ {managed_esc}*\n━━━━━━━━━━━━━━━━━\n\n"
         if active:
             text += demo_portfolio.get_status_text(managed)
         else:
-            text += f"พอร์ต {managed} ปิดอยู่"
+            text += f"พอร์ต {managed_esc} ปิดอยู่"
         
         rows = []
         label_active = f"⏸️ หยุด {managed}" if active else f"▶️ เปิด {managed}"
@@ -117,5 +118,6 @@ async def handle_btn_demo_portfolio(update, context):
     context.user_data.pop("demo_manage_portfolio", None)
     context.user_data.pop("demo_manage_group", None)
     text, kb = _build_demo_portfolio_view(context)
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_keyboard())
+    from handlers.text_handler import _safe_reply_md
+    await _safe_reply_md(update.message, text, reply_markup=main_keyboard())
     await update.message.reply_text("ควบคุม Demo Portfolio:", reply_markup=kb)

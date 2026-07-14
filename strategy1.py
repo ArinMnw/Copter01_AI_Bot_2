@@ -203,7 +203,7 @@ def strategy_1(rates, tf=""):
             return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern F 2 แท่งกลืนกิน",
-                "cancel_bars": 1,
+                "cancel_bars": 0,
                 "reason": (
                     f"✅ แท่ง[1] แดง Open:{o1:.2f}\n"
                     f"✅ แท่ง[0] เขียวกลืน Close:{cl0:.2f} > High[1]:{h1:.2f}\n"
@@ -233,7 +233,7 @@ def strategy_1(rates, tf=""):
             return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern F 2 แท่งกลืนกิน",
-                "cancel_bars": 1,
+                "cancel_bars": 0,
                 "reason": (
                     f"✅ แท่ง[1] เขียว Open:{o1:.2f}\n"
                     f"✅ แท่ง[0] แดงกลืน Close:{cl0:.2f} < Low[1]:{l1:.2f}\n"
@@ -506,13 +506,13 @@ def strategy_1(rates, tf=""):
             return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง",
-                "cancel_bars": 1,
+                "cancel_bars": 0,
                 "reason": (
                     f"✅ แท่ง[2] แดง\n"
                     f"✅ แท่ง[1] แดง\n"
                     f"✅ แท่ง[0] เขียวกลืน Close:{cl0:.2f} > High[1]:{h1:.2f} Body:{body0_pct}%\n"
                     f"✅ ใกล้ Swing Low:{sl_z:.2f}\n"
-                    f"📌 Entry 50% Body[0] | ยกเลิกหลัง 1 แท่ง\n"
+                    f"📌 Entry 50% Body[0]\n"
                     f"🎯 TP: {tp_note}"
                 ),
                 "candles": [rates[-3], rates[-2], rates[-1]],
@@ -548,13 +548,13 @@ def strategy_1(rates, tf=""):
             return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
                 "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว",
-                "cancel_bars": 1,
+                "cancel_bars": 0,
                 "reason": (
                     f"✅ แท่ง[2] เขียว\n"
                     f"✅ แท่ง[1] เขียว\n"
                     f"✅ แท่ง[0] แดงกลืน Close:{cl0:.2f} < Low[1]:{l1:.2f} Body:{body0_pct}%\n"
                     f"✅ ใกล้ Swing High:{sh:.2f}\n"
-                    f"📌 Entry 50% Body[0] | ยกเลิกหลัง 1 แท่ง\n"
+                    f"📌 Entry 50% Body[0]\n"
                     f"🎯 TP: {tp_note}"
                 ),
                 "candles": [rates[-3], rates[-2], rates[-1]],
@@ -567,7 +567,7 @@ def strategy_1(rates, tf=""):
         else:
             sell_e_wait_reason = f"⚠️ SELL E [0] Close:{cl0:.2f} >= Low[1]:{l1:.2f}"
 
-    # Pattern ใหม่ 4 แท่ง
+    # Pattern G — 4 แท่ง
     # BUY: [3] แดง [2] เขียว Body≥35% [1] เขียวแต่ close < high[2] [0] เขียว close >= high[1]
     # Entry = 50% body ของแท่ง [2]
     if has_c3 and (not bull3) and bull2 and bull1 and bull0 and cl1 < h2 and bull_engulf(cl0, h1):
@@ -584,7 +584,7 @@ def strategy_1(rates, tf=""):
             tp_note = f"Swing High:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
             return _attach_s1_zone_meta({
                 "signal": "BUY", "entry": entry, "sl": sl, "tp": tp,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ใหม่ 4 แท่ง",
+                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern G 4 แท่ง",
                 "reason": (
                     f"✅ แท่ง[3] แดง\n"
                     f"✅ แท่ง[2] เขียว\n"
@@ -613,7 +613,7 @@ def strategy_1(rates, tf=""):
             tp_note = f"Swing Low:{tp}" if tp_swing else "RR1:1 (ไม่พบ Swing >=1:1)"
             return _attach_s1_zone_meta({
                 "signal": "SELL", "entry": entry, "sl": sl, "tp": tp,
-                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ใหม่ 4 แท่ง",
+                "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern G 4 แท่ง",
                 "reason": (
                     f"✅ แท่ง[3] เขียว\n"
                     f"✅ แท่ง[2] แดง\n"
