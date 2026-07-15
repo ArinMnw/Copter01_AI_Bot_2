@@ -1323,6 +1323,9 @@ def main():
                 print(f"⚠️ Unknown portfolio type for: {pf}")
                 continue
                 
+            # Shutdown MT5 connection as soon as bar fetching is done to release IPC locks for subprocesses
+            mt5.shutdown()
+            
             # Post-filter trades based on custom start / end timestamps
             if args.start:
                 def parse_date(s):
