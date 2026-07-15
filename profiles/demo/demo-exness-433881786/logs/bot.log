@@ -62,3 +62,110 @@
 [2026-07-15 18:14:22] SYMBOL_CHECK | XAUUSDm trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784114063 | bid=4031.206 | ask=4031.446 | tick_ok=True | xau_open=True | current_symbol=XAUUSDm | startup=False
 [2026-07-15 18:14:29] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.88s > 2s | tf=D1 | duration=2.88
 [2026-07-15 18:14:29] SCAN_SLOW | scan cycle ใช้เวลา 3.47s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.01s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.46s export_trend_state=0.00s
+[2026-07-15 18:21:07] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 18:22:11] SYMBOL_RESOLVED | XAUUSD -> XAUUSDm | requested=XAUUSD | resolved=XAUUSDm
+[2026-07-15 18:22:13] SYMBOL_CHECK | XAUUSDm trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784114532 | bid=4029.271 | ask=4029.511 | tick_ok=True | xau_open=True | current_symbol=XAUUSDm | startup=True
+[2026-07-15 18:22:42] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.13 | sweep_bar=17:57 15-Jul-2026 | confirm_bar=17:58 15-Jul-2026
+[2026-07-15 18:22:42] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.03 | sweep_bar=18:12 15-Jul-2026 | confirm_bar=18:13 15-Jul-2026
+[2026-07-15 18:22:42] SCAN_TF_SLOW | scan_one_tf[M1] ใช้เวลา 2.02s > 2s | tf=M1 | duration=2.02
+[2026-07-15 18:22:43] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4019.59 | sweep_bar=15:10 15-Jul-2026 | confirm_bar=15:10 15-Jul-2026
+[2026-07-15 18:22:43] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4034.25 | sweep_bar=17:10 15-Jul-2026 | confirm_bar=17:15 15-Jul-2026
+[2026-07-15 18:22:43] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4006.29 | sweep_bar=07:30 14-Jul-2026 | confirm_bar=08:00 14-Jul-2026
+[2026-07-15 18:22:43] SWEEP_ACTIVATE | SWEEP_LOW | tf=H1 | ref_price=4072.79 | sweep_bar=05:00 13-Jul-2026 | confirm_bar=06:00 13-Jul-2026
+[2026-07-15 18:22:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H12 | ref_price=4021.71 | sweep_bar=19:00 13-Jul-2026 | confirm_bar=19:00 14-Jul-2026
+[2026-07-15 18:22:50] SCAN_TF_SLOW | scan_one_tf[H12] ใช้เวลา 6.26s > 2s | tf=H12 | duration=6.26
+[2026-07-15 18:23:13] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4995.96 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-15 18:23:16] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 25.43s > 2s | tf=D1 | duration=25.43
+[2026-07-15 18:23:18] SCAN_SLOW | scan cycle ใช้เวลา 42.98s > 3s | breakdown=sl_tp_hits=1.05s cancel_pending=0.02s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.01s pb_pending=0.00s s12_management=3.64s scan_all_tf=38.03s export_trend_state=0.23s
+[2026-07-15 18:23:20] NEWS_FILTER_TRANSIENT | fetch: ConnectTimeout:
+[2026-07-15 18:23:23] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-15 18:23:24] SWEEP_RESET | SWEEP_LOW | tf=H1 | reason=expired
+[2026-07-15 18:23:24] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-15 18:23:32] TG_SENT | [retry-plain] ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `433881786` | 📊 Balance: `2507.78` | 📈 SYMBOL: `XAUUSDm` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy:  | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-15 14:30:15` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-15 18:23:42] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 6.80s > 2s | tf=D1 | duration=6.8
+[2026-07-15 18:23:44] SCAN_SLOW | scan cycle ใช้เวลา 10.18s > 3s | breakdown=sl_tp_hits=0.01s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.01s pb_pending=0.00s s12_management=0.00s scan_all_tf=9.35s export_trend_state=0.81s
+[2026-07-15 18:23:47] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ไม่มี* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-15 18:23:52] SCAN_TF_SLOW | scan_one_tf[M1] ใช้เวลา 2.91s > 2s | tf=M1 | duration=2.91
+[2026-07-15 18:23:54] SCAN_SLOW | scan cycle ใช้เวลา 5.39s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=5.25s export_trend_state=0.14s
+[2026-07-15 18:24:01] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:SIDEWAY→BULL
+[2026-07-15 18:24:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.13 | sweep_bar=17:57 15-Jul-2026 | confirm_bar=17:58 15-Jul-2026
+[2026-07-15 18:24:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.03 | sweep_bar=18:12 15-Jul-2026 | confirm_bar=18:13 15-Jul-2026
+[2026-07-15 18:24:14] SYMBOL_CHECK | XAUUSDm trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784114653 | bid=4029.717 | ask=4029.957 | tick_ok=True | xau_open=True | current_symbol=XAUUSDm | startup=False
+[2026-07-15 18:24:18] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.28s > 2s | tf=D1 | duration=2.28
+[2026-07-15 18:27:46] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 18:32:50] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 18:34:39] SYMBOL_RESOLVED | XAUUSD -> XAUUSDm | requested=XAUUSD | resolved=XAUUSDm
+[2026-07-15 18:34:41] SYMBOL_CHECK | XAUUSDm trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784115280 | bid=4032.64 | ask=4032.88 | tick_ok=True | xau_open=True | current_symbol=XAUUSD | startup=True
+[2026-07-15 18:34:58] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.13 | sweep_bar=17:57 15-Jul-2026 | confirm_bar=17:58 15-Jul-2026
+[2026-07-15 18:34:58] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.03 | sweep_bar=18:12 15-Jul-2026 | confirm_bar=18:13 15-Jul-2026
+[2026-07-15 18:34:58] SCAN_TF_SLOW | scan_one_tf[M1] ใช้เวลา 3.17s > 2s | tf=M1 | duration=3.17
+[2026-07-15 18:34:58] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4019.59 | sweep_bar=15:10 15-Jul-2026 | confirm_bar=15:10 15-Jul-2026
+[2026-07-15 18:34:58] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4034.25 | sweep_bar=17:10 15-Jul-2026 | confirm_bar=17:15 15-Jul-2026
+[2026-07-15 18:35:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4006.29 | sweep_bar=07:30 14-Jul-2026 | confirm_bar=08:00 14-Jul-2026
+[2026-07-15 18:35:05] SCAN_TF_SLOW | scan_one_tf[M30] ใช้เวลา 6.99s > 2s | tf=M30 | duration=6.99
+[2026-07-15 18:35:06] SWEEP_ACTIVATE | SWEEP_LOW | tf=H1 | ref_price=4072.79 | sweep_bar=05:00 13-Jul-2026 | confirm_bar=06:00 13-Jul-2026
+[2026-07-15 18:35:09] SWEEP_ACTIVATE | SWEEP_LOW | tf=H12 | ref_price=4021.71 | sweep_bar=19:00 13-Jul-2026 | confirm_bar=19:00 14-Jul-2026
+[2026-07-15 18:35:09] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4995.96 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-15 18:35:15] SCAN_SLOW | scan cycle ใช้เวลา 30.45s > 3s | breakdown=sl_tp_hits=0.08s cancel_pending=0.05s engulf_trail_sl=0.01s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=1.55s scan_all_tf=28.71s export_trend_state=0.03s
+[2026-07-15 18:35:17] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-15 18:35:17] SWEEP_RESET | SWEEP_LOW | tf=H1 | reason=expired
+[2026-07-15 18:35:18] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-15 18:35:20] SCAN_SLOW | scan cycle ใช้เวลา 4.47s > 3s | breakdown=sl_tp_hits=1.14s cancel_pending=0.06s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.16s export_trend_state=0.11s
+[2026-07-15 18:35:25] NEWS_FILTER_TRANSIENT | rate limited 429; keeping cached events=0
+[2026-07-15 18:37:18] POSITION_CHECK_SLOW | run_position_check ใช้เวลา 109.75s > 3s | breakdown=limit_fill_notify=0.00s lts_exit_manager=107.15s fill_rsi_recheck=0.01s pending_trend_approach=0.00s fill_trend_recheck=0.01s fill_pdfiboplus=0.89s s14_engulf_exits=0.01s s20_escape=0.00s entry_candle_quality=0.06s sl_tp_hits=1.50s s1_zone_rules=0.10s s1_rejection_entry=0.01s s2_s3_chain_groups=0.01s cancel_pending_orders=0.01s opposite_order_tp=0.00s limit_sweep=0.00s scale_out_partial=0.00s
+[2026-07-15 18:37:25] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.43s > 2s | tf=D1 | duration=2.43
+[2026-07-15 18:37:32] SCAN_SLOW | scan cycle ใช้เวลา 10.86s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.01s pb_pending=0.00s s12_management=0.00s scan_all_tf=7.40s export_trend_state=3.44s
+[2026-07-15 18:37:33] TG_SENT | [retry-plain] 🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSDm
+[2026-07-15 18:37:34] TG_SENT | ⚡ *สั่งสแกนทันทีหลังสลับ symbol*  | 📈 SYMBOL: `XAUUSDm`
+[2026-07-15 18:37:35] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ไม่มี* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-15 18:37:37] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `433881786` | 📊 Balance: `2507.78` | 📈 SYMBOL: `XAUUSDm` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy:  | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-15 18:30:53` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-15 18:37:45] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 4.10s > 2s | tf=D1 | duration=4.1
+[2026-07-15 18:37:45] SCAN_SLOW | scan cycle ใช้เวลา 4.40s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=4.40s export_trend_state=0.00s
+[2026-07-15 18:37:54] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.16s > 2s | tf=D1 | duration=2.16
+[2026-07-15 18:37:59] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.42s > 2s | tf=D1 | duration=2.42
+[2026-07-15 18:37:59] SCAN_SLOW | scan cycle ใช้เวลา 3.42s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.01s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.41s export_trend_state=0.00s
+[2026-07-15 18:38:05] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 4.53s > 2s | tf=D1 | duration=4.53
+[2026-07-15 18:38:05] SCAN_SLOW | scan cycle ใช้เวลา 4.81s > 3s | breakdown=sl_tp_hits=0.01s cancel_pending=0.01s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=4.79s export_trend_state=0.00s
+[2026-07-15 18:39:26] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 18:40:13] SYMBOL_RESOLVED | XAUUSD -> XAUUSDm | requested=XAUUSD | resolved=XAUUSDm
+[2026-07-15 18:40:20] SYMBOL_CHECK | XAUUSDm trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784115613 | bid=4035.524 | ask=4035.764 | tick_ok=True | xau_open=True | current_symbol=XAUUSDm | startup=True
+[2026-07-15 18:40:45] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.13 | sweep_bar=17:57 15-Jul-2026 | confirm_bar=17:58 15-Jul-2026
+[2026-07-15 18:40:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.03 | sweep_bar=18:12 15-Jul-2026 | confirm_bar=18:13 15-Jul-2026
+[2026-07-15 18:40:46] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4019.59 | sweep_bar=15:10 15-Jul-2026 | confirm_bar=15:10 15-Jul-2026
+[2026-07-15 18:40:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4034.25 | sweep_bar=17:10 15-Jul-2026 | confirm_bar=17:15 15-Jul-2026
+[2026-07-15 18:40:46] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4006.29 | sweep_bar=07:30 14-Jul-2026 | confirm_bar=08:00 14-Jul-2026
+[2026-07-15 18:40:50] SWEEP_ACTIVATE | SWEEP_LOW | tf=H1 | ref_price=4072.79 | sweep_bar=05:00 13-Jul-2026 | confirm_bar=06:00 13-Jul-2026
+[2026-07-15 18:40:50] SCAN_TF_SLOW | scan_one_tf[H1] ใช้เวลา 4.00s > 2s | tf=H1 | duration=4.0
+[2026-07-15 18:40:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=H12 | ref_price=4021.71 | sweep_bar=19:00 13-Jul-2026 | confirm_bar=19:00 14-Jul-2026
+[2026-07-15 18:40:55] SCAN_TF_SLOW | scan_one_tf[H12] ใช้เวลา 3.09s > 2s | tf=H12 | duration=3.09
+[2026-07-15 18:40:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4995.96 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-15 18:40:59] SCAN_SLOW | scan cycle ใช้เวลา 25.03s > 3s | breakdown=sl_tp_hits=0.01s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.05s scan_all_tf=24.96s export_trend_state=0.01s
+[2026-07-15 18:41:00] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `433881786` | 📊 Balance: `2507.78` | 📈 SYMBOL: `XAUUSDm` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy:  | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-15 18:35:15` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-15 18:41:07] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-15 18:41:07] SWEEP_RESET | SWEEP_LOW | tf=H1 | reason=expired
+[2026-07-15 18:41:07] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-15 18:41:14] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 6.71s > 2s | tf=D1 | duration=6.71
+[2026-07-15 18:41:14] SCAN_SLOW | scan cycle ใช้เวลา 7.40s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=7.28s export_trend_state=0.12s
+[2026-07-15 18:41:15] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ไม่มี* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-15 18:42:22] POSITION_CLOSED | 🛑 SL Hit | ticket=4379498276 | side=SELL | symbol=XAUUSDm | tf=M5 | pattern=- | trend_filter=- | open_price=4029.157 | close_price=4036.88 | sl=4036.877 | tp=4017.577 | profit=-7.72 | reason=[sl 4036.87700] | close_time=17:41:15 15/07/2026
+[2026-07-15 18:42:26] TG_SENT | 🔴 *🛑 SL Hit* | ━━━━━━━━━━━━━━━━━ | 📊 TF: M5 | 📊 SELL XAUUSDm | 📌 เปิด: `4029.157` | 📌 ปิด: `4036.88` | 🛑 SL: `4036.877` | 🎯 TP: `4017.577` | 💬 เหตุผล: `[sl 4036.87700]` | 💸 P/L: `-7.72` USD | 🔖 Ticket: `4379498276` | 🕐 Close Time: `17:41:15 15/07/2026`
+[2026-07-15 18:42:55] SCAN_SLOW | scan cycle ใช้เวลา 3.27s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.03s export_trend_state=0.23s
+[2026-07-15 18:43:13] SCAN_SLOW | scan cycle ใช้เวลา 5.29s > 3s | breakdown=sl_tp_hits=1.04s cancel_pending=0.36s engulf_trail_sl=0.00s opposite_order_tp=0.01s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.87s export_trend_state=0.01s
+[2026-07-15 18:44:00] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.30s > 2s | tf=D1 | duration=2.3
+[2026-07-15 18:44:01] SCAN_SLOW | scan cycle ใช้เวลา 3.20s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.19s export_trend_state=0.01s
+[2026-07-15 18:44:18] SCAN_SLOW | scan cycle ใช้เวลา 3.06s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.05s export_trend_state=0.01s
+[2026-07-15 18:44:39] SCAN_SLOW | scan cycle ใช้เวลา 7.49s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=5.55s export_trend_state=1.93s
+[2026-07-15 18:45:08] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 5.59s > 2s | tf=D1 | duration=5.59
+[2026-07-15 18:45:11] SCAN_SLOW | scan cycle ใช้เวลา 8.58s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=8.58s export_trend_state=0.00s
+[2026-07-15 18:45:32] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 3.27s > 2s | tf=D1 | duration=3.27
+[2026-07-15 18:45:33] SCAN_SLOW | scan cycle ใช้เวลา 6.55s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=6.54s export_trend_state=0.01s
+[2026-07-15 18:45:48] SCAN_TF_SLOW | scan_one_tf[H1] ใช้เวลา 2.24s > 2s | tf=H1 | duration=2.24
+[2026-07-15 18:45:50] SCAN_SLOW | scan cycle ใช้เวลา 4.90s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=4.87s export_trend_state=0.03s
+[2026-07-15 18:46:13] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 6.44s > 2s | tf=D1 | duration=6.44
+[2026-07-15 18:46:13] SCAN_SLOW | scan cycle ใช้เวลา 6.71s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=6.71s export_trend_state=0.00s
+[2026-07-15 18:46:23] SCAN_TF_SLOW | scan_one_tf[H4] ใช้เวลา 7.78s > 2s | tf=H4 | duration=7.78
+[2026-07-15 18:46:24] SCAN_SLOW | scan cycle ใช้เวลา 9.18s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=9.17s export_trend_state=0.00s
+[2026-07-15 18:46:37] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.19s > 2s | tf=D1 | duration=2.19
+[2026-07-15 18:46:47] SYMBOL_CHECK | XAUUSDm trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116006 | bid=4036.83 | ask=4037.07 | tick_ok=True | xau_open=True | current_symbol=XAUUSDm | startup=False
+[2026-07-15 18:46:49] SCAN_SLOW | scan cycle ใช้เวลา 4.01s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.97s export_trend_state=0.04s
+[2026-07-15 18:47:02] SCAN_SLOW | scan cycle ใช้เวลา 3.41s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.06s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.35s export_trend_state=0.00s

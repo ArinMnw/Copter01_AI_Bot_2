@@ -99,3 +99,25 @@
 [2026-07-15 17:52:10] Supervisor started (profile='demo-exness-416010472', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
 [2026-07-15 17:52:13] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
 [2026-07-15 17:52:13] main.py running (pid=1620)
+[2026-07-15 18:20:49] WARN: lock file ค้างจาก pid=3740 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-07-15 18:20:54] Supervisor started (profile='demo-exness-416010472', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
+[2026-07-15 18:20:57] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:21:08] main.py running (pid=5348)
+[2026-07-15 18:26:04] STALL: heartbeat age=200s > 180s (loop hang) -> kill pid=5348 + restart
+[2026-07-15 18:26:15] Restarting in 5 s ...
+[2026-07-15 18:26:24] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:26:26] main.py running (pid=7056)
+[2026-07-15 18:28:19] WARN: heartbeat missing/unreadable (up=109s) — wait next cycle
+[2026-07-15 18:31:52] STALL: heartbeat age=192s > 180s (loop hang) -> kill pid=7056 + restart
+[2026-07-15 18:31:54] Restarting in 5 s ...
+[2026-07-15 18:32:00] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:32:00] main.py running (pid=6748)
+[2026-07-15 18:38:09] STALL: heartbeat age=186s > 180s (loop hang) -> kill pid=6748 + restart
+[2026-07-15 18:38:33] Restarting in 5 s ...
+[2026-07-15 18:38:38] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:38:38] main.py running (pid=5176)
+[2026-07-15 18:42:38] STALL: heartbeat age=210s > 180s (loop hang) -> kill pid=5176 + restart
+[2026-07-15 18:42:56] Restarting in 5 s ...
+[2026-07-15 18:43:13] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:43:13] main.py running (pid=3512)
+[2026-07-15 18:44:54] WARN: heartbeat missing/unreadable (up=101s) — wait next cycle

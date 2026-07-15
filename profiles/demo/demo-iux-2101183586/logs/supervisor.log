@@ -209,3 +209,20 @@
 [2026-07-15 17:56:00] Restarting in 5 s ...
 [2026-07-15 17:56:10] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
 [2026-07-15 17:56:18] main.py running (pid=2028)
+[2026-07-15 18:21:45] WARN: lock file ค้างจาก pid=2008 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-07-15 18:22:35] Supervisor started (profile='demo-iux-2101183586', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
+[2026-07-15 18:22:40] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:22:43] main.py running (pid=3132)
+[2026-07-15 18:29:26] STALL: heartbeat age=187s > 180s (loop hang) -> kill pid=3132 + restart
+[2026-07-15 18:29:31] Restarting in 5 s ...
+[2026-07-15 18:29:36] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:29:36] main.py running (pid=6636)
+[2026-07-15 18:31:07] WARN: heartbeat missing/unreadable (up=91s) — wait next cycle
+[2026-07-15 18:40:19] STALL: heartbeat age=218s > 180s (loop hang) -> kill pid=6636 + restart
+[2026-07-15 18:41:03] Restarting in 5 s ...
+[2026-07-15 18:41:53] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:42:25] main.py running (pid=6612)
+[2026-07-15 18:46:23] STALL: heartbeat age=199s > 180s (loop hang) -> kill pid=6612 + restart
+[2026-07-15 18:47:27] Restarting in 5 s ...
+[2026-07-15 18:47:39] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:47:40] main.py running (pid=3824)

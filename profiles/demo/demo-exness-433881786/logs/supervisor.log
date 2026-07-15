@@ -105,3 +105,24 @@
 [2026-07-15 17:52:10] Supervisor started (profile='demo-exness-433881786', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
 [2026-07-15 17:52:10] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
 [2026-07-15 17:52:11] main.py running (pid=2104)
+[2026-07-15 18:20:49] WARN: lock file ค้างจาก pid=4648 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-07-15 18:20:55] Supervisor started (profile='demo-exness-433881786', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe')
+[2026-07-15 18:20:55] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:20:55] main.py running (pid=1204)
+[2026-07-15 18:26:04] STALL: heartbeat age=225s > 180s (loop hang) -> kill pid=1204 + restart
+[2026-07-15 18:26:16] Restarting in 5 s ...
+[2026-07-15 18:26:24] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:26:26] main.py running (pid=7048)
+[2026-07-15 18:28:12] WARN: heartbeat missing/unreadable (up=103s) — wait next cycle
+[2026-07-15 18:31:53] STALL: heartbeat age=195s > 180s (loop hang) -> kill pid=7048 + restart
+[2026-07-15 18:31:55] Restarting in 5 s ...
+[2026-07-15 18:32:00] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:32:01] main.py running (pid=6788)
+[2026-07-15 18:38:39] STALL: heartbeat age=204s > 180s (loop hang) -> kill pid=6788 + restart
+[2026-07-15 18:38:40] Restarting in 5 s ...
+[2026-07-15 18:38:45] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:38:45] main.py running (pid=7044)
+[2026-07-15 18:46:36] STALL: heartbeat age=185s > 180s (loop hang) -> kill pid=7044 + restart
+[2026-07-15 18:47:31] Restarting in 5 s ...
+[2026-07-15 18:47:45] Launching: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe main.py
+[2026-07-15 18:47:53] main.py running (pid=6280)
