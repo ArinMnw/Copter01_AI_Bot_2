@@ -919,8 +919,8 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         
     # 4. Fetch deals from history
     deals = mt5.history_deals_get(date_from, date_to)
-    mt5_rows = []
     mt5_compare_list = []
+    mt5_rows = []
     
     if deals:
         entry_deals = {d.position_id: d for d in deals if d.entry == mt5.DEAL_ENTRY_IN}
@@ -951,13 +951,20 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                         "Outcome": outcome
                     }
                     mt5_rows.append(row)
+                    
                     mt5_compare_list.append({
                         "dt": entry_dt_bkk.replace(tzinfo=None),
+                        "close_dt": exit_dt_bkk.replace(tzinfo=None),
                         "type": trade_type,
                         "entry": d_in.price,
+                        "close_price": d.price,
+                        "sl": getattr(d_in, "sl", 0.0), # Use entry deal's SL
+                        "tp": getattr(d_in, "tp", 0.0), # Use entry deal's TP
+                        "volume": d.volume,
                         "pnl": profit,
-                        "outcome": outcome,
-                        "row": row
+                        "comment": getattr(d, "comment", ""),
+                        "position_id": d.position_id,
+                        "outcome": outcome
                     })
                     
     # Save mt5 real CSV
@@ -975,23 +982,29 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
     bt_compare_list = []
     bkk_tz = timezone(timedelta(hours=7))
     for bt in backtest_trades:
-        bt_dt = datetime.fromtimestamp(bt.get("fill_time_ts", 0), tz=timezone.utc).astimezone(bkk_tz).replace(tzinfo=None)
+        bt_open_dt = datetime.fromtimestamp(bt.get("fill_time_ts", 0), tz=timezone.utc).astimezone(bkk_tz).replace(tzinfo=None)
+        bt_close_dt = datetime.fromtimestamp(bt.get("exit_time_ts", 0), tz=timezone.utc).astimezone(bkk_tz).replace(tzinfo=None)
         bt_compare_list.append({
-            "dt": bt_dt,
+            "open_dt": bt_open_dt,
+            "close_dt": bt_close_dt,
+            "tf": bt.get("tf", "M5"),
             "type": bt.get("signal", ""),
             "entry": bt.get("entry", 0.0),
+            "sl": bt.get("sl", 0.0),
+            "tp": bt.get("tp", 0.0),
+            "lot": bt.get("lot", 0.01),
             "pnl": bt.get("pnl_usd", 0.0),
-            "outcome": bt.get("outcome", ""),
-            "trade": bt
+            "outcome": bt.get("outcome", "")
         })
         
     compare_rows = []
     mismatch_mt5 = list(mt5_compare_list)
     
+    # Matching pass
     for bt in bt_compare_list:
         matched = None
         for mt in mismatch_mt5:
-            time_diff = abs((mt["dt"] - bt["dt"]).total_seconds())
+            time_diff = abs((mt["dt"] - bt["open_dt"]).total_seconds())
             price_diff = abs(mt["entry"] - bt["entry"])
             if mt["type"] == bt["type"] and price_diff <= 2.0 and time_diff <= 3600:
                 matched = mt
@@ -999,61 +1012,136 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 
         if matched:
             compare_rows.append({
-                "Status": "MATCHED",
-                "Backtest Time (BKK)": bt["dt"].strftime('%d-%m-%Y %H:%M:%S'),
-                "MT5 Time (BKK)": matched["dt"].strftime('%d-%m-%Y %H:%M:%S'),
-                "Type": bt["type"],
-                "Backtest Entry": round(bt["entry"], 2),
-                "MT5 Entry": round(matched["entry"], 2),
-                "Backtest P&L": round(bt["pnl"], 2),
-                "MT5 P&L": round(matched["pnl"], 2),
-                "Backtest Outcome": bt["outcome"],
-                "MT5 Outcome": matched["outcome"]
+                "SIM_Open_Time": bt["open_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "MT5_Open_Time": matched["dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "SIM_Close_Time": bt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "MT5_Close_Time": matched["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "SIM_TF": bt["tf"],
+                "MT5_TF": bt["tf"], # Use SIM_TF for MT5_TF if matched
+                "SIM_Type": bt["type"],
+                "MT5_Type": matched["type"],
+                "SIM_Entry": round(bt["entry"], 2),
+                "MT5_Entry": round(matched["entry"], 2),
+                "MT5_Close_Price": round(matched["close_price"], 2),
+                "SIM_SL": round(bt["sl"], 2),
+                "MT5_SL": round(matched["sl"], 2) if matched["sl"] else "",
+                "SIM_TP": round(bt["tp"], 2),
+                "MT5_TP": round(matched["tp"], 2) if matched["tp"] else "",
+                "SIM_Lot": round(bt["lot"], 2),
+                "MT5_Volume": round(matched["volume"], 2),
+                "SIM_P&L": round(bt["pnl"], 2),
+                "MT5_P&L": round(matched["pnl"], 2),
+                "SIM_Balance": "",
+                "MT5_Balance": "",
+                "MT5_Comment": matched["comment"],
+                "MT5_Position_ID": matched["position_id"],
+                "Matched": True,
+                "SIM_Reason": bt["outcome"]
             })
             mismatch_mt5.remove(matched)
         else:
             compare_rows.append({
-                "Status": "EXTRA_BACKTEST",
-                "Backtest Time (BKK)": bt["dt"].strftime('%d-%m-%Y %H:%M:%S'),
-                "MT5 Time (BKK)": "",
-                "Type": bt["type"],
-                "Backtest Entry": round(bt["entry"], 2),
-                "MT5 Entry": "",
-                "Backtest P&L": round(bt["pnl"], 2),
-                "MT5 P&L": "",
-                "Backtest Outcome": bt["outcome"],
-                "MT5 Outcome": ""
+                "SIM_Open_Time": bt["open_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "MT5_Open_Time": "",
+                "SIM_Close_Time": bt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "MT5_Close_Time": "",
+                "SIM_TF": bt["tf"],
+                "MT5_TF": "",
+                "SIM_Type": bt["type"],
+                "MT5_Type": "",
+                "SIM_Entry": round(bt["entry"], 2),
+                "MT5_Entry": "",
+                "MT5_Close_Price": "",
+                "SIM_SL": round(bt["sl"], 2),
+                "MT5_SL": "",
+                "SIM_TP": round(bt["tp"], 2),
+                "MT5_TP": "",
+                "SIM_Lot": round(bt["lot"], 2),
+                "MT5_Volume": "",
+                "SIM_P&L": round(bt["pnl"], 2),
+                "MT5_P&L": "",
+                "SIM_Balance": "",
+                "MT5_Balance": "",
+                "MT5_Comment": "",
+                "MT5_Position_ID": "",
+                "Matched": False,
+                "SIM_Reason": bt["outcome"]
             })
             
     for mt in mismatch_mt5:
         compare_rows.append({
-            "Status": "EXTRA_MT5",
-            "Backtest Time (BKK)": "",
-            "MT5 Time (BKK)": mt["dt"].strftime('%d-%m-%Y %H:%M:%S'),
-            "Type": mt["type"],
-            "Backtest Entry": "",
-            "MT5 Entry": round(mt["entry"], 2),
-            "Backtest P&L": "",
-            "MT5 P&L": round(mt["pnl"], 2),
-            "Backtest Outcome": "",
-            "MT5 Outcome": mt["outcome"]
+            "SIM_Open_Time": "",
+            "MT5_Open_Time": mt["dt"].strftime('%Y-%m-%d %H:%M:%S'),
+            "SIM_Close_Time": "",
+            "MT5_Close_Time": mt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+            "SIM_TF": "",
+            "MT5_TF": "M5",
+            "SIM_Type": "",
+            "MT5_Type": mt["type"],
+            "SIM_Entry": "",
+            "MT5_Entry": round(mt["entry"], 2),
+            "MT5_Close_Price": round(mt["close_price"], 2),
+            "SIM_SL": "",
+            "MT5_SL": round(mt["sl"], 2) if mt["sl"] else "",
+            "SIM_TP": "",
+            "MT5_TP": round(mt["tp"], 2) if mt["tp"] else "",
+            "SIM_Lot": "",
+            "MT5_Volume": round(mt["volume"], 2),
+            "SIM_P&L": "",
+            "MT5_P&L": round(mt["pnl"], 2),
+            "SIM_Balance": "",
+            "MT5_Balance": "",
+            "MT5_Comment": mt["comment"],
+            "MT5_Position_ID": mt["position_id"],
+            "Matched": False,
+            "SIM_Reason": "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้"
         })
         
     compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
     if compare_rows:
-        df_comp = pd.DataFrame(compare_rows)
         def sort_key(row):
-            t = row["Backtest Time (BKK)"] or row["MT5 Time (BKK)"]
-            return datetime.strptime(t, '%d-%m-%Y %H:%M:%S')
-        df_comp['sort_time'] = df_comp.apply(sort_key, axis=1)
-        df_comp.sort_values('sort_time', inplace=True)
-        df_comp.drop(columns=['sort_time'], inplace=True)
+            t = row["SIM_Open_Time"] or row["MT5_Open_Time"]
+            return datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
+        compare_rows.sort(key=sort_key)
         
+        start_balance = PORTFOLIO_BALANCES.get(portfolio_name, 1000.0)
+        sim_running_balance = start_balance
+        mt5_running_balance = start_balance
+        
+        for r in compare_rows:
+            if r["SIM_P&L"] != "":
+                sim_running_balance += r["SIM_P&L"]
+                r["SIM_Balance"] = round(sim_running_balance, 2)
+            else:
+                r["SIM_Balance"] = ""
+                
+            if r["MT5_P&L"] != "":
+                mt5_running_balance += r["MT5_P&L"]
+                r["MT5_Balance"] = round(mt5_running_balance, 2)
+            else:
+                r["MT5_Balance"] = ""
+                
+        df_comp = pd.DataFrame(compare_rows)
+        cols = [
+            "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
+            "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
+            "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
+            "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
+            "MT5_Comment", "MT5_Position_ID", "Matched", "SIM_Reason"
+        ]
+        df_comp = df_comp[cols]
         df_comp.to_csv(compare_path, index=False, encoding="utf-8")
         print(f"Saved: {compare_path} ({len(compare_rows)} rows in compare)")
     else:
+        headers = [
+            "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
+            "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
+            "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
+            "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
+            "MT5_Comment", "MT5_Position_ID", "Matched", "SIM_Reason"
+        ]
         with open(compare_path, "w", newline="", encoding="utf-8") as f:
-            f.write("Status,Backtest Time (BKK),MT5 Time (BKK),Type,Backtest Entry,MT5 Entry,Backtest P&L,MT5 P&L,Backtest Outcome,MT5 Outcome\n")
+            f.write(",".join(headers) + "\n")
         print(f"Saved empty compare: {compare_path}")
         
     # Cleanup connection to return to safe state if possible
