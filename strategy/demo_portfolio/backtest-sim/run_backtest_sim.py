@@ -872,8 +872,6 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
     abs_path = os.path.abspath(os.path.join(matched_profile_dir, rel_path))
     portable = matched_env.get("MT5_PORTABLE", "true").lower() == "true"
     login = int(matched_env.get("MT5_LOGIN", "0"))
-    password = matched_env.get("MT5_PASSWORD", "")
-    server = matched_env.get("MT5_SERVER", "")
     
     import time
     connected = False
@@ -885,13 +883,24 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
             break
             
     if connected:
-        if login > 0:
-            if mt5.login(login, password, server):
-                return True
-            else:
-                print(f"   ❌ mt5.login failed for {portfolio_name} ({login}): {mt5.last_error()}")
-        else:
+        try:
+            info = mt5.account_info()
+        except Exception:
+            info = None
+        if info is not None and login > 0 and int(getattr(info, "login", 0) or 0) == login:
+            # Already connected to correct account, skip login to avoid IPC conflicts/timeouts
             return True
+        else:
+            # Login only if not already logged in to the correct account
+            password = matched_env.get("MT5_PASSWORD", "")
+            server = matched_env.get("MT5_SERVER", "")
+            if login > 0:
+                if mt5.login(login, password, server):
+                    return True
+                else:
+                    print(f"   ❌ mt5.login failed for {portfolio_name} ({login}): {mt5.last_error()}")
+            else:
+                return True
             
     mt5.shutdown()
     print(f"   ❌ Connection failed to terminal {abs_path} for {portfolio_name}: {mt5.last_error()}")
@@ -913,7 +922,12 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         else:
             date_to = datetime.now(timezone.utc) + timedelta(days=1)
     else:
-        date_from = datetime.now(timezone.utc) - timedelta(days=days)
+        # Align with midnight of the start date in BKK timezone (UTC+7) to match backtest range
+        bkk_tz = timezone(timedelta(hours=7))
+        now_bkk = datetime.now(bkk_tz)
+        start_bkk = now_bkk - timedelta(days=days)
+        start_bkk = start_bkk.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_from = start_bkk.astimezone(timezone.utc)
         date_to = datetime.now(timezone.utc) + timedelta(days=1)
         
     # 2. Get active magic numbers for this portfolio
@@ -1302,29 +1316,37 @@ def main():
             # Shutdown MT5 connection as soon as bar fetching is done to release IPC locks for subprocesses
             mt5.shutdown()
             
-            # Post-filter trades based on custom start / end timestamps
+            # Post-filter trades based on custom start / end timestamps or days range
+            import pytz
+            bkk = pytz.timezone("Asia/Bangkok")
+            
+            def parse_date(s):
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+                    try:
+                        return datetime.strptime(s.strip(), fmt)
+                    except ValueError:
+                        pass
+                raise ValueError(f"Time data '{s}' does not match formats YYYY-MM-DD, YYYY-MM-DD HH:MM, or YYYY-MM-DD HH:MM:SS")
+                
             if args.start:
-                def parse_date(s):
-                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
-                        try:
-                            return datetime.strptime(s.strip(), fmt)
-                        except ValueError:
-                            pass
-                    raise ValueError(f"Time data '{s}' does not match formats YYYY-MM-DD, YYYY-MM-DD HH:MM, or YYYY-MM-DD HH:MM:SS")
-                    
-                import pytz
-                bkk = pytz.timezone("Asia/Bangkok")
                 start_dt = bkk.localize(parse_date(args.start))
                 start_ts = int(start_dt.timestamp())
-                trades = [t for t in trades if t.get("fill_time_ts", 0) >= start_ts]
+            else:
+                # Limit trades to the last N days (midnight BKK of start day)
+                now_bkk = datetime.now(bkk)
+                start_dt = now_bkk - timedelta(days=days)
+                start_dt = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                start_ts = int(start_dt.timestamp())
                 
-                if args.end:
-                    end_dt = parse_date(args.end)
-                    if len(args.end.strip()) <= 10:
-                        end_dt = end_dt + timedelta(days=1)
-                    end_dt = bkk.localize(end_dt)
-                    end_ts = int(end_dt.timestamp())
-                    trades = [t for t in trades if t.get("fill_time_ts", 0) <= end_ts]
+            trades = [t for t in trades if t.get("fill_time_ts", 0) >= start_ts]
+            
+            if args.end:
+                end_dt = parse_date(args.end)
+                if len(args.end.strip()) <= 10:
+                    end_dt = end_dt + timedelta(days=1)
+                end_dt = bkk.localize(end_dt)
+                end_ts = int(end_dt.timestamp())
+                trades = [t for t in trades if t.get("fill_time_ts", 0) <= end_ts]
                     
             print(f"Processing reports for {pf} (found {len(trades)} trades)...")
             
