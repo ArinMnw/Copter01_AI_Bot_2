@@ -719,6 +719,105 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
             
     return all_portfolio_trades
 
+
+def setup_mt5_for_portfolio(portfolio_name):
+    # Normalize portfolio name
+    normalized_pf = ALIASES.get(portfolio_name, portfolio_name)
+    
+    # Locate directories
+    demo_profiles_dir = os.path.join(root_dir, "profiles", "demo")
+    real_profiles_dir = os.path.join(root_dir, "profiles", "real")
+    
+    matched_profile_dir = None
+    matched_profile_name = None
+    matched_env = {}
+    
+    def parse_env_file(env_path):
+        data = {}
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, v = line.split("=", 1)
+                        data[k.strip()] = v.strip().strip('"').strip("'")
+            except Exception:
+                pass
+        return data
+
+    # 1. Scan profiles for a matching portfolio
+    for root in [demo_profiles_dir, real_profiles_dir]:
+        if not os.path.exists(root):
+            continue
+        for p in os.listdir(root):
+            p_dir = os.path.join(root, p)
+            if not os.path.isdir(p_dir):
+                continue
+            if "2101114448" in p: # exclude 4448
+                continue
+            env_path = os.path.join(p_dir, "profile.env")
+            env_data = parse_env_file(env_path)
+            active_pf = env_data.get("DEMO_PORTFOLIO_ACTIVE", "")
+            active_pf_normalized = ALIASES.get(active_pf, active_pf)
+            if active_pf_normalized == normalized_pf:
+                matched_profile_dir = p_dir
+                matched_profile_name = p
+                matched_env = env_data
+                break
+        if matched_profile_dir:
+            break
+            
+    # 2. If no match, default to main profile: demo-iux-2101182459
+    main_profile_name = "demo-iux-2101182459"
+    main_profile_dir = os.path.join(demo_profiles_dir, main_profile_name)
+    
+    if matched_profile_dir:
+        print(f"📌 [Profile Match] Portfolio '{portfolio_name}' matches active profile '{matched_profile_name}'")
+        target_dir = matched_profile_dir
+        target_env = matched_env
+    else:
+        print(f"📌 [Profile Match] No profile matches portfolio '{portfolio_name}'. Defaulting to main profile '{main_profile_name}'")
+        target_dir = main_profile_dir
+        target_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
+        
+    # 3. Apply settings
+    if target_env:
+        # Resolve absolute MT5 path
+        rel_path = target_env.get("MT5_PATH", "mt5\\terminal64.exe")
+        abs_path = os.path.abspath(os.path.join(target_dir, rel_path))
+        
+        # Write to environment variables for subprocesses
+        os.environ["MT5_PATH"] = abs_path
+        os.environ["MT5_PORTABLE"] = target_env.get("MT5_PORTABLE", "true")
+        os.environ["MT5_LOGIN"] = target_env.get("MT5_LOGIN", "0")
+        os.environ["MT5_PASSWORD"] = target_env.get("MT5_PASSWORD", "")
+        os.environ["MT5_SERVER"] = target_env.get("MT5_SERVER", "")
+        
+        env_symbol = target_env.get("SYMBOL", "")
+        if env_symbol:
+            os.environ["SYMBOL"] = env_symbol
+        env_candidates = target_env.get("SYMBOL_CANDIDATES", "")
+        if env_candidates:
+            os.environ["SYMBOL_CANDIDATES"] = env_candidates
+            
+        # Update config attributes in memory for the current process
+        config.MT5_PATH = abs_path
+        config.MT5_PORTABLE = target_env.get("MT5_PORTABLE", "true").lower() == "true"
+        config.MT5_LOGIN = int(target_env.get("MT5_LOGIN", "0"))
+        config.MT5_PASSWORD = target_env.get("MT5_PASSWORD", "")
+        config.MT5_SERVER = target_env.get("MT5_SERVER", "")
+        if env_symbol:
+            config.SYMBOL = env_symbol
+        if env_candidates:
+            config.SYMBOL_CANDIDATES = env_candidates
+            
+        print(f"   Using MT5 Terminal: {config.MT5_PATH}")
+        print(f"   Account Details: Login={config.MT5_LOGIN}, Server={config.MT5_SERVER}, Symbol={config.SYMBOL}")
+    else:
+        print(f"   ⚠️ Warning: Could not load target profile environment settings.")
+
 def main():
     parser = argparse.ArgumentParser(description="Unified Backtest Simulation for all Demo Portfolios")
     parser.add_argument("--portfolio", default="all", help="Portfolio name (e.g. LTS999, P13, S101, all)")
@@ -742,19 +841,21 @@ def main():
             sys.exit(1)
         portfolios = [actual]
         
-    print(f"Initialize MT5 for backtest data...")
-    if not config.mt5_initialize(mt5):
-        print(f"❌ MT5 initialization failed: {mt5.last_error()}")
-        sys.exit(1)
-        
     try:
         for pf in portfolios:
             actual_pf = ALIASES.get(pf, pf)
+            
+            # Ensure previous connection is closed to change profile safely
+            mt5.shutdown()
+            
+            # Match and configure MT5 profile
+            setup_mt5_for_portfolio(pf)
             
             # Ensure MT5 is initialized (subprocesses might shut it down)
             if not config.mt5_initialize(mt5):
                 print(f"❌ MT5 re-initialization failed for {pf}: {mt5.last_error()}")
                 sys.exit(1)
+
             
             portfolio_days = {
                 "P13": 550, "P16": 550, "18-Way": 550, "P18": 550,
