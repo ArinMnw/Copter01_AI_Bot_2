@@ -755,7 +755,7 @@ def setup_mt5_for_portfolio(portfolio_name):
             p_dir = os.path.join(root, p)
             if not os.path.isdir(p_dir):
                 continue
-            if "2101114448" in p or "exness" in p.lower(): # exclude 4448 and exness profiles to avoid deadlocks
+            if "2101114448" in p or "2101182458" in p: # exclude 4448 and 2458 profiles per rules
                 continue
             env_path = os.path.join(p_dir, "profile.env")
             env_data = parse_env_file(env_path)
@@ -784,13 +784,12 @@ def setup_mt5_for_portfolio(portfolio_name):
         
     # 3. Apply settings
     if target_env:
-        # Resolve absolute MT5 path
-        rel_path = target_env.get("MT5_PATH", "mt5\\terminal64.exe")
-        abs_path = os.path.abspath(os.path.join(target_dir, rel_path))
+        # Always use the neutral global MT5 terminal to avoid locking active bot profiles' IPC/ports
+        global_path = "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
         
         # Write to environment variables for subprocesses
-        os.environ["MT5_PATH"] = abs_path
-        os.environ["MT5_PORTABLE"] = target_env.get("MT5_PORTABLE", "true")
+        os.environ["MT5_PATH"] = global_path
+        os.environ["MT5_PORTABLE"] = "false"
         os.environ["MT5_LOGIN"] = target_env.get("MT5_LOGIN", "0")
         os.environ["MT5_PASSWORD"] = target_env.get("MT5_PASSWORD", "")
         os.environ["MT5_SERVER"] = target_env.get("MT5_SERVER", "")
@@ -803,8 +802,8 @@ def setup_mt5_for_portfolio(portfolio_name):
             os.environ["SYMBOL_CANDIDATES"] = env_candidates
             
         # Update config attributes in memory for the current process
-        config.MT5_PATH = abs_path
-        config.MT5_PORTABLE = target_env.get("MT5_PORTABLE", "true").lower() == "true"
+        config.MT5_PATH = global_path
+        config.MT5_PORTABLE = False
         config.MT5_LOGIN = int(target_env.get("MT5_LOGIN", "0"))
         config.MT5_PASSWORD = target_env.get("MT5_PASSWORD", "")
         config.MT5_SERVER = target_env.get("MT5_SERVER", "")
