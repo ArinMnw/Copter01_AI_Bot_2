@@ -818,6 +818,247 @@ def setup_mt5_for_portfolio(portfolio_name):
     else:
         print(f"   ⚠️ Warning: Could not load target profile environment settings.")
 
+def connect_to_actual_profile_for_portfolio(portfolio_name):
+    # Locate actual directory (no exness skipping!)
+    normalized_pf = ALIASES.get(portfolio_name, portfolio_name)
+    demo_profiles_dir = os.path.join(root_dir, "profiles", "demo")
+    real_profiles_dir = os.path.join(root_dir, "profiles", "real")
+    
+    matched_profile_dir = None
+    matched_env = {}
+    
+    def parse_env_file(env_path):
+        data = {}
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, v = line.split("=", 1)
+                        data[k.strip()] = v.strip().strip('"').strip("'")
+            except Exception:
+                pass
+        return data
+
+    for root in [demo_profiles_dir, real_profiles_dir]:
+        if not os.path.exists(root):
+            continue
+        for p in os.listdir(root):
+            p_dir = os.path.join(root, p)
+            if not os.path.isdir(p_dir) or "2101114448" in p:
+                continue
+            env_path = os.path.join(p_dir, "profile.env")
+            env_data = parse_env_file(env_path)
+            active_pf = env_data.get("DEMO_PORTFOLIO_ACTIVE", "")
+            active_pfs = [ALIASES.get(x.strip(), x.strip()) for x in active_pf.split(",") if x.strip()]
+            if normalized_pf in active_pfs:
+                matched_profile_dir = p_dir
+                matched_env = env_data
+                break
+        if matched_profile_dir:
+            break
+            
+    if not matched_profile_dir:
+        # Default to main
+        main_profile_dir = os.path.join(demo_profiles_dir, "demo-iux-2101182459")
+        matched_profile_dir = main_profile_dir
+        matched_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
+        
+    # Initialize and login
+    rel_path = matched_env.get("MT5_PATH", "mt5\\terminal64.exe")
+    abs_path = os.path.abspath(os.path.join(matched_profile_dir, rel_path))
+    portable = matched_env.get("MT5_PORTABLE", "true").lower() == "true"
+    login = int(matched_env.get("MT5_LOGIN", "0"))
+    password = matched_env.get("MT5_PASSWORD", "")
+    server = matched_env.get("MT5_SERVER", "")
+    
+    mt5.shutdown() # Shutdown previous connection first
+    if not mt5.initialize(path=abs_path, portable=portable, timeout=30000):
+        return False
+    if login > 0 and not mt5.login(login, password, server):
+        mt5.shutdown()
+        return False
+    return True
+
+def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str, end_str, days, output_dir):
+    # 1. Calculate date_from and date_to
+    if start_str:
+        def parse_date(s):
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+                try:
+                    return datetime.strptime(s.strip(), fmt)
+                except ValueError:
+                    pass
+            raise ValueError(f"Time data '{s}' does not match formats")
+        date_from = parse_date(start_str).replace(tzinfo=timezone.utc)
+        if end_str:
+            date_to = parse_date(end_str).replace(tzinfo=timezone.utc)
+        else:
+            date_to = datetime.now(timezone.utc) + timedelta(days=1)
+    else:
+        date_from = datetime.now(timezone.utc) - timedelta(days=days)
+        date_to = datetime.now(timezone.utc) + timedelta(days=1)
+        
+    # 2. Get active magic numbers for this portfolio
+    actual_pf = ALIASES.get(portfolio_name, portfolio_name)
+    sub_pfs = [x.strip() for x in actual_pf.split(",") if x.strip()]
+    target_magics = []
+    for pf in sub_pfs:
+        try:
+            magic = dp._portfolio_magic(pf)
+            target_magics.append(magic)
+        except Exception:
+            pass
+            
+    # 3. Connect to the actual profile
+    if not connect_to_actual_profile_for_portfolio(portfolio_name):
+        print(f"   ⚠️ MT5 connection failed for MT5 real report of {portfolio_name}")
+        return
+        
+    # 4. Fetch deals from history
+    deals = mt5.history_deals_get(date_from, date_to)
+    mt5_rows = []
+    mt5_compare_list = []
+    
+    if deals:
+        entry_deals = {d.position_id: d for d in deals if d.entry == mt5.DEAL_ENTRY_IN}
+        for d in deals:
+            if d.entry == mt5.DEAL_ENTRY_OUT and d.position_id in entry_deals:
+                d_in = entry_deals[d.position_id]
+                # Filter by symbol and magic
+                if "XAUUSD" in d.symbol and d.magic in target_magics:
+                    trade_type = "BUY" if d_in.type == mt5.DEAL_TYPE_BUY else "SELL"
+                    profit = float(d.profit) + float(d.swap) + float(d.commission)
+                    
+                    bkk_tz = timezone(timedelta(hours=7))
+                    entry_dt_bkk = datetime.fromtimestamp(d_in.time, tz=timezone.utc).astimezone(bkk_tz)
+                    exit_dt_bkk = datetime.fromtimestamp(d.time, tz=timezone.utc).astimezone(bkk_tz)
+                    
+                    outcome = "TP" if profit > 0 else "SL"
+                    
+                    row = {
+                        "Time (BKK)": entry_dt_bkk.strftime('%d-%m-%Y %H:%M:%S'),
+                        "Close Time": exit_dt_bkk.strftime('%d-%m-%Y %H:%M:%S'),
+                        "Leg": f"Magic {d.magic}",
+                        "TF": "M5",
+                        "Type": trade_type,
+                        "Entry": round(d_in.price, 2),
+                        "Exit": round(d.price, 2),
+                        "Lot": round(d.volume, 2),
+                        "P&L": round(profit, 2),
+                        "Outcome": outcome
+                    }
+                    mt5_rows.append(row)
+                    mt5_compare_list.append({
+                        "dt": entry_dt_bkk.replace(tzinfo=None),
+                        "type": trade_type,
+                        "entry": d_in.price,
+                        "pnl": profit,
+                        "outcome": outcome,
+                        "row": row
+                    })
+                    
+    # Save mt5 real CSV
+    mt5_path = os.path.join(output_dir, f"{portfolio_name}_mt5_real.csv")
+    if mt5_rows:
+        df_mt5 = pd.DataFrame(mt5_rows)
+        df_mt5.to_csv(mt5_path, index=False, encoding="utf-8")
+        print(f"Saved: {mt5_path} ({len(mt5_rows)} real trades)")
+    else:
+        with open(mt5_path, "w", newline="", encoding="utf-8") as f:
+            f.write("Time (BKK),Close Time,Leg,TF,Type,Entry,Exit,Lot,P&L,Outcome\n")
+        print(f"Saved empty MT5 real: {mt5_path}")
+        
+    # 5. Run matching comparison
+    bt_compare_list = []
+    bkk_tz = timezone(timedelta(hours=7))
+    for bt in backtest_trades:
+        bt_dt = datetime.fromtimestamp(bt.get("fill_time_ts", 0), tz=timezone.utc).astimezone(bkk_tz).replace(tzinfo=None)
+        bt_compare_list.append({
+            "dt": bt_dt,
+            "type": bt.get("signal", ""),
+            "entry": bt.get("entry", 0.0),
+            "pnl": bt.get("pnl_usd", 0.0),
+            "outcome": bt.get("outcome", ""),
+            "trade": bt
+        })
+        
+    compare_rows = []
+    mismatch_mt5 = list(mt5_compare_list)
+    
+    for bt in bt_compare_list:
+        matched = None
+        for mt in mismatch_mt5:
+            time_diff = abs((mt["dt"] - bt["dt"]).total_seconds())
+            price_diff = abs(mt["entry"] - bt["entry"])
+            if mt["type"] == bt["type"] and price_diff <= 2.0 and time_diff <= 3600:
+                matched = mt
+                break
+                
+        if matched:
+            compare_rows.append({
+                "Status": "MATCHED",
+                "Backtest Time (BKK)": bt["dt"].strftime('%d-%m-%Y %H:%M:%S'),
+                "MT5 Time (BKK)": matched["dt"].strftime('%d-%m-%Y %H:%M:%S'),
+                "Type": bt["type"],
+                "Backtest Entry": round(bt["entry"], 2),
+                "MT5 Entry": round(matched["entry"], 2),
+                "Backtest P&L": round(bt["pnl"], 2),
+                "MT5 P&L": round(matched["pnl"], 2),
+                "Backtest Outcome": bt["outcome"],
+                "MT5 Outcome": matched["outcome"]
+            })
+            mismatch_mt5.remove(matched)
+        else:
+            compare_rows.append({
+                "Status": "EXTRA_BACKTEST",
+                "Backtest Time (BKK)": bt["dt"].strftime('%d-%m-%Y %H:%M:%S'),
+                "MT5 Time (BKK)": "",
+                "Type": bt["type"],
+                "Backtest Entry": round(bt["entry"], 2),
+                "MT5 Entry": "",
+                "Backtest P&L": round(bt["pnl"], 2),
+                "MT5 P&L": "",
+                "Backtest Outcome": bt["outcome"],
+                "MT5 Outcome": ""
+            })
+            
+    for mt in mismatch_mt5:
+        compare_rows.append({
+            "Status": "EXTRA_MT5",
+            "Backtest Time (BKK)": "",
+            "MT5 Time (BKK)": mt["dt"].strftime('%d-%m-%Y %H:%M:%S'),
+            "Type": mt["type"],
+            "Backtest Entry": "",
+            "MT5 Entry": round(mt["entry"], 2),
+            "Backtest P&L": "",
+            "MT5 P&L": round(mt["pnl"], 2),
+            "Backtest Outcome": "",
+            "MT5 Outcome": mt["outcome"]
+        })
+        
+    compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
+    if compare_rows:
+        df_comp = pd.DataFrame(compare_rows)
+        def sort_key(row):
+            t = row["Backtest Time (BKK)"] or row["MT5 Time (BKK)"]
+            return datetime.strptime(t, '%d-%m-%Y %H:%M:%S')
+        df_comp['sort_time'] = df_comp.apply(sort_key, axis=1)
+        df_comp.sort_values('sort_time', inplace=True)
+        df_comp.drop(columns=['sort_time'], inplace=True)
+        
+        df_comp.to_csv(compare_path, index=False, encoding="utf-8")
+        print(f"Saved: {compare_path} ({len(compare_rows)} rows in compare)")
+    else:
+        with open(compare_path, "w", newline="", encoding="utf-8") as f:
+            f.write("Status,Backtest Time (BKK),MT5 Time (BKK),Type,Backtest Entry,MT5 Entry,Backtest P&L,MT5 P&L,Backtest Outcome,MT5 Outcome\n")
+        print(f"Saved empty compare: {compare_path}")
+        
+    # Cleanup connection to return to safe state if possible
+    mt5.shutdown()
+
 def main():
     parser = argparse.ArgumentParser(description="Unified Backtest Simulation for all Demo Portfolios")
     parser.add_argument("--portfolio", default="all", help="Portfolio name (e.g. LTS999, P13, S101, all)")
@@ -934,6 +1175,8 @@ def main():
             
             pf_out_dir = os.path.join(args.out_dir, sub)
             save_reports(pf, trades, balance, pf_out_dir)
+            # Generate MT5 real trades and comparison CSV files
+            generate_mt5_and_compare_reports(pf, trades, args.start, args.end, days, pf_out_dir)
             
     finally:
         mt5.shutdown()
