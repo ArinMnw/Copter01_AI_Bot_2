@@ -1,0 +1,147 @@
+[2026-07-15 17:52:42] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 17:55:53] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-15 17:56:43] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 17:56:52] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-15 17:56:53] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116612 | bid=4028.03 | ask=4028.17 | tick_ok=True | xau_open=True | current_symbol=XAUUSD | startup=True
+[2026-07-15 17:56:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.95 | sweep_bar=18:06 15-Jul-2026 | confirm_bar=18:07 15-Jul-2026
+[2026-07-15 17:56:54] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4019.69 | sweep_bar=16:10 15-Jul-2026 | confirm_bar=16:10 15-Jul-2026
+[2026-07-15 17:56:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4034.28 | sweep_bar=18:10 15-Jul-2026 | confirm_bar=18:15 15-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4006.12 | sweep_bar=08:30 14-Jul-2026 | confirm_bar=09:00 14-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H1 | ref_price=4072.59 | sweep_bar=06:00 13-Jul-2026 | confirm_bar=07:00 13-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4195.44 | sweep_bar=07:00 06-Jul-2026 | confirm_bar=11:00 06-Jul-2026
+[2026-07-15 17:56:59] SWEEP_ACTIVATE | SWEEP_LOW | tf=H12 | ref_price=4021.78 | sweep_bar=19:00 13-Jul-2026 | confirm_bar=19:00 14-Jul-2026
+[2026-07-15 17:56:59] SCAN_TF_SLOW | scan_one_tf[H12] ใช้เวลา 3.69s > 2s | tf=H12 | duration=3.69
+[2026-07-15 17:57:03] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-15 17:57:03] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 4.14s > 2s | tf=D1 | duration=4.14
+[2026-07-15 17:57:03] SCAN_SLOW | scan cycle ใช้เวลา 10.15s > 3s | breakdown=sl_tp_hits=0.01s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=10.11s export_trend_state=0.03s
+[2026-07-15 17:57:05] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-15 17:57:05] SWEEP_RESET | SWEEP_LOW | tf=H1 | reason=expired
+[2026-07-15 17:57:05] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-15 17:57:05] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-15 17:57:06] TG_SENT | 🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux
+[2026-07-15 17:57:08] NEWS_FILTER_TRANSIENT | rate limited 429; keeping cached events=0
+[2026-07-15 17:57:08] TG_SENT | ⚡ *สั่งสแกนทันทีหลังสลับ symbol*  | 📈 SYMBOL: `XAUUSD.iux`
+[2026-07-15 17:57:52] POSITION_CHECK_SLOW | run_position_check ใช้เวลา 38.35s > 3s | breakdown=limit_fill_notify=0.00s lts_exit_manager=38.34s fill_rsi_recheck=0.00s pending_trend_approach=0.00s fill_trend_recheck=0.00s fill_pdfiboplus=0.00s s14_engulf_exits=0.00s s20_escape=0.00s entry_candle_quality=0.00s sl_tp_hits=0.00s s1_zone_rules=0.00s s1_rejection_entry=0.00s s2_s3_chain_groups=0.00s cancel_pending_orders=0.00s opposite_order_tp=0.00s limit_sweep=0.00s scale_out_partial=0.00s
+[2026-07-15 17:57:52] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ไม่มี* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-15 17:57:54] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101182461` | 📊 Balance: `3578.27` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy:  | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-15 17:54:48` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-15 17:58:53] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116729 | bid=4028.02 | ask=4028.16 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 17:58:59] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.81s > 2s | tf=D1 | duration=2.81
+[2026-07-15 17:58:59] SCAN_SLOW | scan cycle ใช้เวลา 3.31s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.30s export_trend_state=0.01s
+[2026-07-15 17:59:32] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.57s > 2s | tf=D1 | duration=2.57
+[2026-07-15 17:59:49] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116789 | bid=4027.41 | ask=4027.55 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 17:59:53] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.05s > 2s | tf=D1 | duration=2.05
+[2026-07-15 17:59:54] SCAN_SLOW | scan cycle ใช้เวลา 3.31s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.31s export_trend_state=0.00s
+[2026-07-15 18:00:02] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=label_changed:HL→LH
+[2026-07-15 18:00:02] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4033.00 | sweep_bar=18:14 15-Jul-2026 | confirm_bar=18:14 15-Jul-2026
+[2026-07-15 18:00:02] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:00:33] SCAN_TF_SLOW | scan_one_tf[M30] ใช้เวลา 2.72s > 2s | tf=M30 | duration=2.72
+[2026-07-15 18:00:36] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.57s > 2s | tf=D1 | duration=2.57
+[2026-07-15 18:00:36] SCAN_SLOW | scan cycle ใช้เวลา 5.59s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=5.58s export_trend_state=0.00s
+[2026-07-15 18:01:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:LH→HL
+[2026-07-15 18:01:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.95 | sweep_bar=18:06 15-Jul-2026 | confirm_bar=18:07 15-Jul-2026
+[2026-07-15 18:01:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:01:03] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.88s > 2s | tf=D1 | duration=2.88
+[2026-07-15 18:01:03] SCAN_SLOW | scan cycle ใช้เวลา 3.34s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.32s export_trend_state=0.01s
+[2026-07-15 18:01:18] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.26s > 2s | tf=D1 | duration=2.26
+[2026-07-15 18:01:39] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 5.53s > 2s | tf=D1 | duration=5.53
+[2026-07-15 18:01:39] SCAN_SLOW | scan cycle ใช้เวลา 6.31s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=6.30s export_trend_state=0.00s
+[2026-07-15 18:02:13] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.50s > 2s | tf=D1 | duration=2.5
+[2026-07-15 18:02:53] SCAN_SLOW | scan cycle ใช้เวลา 3.73s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.73s export_trend_state=0.00s
+[2026-07-15 18:03:47] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117027 | bid=4029.7 | ask=4029.84 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:04:49] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.73s > 2s | tf=D1 | duration=2.73
+[2026-07-15 18:04:49] SCAN_SLOW | scan cycle ใช้เวลา 3.53s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.53s export_trend_state=0.00s
+[2026-07-15 18:04:53] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.38s > 2s | tf=D1 | duration=2.38
+[2026-07-15 18:05:14] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.47s > 2s | tf=D1 | duration=2.47
+[2026-07-15 18:06:02] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:HL→LH
+[2026-07-15 18:06:02] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4033.00 | sweep_bar=18:14 15-Jul-2026 | confirm_bar=18:14 15-Jul-2026
+[2026-07-15 18:06:02] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:06:49] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117209 | bid=4030.04 | ask=4030.18 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:07:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:LH→HL
+[2026-07-15 18:07:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.95 | sweep_bar=18:06 15-Jul-2026 | confirm_bar=18:07 15-Jul-2026
+[2026-07-15 18:07:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:07:48] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117267 | bid=4028.99 | ask=4029.13 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:08:47] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117329 | bid=4029.45 | ask=4029.59 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:09:49] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117389 | bid=4031.4 | ask=4031.54 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:10:48] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117448 | bid=4031.18 | ask=4031.32 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:11:48] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117509 | bid=4031.81 | ask=4031.95 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF1 skipped - hour 18 != 17
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF2 skipped - hour 18 != 10
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF3 skipped - hour 18 != 12
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF4 skipped - hour 18 != 17
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF5 skipped - hour 18 != 11
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF6 skipped - hour 18 != 14
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF7 skipped - hour 18 != 22
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF8 skipped - hour 18 != 15
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF9 skipped - hour 18 != 19
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF10 skipped - hour 18 != 11
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF11 skipped - hour 18 != 22
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF12 skipped - hour 18 != 20
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF13 skipped - risk_distance 2.43 > 1.30
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF14 skipped - risk_distance 2.43 < 4.00
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF15 skipped - hour 18 != 15
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF16 skipped - hour 18 != 9
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF17 skipped - hour 18 != 8
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF18 skipped - hour 18 != 14
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF22-AF19 skipped - hour 18 != 10
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF1 skipped - hour 18 != 17
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF2 skipped - hour 18 != 10
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF3 skipped - hour 18 != 12
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF4 skipped - hour 18 != 17
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF5 skipped - hour 18 != 11
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF6 skipped - hour 18 != 14
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF7 skipped - hour 18 != 22
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF8 skipped - hour 18 != 15
+[2026-07-15 18:11:48] DEMO_PORTFOLIO_SKIP | AF34-AF9 skipped - hour 18 != 19
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF10 skipped - hour 18 != 11
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF11 skipped - hour 18 != 22
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF12 skipped - hour 18 != 20
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF13 skipped - risk_distance 2.43 > 1.30
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF14 skipped - risk_distance 2.43 < 4.00
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF15 skipped - hour 18 != 15
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF16 skipped - hour 18 != 9
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF17 skipped - hour 18 != 8
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF18 skipped - hour 18 != 14
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF19 skipped - hour 18 != 10
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF29 skipped - hour 18 != 19
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF30 skipped - hour 18 != 13
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF31 skipped - hour 18 != 11
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF32 skipped - hour 18 != 9
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34-AF33 skipped - hour 18 != 13
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF34 skipped - hour 18 != 13
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF1 skipped - hour 18 != 17
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF2 skipped - hour 18 != 10
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF3 skipped - hour 18 != 12
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF4 skipped - hour 18 != 17
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF5 skipped - hour 18 != 11
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF6 skipped - hour 18 != 14
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF7 skipped - hour 18 != 22
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF8 skipped - hour 18 != 15
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF9 skipped - hour 18 != 19
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF10 skipped - hour 18 != 11
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF11 skipped - hour 18 != 22
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF12 skipped - hour 18 != 20
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF13 skipped - risk_distance 2.43 > 1.30
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF14 skipped - risk_distance 2.43 < 4.00
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF15 skipped - hour 18 != 15
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF16 skipped - hour 18 != 9
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF17 skipped - hour 18 != 8
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF18 skipped - hour 18 != 14
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF19 skipped - hour 18 != 10
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF29 skipped - hour 18 != 19
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF30 skipped - hour 18 != 13
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF31 skipped - hour 18 != 11
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF32 skipped - hour 18 != 9
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF33 skipped - hour 18 != 13
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF34 skipped - hour 18 != 13
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF35 skipped - hour 18 != 19
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF36 skipped - hour 18 != 17
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF37 skipped - risk_distance 4.37 > 3.40
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF38 skipped - hour 18 != 11
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF39 skipped - hour 18 != 20
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF40 skipped - risk_distance 4.37 > 2.70
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF41 skipped - hour 18 != 16
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SKIP | AF47-AF42 skipped - hour 18 != 15
+[2026-07-15 18:11:49] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-15 18:12:48] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117568 | bid=4032.23 | ask=4032.37 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:13:48] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117629 | bid=4031.82 | ask=4031.96 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
