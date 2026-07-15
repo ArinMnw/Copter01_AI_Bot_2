@@ -1875,8 +1875,9 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
             DEMO_PORTFOLIO_WEIGHT_SCALE[_name] = float(_env_s)
         except ValueError:
             pass
-    DYNAMIC_LOT_ENABLED[_name] = _env_bool(f"DYNAMIC_LOT_ENABLED_{_name}", False)
-    _default_phase4 = True if _name in ("P15", "P16") else False
+    _default_phase3 = True if _name.startswith("LTS") else False
+    DYNAMIC_LOT_ENABLED[_name] = _env_bool(f"DYNAMIC_LOT_ENABLED_{_name}", _default_phase3)
+    _default_phase4 = True if (_name.startswith("LTS") or _name in ("P15", "P16")) else False
     SMART_CUTLOSS_ENABLED[_name] = _env_bool(f"SMART_CUTLOSS_ENABLED_{_name}", _default_phase4)
     MOMENTUM_STALL_EXIT_ENABLED[_name] = _env_bool(f"MOMENTUM_STALL_EXIT_ENABLED_{_name}", _default_phase4)
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
