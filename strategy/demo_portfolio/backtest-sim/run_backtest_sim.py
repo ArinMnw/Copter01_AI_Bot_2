@@ -874,13 +874,52 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
     password = matched_env.get("MT5_PASSWORD", "")
     server = matched_env.get("MT5_SERVER", "")
     
-    mt5.shutdown() # Shutdown previous connection first
-    if not mt5.initialize(path=abs_path, portable=portable, timeout=30000):
-        return False
-    if login > 0 and not mt5.login(login, password, server):
+    import time
+    primary_ok = False
+    for attempt in range(3):
         mt5.shutdown()
-        return False
-    return True
+        time.sleep(1.0) # Wait 1.0s for MT5 terminal resources/locks to release
+        if mt5.initialize(path=abs_path, portable=portable, timeout=30000):
+            primary_ok = True
+            break
+            
+    if primary_ok:
+        if login > 0:
+            if mt5.login(login, password, server):
+                return True
+            else:
+                print(f"   ⚠️ Primary login failed: {mt5.last_error()}. Trying fallback...")
+        else:
+            return True
+            
+    # Fallback: connect to the main profile terminal and login from there
+    print(f"   ⚠️ Primary connection failed or locked for {portfolio_name}. Trying fallback via main profile terminal...")
+    main_profile_dir = os.path.join(demo_profiles_dir, "demo-iux-2101182459")
+    main_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
+    main_path = os.path.abspath(os.path.join(main_profile_dir, main_env.get("MT5_PATH", "mt5\\terminal64.exe")))
+    main_portable = main_env.get("MT5_PORTABLE", "true").lower() == "true"
+    
+    fallback_ok = False
+    for attempt in range(3):
+        mt5.shutdown()
+        time.sleep(1.0)
+        if mt5.initialize(path=main_path, portable=main_portable, timeout=30000):
+            fallback_ok = True
+            break
+            
+    if fallback_ok:
+        if login > 0:
+            if mt5.login(login, password, server):
+                print(f"   ✅ Fallback login successful for {portfolio_name} ({login}) via main profile terminal!")
+                return True
+            else:
+                print(f"   ❌ Fallback login failed: {mt5.last_error()}")
+        else:
+            return True
+            
+    mt5.shutdown()
+    print(f"   ❌ All connection attempts failed for {portfolio_name}")
+    return False
 
 def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str, end_str, days, output_dir):
     # 1. Calculate date_from and date_to
@@ -1147,6 +1186,63 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
     # Cleanup connection to return to safe state if possible
     mt5.shutdown()
 
+def run_compare_only_flow(portfolio_name, args):
+    name_lower = portfolio_name.lower()
+    if name_lower.startswith("p"):
+        sub = "p"
+    elif name_lower.startswith("s"):
+        sub = "s"
+    elif name_lower.startswith("af"):
+        sub = "af"
+    elif name_lower.startswith("lts"):
+        sub = "lts"
+    else:
+        sub = "others"
+    pf_out_dir = os.path.join(args.out_dir, sub)
+    
+    bt_trades = []
+    trades_path = os.path.join(pf_out_dir, f"{portfolio_name}_trades.csv")
+    if os.path.exists(trades_path):
+        try:
+            with open(trades_path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    def bkk_to_ts(time_str):
+                        if not time_str or time_str == "-":
+                            return 0
+                        dt = datetime.strptime(time_str, "%d-%m-%Y %H:%M:%S")
+                        bkk_tz = timezone(timedelta(hours=7))
+                        dt = dt.replace(tzinfo=bkk_tz)
+                        return int(dt.timestamp())
+                        
+                    bt_trades.append({
+                        "fill_time_ts": bkk_to_ts(row.get("Time (BKK)")),
+                        "exit_time_ts": bkk_to_ts(row.get("Close Time")),
+                        "tf": row.get("TF", "M5"),
+                        "signal": row.get("Type", ""),
+                        "entry": float(row.get("Entry") or 0.0),
+                        "sl": float(row.get("SL") or 0.0),
+                        "tp": float(row.get("TP") or 0.0),
+                        "lot": float(row.get("Lot") or 0.01),
+                        "pnl_usd": float(row.get("P&L") or 0.0),
+                        "outcome": row.get("Outcome", "")
+                    })
+        except Exception as e:
+            print(f"   ⚠️ Error parsing trades.csv for compare only: {e}")
+            
+    portfolio_days = {
+        "P13": 550, "P16": 550, "18-Way": 550, "P18": 550,
+        "AF22": 365, "AF34": 365, "AF47": 365,
+        "LTS44": 550, "LTS890": 550, "LTS999": 550,
+        "LTS_AVENGERS_BASE": 420, "LTS_AVENGERS_P34": 420,
+        "LTS_AVENGERS_HIGH_RISK": 550, "LTS_AVENGERS_ULTRA_SAFE": 550, "LTS_AVENGERS_HIGH_FREQ": 550,
+        "S101": 550, "S102": 550, "S105": 550, "S106": 550, "S111": 550
+    }
+    has_custom_range = "--days" in sys.argv or "--start" in sys.argv or "--end" in sys.argv
+    days = portfolio_days.get(portfolio_name, args.days) if not has_custom_range else args.days
+    
+    generate_mt5_and_compare_reports(portfolio_name, bt_trades, args.start, args.end, days, pf_out_dir)
+
 def main():
     parser = argparse.ArgumentParser(description="Unified Backtest Simulation for all Demo Portfolios")
     parser.add_argument("--portfolio", default="all", help="Portfolio name (e.g. LTS999, P13, S101, all)")
@@ -1157,7 +1253,12 @@ def main():
     parser.add_argument("--scale", type=float, default=1.0, help="Custom lot/PnL scale factor (default: 1.0)")
     parser.add_argument("--spread", type=float, default=0.20, help="Spread to apply (default: 0.20)")
     parser.add_argument("--out-dir", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "excel")), help="Output directory for CSV files")
+    parser.add_argument("--compare-only", type=str, default=None, help="Internal use: run compare report in separate process")
     args = parser.parse_args()
+    
+    if args.compare_only:
+        run_compare_only_flow(args.compare_only, args)
+        sys.exit(0)
     
     # Select portfolios
     if args.portfolio == "all":
@@ -1263,8 +1364,14 @@ def main():
             
             pf_out_dir = os.path.join(args.out_dir, sub)
             save_reports(pf, trades, balance, pf_out_dir)
-            # Generate MT5 real trades and comparison CSV files
-            generate_mt5_and_compare_reports(pf, trades, args.start, args.end, days, pf_out_dir)
+            # Generate MT5 real trades and comparison CSV files via separate subprocess to avoid path-switching deadlocks
+            print(f"   Generating MT5 real trades and compare reports for {pf}...")
+            cmd = [sys.executable, __file__, "--compare-only", pf, "--days", str(days), "--out-dir", args.out_dir]
+            if args.start:
+                cmd += ["--start", args.start]
+            if args.end:
+                cmd += ["--end", args.end]
+            subprocess.run(cmd)
             
     finally:
         mt5.shutdown()
