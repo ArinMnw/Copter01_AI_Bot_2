@@ -755,13 +755,13 @@ def setup_mt5_for_portfolio(portfolio_name):
             p_dir = os.path.join(root, p)
             if not os.path.isdir(p_dir):
                 continue
-            if "2101114448" in p: # exclude 4448
+            if "2101114448" in p or "exness" in p.lower(): # exclude 4448 and exness profiles to avoid deadlocks
                 continue
             env_path = os.path.join(p_dir, "profile.env")
             env_data = parse_env_file(env_path)
             active_pf = env_data.get("DEMO_PORTFOLIO_ACTIVE", "")
-            active_pf_normalized = ALIASES.get(active_pf, active_pf)
-            if active_pf_normalized == normalized_pf:
+            active_pfs = [ALIASES.get(x.strip(), x.strip()) for x in active_pf.split(",") if x.strip()]
+            if normalized_pf in active_pfs:
                 matched_profile_dir = p_dir
                 matched_profile_name = p
                 matched_env = env_data
