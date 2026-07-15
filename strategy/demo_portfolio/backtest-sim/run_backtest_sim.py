@@ -784,12 +784,14 @@ def setup_mt5_for_portfolio(portfolio_name):
         
     # 3. Apply settings
     if target_env:
-        # Always use the neutral global MT5 terminal to avoid locking active bot profiles' IPC/ports
-        global_path = "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
+        # Resolve absolute MT5 path
+        rel_path = target_env.get("MT5_PATH", "mt5\\terminal64.exe")
+        abs_path = os.path.abspath(os.path.join(target_dir, rel_path))
+        portable = target_env.get("MT5_PORTABLE", "true").lower() == "true"
         
         # Write to environment variables for subprocesses
-        os.environ["MT5_PATH"] = global_path
-        os.environ["MT5_PORTABLE"] = "false"
+        os.environ["MT5_PATH"] = abs_path
+        os.environ["MT5_PORTABLE"] = "true" if portable else "false"
         os.environ["MT5_LOGIN"] = target_env.get("MT5_LOGIN", "0")
         os.environ["MT5_PASSWORD"] = target_env.get("MT5_PASSWORD", "")
         os.environ["MT5_SERVER"] = target_env.get("MT5_SERVER", "")
@@ -802,8 +804,8 @@ def setup_mt5_for_portfolio(portfolio_name):
             os.environ["SYMBOL_CANDIDATES"] = env_candidates
             
         # Update config attributes in memory for the current process
-        config.MT5_PATH = global_path
-        config.MT5_PORTABLE = False
+        config.MT5_PATH = abs_path
+        config.MT5_PORTABLE = portable
         config.MT5_LOGIN = int(target_env.get("MT5_LOGIN", "0"))
         config.MT5_PASSWORD = target_env.get("MT5_PASSWORD", "")
         config.MT5_SERVER = target_env.get("MT5_SERVER", "")
@@ -865,9 +867,10 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
         matched_profile_dir = main_profile_dir
         matched_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
         
-    # Always connect using the global neutral MT5 terminal (C:/Program Files/MetaTrader 5/terminal64.exe)
-    # in non-portable mode to avoid account switching and IPC conflicts on active bot profiles' terminals.
-    global_path = "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
+    # Initialize and login using the matched profile's local terminal path
+    rel_path = matched_env.get("MT5_PATH", "mt5\\terminal64.exe")
+    abs_path = os.path.abspath(os.path.join(matched_profile_dir, rel_path))
+    portable = matched_env.get("MT5_PORTABLE", "true").lower() == "true"
     login = int(matched_env.get("MT5_LOGIN", "0"))
     password = matched_env.get("MT5_PASSWORD", "")
     server = matched_env.get("MT5_SERVER", "")
@@ -877,7 +880,7 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
     for attempt in range(4):
         mt5.shutdown()
         time.sleep(1.0)
-        if mt5.initialize(path=global_path, portable=False, timeout=30000):
+        if mt5.initialize(path=abs_path, portable=portable, timeout=30000):
             connected = True
             break
             
@@ -886,12 +889,12 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
             if mt5.login(login, password, server):
                 return True
             else:
-                print(f"   ❌ mt5.login failed for {portfolio_name} ({login}) on global terminal: {mt5.last_error()}")
+                print(f"   ❌ mt5.login failed for {portfolio_name} ({login}): {mt5.last_error()}")
         else:
             return True
             
     mt5.shutdown()
-    print(f"   ❌ Connection failed to global terminal for {portfolio_name}: {mt5.last_error()}")
+    print(f"   ❌ Connection failed to terminal {abs_path} for {portfolio_name}: {mt5.last_error()}")
     return False
 
 def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str, end_str, days, output_dir):
