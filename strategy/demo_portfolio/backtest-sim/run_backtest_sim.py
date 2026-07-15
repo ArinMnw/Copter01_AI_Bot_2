@@ -866,59 +866,33 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
         matched_profile_dir = main_profile_dir
         matched_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
         
-    # Initialize and login
-    rel_path = matched_env.get("MT5_PATH", "mt5\\terminal64.exe")
-    abs_path = os.path.abspath(os.path.join(matched_profile_dir, rel_path))
-    portable = matched_env.get("MT5_PORTABLE", "true").lower() == "true"
+    # Always connect using the global neutral MT5 terminal (C:/Program Files/MetaTrader 5/terminal64.exe)
+    # in non-portable mode to avoid account switching and IPC conflicts on active bot profiles' terminals.
+    global_path = "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
     login = int(matched_env.get("MT5_LOGIN", "0"))
     password = matched_env.get("MT5_PASSWORD", "")
     server = matched_env.get("MT5_SERVER", "")
     
     import time
-    primary_ok = False
-    for attempt in range(3):
-        mt5.shutdown()
-        time.sleep(1.0) # Wait 1.0s for MT5 terminal resources/locks to release
-        if mt5.initialize(path=abs_path, portable=portable, timeout=30000):
-            primary_ok = True
-            break
-            
-    if primary_ok:
-        if login > 0:
-            if mt5.login(login, password, server):
-                return True
-            else:
-                print(f"   ⚠️ Primary login failed: {mt5.last_error()}. Trying fallback...")
-        else:
-            return True
-            
-    # Fallback: connect to the main profile terminal and login from there
-    print(f"   ⚠️ Primary connection failed or locked for {portfolio_name}. Trying fallback via main profile terminal...")
-    main_profile_dir = os.path.join(demo_profiles_dir, "demo-iux-2101182459")
-    main_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
-    main_path = os.path.abspath(os.path.join(main_profile_dir, main_env.get("MT5_PATH", "mt5\\terminal64.exe")))
-    main_portable = main_env.get("MT5_PORTABLE", "true").lower() == "true"
-    
-    fallback_ok = False
-    for attempt in range(3):
+    connected = False
+    for attempt in range(4):
         mt5.shutdown()
         time.sleep(1.0)
-        if mt5.initialize(path=main_path, portable=main_portable, timeout=30000):
-            fallback_ok = True
+        if mt5.initialize(path=global_path, portable=False, timeout=30000):
+            connected = True
             break
             
-    if fallback_ok:
+    if connected:
         if login > 0:
             if mt5.login(login, password, server):
-                print(f"   ✅ Fallback login successful for {portfolio_name} ({login}) via main profile terminal!")
                 return True
             else:
-                print(f"   ❌ Fallback login failed: {mt5.last_error()}")
+                print(f"   ❌ mt5.login failed for {portfolio_name} ({login}) on global terminal: {mt5.last_error()}")
         else:
             return True
             
     mt5.shutdown()
-    print(f"   ❌ All connection attempts failed for {portfolio_name}")
+    print(f"   ❌ Connection failed to global terminal for {portfolio_name}: {mt5.last_error()}")
     return False
 
 def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str, end_str, days, output_dir):
