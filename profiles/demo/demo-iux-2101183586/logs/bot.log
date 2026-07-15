@@ -1,0 +1,86 @@
+[2026-07-15 17:52:42] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 17:55:52] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-15 17:56:42] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-15 17:56:51] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-15 17:56:52] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116610 | bid=4028.11 | ask=4028.25 | tick_ok=True | xau_open=True | current_symbol=XAUUSD | startup=True
+[2026-07-15 17:56:54] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.95 | sweep_bar=18:06 15-Jul-2026 | confirm_bar=18:07 15-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4019.69 | sweep_bar=16:10 15-Jul-2026 | confirm_bar=16:10 15-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4034.28 | sweep_bar=18:10 15-Jul-2026 | confirm_bar=18:15 15-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4006.12 | sweep_bar=08:30 14-Jul-2026 | confirm_bar=09:00 14-Jul-2026
+[2026-07-15 17:56:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H1 | ref_price=4072.59 | sweep_bar=06:00 13-Jul-2026 | confirm_bar=07:00 13-Jul-2026
+[2026-07-15 17:56:57] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4195.44 | sweep_bar=07:00 06-Jul-2026 | confirm_bar=11:00 06-Jul-2026
+[2026-07-15 17:57:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=H12 | ref_price=4021.78 | sweep_bar=19:00 13-Jul-2026 | confirm_bar=19:00 14-Jul-2026
+[2026-07-15 17:57:00] SCAN_TF_SLOW | scan_one_tf[H12] ใช้เวลา 3.30s > 2s | tf=H12 | duration=3.3
+[2026-07-15 17:57:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-15 17:57:02] SCAN_SLOW | scan cycle ใช้เวลา 8.59s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=8.32s export_trend_state=0.26s
+[2026-07-15 17:57:04] SWEEP_RESET | SWEEP_HIGH | tf=M30 | reason=expired
+[2026-07-15 17:57:04] SWEEP_RESET | SWEEP_LOW | tf=H1 | reason=expired
+[2026-07-15 17:57:04] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-15 17:57:04] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-15 17:57:05] TG_SENT | 🟡 *XAUUSD เปิดแล้ว* → สลับกลับ XAUUSD.iux
+[2026-07-15 17:57:49] POSITION_CHECK_SLOW | run_position_check ใช้เวลา 44.46s > 3s | breakdown=limit_fill_notify=0.01s lts_exit_manager=44.42s fill_rsi_recheck=0.00s pending_trend_approach=0.00s fill_trend_recheck=0.00s fill_pdfiboplus=0.00s s14_engulf_exits=0.00s s20_escape=0.00s entry_candle_quality=0.00s sl_tp_hits=0.03s s1_zone_rules=0.00s s1_rejection_entry=0.00s s2_s3_chain_groups=0.00s cancel_pending_orders=0.00s opposite_order_tp=0.00s limit_sweep=0.00s scale_out_partial=0.00s
+[2026-07-15 17:57:49] NEWS_FILTER_TRANSIENT | fetch: ConnectError:
+[2026-07-15 17:57:51] TG_SENT | ⚡ *สั่งสแกนทันทีหลังสลับ symbol*  | 📈 SYMBOL: `XAUUSD.iux`
+[2026-07-15 17:57:52] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ไม่มี* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-15 17:57:54] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101183586` | 📊 Balance: `3828.65` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy:  | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-15 17:54:48` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-15 17:58:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116724 | bid=4027.96 | ask=4028.1 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 17:59:04] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.05s > 2s | tf=D1 | duration=2.05
+[2026-07-15 17:59:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116784 | bid=4027.11 | ask=4027.25 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 17:59:53] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.33s > 2s | tf=D1 | duration=2.33
+[2026-07-15 18:00:02] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 3.56s > 2s | tf=D1 | duration=3.56
+[2026-07-15 18:00:02] SCAN_SLOW | scan cycle ใช้เวลา 3.78s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.78s export_trend_state=0.00s
+[2026-07-15 18:00:05] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=label_changed:HL→LH
+[2026-07-15 18:00:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4033.00 | sweep_bar=18:14 15-Jul-2026 | confirm_bar=18:14 15-Jul-2026
+[2026-07-15 18:00:06] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:00:19] SCAN_SLOW | scan cycle ใช้เวลา 3.40s > 3s | breakdown=sl_tp_hits=0.23s cancel_pending=0.03s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.13s export_trend_state=0.01s
+[2026-07-15 18:00:36] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.59s > 2s | tf=D1 | duration=2.59
+[2026-07-15 18:00:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116844 | bid=4029.57 | ask=4029.71 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:01:02] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:LH→HL
+[2026-07-15 18:01:03] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.95 | sweep_bar=18:06 15-Jul-2026 | confirm_bar=18:07 15-Jul-2026
+[2026-07-15 18:01:03] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:01:45] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116905 | bid=4029.85 | ask=4029.99 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:01:45] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=LTS44
+[2026-07-15 18:01:45] DEMO_PORTFOLIO_SKIP | LTS44_1 skipped - hour 18 != 8
+[2026-07-15 18:01:45] DEMO_PORTFOLIO_SKIP | LTS44_2 skipped - hour 18 != 10
+[2026-07-15 18:01:45] DEMO_PORTFOLIO_SKIP | LTS44_3 skipped - hour 18 != 12
+[2026-07-15 18:01:46] DEMO_PORTFOLIO_SKIP | LTS44_12 skipped - hour 18 != 8
+[2026-07-15 18:01:46] DEMO_PORTFOLIO_SKIP | LTS44_13 skipped - hour 18 != 19
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_14 skipped - hour 18 != 10
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_23 skipped - hour 18 != 14
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_24 skipped - hour 18 != 20
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_25 skipped - hour 18 != 12
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_34 skipped - hour 18 != 11
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_35 skipped - hour 18 != 13
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SKIP | LTS44_36 skipped - hour 18 != 9
+[2026-07-15 18:01:47] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=LTS44
+[2026-07-15 18:01:52] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 4.87s > 2s | tf=D1 | duration=4.87
+[2026-07-15 18:01:53] SCAN_SLOW | scan cycle ใช้เวลา 6.11s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=5.89s export_trend_state=0.22s
+[2026-07-15 18:02:04] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.44s > 2s | tf=D1 | duration=2.44
+[2026-07-15 18:02:09] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.85s > 2s | tf=D1 | duration=2.85
+[2026-07-15 18:02:09] SCAN_SLOW | scan cycle ใช้เวลา 3.48s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.41s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.06s export_trend_state=0.00s
+[2026-07-15 18:02:45] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784116965 | bid=4029.75 | ask=4029.89 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:03:34] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.14s > 2s | tf=D1 | duration=2.14
+[2026-07-15 18:03:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117024 | bid=4029.48 | ask=4029.62 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:04:04] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.84s > 2s | tf=D1 | duration=2.84
+[2026-07-15 18:04:04] SCAN_SLOW | scan cycle ใช้เวลา 3.14s > 3s | breakdown=sl_tp_hits=0.00s cancel_pending=0.00s engulf_trail_sl=0.00s opposite_order_tp=0.00s entry_candle_quality=0.00s s3_maru_pending=0.00s fvg_pending=0.00s pb_pending=0.00s s12_management=0.00s scan_all_tf=3.13s export_trend_state=0.00s
+[2026-07-15 18:04:45] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117085 | bid=4030.33 | ask=4030.47 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:05:19] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.01s > 2s | tf=D1 | duration=2.01
+[2026-07-15 18:05:29] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.18s > 2s | tf=D1 | duration=2.18
+[2026-07-15 18:05:45] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117145 | bid=4030.51 | ask=4030.65 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:06:01] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:HL→LH
+[2026-07-15 18:06:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4033.00 | sweep_bar=18:14 15-Jul-2026 | confirm_bar=18:14 15-Jul-2026
+[2026-07-15 18:06:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:06:47] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117205 | bid=4030.2 | ask=4030.34 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:07:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:LH→HL
+[2026-07-15 18:07:01] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.95 | sweep_bar=18:06 15-Jul-2026 | confirm_bar=18:07 15-Jul-2026
+[2026-07-15 18:07:01] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4027.14 | sweep_bar=18:57 15-Jul-2026 | confirm_bar=18:58 15-Jul-2026
+[2026-07-15 18:07:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117264 | bid=4028.91 | ask=4029.05 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:08:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117325 | bid=4029.54 | ask=4029.68 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:09:13] SCAN_TF_SLOW | scan_one_tf[D1] ใช้เวลา 2.03s > 2s | tf=D1 | duration=2.03
+[2026-07-15 18:09:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117384 | bid=4031.26 | ask=4031.4 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:10:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117444 | bid=4031.16 | ask=4031.3 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:11:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117505 | bid=4031.81 | ask=4031.95 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:11:45] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=LTS44
+[2026-07-15 18:11:45] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=LTS44
+[2026-07-15 18:12:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117564 | bid=4032.3 | ask=4032.44 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-15 18:13:44] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784117625 | bid=4031.83 | ask=4031.97 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
