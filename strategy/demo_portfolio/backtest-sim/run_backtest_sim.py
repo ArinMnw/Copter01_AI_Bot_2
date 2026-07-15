@@ -865,9 +865,9 @@ def main():
                 "LTS_AVENGERS_HIGH_RISK": 550, "LTS_AVENGERS_ULTRA_SAFE": 550, "LTS_AVENGERS_HIGH_FREQ": 550,
                 "S101": 550, "S102": 550, "S105": 550, "S106": 550, "S111": 550
             }
-            # If the user explicitly specified --days on the command line, respect it.
-            has_custom_days = "--days" in sys.argv
-            days = portfolio_days.get(pf, args.days) if (args.portfolio == "all" and not has_custom_days) else args.days
+            # If the user did not specify any custom range arguments (--days, --start, --end), use portfolio default days.
+            has_custom_range = "--days" in sys.argv or "--start" in sys.argv or "--end" in sys.argv
+            days = portfolio_days.get(pf, args.days) if not has_custom_range else args.days
             
             # Print execution info
             if args.start:
