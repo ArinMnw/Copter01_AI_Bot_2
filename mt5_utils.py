@@ -14,9 +14,14 @@ def _mt5_terminal_path_matches(mt5_path: str) -> bool:
         return True
     try:
         term = mt5.terminal_info()
-        actual_dir = os.path.normcase(os.path.abspath(str(getattr(term, "path", "") or "")))
+        if term is None:
+            return False
+        term_path = getattr(term, "path", "")
+        if not term_path:
+            return False
+        actual_dir = os.path.normcase(os.path.abspath(str(term_path)))
         expected_dir = os.path.normcase(os.path.abspath(os.path.dirname(mt5_path)))
-        if actual_dir and actual_dir == expected_dir:
+        if actual_dir == expected_dir:
             return True
         try:
             from bot_log import log_error

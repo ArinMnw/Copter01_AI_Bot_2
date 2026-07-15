@@ -142,7 +142,10 @@ def main():
     print("⚠️ ต้องเปิด MT5 ทิ้งไว้ตลอด!")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    from telegram.request import HTTPXRequest
+    # Increase network timeouts to 20s (default is 5s) to prevent bootstrap startup timeout crashes under VPS network lag
+    tg_req = HTTPXRequest(connect_timeout=20.0, read_timeout=20.0)
+    app = Application.builder().token(TELEGRAM_TOKEN).request(tg_req).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
