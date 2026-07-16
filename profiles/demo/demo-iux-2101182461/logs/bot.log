@@ -4904,3 +4904,409 @@
 [2026-07-16 04:09:35] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784152671 | bid=4059.81 | ask=4060.56 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
 [2026-07-16 04:10:30] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784152671 | bid=4059.81 | ask=4060.56 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
 [2026-07-16 04:11:36] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784152671 | bid=4059.81 | ask=4060.56 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:42:43] APP_START | Bot starting | symbol=XAUUSD | scan_interval=1
+[2026-07-16 16:42:55] SYMBOL_RESOLVED | XAUUSD -> XAUUSD.iux | requested=XAUUSD | resolved=XAUUSD.iux
+[2026-07-16 16:42:55] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198574 | bid=4034.3 | ask=4034.44 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=True
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4037.29 | sweep_bar=17:14 16-Jul-2026 | confirm_bar=17:15 16-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4033.14 | sweep_bar=17:24 16-Jul-2026 | confirm_bar=17:24 16-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4024.23 | sweep_bar=14:35 16-Jul-2026 | confirm_bar=14:40 16-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4031.52 | sweep_bar=15:45 16-Jul-2026 | confirm_bar=15:50 16-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M15 | ref_price=4047.98 | sweep_bar=08:45 16-Jul-2026 | confirm_bar=08:45 16-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M30 | ref_price=4006.12 | sweep_bar=08:30 14-Jul-2026 | confirm_bar=09:00 14-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=M30 | ref_price=4026.96 | sweep_bar=10:30 16-Jul-2026 | confirm_bar=11:00 16-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_LOW | tf=H1 | ref_price=4072.59 | sweep_bar=06:00 13-Jul-2026 | confirm_bar=07:00 13-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H1 | ref_price=4062.12 | sweep_bar=20:00 15-Jul-2026 | confirm_bar=22:00 15-Jul-2026
+[2026-07-16 16:42:55] SWEEP_ACTIVATE | SWEEP_HIGH | tf=H4 | ref_price=4195.44 | sweep_bar=07:00 06-Jul-2026 | confirm_bar=11:00 06-Jul-2026
+[2026-07-16 16:42:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=H12 | ref_price=4021.78 | sweep_bar=19:00 13-Jul-2026 | confirm_bar=19:00 14-Jul-2026
+[2026-07-16 16:42:56] SWEEP_ACTIVATE | SWEEP_LOW | tf=D1 | ref_price=4996.16 | sweep_bar=07:00 15-Mar-2026 | confirm_bar=07:00 16-Mar-2026
+[2026-07-16 16:42:56] NEWS_FILTER_TRANSIENT | rate limited 429; keeping cached events=0
+[2026-07-16 16:42:57] TG_SENT | ✅ *MT5 เชื่อมต่อสำเร็จ!* | ━━━━━━━━━━━━━━━━━ | 🤖 Bot เริ่มทำงาน | 💰 Account: `2101182461` | 📊 Balance: `3578.27` | 📈 SYMBOL: `XAUUSD.iux` | ⏰ Scan ทุก 5 วินาที | 🕒 Time Mode: `MT5->BKK +6` | 🕒 MT5 Server: `UTC+1` | 🕒 Display: `BKK` | 📋 Strategy:  | 🕐 TF: M1, M5, M15, M30, H1, H4, H12, D1 |  | ♻️ *Restore state สำเร็จ* | 🗂 Saved at: `2026-07-16 04:11:58` | 📦 pending map: `0` | 📍 position tf: `0` | 📝 entry state: `0` | 📐 trail state: `0`
+[2026-07-16 16:42:58] TG_SENT | 🚀 *Auto Scan เริ่มต้น!* | ━━━━━━━━━━━━━━━━━ | 📋 Strategy: *ไม่มี* | ⏰ Interval: *1 นาที* | 🕐 Timeframes: *M1,M5,M15,M30,H1,H4,H12,D1*
+[2026-07-16 16:43:03] POSITION_CHECK_SLOW | run_position_check ใช้เวลา 5.03s > 3s | breakdown=limit_fill_notify=0.00s lts_exit_manager=5.02s fill_rsi_recheck=0.00s pending_trend_approach=0.00s fill_trend_recheck=0.00s fill_pdfiboplus=0.00s s14_engulf_exits=0.00s s20_escape=0.00s entry_candle_quality=0.00s sl_tp_hits=0.00s s1_zone_rules=0.00s s1_rejection_entry=0.00s s2_s3_chain_groups=0.00s cancel_pending_orders=0.00s opposite_order_tp=0.00s limit_sweep=0.00s scale_out_partial=0.00s
+[2026-07-16 16:43:03] SWEEP_RESET | SWEEP_LOW | tf=M15 | reason=expired
+[2026-07-16 16:43:03] SWEEP_RESET | SWEEP_HIGH | tf=H4 | reason=expired
+[2026-07-16 16:43:03] SWEEP_RESET | SWEEP_LOW | tf=D1 | reason=expired
+[2026-07-16 16:43:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198623 | bid=4033.36 | ask=4033.5 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:44:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198683 | bid=4034.48 | ask=4034.62 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:45:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198743 | bid=4032.09 | ask=4032.23 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:46:40] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198803 | bid=4032.61 | ask=4032.75 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:47:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198862 | bid=4032.95 | ask=4033.09 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF1 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF2 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF3 skipped - hour 16 != 12
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF4 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF5 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF6 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF7 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF8 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF9 skipped - hour 16 != 19
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF10 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF11 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF12 skipped - hour 16 != 20
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF13 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF14 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF15 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF16 skipped - hour 16 != 9
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF17 skipped - hour 16 != 8
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF18 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF19 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF20 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22-AF21 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF22 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF1 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF2 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF3 skipped - hour 16 != 12
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF4 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF5 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF6 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF7 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF8 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF9 skipped - hour 16 != 19
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF10 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF11 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF12 skipped - hour 16 != 20
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF13 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF14 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF15 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF16 skipped - hour 16 != 9
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF17 skipped - hour 16 != 8
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF18 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF19 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF20 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF21 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF22 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SIGNAL | AF34-AF23 BUY lot=0.01 sl=4025.64 tp=4039.3 rd=6.21 weight=344.837 scale=1.00 h=16 success=True ticket=561165596 err=None
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF24 skipped - hour 16 != 12
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF25 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF26 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF27 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF28 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF29 skipped - hour 16 != 19
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF30 skipped - hour 16 != 13
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF31 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF32 skipped - hour 16 != 9
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34-AF33 skipped - hour 16 != 13
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF34 skipped - hour 16 != 13
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF1 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF2 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF3 skipped - hour 16 != 12
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF4 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF5 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF6 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF7 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF8 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF9 skipped - hour 16 != 19
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF10 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF11 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF12 skipped - hour 16 != 20
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF13 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF14 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF15 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF16 skipped - hour 16 != 9
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF17 skipped - hour 16 != 8
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF18 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF19 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF20 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF21 skipped - hour 16 != 10
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF22 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SIGNAL | AF47-AF23 BUY lot=0.01 sl=4025.6699999999996 tp=4039.33 rd=6.21 weight=344.837 scale=1.00 h=16 success=True ticket=561165597 err=None
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF24 skipped - hour 16 != 12
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF25 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF26 skipped - hour 16 != 14
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF27 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF28 skipped - hour 16 != 22
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF29 skipped - hour 16 != 19
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF30 skipped - hour 16 != 13
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF31 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF32 skipped - hour 16 != 9
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF33 skipped - hour 16 != 13
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF34 skipped - hour 16 != 13
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF35 skipped - hour 16 != 19
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF36 skipped - hour 16 != 17
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF37 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF38 skipped - hour 16 != 11
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF39 skipped - hour 16 != 20
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF40 skipped - hour 16 != 18
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF41 skipped - risk_distance 2.51 < 2.70
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SKIP | AF47-AF42 skipped - hour 16 != 15
+[2026-07-16 16:47:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 16:47:44] TG_SENT | [AF SIGNAL] *🎯 AF34 $1500* | Leg: `AF23 AMBFIX_INV_S84c6017_RD5.0_7.0_H16` | BUY @ market lot `0.01` | SL `4025.64` TP `4039.30` | RD `6.21` H`16` | Weight `x344.837` Scale `1.00` | Ticket: `561165596`
+[2026-07-16 16:47:45] TG_SENT | [AF SIGNAL] *🎯 AF47 $2000* | Leg: `AF23 AMBFIX_INV_S84c6017_RD5.0_7.0_H16` | BUY @ market lot `0.01` | SL `4025.67` TP `4039.33` | RD `6.21` H`16` | Weight `x344.837` Scale `1.00` | Ticket: `561165597`
+[2026-07-16 16:48:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198921 | bid=4033.5 | ask=4033.64 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:49:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784198981 | bid=4032.97 | ask=4033.11 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:50:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199043 | bid=4032.54 | ask=4032.68 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:51:04] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=trend_changed:BEAR→SIDEWAY
+[2026-07-16 16:51:05] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4037.29 | sweep_bar=17:14 16-Jul-2026 | confirm_bar=17:15 16-Jul-2026
+[2026-07-16 16:51:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4033.14 | sweep_bar=17:24 16-Jul-2026 | confirm_bar=17:24 16-Jul-2026
+[2026-07-16 16:51:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199103 | bid=4033.04 | ask=4033.18 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:52:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199160 | bid=4033.6 | ask=4033.74 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:52:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 16:52:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 16:53:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199223 | bid=4035.07 | ask=4035.21 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:54:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199283 | bid=4035.33 | ask=4035.47 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:55:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199343 | bid=4035.33 | ask=4035.47 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:56:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199402 | bid=4033.56 | ask=4033.7 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:57:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199463 | bid=4032.7 | ask=4032.84 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:57:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 16:57:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 16:58:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199522 | bid=4032.35 | ask=4032.49 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 16:59:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=trend_changed:SIDEWAY→BULL
+[2026-07-16 16:59:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4035.00 | sweep_bar=17:54 16-Jul-2026 | confirm_bar=17:54 16-Jul-2026
+[2026-07-16 16:59:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199583 | bid=4032.32 | ask=4032.46 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:00:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199643 | bid=4032.27 | ask=4032.41 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:01:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199703 | bid=4030.58 | ask=4030.72 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:02:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199763 | bid=4030.82 | ask=4030.96 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:02:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:02:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:03:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199823 | bid=4030.59 | ask=4030.73 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:04:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199883 | bid=4031.19 | ask=4031.33 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:05:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784199943 | bid=4031.58 | ask=4031.72 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:06:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200003 | bid=4031.77 | ask=4031.91 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:07:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200061 | bid=4031.63 | ask=4031.77 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:07:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:07:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:08:00] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:BULL→SIDEWAY
+[2026-07-16 17:08:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4033.14 | sweep_bar=17:24 16-Jul-2026 | confirm_bar=17:24 16-Jul-2026
+[2026-07-16 17:08:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4035.00 | sweep_bar=17:54 16-Jul-2026 | confirm_bar=17:54 16-Jul-2026
+[2026-07-16 17:08:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200121 | bid=4031.69 | ask=4031.83 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:09:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200182 | bid=4032.14 | ask=4032.28 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:10:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200242 | bid=4031.78 | ask=4031.92 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:11:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200302 | bid=4030.56 | ask=4030.7 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:12:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200363 | bid=4031.26 | ask=4031.4 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:12:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:12:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:13:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200423 | bid=4031.89 | ask=4032.03 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:14:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200482 | bid=4031.64 | ask=4031.78 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:15:00] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:SIDEWAY→BEAR
+[2026-07-16 17:15:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4033.14 | sweep_bar=17:24 16-Jul-2026 | confirm_bar=17:24 16-Jul-2026
+[2026-07-16 17:15:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4035.00 | sweep_bar=17:54 16-Jul-2026 | confirm_bar=17:54 16-Jul-2026
+[2026-07-16 17:15:00] SWEEP_RESET | SWEEP_HIGH | tf=M5 | reason=trend_changed:BULL→SIDEWAY
+[2026-07-16 17:15:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4024.23 | sweep_bar=14:35 16-Jul-2026 | confirm_bar=14:40 16-Jul-2026
+[2026-07-16 17:15:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M5 | ref_price=4031.52 | sweep_bar=15:45 16-Jul-2026 | confirm_bar=15:50 16-Jul-2026
+[2026-07-16 17:15:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200543 | bid=4032.11 | ask=4032.25 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:16:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200603 | bid=4032.83 | ask=4032.97 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:17:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200663 | bid=4032.8 | ask=4032.94 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:17:41] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:17:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:18:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200723 | bid=4032.56 | ask=4032.7 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:19:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200782 | bid=4032.82 | ask=4032.96 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:20:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200843 | bid=4032.94 | ask=4033.08 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:21:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200903 | bid=4033.38 | ask=4033.52 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:22:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784200963 | bid=4033.18 | ask=4033.32 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:22:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:22:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:23:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201023 | bid=4033.01 | ask=4033.15 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:24:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201083 | bid=4034.39 | ask=4034.53 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:25:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201142 | bid=4033.02 | ask=4033.16 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:26:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201202 | bid=4033.43 | ask=4033.57 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:27:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201263 | bid=4032.46 | ask=4032.6 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:27:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:27:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:28:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201323 | bid=4032.15 | ask=4032.29 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:29:00] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:BEAR→SIDEWAY
+[2026-07-16 17:29:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4033.14 | sweep_bar=17:24 16-Jul-2026 | confirm_bar=17:24 16-Jul-2026
+[2026-07-16 17:29:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4035.00 | sweep_bar=17:54 16-Jul-2026 | confirm_bar=17:54 16-Jul-2026
+[2026-07-16 17:29:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201382 | bid=4033.07 | ask=4033.21 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:30:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201443 | bid=4033.32 | ask=4033.46 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:31:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201503 | bid=4031.73 | ask=4031.87 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:32:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201563 | bid=4033.05 | ask=4033.19 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:32:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:32:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:33:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201622 | bid=4032.76 | ask=4032.9 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:34:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201680 | bid=4033.62 | ask=4033.76 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:35:00] SWEEP_RESET | SWEEP_HIGH | tf=M5 | reason=trend_changed:SIDEWAY→BEAR
+[2026-07-16 17:35:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M5 | ref_price=4030.50 | sweep_bar=18:00 16-Jul-2026 | confirm_bar=18:05 16-Jul-2026
+[2026-07-16 17:35:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201743 | bid=4033.6 | ask=4033.74 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:36:00] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:SIDEWAY→BULL
+[2026-07-16 17:36:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4029.87 | sweep_bar=18:11 16-Jul-2026 | confirm_bar=18:12 16-Jul-2026
+[2026-07-16 17:36:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201803 | bid=4034.16 | ask=4034.3 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:37:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201863 | bid=4033.64 | ask=4033.78 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:37:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:37:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:38:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201923 | bid=4033.59 | ask=4033.73 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:39:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784201982 | bid=4032.18 | ask=4032.32 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:40:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202043 | bid=4032.27 | ask=4032.41 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:41:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=trend_changed:BULL→SIDEWAY
+[2026-07-16 17:41:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.72 | sweep_bar=18:16 16-Jul-2026 | confirm_bar=18:17 16-Jul-2026
+[2026-07-16 17:41:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202102 | bid=4033.61 | ask=4033.75 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:42:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202163 | bid=4033.87 | ask=4034.01 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:42:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:42:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:43:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202223 | bid=4032.85 | ask=4032.99 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:44:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202283 | bid=4033.06 | ask=4033.2 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:45:05] SWEEP_RESET | SWEEP_HIGH | tf=M1 | reason=trend_changed:SIDEWAY→BEAR
+[2026-07-16 17:45:05] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4031.71 | sweep_bar=18:40 16-Jul-2026 | confirm_bar=18:41 16-Jul-2026
+[2026-07-16 17:45:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202341 | bid=4031.78 | ask=4031.92 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:46:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202403 | bid=4031.91 | ask=4032.05 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:47:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202463 | bid=4031.08 | ask=4031.22 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:47:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:47:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:48:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=trend_changed:BEAR→SIDEWAY
+[2026-07-16 17:48:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.72 | sweep_bar=18:16 16-Jul-2026 | confirm_bar=18:17 16-Jul-2026
+[2026-07-16 17:48:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4031.71 | sweep_bar=18:40 16-Jul-2026 | confirm_bar=18:41 16-Jul-2026
+[2026-07-16 17:48:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202523 | bid=4032.33 | ask=4032.47 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:49:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202583 | bid=4030.89 | ask=4031.03 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:50:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202643 | bid=4031.4 | ask=4031.54 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:51:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202703 | bid=4031.42 | ask=4031.56 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:52:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202763 | bid=4031.34 | ask=4031.48 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:52:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:52:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:53:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202822 | bid=4031.18 | ask=4031.32 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:54:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:HH→LL
+[2026-07-16 17:54:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.72 | sweep_bar=18:16 16-Jul-2026 | confirm_bar=18:17 16-Jul-2026
+[2026-07-16 17:54:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4031.71 | sweep_bar=18:40 16-Jul-2026 | confirm_bar=18:41 16-Jul-2026
+[2026-07-16 17:54:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202883 | bid=4030.72 | ask=4030.86 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:55:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:LL→HH
+[2026-07-16 17:55:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.72 | sweep_bar=18:16 16-Jul-2026 | confirm_bar=18:17 16-Jul-2026
+[2026-07-16 17:55:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4031.71 | sweep_bar=18:40 16-Jul-2026 | confirm_bar=18:41 16-Jul-2026
+[2026-07-16 17:55:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784202943 | bid=4031.35 | ask=4031.49 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:56:41] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203003 | bid=4030.97 | ask=4031.11 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:57:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203062 | bid=4031.55 | ask=4031.69 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:57:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 17:57:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 17:58:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203123 | bid=4029.76 | ask=4029.9 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 17:59:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203183 | bid=4029.11 | ask=4029.25 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:00:00] SWEEP_RESET | SWEEP_HIGH | tf=H1 | reason=trend_changed:SIDEWAY→BULL
+[2026-07-16 18:00:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203243 | bid=4028.17 | ask=4028.31 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:01:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203303 | bid=4029.16 | ask=4029.3 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:02:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203363 | bid=4029.06 | ask=4029.2 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF1 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF2 skipped - hour 18 != 10
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF3 skipped - hour 18 != 12
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF4 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF5 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF6 skipped - hour 18 != 14
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF7 skipped - hour 18 != 22
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF8 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF9 skipped - hour 18 != 19
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF10 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF11 skipped - hour 18 != 22
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF12 skipped - hour 18 != 20
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF13 skipped - risk_distance 1.90 > 1.30
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF14 skipped - risk_distance 1.90 < 4.00
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF15 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF16 skipped - hour 18 != 9
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF17 skipped - hour 18 != 8
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF18 skipped - hour 18 != 14
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF22-AF19 skipped - hour 18 != 10
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF1 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF2 skipped - hour 18 != 10
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF3 skipped - hour 18 != 12
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF4 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF5 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF6 skipped - hour 18 != 14
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF7 skipped - hour 18 != 22
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF8 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF9 skipped - hour 18 != 19
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF10 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF11 skipped - hour 18 != 22
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF12 skipped - hour 18 != 20
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF13 skipped - risk_distance 1.90 > 1.30
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF14 skipped - risk_distance 1.90 < 4.00
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF15 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF16 skipped - hour 18 != 9
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF17 skipped - hour 18 != 8
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF18 skipped - hour 18 != 14
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF19 skipped - hour 18 != 10
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF29 skipped - hour 18 != 19
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF30 skipped - hour 18 != 13
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF31 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF32 skipped - hour 18 != 9
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34-AF33 skipped - hour 18 != 13
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF34 skipped - hour 18 != 13
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF1 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF2 skipped - hour 18 != 10
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF3 skipped - hour 18 != 12
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF4 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF5 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF6 skipped - hour 18 != 14
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF7 skipped - hour 18 != 22
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF8 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF9 skipped - hour 18 != 19
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF10 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF11 skipped - hour 18 != 22
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF12 skipped - hour 18 != 20
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF13 skipped - risk_distance 1.90 > 1.30
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF14 skipped - risk_distance 1.90 < 4.00
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF15 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF16 skipped - hour 18 != 9
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF17 skipped - hour 18 != 8
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF18 skipped - hour 18 != 14
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF19 skipped - hour 18 != 10
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF29 skipped - hour 18 != 19
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF30 skipped - hour 18 != 13
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF31 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF32 skipped - hour 18 != 9
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF33 skipped - hour 18 != 13
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF34 skipped - hour 18 != 13
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF35 skipped - hour 18 != 19
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF36 skipped - hour 18 != 17
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF37 skipped - risk_distance 4.70 > 3.40
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF38 skipped - hour 18 != 11
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF39 skipped - hour 18 != 20
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF40 skipped - risk_distance 4.70 > 2.70
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF41 skipped - hour 18 != 16
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SKIP | AF47-AF42 skipped - hour 18 != 15
+[2026-07-16 18:02:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:03:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203423 | bid=4030.11 | ask=4030.25 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:04:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203482 | bid=4028.95 | ask=4029.09 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:05:40] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203540 | bid=4027.97 | ask=4028.11 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:06:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203602 | bid=4028.12 | ask=4028.26 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:07:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203663 | bid=4028.58 | ask=4028.72 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:07:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:07:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:08:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203722 | bid=4028.72 | ask=4028.86 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:09:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203782 | bid=4029.45 | ask=4029.59 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:10:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=label_changed:HH→LL
+[2026-07-16 18:10:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4032.72 | sweep_bar=18:16 16-Jul-2026 | confirm_bar=18:17 16-Jul-2026
+[2026-07-16 18:10:00] SWEEP_ACTIVATE | SWEEP_LOW | tf=M1 | ref_price=4031.71 | sweep_bar=18:40 16-Jul-2026 | confirm_bar=18:41 16-Jul-2026
+[2026-07-16 18:10:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203843 | bid=4028.19 | ask=4028.33 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:11:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203902 | bid=4028.89 | ask=4029.03 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:12:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784203963 | bid=4029.47 | ask=4029.61 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:12:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:12:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:13:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204023 | bid=4028.37 | ask=4028.51 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:14:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204083 | bid=4027.92 | ask=4028.06 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:15:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204143 | bid=4027.03 | ask=4027.17 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:16:15] POSITION_CLOSED | 🛑 SL Hit | ticket=561165596 | side=BUY | symbol=XAUUSD.iux | tf=M30 | sid=21 | pattern=- | trend_filter=- | open_price=4033.09 | close_price=4025.64 | sl=4025.64 | tp=4039.3 | profit=-7.45 | reason=[sl 4025.64] | close_time=18:16:14 16/07/2026
+[2026-07-16 18:16:15] POSITION_CLOSED | 🛑 SL Hit | ticket=561165597 | side=BUY | symbol=XAUUSD.iux | tf=M30 | sid=21 | pattern=- | trend_filter=- | open_price=4033.09 | close_price=4025.67 | sl=4025.67 | tp=4039.33 | profit=-7.42 | reason=[sl 4025.67] | close_time=18:16:14 16/07/2026
+[2026-07-16 18:16:16] TG_SENT | 🟢 *🛑 SL Hit* | ━━━━━━━━━━━━━━━━━ | 📊 TF: M30 | 📊 BUY XAUUSD.iux | 📌 เปิด: `4033.09` | 📌 ปิด: `4025.64` | 🛑 SL: `4025.64` | 🎯 TP: `4039.3` | 💬 เหตุผล: `[sl 4025.64]` | 💸 P/L: `-7.45` USD | 🔖 Ticket: `561165596` | 🕐 Close Time: `18:16:14 16/07/2026`
+[2026-07-16 18:16:17] TG_SENT | 🟢 *🛑 SL Hit* | ━━━━━━━━━━━━━━━━━ | 📊 TF: M30 | 📊 BUY XAUUSD.iux | 📌 เปิด: `4033.09` | 📌 ปิด: `4025.67` | 🛑 SL: `4025.67` | 🎯 TP: `4039.33` | 💬 เหตุผล: `[sl 4025.67]` | 💸 P/L: `-7.42` USD | 🔖 Ticket: `561165597` | 🕐 Close Time: `18:16:14 16/07/2026`
+[2026-07-16 18:16:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204203 | bid=4025.94 | ask=4026.08 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:17:00] SWEEP_RESET | SWEEP_LOW | tf=M1 | reason=trend_changed:SIDEWAY→BEAR
+[2026-07-16 18:17:00] SWEEP_ACTIVATE | SWEEP_HIGH | tf=M1 | ref_price=4034.31 | sweep_bar=18:43 16-Jul-2026 | confirm_bar=18:44 16-Jul-2026
+[2026-07-16 18:17:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204263 | bid=4025.9 | ask=4026.04 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:17:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:17:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:18:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204323 | bid=4026.17 | ask=4026.31 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:19:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204383 | bid=4026.61 | ask=4026.75 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:20:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204443 | bid=4026.97 | ask=4027.11 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:21:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204503 | bid=4025.55 | ask=4025.69 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:22:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204563 | bid=4025.36 | ask=4025.5 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:22:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:22:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:23:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204623 | bid=4025.6 | ask=4025.74 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:24:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204683 | bid=4025.16 | ask=4025.3 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:25:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204743 | bid=4023.36 | ask=4023.5 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:26:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204802 | bid=4022.74 | ask=4022.88 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:27:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204863 | bid=4024.94 | ask=4025.08 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:27:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:27:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:28:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204923 | bid=4026.14 | ask=4026.28 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:29:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784204982 | bid=4023.83 | ask=4023.97 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:30:00] SWEEP_RESET | SWEEP_LOW | tf=M30 | reason=trend_changed:SIDEWAY→BEAR
+[2026-07-16 18:30:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205042 | bid=4024.14 | ask=4024.28 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:31:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205103 | bid=4024.53 | ask=4024.67 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:32:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205162 | bid=4026.99 | ask=4027.13 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:32:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:32:42] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:33:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205223 | bid=4028.6 | ask=4028.74 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:34:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205283 | bid=4029.65 | ask=4029.79 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:35:43] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205342 | bid=4029.6 | ask=4029.74 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:36:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205403 | bid=4031.47 | ask=4031.61 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:37:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205463 | bid=4031.12 | ask=4031.26 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False
+[2026-07-16 18:37:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux open active=AF22,AF34,AF47
+[2026-07-16 18:37:43] DEMO_PORTFOLIO_SCAN | XAUUSD.iux done active=AF22,AF34,AF47
+[2026-07-16 18:38:42] SYMBOL_CHECK | XAUUSD.iux trade_mode=4 xau_open=True | trade_mode=4 | tick_time=1784205523 | bid=4031.93 | ask=4032.07 | tick_ok=True | xau_open=True | current_symbol=XAUUSD.iux | startup=False

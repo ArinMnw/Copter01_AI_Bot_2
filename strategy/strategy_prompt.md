@@ -1,66 +1,84 @@
-# 🚀 คำสั่งสำหรับสร้างสุดยอด Strategy (Next-Generation S99/S100)
+# 🚀 คำสั่งสำหรับสร้างสุดยอด Strategy แบบอัตโนมัติ (Next-Generation S114 - S999 Loop)
 
 **บริบทสำหรับ AI Model:**
 คุณคือสุดยอดนักพัฒนา Quant (God-Tier Quantitative Developer) และผู้เชี่ยวชาญด้าน Algorithmic Trading คุณกำลังเขียนโค้ดเพื่อพัฒนาระบบเทรดอัจฉริยะบน MetaTrader 5 (MT5) ด้วยภาษา Python
 
-ปัจจุบันบอทมี Strategy ที่ทำกำไรได้สูงมากอยู่แล้ว ได้แก่:
-- **S84 & S86 (Advanced Filter - AF):** ระบบกรองขั้นสูงที่ผสมผสานอินดิเคเตอร์แบบไดนามิกเข้าด้วยกันจนเกิดเป็นรูปแบบนับพัน
-- **S95 (Liquidity Sweep):** กลยุทธ์สวนเทรนด์ที่ดักกิน Stop-Loss ตามจุด Swing High/Low เสริมความแม่นยำด้วยสมองกล AI (Machine Learning - Random Forest) และกรองจุดเข้าด้วย Premium/Discount Zone
-- **S96 (Trend Pullback):** กลยุทธ์ตามเทรนด์ที่ดุดันและทำกำไรได้มหาศาล โดยใช้ EMA50 + การเลื่อน Stop-Loss ตามความผันผวน (ATR)
-- **S97:** กลยุทธ์วิเคราะห์โครงสร้างแบบเบรกเอาต์ (Breakout)
-- **S21 - S94 (Research & Legacy Library):** คลังกลยุทธ์กว่า 70 รูปแบบที่ใช้ในการทดลองแนวคิดต่างๆ (เช่น S36 ที่ใช้หา FVG หรือกลยุทธ์อื่นๆ) ซึ่งแสดงให้เห็นว่าระบบของเรารองรับตรรกะที่ซับซ้อนได้ทุกรูปแบบ
-- **LTS (Ladder Trading System):** ระบบ Portfolio ผู้จัดการกองทุนอัจฉริยะ ที่นำ Strategy ย่อยๆ (Legs) มายำรวมกันแล้วเทรดเป็นตะกร้าพร้อมกัน (เช่น จับ S95, S96 มาทำงานร่วมกันและปรับน้ำหนักความเสี่ยง)
+---
 
-**ภารกิจของคุณ:**
-ให้ออกแบบ คิดค้น และเขียนโค้ด Python สำหรับ **"สุดยอดกลยุทธ์ (Holy Grail)"** (เช่น `strategy99.py` หรือ `strategy100.py`) ที่ต้อง **เหนือกว่าและเอาชนะ** S84, S86, S95, S96, และ S97 ได้อย่างขาดลอย ทั้งในด้าน **ความแม่นยำ (Win Rate)** และ **กำไรสุทธิ (Net Profit)**
+## 🔍 กฎการค้นหาชื่อและเลขไฟล์กลยุทธ์ถัดไปอัตโนมัติ (Dynamic Strategy Target)
 
-## 🧠 ข้อกำหนดหลักสำหรับ Strategy ตัวใหม่นี้:
+ก่อนเริ่มเขียนโค้ด ให้ทำตามขั้นตอนต่อไปนี้เสมอ:
+1. **ตรวจสอบหมายเลขสูงสุดที่มีอยู่:** แสกนไฟล์ใน root directory ของโปรเจกต์ ค้นหาไฟล์ที่ตั้งชื่อในรูปแบบ `strategy<NUM>.py` (เช่น `strategy112.py`, `strategy113.py` เป็นต้น) เพื่อหาตัวเลขสูงสุดที่มีอยู่ สมมติว่ามีค่าสูงสุดเป็น `N`
+2. **กำหนดเลขกลยุทธ์ใหม่เป็น `N + 1`:** 
+   *   คุณต้องสร้างกลยุทธ์ใหม่โดยตั้งชื่อไฟล์ว่า `strategy<N+1>.py` (เช่น ถ้าพบว่ามีถึง `strategy113.py` แล้ว ให้สร้างไฟล์ใหม่เป็น `strategy114.py`)
+   *   กำหนดชื่อฟังก์ชันการตรวจจับสัญญาณเป็น `detect_s<N+1>(rates, tf, dt_bkk, cfg)`
+   *   กำหนดรหัสกลยุทธ์ในผลลัพธ์เป็น `S<N+1>` (เช่น ในฟิลด์ `pattern` ให้ระบุว่า `S<N+1> ...`)
 
-1. **จุดได้เปรียบที่ไม่เหมือนใคร (The Alpha):**
-   ห้ามใช้แค่จุดตัด RSI หรือเส้น EMA แบบพื้นฐาน เราต้องการตรรกะระดับสถาบันการเงิน (Institutional-grade logic) คุณต้องนำหนึ่งในแนวคิดเหล่านี้มาใช้:
-   - **Smart Money Concepts (SMC):** การตรวจหา Order Blocks (OB), Fair Value Gaps (FVG) และการกวาดสภาพคล่อง (Liquidity Sweeps) แบบขั้นสูง
-   - **Multi-Timeframe Fractal Confirmation:** การวิเคราะห์โครงสร้างย่อย (Micro-structures) ที่ซ้อนอยู่ในเทรนด์ใหญ่
-   - **Volatility & Statistical Arbitrage:** ใช้ Z-Score แบบขั้นสูง, การบีบตัวของ Bollinger Band หรือ Hurst Exponent เพื่อแยกแยะสภาวะตลาด (Trend vs. Ranging)
-   - **Volume/Momentum Divergence:** ใช้ Tick Volume ร่วมกับความผิดปกติของพฤติกรรมราคา
+---
+
+## 📊 รายชื่อกลยุทธ์ปัจจุบันที่มีอยู่ในระบบ (เพื่อหลีกเลี่ยงตรรกะซ้ำซ้อน)
+
+ให้ตรวจสอบไฟล์กลยุทธ์ที่มีอยู่ในระบบ (ตั้งแต่ S84 จนถึง `S<N>`) เพื่อสร้างตรรกะใหม่ที่ไม่แย่งออเดอร์ หรือช่วยกระจายความเสี่ยงให้ระบบ LTS (Ladder Trading System) ได้ดีที่สุด:
+*   **S84 & S86 (Advanced Filter - AF):** ระบบกรองขั้นสูง ผสมผสานอินดิเคเตอร์ไดนามิก
+*   **S95 / S99 / S100 / S101 / S112:** กลุ่มกลยุทธ์ Smart Money Concepts (SMC) ตรวจจับ Liquidity Sweep, Rejection, Order Block Mitigation และ Fair Value Gap (FVG) Retrace
+*   **S96:** Trend Pullback โดยอิงตาม EMA50 + Dynamic ATR Stop Loss
+*   **S97 / S102 / S106:** กลยุทธ์ Breakout วิเคราะห์โครงสร้างราคา, Session Breakout และ Asian Range Stop Hunt
+*   **S103 / S105:** Mean-Reversion และ Volatility Anomaly Fade ในภาวะตลาดบีบตัว
+*   **S108:** RandomForest Machine Learning (Statistical Features)
+*   **S109:** Harmonic Pattern Sniper (Gartley / Bat / Butterfly)
+*   **S110:** Multi-Timeframe Fractal Structural Alignment (H4+H1+M15+M5)
+*   **S111:** Weekend Gap Fill + Mega Imbalance Void
+*   **S113:** Wyckoff Spring & Upthrust Sniper ร่วมกับ Volume Spread Analysis (VSA)
+
+---
+
+## 🧠 ข้อกำหนดหลักสำหรับ Strategy ตัวใหม่ `S<N+1>` นี้:
+
+1. **จุดได้เปรียบระดับสถาบันการเงิน (The Alpha Edge):**
+   ห้ามเขียนโค้ดที่อิงตามตรรกะง่ายๆ (เช่น แค่เส้นตัดกัน) แต่ให้เลือกนำหนึ่งในแนวคิดขั้นสูงเหล่านี้มาใช้ให้เกิด Confluence:
+   - **Wyckoff Method & Volume Spread Analysis (VSA):** วิเคราะห์ความสัมพันธ์ระหว่างการเคลื่อนไหวของราคากับ Tick Volume เพื่อหาจังหวะสะสม/กระจายของรายใหญ่
+   - **Smart Money Concepts (SMC):** โครงสร้าง CHoCH, BOS, Order Blocks, Liquidity Sweeps, Fair Value Gaps
+   - **Volatility Squeeze & Statistical Arbitrage:** Z-Score, Bollinger Squeeze, Keltner Channel, Hurst Exponent
+   - **Multi-Timeframe Fractal Analysis:** การคอนเฟิร์มโครงสร้างราคาและ Momentum ข้ามกรอบเวลา (Multi-Timeframe)
+   - **Volume Delta & Order Flow Anomaly:** การประเมินกำลังซื้อขายที่ผิดปกติของทองคำ (XAUUSD)
 
 2. **โครงสร้างของโค้ดที่เข้มงวด:**
-   Strategy ต้องเขียนแยกเป็นไฟล์เดี่ยวๆ และต้องมีฟังก์ชัน `detect_s99(rates, tf, dt_bkk, cfg)`
-   - `rates`: ข้อมูลแท่งเทียนแบบ List of Dictionaries (มี `time, open, high, low, close, tick_volume` ตามมาตรฐาน MT5)
+   โค้ดต้องแยกเขียนเป็นไฟล์เดี่ยวและมีฟังก์ชัน `detect_s<N+1>(rates, tf, dt_bkk, cfg)`
+   - `rates`: List of Dictionaries ของแท่งเทียน (มี `time, open, high, low, close, tick_volume` ตามมาตรฐาน MT5)
    - `tf`: Timeframe ปัจจุบัน (เช่น "M5", "M15")
-   - `dt_bkk`: เวลาปัจจุบัน (datetime object)
-   - `cfg`: Dictionary ของค่า Hyperparameters ต่างๆ
+   - `dt_bkk`: เวลาปัจจุบัน (datetime object ในเขตเวลากรุงเทพฯ UTC+7)
+   - `cfg`: Dictionary ของ Hyperparameters
 
-   ฟังก์ชัน **ต้องคืนค่า (Return)** เป็น Dictionary ในรูปแบบนี้เป๊ะๆ:
+   ฟังก์ชัน **ต้องคืนค่า (Return)** ในรูปแบบ Dictionary นี้อย่างแม่นยำ:
    ```python
-   # กรณีที่มีจังหวะเข้าเทรดที่ชัดเจน:
+   # กรณีที่มีจังหวะเข้าเทรดที่ชัดเจน (Limit Order หรือ Market Order):
    return {
        "signal": "BUY",  # หรือ "SELL"
-       "entry": 4500.25, # float: ราคาเข้าที่แม่นยำ
-       "sl": 4490.00,    # float: จุดตัดขาดทุนที่คำนวณมาอย่างดี
-       "tp": 4530.00,    # float: จุดทำกำไร
-       "reason": "SMC Order Block + Volatility Squeeze" # คำอธิบายเหตุผลในการเข้าเทรด
+       "entry": 4500.25, # float: ราคาเข้าเทรด
+       "sl": 4490.00,    # float: ราคาตัดขาดทุน
+       "tp": 4530.00,    # float: ราคาทำกำไร
+       "order_type": "limit", # หรือ "market"
+       "pattern": "S<N+1> [Setup Tag]", # เช่น "S114 Spring"
+       "reason": "รายละเอียดเหตุผลในการเข้าออเดอร์"
    }
    
-   # กรณีที่ตลาดยังไม่น่าเทรด:
+   # กรณีที่ยังไม่เกิดเงื่อนไขที่ได้เปรียบ:
    return {
        "signal": "WAIT",
-       "reason": "ตลาดเป็นไซด์เวย์ ยังไม่มีจุดได้เปรียบ"
+       "reason": "คำอธิบายว่าทำไมถึงต้องรอ"
    }
    ```
 
-3. **การจัดการความเสี่ยง (Risk Management) และ SL/TP แบบไดนามิก:**
-   - ห้ามใช้ Stop Loss (SL) แบบตายตัว (Fixed) SL ต้องคำนวณแบบยืดหยุ่นตามความผันผวน (เช่น `ATR * multiplier`) หรือจุดสวิงโครงสร้างที่แม่นยำ (เช่น วาง SL ห่างจากไส้เทียน 2 จุด)
-   - Take Profit (TP) ต้องมีอัตราส่วน Risk:Reward อย่างน้อย 1:1.5 หรือขยายเป้าหมายตาม Liquidity Pool ถัดไป
+3. **การจัดการความเสี่ยงและ SL/TP แบบไดนามิก:**
+   - ห้ามใช้ SL/TP แบบคงที่ (Fixed Points) เด็ดขาด SL ต้องคำนวณแบบยืดหยุ่นตามความผันผวนของราคา (เช่น `ATR * multiplier`) หรืออิงตามโครงสร้างราคาสวิงสูงสุด/ต่ำสุดจริง
+   - อัตราส่วน Risk to Reward (R:R) ต้องคุ้มค่าเฉลี่ย 1:1.5 หรือดีกว่า
 
-5. **โฟกัสที่ Win Rate สูงปรี๊ด (High Win Rate):**
-   - กลยุทธ์นี้จะต้องถูกออกแบบมาให้ชนะตลาดได้อย่างเด็ดขาด (เป้าหมาย Win Rate 70-85%+) เพื่อลดความกดดันของพอร์ตและสร้างเส้น Equity Curve ที่เติบโตอย่างราบรื่น (Smooth Growth)
+4. **การคัดกรองสัญญาณด้วย Machine Learning (ไม่บังคับ):**
+   - สามารถเรียกใช้ `ml_scoring.score_signal('XAUUSD.iux', tf, 'BUY', entry, dt_bkk, historical_rates=rates)` เพื่อกรองเอาเฉพาะออเดอร์ที่มีความน่าจะเป็น (Win Probability) เกินกว่า 55%
 
-4. **การใช้งาน Machine Learning ร่วมด้วย (ไม่บังคับ แต่แนะนำ):**
-   - สามารถเรียกใช้ `ml_scoring.score_signal('XAUUSD.iux', tf, 'BUY', entry, dt_bkk, historical_rates=rates)` เพื่อกรองทิ้งออเดอร์ที่มีความน่าจะเป็น (Win Probability) ต่ำกว่า 55% ได้
+## 📝 สิ่งที่คุณต้องส่งมอบ:
+1. อธิบายตรรกะทางคณิตศาสตร์และ **จุดได้เปรียบ (EDGE)** ของกลยุทธ์ใหม่ตัวนี้
+2. เขียนโค้ด Python ที่สมบูรณ์ ไร้บั๊ก และอ่านง่าย สำหรับ `strategy<N+1>.py`
+3. กำหนดตัวแปร `cfg` (Hyperparameters) สำหรับการทดสอบและใช้งานใน Backtest
 
-## 📝 รูปแบบสิ่งที่คุณต้องส่งมอบ:
-1. อธิบายตรรกะทางคณิตศาสตร์และ **จุดได้เปรียบ (EDGE)** ของกลยุทธ์ใหม่นี้ ทำไมมันถึงเหนือกว่า S95/S96?
-2. เขียนโค้ด Python ที่สมบูรณ์ ไร้บั๊ก และอ่านง่าย สำหรับ `strategy99.py`
-3. กำหนดตัวแปร `cfg` (Hyperparameters) ที่เหมาะสมที่สุดสำหรับใช้รันในระบบ Backtester
-
-**เริ่มปฏิบัติการได้** แสดงให้ฉันเห็นว่า AI ระดับเทพสามารถสร้างอะไรออกมาได้บ้าง!
+**เริ่มลงมือสร้างสรรค์ได้เลย!** แสดงให้เห็นความเหนือชั้นในการเขียนบอทเทรดของคุณ!

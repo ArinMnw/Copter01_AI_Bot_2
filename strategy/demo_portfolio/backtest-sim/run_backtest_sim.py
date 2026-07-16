@@ -632,24 +632,23 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
     print(f"Simulating {len(legs)} legs for {portfolio_name}...")
     
     global GLOBAL_RAW_TRADES_CACHE
-    unique_bases = set((leg["family"], leg["cfg_idx"]) for leg in legs)
+    unique_bases = set((leg["family"], leg["cfg_idx"], leg["cfg"]["ENTRY_TF"]) for leg in legs)
     
     # 1. Fetch bars and cache raw trades for unique base configs
     from optimize_s88_allin4s_fast import _make_s84, _make_s86, _grid_s84, _grid_s86, TF_EXTRA_BARS
     
-    for fam, cfg_idx in unique_bases:
-        cache_key = (fam, cfg_idx, days, start_str, end_str)
+    for fam, cfg_idx, tf in unique_bases:
+        cache_key = (fam, cfg_idx, tf, days, start_str, end_str)
         if cache_key in GLOBAL_RAW_TRADES_CACHE:
             continue
             
-        # Find if any leg matching (fam, cfg_idx) is is_s9x
-        leg = next((l for l in legs if l["family"] == fam and l["cfg_idx"] == cfg_idx), None)
+        # Find if any leg matching (fam, cfg_idx, tf) is is_s9x
+        leg = next((l for l in legs if l["family"] == fam and l["cfg_idx"] == cfg_idx and l["cfg"]["ENTRY_TF"] == tf), None)
         is_s9x = leg.get("is_s9x", False) if leg else False
         
         if is_s9x:
             detect_fn = leg["detect_fn"]
             cfg = leg["cfg"]
-            tf = cfg["ENTRY_TF"]
             
             bars = fetch_bars_range(config.SYMBOL, tf, days, start_str, end_str, extra_bars=700)
             if bars is None or len(bars) == 0:
@@ -670,7 +669,6 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         maker = _make_s84 if fam == "s84" else _make_s86
         runner = run_s84 if fam == "s84" else run_s86
         cfg = maker(cfg_vals)
-        tf = cfg["ENTRY_TF"]
         
         bars = fetch_bars_range(config.SYMBOL, tf, days, start_str, end_str, extra_bars=TF_EXTRA_BARS.get(tf, 700))
         if bars is None or len(bars) == 0:
@@ -690,7 +688,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
     # 2. Filter, Invert, Scale and Combine trades
     all_portfolio_trades = []
     for leg in legs:
-        cache_key = (leg["family"], leg["cfg_idx"], days, start_str, end_str)
+        cache_key = (leg["family"], leg["cfg_idx"], leg["cfg"]["ENTRY_TF"], days, start_str, end_str)
         raw = GLOBAL_RAW_TRADES_CACHE.get(cache_key)
         if not raw:
             continue
