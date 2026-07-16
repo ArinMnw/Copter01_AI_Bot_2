@@ -598,6 +598,7 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread):
         pnl = diff - spread
         
         trades.append({
+            "signal": direction,
             "outcome": outcome,
             "signal_time_ts": int(bars[i]["time"]),
             "fill_time_ts": int(bars[fill_idx]["time"]),
