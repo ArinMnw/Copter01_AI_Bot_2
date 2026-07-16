@@ -960,18 +960,21 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         print(f"   ⚠️ MT5 connection failed for MT5 real report of {portfolio_name}")
         return
         
-    # 4. Fetch deals from history
-    deals = mt5.history_deals_get(date_from, date_to)
+    # 4. Fetch deals from history (lookback 10 days wider to find entry deals for positions closed in the range)
+    wide_date_from = date_from - timedelta(days=10)
+    deals = mt5.history_deals_get(wide_date_from, date_to)
     mt5_compare_list = []
     mt5_rows = []
     
     if deals:
         entry_deals = {d.position_id: d for d in deals if d.entry == mt5.DEAL_ENTRY_IN}
+        start_ts = date_from.timestamp()
         for d in deals:
-            if d.entry == mt5.DEAL_ENTRY_OUT and d.position_id in entry_deals:
+            # Match exits that closed within the requested date range (including Close By exit type 3)
+            if d.time >= start_ts and d.entry in (mt5.DEAL_ENTRY_OUT, 3) and d.position_id in entry_deals:
                 d_in = entry_deals[d.position_id]
-                # Filter by symbol and magic
-                if "XAUUSD" in d.symbol and d.magic in target_magics:
+                # Filter by symbol and magic (check both exit and entry deal to support Close By with magic 0)
+                if "XAUUSD" in d.symbol and (d.magic in target_magics or d_in.magic in target_magics):
                     trade_type = "BUY" if d_in.type == mt5.DEAL_TYPE_BUY else "SELL"
                     profit = float(d.profit) + float(d.swap) + float(d.commission)
                     
