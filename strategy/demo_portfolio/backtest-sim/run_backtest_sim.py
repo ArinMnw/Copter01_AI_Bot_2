@@ -964,6 +964,22 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
     # 4. Fetch deals from history (lookback 10 days wider to find entry deals for positions closed in the range)
     wide_date_from = date_from - timedelta(days=10)
     deals = mt5.history_deals_get(wide_date_from, date_to)
+    
+    # Fetch historical orders to map SL/TP (since deals do not contain sl/tp fields)
+    orders = mt5.history_orders_get(wide_date_from - timedelta(days=5), date_to)
+    order_sl_map = {}
+    order_tp_map = {}
+    if orders:
+        for o in orders:
+            order_sl_map[o.ticket] = o.sl
+            order_tp_map[o.ticket] = o.tp
+            pid = o.position_id
+            if pid:
+                if o.sl > 0:
+                    order_sl_map[pid] = o.sl
+                if o.tp > 0:
+                    order_tp_map[pid] = o.tp
+
     mt5_compare_list = []
     mt5_rows = []
     
@@ -1013,8 +1029,8 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                         "tf": real_tf,
                         "entry": d_in.price,
                         "close_price": d.price,
-                        "sl": getattr(d_in, "sl", 0.0), # Use entry deal's SL
-                        "tp": getattr(d_in, "tp", 0.0), # Use entry deal's TP
+                        "sl": order_sl_map.get(d_in.order, 0.0) or order_sl_map.get(d_in.position_id, 0.0),
+                        "tp": order_tp_map.get(d_in.order, 0.0) or order_tp_map.get(d_in.position_id, 0.0),
                         "volume": d.volume,
                         "pnl": profit,
                         "comment": d_in.comment if d_in.comment else getattr(d, "comment", ""),
