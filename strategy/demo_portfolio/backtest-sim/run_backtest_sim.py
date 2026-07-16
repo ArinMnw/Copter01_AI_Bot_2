@@ -985,11 +985,18 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                     
                     outcome = "TP" if profit > 0 else "SL"
                     
+                    # Parse TF from comment (e.g. M15-LTS_AUS_913 -> M15)
+                    real_tf = "M5"
+                    if d_in.comment:
+                        parts = d_in.comment.split("-")
+                        if parts and parts[0] in ("M1", "M5", "M15", "M30", "H1", "H4", "D1"):
+                            real_tf = parts[0]
+                            
                     row = {
                         "Time (BKK)": entry_dt_bkk.strftime('%d-%m-%Y %H:%M:%S'),
                         "Close Time": exit_dt_bkk.strftime('%d-%m-%Y %H:%M:%S'),
                         "Leg": d_in.comment if d_in.comment else f"Magic {d.magic}",
-                        "TF": "M5",
+                        "TF": real_tf,
                         "Type": trade_type,
                         "Entry": round(d_in.price, 2),
                         "Exit": round(d.price, 2),
@@ -1003,6 +1010,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                         "dt": entry_dt_bkk.replace(tzinfo=None),
                         "close_dt": exit_dt_bkk.replace(tzinfo=None),
                         "type": trade_type,
+                        "tf": real_tf,
                         "entry": d_in.price,
                         "close_price": d.price,
                         "sl": getattr(d_in, "sl", 0.0), # Use entry deal's SL
@@ -1066,22 +1074,26 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         matched = None
         bt_leg = extract_leg_idx(bt["leg_name"])
         
-        # Pass 1: Strict match by Leg Index
+        # Pass 1: Strict match by Leg Index + Timeframe + Direction
         if bt_leg is not None:
             for mt in mismatch_mt5:
                 mt_leg = extract_leg_idx(mt["comment"])
-                if mt_leg is not None and mt_leg == bt_leg and mt["type"] == bt["type"]:
+                if mt_leg is not None and mt_leg == bt_leg and mt["type"] == bt["type"] and mt["tf"] == bt["tf"]:
                     time_diff = abs((mt["dt"] - bt["open_dt"]).total_seconds())
                     if time_diff <= 21600: # Within 6 hours
                         matched = mt
                         break
                         
-        # Pass 2: Fallback match by Type + Proximity (time <= 3 hours, price <= 50 USD)
+        # Pass 2: Fallback match by Timeframe + Type + Proximity (time <= 3 hours, price <= 15 USD)
         if not matched:
             for mt in mismatch_mt5:
+                mt_leg = extract_leg_idx(mt["comment"])
+                # Explicitly forbid matching if both have leg indices and they are different!
+                if bt_leg is not None and mt_leg is not None and bt_leg != mt_leg:
+                    continue
                 time_diff = abs((mt["dt"] - bt["open_dt"]).total_seconds())
                 price_diff = abs(mt["entry"] - bt["entry"])
-                if mt["type"] == bt["type"] and price_diff <= 50.0 and time_diff <= 10800:
+                if mt["type"] == bt["type"] and mt["tf"] == bt["tf"] and price_diff <= 15.0 and time_diff <= 10800:
                     matched = mt
                     break
                     
