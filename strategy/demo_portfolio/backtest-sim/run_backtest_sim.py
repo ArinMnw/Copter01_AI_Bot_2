@@ -158,9 +158,21 @@ def fetch_bars_range(symbol, tf_str, days, start_str=None, end_str=None, extra_b
         else:
             end_dt = datetime.now(bkk)
         
-        tf_multiplier = {"M1": 1, "M5": 2, "M15": 5, "M30": 8}
-        lookback_days = tf_multiplier.get(tf_str, 5)
-        start_fetch = start_dt - timedelta(days=lookback_days)
+        # Convert tf_str to minutes per bar to calculate start_fetch properly based on extra_bars
+        tf_mins = {
+            "M1": 1,
+            "M5": 5,
+            "M15": 15,
+            "M30": 30,
+            "H1": 60,
+            "H4": 240,
+            "H8": 480,
+            "D1": 1440
+        }
+        mins_per_bar = tf_mins.get(tf_str, 15)
+        # Multiply by 1.5 to account for weekends/non-trading hours
+        total_mins_needed = int(extra_bars * mins_per_bar * 1.5)
+        start_fetch = start_dt - timedelta(minutes=total_mins_needed)
         
         tf_map = {
             "M1": mt5.TIMEFRAME_M1,
@@ -916,9 +928,11 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 except ValueError:
                     pass
             raise ValueError(f"Time data '{s}' does not match formats")
-        date_from = parse_date(start_str).replace(tzinfo=timezone.utc)
+        import pytz
+        bkk = pytz.timezone("Asia/Bangkok")
+        date_from = bkk.localize(parse_date(start_str)).astimezone(timezone.utc)
         if end_str:
-            date_to = parse_date(end_str).replace(tzinfo=timezone.utc)
+            date_to = bkk.localize(parse_date(end_str)).astimezone(timezone.utc)
         else:
             date_to = datetime.now(timezone.utc) + timedelta(days=1)
     else:
