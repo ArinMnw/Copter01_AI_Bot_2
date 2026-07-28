@@ -22,11 +22,26 @@ parser.add_argument("--volume-mult", type=float)
 parser.add_argument("--squeeze-max", type=float)
 parser.add_argument("--tp-rr", type=float)
 parser.add_argument("--hours", help="Comma-separated BKK hours, e.g. 14,20")
+parser.add_argument("--signal-start", help="Inclusive BKK signal time/date (ISO format)")
+parser.add_argument("--signal-end", help="Exclusive BKK signal time/date (ISO format)")
 args = parser.parse_args()
 
 symbol = "XAUUSD.iux"
 lookback = 220
 BKK = timezone(timedelta(hours=7))
+
+
+def parse_bkk(value):
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=BKK)
+    return parsed.astimezone(BKK)
+
+
+signal_start = parse_bkk(args.signal_start)
+signal_end = parse_bkk(args.signal_end)
 if not config.mt5_initialize(mt5):
     raise SystemExit("MT5 init failed")
 bars = fetch_bars(symbol, args.tf, args.days, extra_bars=lookback + 50)
@@ -60,6 +75,10 @@ for i in range(lookback, len(bars) - 1):
         continue
     window = bars[i - lookback + 1:i + 1]
     dt_bkk = datetime.fromtimestamp(int(window[-1]["time"]), tz=BKK)
+    if signal_start is not None and dt_bkk < signal_start:
+        continue
+    if signal_end is not None and dt_bkk >= signal_end:
+        break
     signal = strategy113.detect_s113(window, args.tf, dt_bkk, cfg)
     expected_keys = (
         {"signal", "reason"} if signal.get("signal") == "WAIT"

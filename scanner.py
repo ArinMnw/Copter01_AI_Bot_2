@@ -47,6 +47,19 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.11"))
 from strategy20_11 import strategy_20_11
 sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.12"))
 from strategy20_12 import strategy_20_12
+sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.13"))
+try:
+    from strategy20_13 import strategy_20_13
+except ImportError:
+    def strategy_20_13(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S20_13 module not found"}
+
+try:
+    from strategy20_13_23 import strategy_20_13_23
+except ImportError:
+    def strategy_20_13_23(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S20_13_23 module not found"}
+
 try:
     from strategy21 import strategy_21
 except ModuleNotFoundError:
@@ -2992,6 +3005,41 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r20_12.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 
+    r20_13 = strategy_20_13(rates, tf=tf_name) if active_strategies.get(20.13, False) and getattr(config, "S20_13_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.13 ปิด หรือ TF ปิด"}
+    if r20_13.get("signal") in ("BUY", "SELL"):
+        from trailing import s20_13_guard_blocks, s20_13_calc_lot_multiplier
+        # ATR แบบง่าย (high-low rolling mean 14 แท่ง) ตรงตาม backtest_s20.13_runner_mt5.py
+        # ใช้เฉพาะ threshold ของ SL Guard เท่านั้น — คนละตัวกับ ATR จริงใน strategy20_13.py
+        _s2013_hl = rates['high'][-14:] - rates['low'][-14:]
+        _s2013_cur_atr = float(_s2013_hl.mean()) if len(_s2013_hl) > 0 else 0.0
+        if s20_13_guard_blocks(r20_13["signal"], r20_13["entry"], _s2013_cur_atr):
+            log_event(
+                "S20_13_GUARD_BLOCK", "repeat_loss_within_2.5atr",
+                tf=tf_name, sid=20.13, signal=r20_13["signal"], entry=r20_13["entry"],
+            )
+            r20_13 = {"signal": "WAIT", "reason": "S20.13 repeat-loss guard active"}
+        else:
+            r20_13["order_mode"] = "market"
+            r20_13["quant_lot_multiplier"] = s20_13_calc_lot_multiplier()
+            _log_divergence_once(tf_name, 20.13, r20_13["signal"], last_candle_time, r20_13)
+
+    # S20.13.23 Quant Fuel v23 — เปิดออเดอร์จริง (market order), ต่างจาก r20_13 (log-only)
+    # ไม่แก้ strategy20_13_23.py เลย (source of truth เดียวกับ backtest) — inject
+    # order_mode/quant_lot_multiplier เพิ่มที่นี่แทน
+    r20_13_23 = strategy_20_13_23(rates, tf=tf_name) if active_strategies.get(20.1323, False) and getattr(config, "S20_13_23_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.13.23 ปิด หรือ TF ปิด"}
+    if r20_13_23.get("signal") in ("BUY", "SELL"):
+        from trailing import s20_13_23_guard_blocks, s20_13_23_calc_lot_multiplier
+        if s20_13_23_guard_blocks(r20_13_23["signal"], r20_13_23["entry"]):
+            log_event(
+                "S20_13_23_GUARD_BLOCK", "repeat_loss_within_5usd",
+                tf=tf_name, sid=20.1323, signal=r20_13_23["signal"], entry=r20_13_23["entry"],
+            )
+            r20_13_23 = {"signal": "WAIT", "reason": "S20.13.23 repeat-loss guard active"}
+        else:
+            r20_13_23["order_mode"] = "market"
+            r20_13_23["quant_lot_multiplier"] = s20_13_23_calc_lot_multiplier()
+            _log_divergence_once(tf_name, 20.1323, r20_13_23["signal"], last_candle_time, r20_13_23)
+
     r21 = strategy_21(rates, tf_name=tf_name, config=config) if active_strategies.get(21, False) else {"signal": "WAIT", "reason": "S21 ปิด"}
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
@@ -3424,7 +3472,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21), (95, r95), (96, r96), (97, r97)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13), (20.1323, r20_13_23), (21, r21), (95, r95), (96, r96), (97, r97)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3456,7 +3504,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (21, r21), (95, r95), (96, r96), (97, r97)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13), (20.1323, r20_13_23), (21, r21), (95, r95), (96, r96), (97, r97)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")

@@ -18,6 +18,7 @@ import os
 from datetime import datetime
 
 import MetaTrader5 as mt5
+import numpy as np
 
 import config
 from strategy30 import S30_DEFAULTS, detect_s30
@@ -37,13 +38,48 @@ _PER_DAY = {"M1": 1440, "M5": 288, "M15": 96, "M30": 48, "H1": 24, "H4": 6}
 _TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400}
 
 
+# MT5 terminal ปฏิเสธ copy_rates_from_pos ถ้าขอเกินช่วง 90,000-100,000 แท่งในครั้งเดียว
+# (วัดจริง 2026-07-27: 90,000 ผ่าน, 100,000 error -2 "Invalid params") — พอร์ตที่ TF=M5 +
+# 550 วัน (default) จะขอเกิน 159,000 แท่งเสมอ ต้องแบ่งดึงเป็น chunk แล้วต่อกัน
+_MAX_BARS_PER_CALL = 80000
+
+
 def fetch_bars(symbol, tf_str, days, extra_bars=400):
     per_day = _PER_DAY[tf_str]
     count = min(days * per_day + extra_bars, 2000000)
-    rates = mt5.copy_rates_from_pos(symbol, _TF_MAP[tf_str], 0, count)
-    if rates is None or len(rates) == 0:
+    tf = _TF_MAP[tf_str]
+
+    if count <= _MAX_BARS_PER_CALL:
+        rates = mt5.copy_rates_from_pos(symbol, tf, 0, count)
+        if rates is None or len(rates) == 0:
+            return None
+        return rates
+
+    # แบ่งดึงเป็น chunk ย้อนหลังทีละก้อน (start_pos ยิ่งมาก = ยิ่งเก่า) แล้วเรียงจากเก่าไปใหม่
+    chunks = []
+    start_pos = 0
+    remaining = count
+    while remaining > 0:
+        chunk_count = min(_MAX_BARS_PER_CALL, remaining)
+        chunk = mt5.copy_rates_from_pos(symbol, tf, start_pos, chunk_count)
+        if chunk is None or len(chunk) == 0:
+            break
+        chunks.append(chunk)
+        if len(chunk) < chunk_count:
+            # ข้อมูลย้อนหลังหมดแล้ว (ประวัติสั้นกว่าที่ขอ) ไม่มี chunk เก่ากว่านี้ให้ดึงต่อ
+            break
+        start_pos += chunk_count
+        remaining -= chunk_count
+
+    if not chunks:
         return None
-    return rates
+
+    chunks.reverse()  # chunk แรกที่ดึง (start_pos=0) คือใหม่สุด ต้องอยู่ท้ายสุด
+    combined = np.concatenate(chunks)
+    # กันแท่งซ้ำตรงรอยต่อ chunk (เผื่อ MT5 คืนแท่งคาบเกี่ยวกันเล็กน้อย) โดยยึด time เป็น key
+    _, unique_idx = np.unique(combined["time"], return_index=True)
+    combined = combined[np.sort(unique_idx)]
+    return combined
 
 
 def _ema_full(closes, period):

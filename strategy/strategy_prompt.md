@@ -1,24 +1,20 @@
-# 🚀 คำสั่งสำหรับสร้างสุดยอด Strategy แบบอัตโนมัติ (Next-Generation S114 - S999 Loop)
+# 🚀 คำสั่งสำหรับสร้างสุดยอด Strategy (Next-Generation S115)
 
 **บริบทสำหรับ AI Model:**
 คุณคือสุดยอดนักพัฒนา Quant (God-Tier Quantitative Developer) และผู้เชี่ยวชาญด้าน Algorithmic Trading คุณกำลังเขียนโค้ดเพื่อพัฒนาระบบเทรดอัจฉริยะบน MetaTrader 5 (MT5) ด้วยภาษา Python
 
 ---
 
-## 🔍 กฎการค้นหาชื่อและเลขไฟล์กลยุทธ์ถัดไปอัตโนมัติ (Dynamic Strategy Target)
-
-ก่อนเริ่มเขียนโค้ด ให้ทำตามขั้นตอนต่อไปนี้เสมอ:
-1. **ตรวจสอบหมายเลขสูงสุดที่มีอยู่:** แสกนไฟล์ใน root directory ของโปรเจกต์ ค้นหาไฟล์ที่ตั้งชื่อในรูปแบบ `strategy<NUM>.py` (เช่น `strategy112.py`, `strategy113.py` เป็นต้น) เพื่อหาตัวเลขสูงสุดที่มีอยู่ สมมติว่ามีค่าสูงสุดเป็น `N`
-2. **กำหนดเลขกลยุทธ์ใหม่เป็น `N + 1`:** 
-   *   คุณต้องสร้างกลยุทธ์ใหม่โดยตั้งชื่อไฟล์ว่า `strategy<N+1>.py` (เช่น ถ้าพบว่ามีถึง `strategy113.py` แล้ว ให้สร้างไฟล์ใหม่เป็น `strategy114.py`)
-   *   กำหนดชื่อฟังก์ชันการตรวจจับสัญญาณเป็น `detect_s<N+1>(rates, tf, dt_bkk, cfg)`
-   *   กำหนดรหัสกลยุทธ์ในผลลัพธ์เป็น `S<N+1>` (เช่น ในฟิลด์ `pattern` ให้ระบุว่า `S<N+1> ...`)
+## 🔍 ข้อมูลเป้าหมายกลยุทธ์ถัดไปที่ต้องสร้าง (Strategy Target)
+*   **ชื่อไฟล์ส่งมอบ:** `strategy115.py`
+*   **ชื่อฟังก์ชันการตรวจจับ:** `detect_s115(rates, tf, dt_bkk, cfg)`
+*   **รหัสกลยุทธ์ในผลลัพธ์ (pattern):** `S115 [Setup Tag]` (เช่น `S115 Momentum FTR`)
 
 ---
 
 ## 📊 รายชื่อกลยุทธ์ปัจจุบันที่มีอยู่ในระบบ (เพื่อหลีกเลี่ยงตรรกะซ้ำซ้อน)
 
-ให้ตรวจสอบไฟล์กลยุทธ์ที่มีอยู่ในระบบ (ตั้งแต่ S84 จนถึง `S<N>`) เพื่อสร้างตรรกะใหม่ที่ไม่แย่งออเดอร์ หรือช่วยกระจายความเสี่ยงให้ระบบ LTS (Ladder Trading System) ได้ดีที่สุด:
+ให้ตรวจสอบคลังกลยุทธ์ที่มีอยู่ เพื่อสร้างตรรกะใหม่ที่ไม่แย่งออเดอร์ หรือช่วยกระจายความเสี่ยงให้ระบบ LTS (Ladder Trading System) ได้ดีที่สุด:
 *   **S84 & S86 (Advanced Filter - AF):** ระบบกรองขั้นสูง ผสมผสานอินดิเคเตอร์ไดนามิก
 *   **S95 / S99 / S100 / S101 / S112:** กลุ่มกลยุทธ์ Smart Money Concepts (SMC) ตรวจจับ Liquidity Sweep, Rejection, Order Block Mitigation และ Fair Value Gap (FVG) Retrace
 *   **S96:** Trend Pullback โดยอิงตาม EMA50 + Dynamic ATR Stop Loss
@@ -29,21 +25,22 @@
 *   **S110:** Multi-Timeframe Fractal Structural Alignment (H4+H1+M15+M5)
 *   **S111:** Weekend Gap Fill + Mega Imbalance Void
 *   **S113:** Wyckoff Spring & Upthrust Sniper ร่วมกับ Volume Spread Analysis (VSA)
+*   **S114:** Effort/Result Absorption Continuation (ตรวจจับการดูดซับแรงฝั่งตรงข้ามหลังเกิด Impulse เพื่อรอจังหวะกลับไปตามเทรนด์เดิม)
 
 ---
 
-## 🧠 ข้อกำหนดหลักสำหรับ Strategy ตัวใหม่ `S<N+1>` นี้:
+## 🧠 ข้อกำหนดหลักสำหรับ Strategy ตัวใหม่ `S115` นี้:
 
 1. **จุดได้เปรียบระดับสถาบันการเงิน (The Alpha Edge):**
    ห้ามเขียนโค้ดที่อิงตามตรรกะง่ายๆ (เช่น แค่เส้นตัดกัน) แต่ให้เลือกนำหนึ่งในแนวคิดขั้นสูงเหล่านี้มาใช้ให้เกิด Confluence:
-   - **Wyckoff Method & Volume Spread Analysis (VSA):** วิเคราะห์ความสัมพันธ์ระหว่างการเคลื่อนไหวของราคากับ Tick Volume เพื่อหาจังหวะสะสม/กระจายของรายใหญ่
-   - **Smart Money Concepts (SMC):** โครงสร้าง CHoCH, BOS, Order Blocks, Liquidity Sweeps, Fair Value Gaps
-   - **Volatility Squeeze & Statistical Arbitrage:** Z-Score, Bollinger Squeeze, Keltner Channel, Hurst Exponent
-   - **Multi-Timeframe Fractal Analysis:** การคอนเฟิร์มโครงสร้างราคาและ Momentum ข้ามกรอบเวลา (Multi-Timeframe)
-   - **Volume Delta & Order Flow Anomaly:** การประเมินกำลังซื้อขายที่ผิดปกติของทองคำ (XAUUSD)
+   - **Order Flow & Institutional Imbalances:** การตรวจหา Failed-to-Return (FTR), Break of Structure (BOS) ร่วมกับ Imbalance ที่ทิ้งไว้
+   - **Advanced Wyckoff & VSA:** การเล่นตามรอบสะสม (Accumulation) / กระจายตัว (Distribution)
+   - **Volatility Squeeze & Statistical Mean-Reversion:** Z-Score, Bollinger Squeeze, Hurst Exponent
+   - **Multi-Timeframe Fractal Structure:** การประสานสัญญาณระหว่าง TF ใหญ่คุมแนวโน้ม และ TF ย่อยจับจังหวะเข้าเทรด
+   - **Volume Delta & Price Action Divergence:** ความผิดปกติระหว่างกำลังซื้อขายและระยะทางวิ่งของราคาทองคำ (XAUUSD)
 
 2. **โครงสร้างของโค้ดที่เข้มงวด:**
-   โค้ดต้องแยกเขียนเป็นไฟล์เดี่ยวและมีฟังก์ชัน `detect_s<N+1>(rates, tf, dt_bkk, cfg)`
+   โค้ดต้องแยกเขียนเป็นไฟล์เดี่ยวและมีฟังก์ชัน `detect_s115(rates, tf, dt_bkk, cfg)`
    - `rates`: List of Dictionaries ของแท่งเทียน (มี `time, open, high, low, close, tick_volume` ตามมาตรฐาน MT5)
    - `tf`: Timeframe ปัจจุบัน (เช่น "M5", "M15")
    - `dt_bkk`: เวลาปัจจุบัน (datetime object ในเขตเวลากรุงเทพฯ UTC+7)
@@ -58,14 +55,16 @@
        "sl": 4490.00,    # float: ราคาตัดขาดทุน
        "tp": 4530.00,    # float: ราคาทำกำไร
        "order_type": "limit", # หรือ "market"
-       "pattern": "S<N+1> [Setup Tag]", # เช่น "S114 Spring"
-       "reason": "รายละเอียดเหตุผลในการเข้าออเดอร์"
+       "pattern": "S115 [Setup Tag]", # เช่น "S115 FTR Breakout"
+       "reason": "รายละเอียดเหตุผลในการเข้าออเดอร์",
+       "be_rr": 1.0,          # float หรือ None: ดึง SL บังหน้าทุนเมื่อบวกถึง R:R เท่านี้ (ถ้าไม่ใช้ใส่ None/ละเว้น)
+       "cancel_bars": 5       # int หรือ None: ยกเลิก Pending ถ้าไม่ fill ใน N แท่ง (ถ้าไม่ใช้ใส่ None/ละเว้น)
    }
    
    # กรณีที่ยังไม่เกิดเงื่อนไขที่ได้เปรียบ:
    return {
        "signal": "WAIT",
-       "reason": "คำอธิบายว่าทำไมถึงต้องรอ"
+       "reason": "ตลาดไม่มีสัญญาณสะสมพลังที่ได้เปรียบ"
    }
    ```
 
@@ -76,9 +75,18 @@
 4. **การคัดกรองสัญญาณด้วย Machine Learning (ไม่บังคับ):**
    - สามารถเรียกใช้ `ml_scoring.score_signal('XAUUSD.iux', tf, 'BUY', entry, dt_bkk, historical_rates=rates)` เพื่อกรองเอาเฉพาะออเดอร์ที่มีความน่าจะเป็น (Win Probability) เกินกว่า 55%
 
+5. **กฎเหล็กป้องกัน Look-Ahead Bias และ Reality Check (LTS & AF Compatibility):**
+   - **ห้ามมี Look-Ahead Bias:** สัญญาณตรวจจับต้องมาจากแท่งเทียนที่ **ปิดตัวสมบูรณ์แล้วเท่านั้น** ห้ามใช้ข้อมูลราคาในอนาคต หากมีการทำ Resampling ข้อมูลแท่งเทียนข้าม Timeframe (เช่น จาก M1 ไป M15/M30) ให้ **ตัดแท่งเทียนแท่งสุดท้ายที่ยังปิดไม่สมบูรณ์ออกไปเสมอ**
+   - **Spread Reality Check สำหรับ Limit Entry:** ในโปรแกรมทดสอบ Backtest การเข้าเทรดด้วย Limit Order จะถูก Fill ได้ก็ต่อเมื่อราคาเคลื่อนที่ผ่านและมีระยะคลุมค่า Spread ด้วย (สำหรับ BUY: `low <= entry - spread` / สำหรับ SELL: `high >= entry + spread`)
+   - **Market Entry Price Bias Guard:** หากเลือกส่งคำสั่งเป็น Market Order ออเดอร์นั้นจะต้องจำลองให้เข้าเทรดที่ราคาเปิด (Open Price) ของแท่งเทียนถัดไปทันที (ไม่ใช่ราคา Close ของแท่งสัญญาณ) เพื่อป้องกันความลำเอียงของการจำลองราคาเปิดที่สวยเกินจริง
+   - **SL-First Evaluation (Same Bar Touch):** ในแท่งเทียนที่คำสั่งได้รับการเติมเต็ม (Fill) หากแท่งนั้นมีการเคลื่อนไหวไปแตะทั้ง SL และ TP ในแท่งเดียวกัน ให้ถือว่าคำสั่งชน **Stop Loss (SL) ก่อนเสมอ** (กฎการ Backtest แบบปลอดภัยสูงสุด)
+   - **LTS Portfolio Parameters:** ในตัวแปรที่คืนค่าจากฟังก์ชัน นอกจาก `entry`, `sl`, `tp`, และ `order_type` แล้ว ต้องคืนค่าพารามิเตอร์คุมความเสี่ยงหน้างานสำหรับ LTS และระบบ Trailing ด้วย ได้แก่:
+     - `be_rr` (float หรือ None): ระดับ R:R ที่จะดึง Stop Loss มาบังหน้าทุน (Breakeven - BE) เช่น `1.0` (เมื่อได้กำไรเท่ากับความเสี่ยงเริ่มต้น)
+     - `cancel_bars` (int หรือ None): จำนวนแท่งเทียนบน Timeframe เทรดที่จะยกเลิก Pending Order ที่รอหากยังไม่ได้รับการ Fill (เช่น `5` แท่งเทียน)
+
 ## 📝 สิ่งที่คุณต้องส่งมอบ:
 1. อธิบายตรรกะทางคณิตศาสตร์และ **จุดได้เปรียบ (EDGE)** ของกลยุทธ์ใหม่ตัวนี้
-2. เขียนโค้ด Python ที่สมบูรณ์ ไร้บั๊ก และอ่านง่าย สำหรับ `strategy<N+1>.py`
+2. เขียนโค้ด Python ที่สมบูรณ์ ไร้บั๊ก และอ่านง่าย สำหรับ `strategy115.py`
 3. กำหนดตัวแปร `cfg` (Hyperparameters) สำหรับการทดสอบและใช้งานใน Backtest
 
 **เริ่มลงมือสร้างสรรค์ได้เลย!** แสดงให้เห็นความเหนือชั้นในการเขียนบอทเทรดของคุณ!

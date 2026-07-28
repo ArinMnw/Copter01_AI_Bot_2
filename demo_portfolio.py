@@ -27,6 +27,7 @@ sid นี้ tag ไม้ standalone ได้อย่างปลอดภ�
 save/restore ผ่าน bot_state.json อยู่แล้ว (ของเดิมในระบบ) จึงรอดข้าม restart อัตโนมัติ
 """
 
+import asyncio
 import json
 import os
 import threading
@@ -86,10 +87,20 @@ _LTS_NAMED_MAGIC = {
     "LTS_AVENGERS_HIGH_RISK": 992003,
     "LTS_AVENGERS_ULTRA_SAFE": 992004,
     "LTS_AVENGERS_HIGH_FREQ": 992005,
+    # Rollover champions (2026-07-20) — ต้องอยู่ที่นี่ ไม่งั้น _portfolio_magic()
+    # จะ int("_ROLLOVER") แล้ว ValueError ทันทีที่เปิดพอร์ต
+    "LTS_ROLLOVER": 992006,
+    "LTS_ROLLOVER_SAFE": 992007,
+    "LTS_ROLLOVER_ORB": 992008,
+    "LTS_EVOLUTION9": 992009,
+    "LTS_WINRATE5": 992010,
 }
+_LTS_MAGIC_TO_NAME = {magic: name for name, magic in _LTS_NAMED_MAGIC.items()}
 MIN_LOT = 0.01
 BKK_TZ = timezone(timedelta(hours=7))
 _STATE_SAVE_LOCK = threading.Lock()
+S9X_PENDING_MAX_BARS = 5
+S9X_PENDING_SPREAD = 0.20
 
 _TF_MAP = {
     "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, 
@@ -305,17 +316,18 @@ def _prev_week_hl_now(entry_ts):
 
 def _load_state():
     if not os.path.exists(STATE_FILE):
-        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "trades": []}
+        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "pending_lts_entries": {}, "trades": []}
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             state = json.load(f)
             state.setdefault("active", {"P13": False, "P16": False})
             state.setdefault("last_signal_ts", {})
             state.setdefault("last_raw_signal_ts", {})
+            state.setdefault("pending_lts_entries", {})
             state.setdefault("trades", [])
             return state
     except Exception:
-        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "trades": []}
+        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "pending_lts_entries": {}, "trades": []}
 
 
 def _save_state(state):
@@ -362,6 +374,9 @@ def _demo_comment(leg_id, entry_tf):
     comment = comment.replace("LTS_AVENGERS_P34", "LTS_AP34")
     comment = comment.replace("LTS_AVENGERS_BASE", "LTS_AVB")
     return comment[:29]
+
+
+BACKTEST_ANCHORED_PORTFOLIOS = {"LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"}
 
 
 def _strategy_doc(af_def):
@@ -434,7 +449,7 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
 
 
-def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original_entry=0.0):
+def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original_entry=0.0, anchor_sl_tp=False):
     """วางออเดอร์ตรงๆ ผ่าน mt5.order_send() — ไม่ผ่าน mt5_utils.open_order_market() เพื่อเลี่ยง
     ML_SCORING_ENABLED / SCALE_OUT_ENABLED ที่เป็น global toggle ของบอทเดิม (ดู docstring บนไฟล์)"""
     symbol = _demo_symbol()
@@ -443,8 +458,9 @@ def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original
         return {"success": False, "error": "ดึงราคาไม่ได้"}
     price = tick.ask if signal == "BUY" else tick.bid
     
-    # 1. Shift SL/TP by the difference between execution price and original signal entry
-    if original_entry > 0:
+    # 1. Shift SL/TP by the difference between execution price and original signal entry.
+    # Backtest-anchored portfolios keep the sim SL/TP unchanged so MT5 can be compared directly.
+    if original_entry > 0 and not anchor_sl_tp:
         delta = price - original_entry
         sl += delta
         if tp > 0:
@@ -612,13 +628,203 @@ async def _demo_scan_af(app, portfolio_name: str):
             pass
 
 
+def _bar_index_by_ts(bars, ts):
+    for idx, bar in enumerate(bars):
+        if int(bar["time"]) == int(ts):
+            return idx
+    return None
+
+
+def _s9x_pending_should_fill(pending):
+    tick = mt5.symbol_info_tick(_demo_symbol())
+    if not tick:
+        return False
+    entry = float(pending["entry"])
+    bid = float(getattr(tick, "bid", 0.0) or 0.0)
+    if pending["signal"] == "BUY":
+        return bid <= entry - S9X_PENDING_SPREAD
+    return bid >= entry + S9X_PENDING_SPREAD
+
+
+async def _process_lts_pending_entry(app, state, leg_id, bars, magic, portfolio_name):
+    pending = state.get("pending_lts_entries", {}).get(leg_id)
+    if not pending:
+        return False
+
+    signal_idx = _bar_index_by_ts(bars, int(pending["signal_bar_ts"]))
+    current_idx = len(bars) - 1
+    if signal_idx is not None and current_idx - signal_idx > S9X_PENDING_MAX_BARS:
+        state["pending_lts_entries"].pop(leg_id, None)
+        _save_state(state)
+        log_event("DEMO_PORTFOLIO_PENDING_CANCEL", f"{leg_id} expired entry={pending.get('entry')}")
+        return False
+
+    if not _s9x_pending_should_fill(pending):
+        return True
+
+    sig = pending["signal"]
+    entry_tf = pending["tf"]
+    sl = float(pending["sl"])
+    tp = float(pending["tp"])
+    volume = float(pending["volume"])
+    original_entry = float(pending["entry"])
+    result = _place_market_order(
+        sig,
+        sl,
+        tp,
+        _demo_comment(leg_id, entry_tf),
+        magic,
+        volume=volume,
+        original_entry=original_entry,
+        anchor_sl_tp=True,
+    )
+    sl = result.get("sl", sl)
+    tp = result.get("tp", tp)
+
+    if result.get("success") and result.get("ticket"):
+        try:
+            from trailing import position_sid
+            position_sid[result["ticket"]] = 21
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+
+    state["pending_lts_entries"].pop(leg_id, None)
+    state["trades"].append({
+        "ts": _now_bkk().isoformat(),
+        "entry_bar_ts": int(pending["signal_bar_ts"]),
+        "leg": leg_id,
+        "label": pending.get("label", leg_id),
+        "signal": sig,
+        "sl": sl,
+        "tp": tp,
+        "success": result.get("success"),
+        "ticket": result.get("ticket"),
+        "error": result.get("error"),
+        "risk_distance": pending.get("risk_distance"),
+        "fill_hour": pending.get("fill_hour"),
+        "volume": volume,
+        "weighted_sizing": pending.get("weighted_sizing", True),
+        "weight": pending.get("weight"),
+        "weight_scale": pending.get("weight_scale"),
+        "raw_volume": pending.get("raw_volume"),
+        "doc": pending.get("doc"),
+        "pending_fill": True,
+    })
+    state["trades"] = state["trades"][-1000:]
+    _save_state(state)
+
+    log_event(
+        "DEMO_PORTFOLIO_PENDING_FILL",
+        f"{leg_id} {sig} lot={volume:.2f} entry={original_entry} sl={sl} tp={tp} "
+        f"success={result.get('success')} ticket={result.get('ticket')} err={result.get('error')}",
+    )
+
+    if app is not None and result.get("success"):
+        try:
+            msg = (
+                f"[AF SIGNAL] *{PORTFOLIO_DISPLAY_NAME[portfolio_name]}*\n"
+                f"Leg: `{pending.get('label', leg_id)}`\n"
+                f"{sig} @ pending-fill market lot `{volume:.2f}`\n"
+                f"Entry `{original_entry:.2f}` SL `{sl:.2f}` TP `{tp:.2f}`\n"
+                f"Ticket: `{result.get('ticket')}`"
+            )
+            await app.bot.send_message(chat_id=config.MY_USER_ID, text=msg, parse_mode="Markdown")
+        except Exception:
+            pass
+    elif app is not None and not result.get("success") and not result.get("skipped"):
+        try:
+            await app.bot.send_message(
+                chat_id=config.MY_USER_ID,
+                text=f"Demo Portfolio {leg_id} pending-fill failed: {result.get('error')}",
+            )
+        except Exception:
+            pass
+    return False
+
+
+def _update_circuit_breaker_state(state, portfolio_name):
+    """
+    Updates the circuit breaker state for the given portfolio by examining closed deals.
+    Currently only implemented/used for LTS_AVENGERS_ULTRA_SAFE if enabled.
+    """
+    if portfolio_name not in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+        return
+    import config
+    if not config.DEMO_PORTFOLIO_CB_ENABLED.get(portfolio_name, False):
+        return
+
+    magic = _portfolio_magic(portfolio_name)
+    cb_state = state.setdefault("cb_state", {})
+    
+    # realised (ไม้ที่ปิดจบแล้ว)
+    from datetime import timedelta as _td
+    date_from = datetime.now(timezone.utc) - _td(days=200)
+    date_to = datetime.now(timezone.utc) + _td(days=1)
+    deals = mt5.history_deals_get(date_from, date_to)
+    if not deals:
+        return
+
+    # build ticket to leg mapping for this portfolio
+    tickets = {t["ticket"]: (t["leg"], t["ts"]) for t in state.get("trades", [])
+               if t.get("success") and t.get("ticket") and (t["leg"].startswith(f"{portfolio_name}-") or t["leg"].startswith(f"{portfolio_name}_"))}
+
+    # Sort deals chronologically so we process them in the order they closed
+    deals_sorted = sorted(deals, key=lambda d: d.time)
+
+    changed = False
+    for deal in deals_sorted:
+        if deal.magic != magic:
+            continue
+        if deal.entry != mt5.DEAL_ENTRY_OUT:  # เอาเฉพาะ deal ที่ "ปิด" position
+            continue
+        
+        ticket = deal.position_id
+        leg_info = tickets.get(ticket)
+        if leg_info is None:
+            continue
+        leg_id = leg_info[0]
+        
+        leg_cb = cb_state.setdefault(leg_id, {"consec_loss": 0, "cooldown_remaining": 0, "processed_tickets": []})
+        
+        # Check if we already processed this ticket
+        if ticket in leg_cb.get("processed_tickets", []):
+            continue
+            
+        profit = float(deal.profit) + float(deal.swap) + float(deal.commission)
+        if profit <= 0:
+            leg_cb["consec_loss"] += 1
+            if leg_cb["consec_loss"] >= 3:
+                leg_cb["cooldown_remaining"] = 10
+                leg_cb["consec_loss"] = 0
+                log_event("DEMO_PORTFOLIO_CB_TRIGGER", f"{leg_id} circuit breaker triggered (cooldown=10 trades)")
+        else:
+            leg_cb["consec_loss"] = 0
+            
+        if "processed_tickets" not in leg_cb or not isinstance(leg_cb["processed_tickets"], list):
+            leg_cb["processed_tickets"] = []
+        leg_cb["processed_tickets"].append(ticket)
+        leg_cb["processed_tickets"] = leg_cb["processed_tickets"][-100:]
+        changed = True
+        
+    if changed:
+        _save_state(state)
+
+
 async def _demo_scan_af_ladder(app, portfolio_name: str):
     state = _load_state()
+    if portfolio_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+        _update_circuit_breaker_state(state, portfolio_name)
     magic = _portfolio_magic(portfolio_name)
     now = _now_bkk()
     bars_cache = {}
+    backtest_anchor = portfolio_name in BACKTEST_ANCHORED_PORTFOLIOS
 
-    for key in PORTFOLIOS[portfolio_name]:
+    for _leg_i, key in enumerate(PORTFOLIOS[portfolio_name]):
+        if _leg_i % 20 == 0:
+            # คืน control ให้ event loop เป็นระยะ — ตระกูล LTS_AVENGERS มีถึง ~918 ขา/portfolio
+            # ถ้าวน sync ยาวรวดเดียวไม่มี await เลย จะบล็อก event loop ทั้งตัวจนบอทหลัก
+            # (run_scan ทุก 5 วิ) วิ่งไม่ทัน → SCAN_SLOW/WATCHDOG ถี่ (เจอจริง 2026-07-20)
+            await asyncio.sleep(0)
         af_def = AF_DEFS[key]
         cfg = af_def["cfg"]
         entry_tf = cfg["ENTRY_TF"]
@@ -629,9 +835,15 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
             log_error("DEMO_PORTFOLIO", f"{portfolio_name}: fetch {entry_tf} bars failed")
             continue
 
-        entry_ts = int(bars[-1]["time"])
+        signal_bars = bars[:-1] if backtest_anchor and len(bars) > 2 else bars
+        entry_ts = int(signal_bars[-1]["time"])
         k = af_def['key']
         leg_id = k if k.startswith(portfolio_name) else f"{portfolio_name}-{k}"
+        if backtest_anchor and af_def.get("is_s9x"):
+            had_pending = leg_id in state.get("pending_lts_entries", {})
+            pending_active = await _process_lts_pending_entry(app, state, leg_id, bars, magic, portfolio_name)
+            if had_pending or pending_active:
+                continue
         if state["last_signal_ts"].get(leg_id) == entry_ts:
             continue
         if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
@@ -639,10 +851,10 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
 
         try:
             if portfolio_name.startswith("LTS"):
-                res, filtered, reason = detect_lts(key, bars)
+                res, filtered, reason = detect_lts(key, signal_bars)
             else:
                 fill_dt = config.mt5_ts_to_bkk(entry_ts)
-                res = af_def["detect_fn"](bars, tf=entry_tf, dt_bkk=fill_dt, cfg=cfg)
+                res = af_def["detect_fn"](signal_bars, tf=entry_tf, dt_bkk=fill_dt, cfg=cfg)
                 filtered, reason = apply_af_filters(res, af_def, entry_ts)
         except Exception as e:
             log_error("DEMO_PORTFOLIO", f"{leg_id} detect error: {type(e).__name__}: {e}")
@@ -656,6 +868,19 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
                 _save_state(state)
                 log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped - {reason}")
             continue
+
+        # Circuit Breaker check
+        if portfolio_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK") and config.DEMO_PORTFOLIO_CB_ENABLED.get(portfolio_name, False):
+            cb_state = state.setdefault("cb_state", {})
+            leg_cb = cb_state.setdefault(leg_id, {"consec_loss": 0, "cooldown_remaining": 0, "processed_tickets": []})
+            if leg_cb.get("cooldown_remaining", 0) > 0:
+                leg_cb["cooldown_remaining"] -= 1
+                _save_state(state)
+                log_event(
+                    "DEMO_PORTFOLIO_CB_SKIP",
+                    f"{leg_id} signal skipped by Circuit Breaker (cooldown={leg_cb['cooldown_remaining']} left)"
+                )
+                continue
 
         state["last_signal_ts"][leg_id] = entry_ts
         cap = int(getattr(config, "DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG", 0) or 0)
@@ -677,8 +902,67 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
             log_event("DEMO_PORTFOLIO_SKIP", f"{leg_id} skipped - weight is 0.0")
             continue
 
+        if backtest_anchor and af_def.get("is_s9x"):
+            state.setdefault("pending_lts_entries", {})[leg_id] = {
+                "portfolio": portfolio_name,
+                "tf": entry_tf,
+                "signal_bar_ts": entry_ts,
+                "signal": sig,
+                "entry": original_entry,
+                "sl": sl,
+                "tp": tp,
+                "volume": volume,
+                "label": af_def["label"],
+                "risk_distance": filtered["risk_distance"],
+                "fill_hour": filtered["fill_hour"],
+                "weighted_sizing": volume_meta["weighted"],
+                "weight": volume_meta["weight"],
+                "weight_scale": volume_meta["scale"],
+                "raw_volume": volume_meta["raw_volume"],
+                "doc": _strategy_doc(af_def),
+            }
+            state["trades"].append({
+                "ts": now.isoformat(),
+                "entry_bar_ts": entry_ts,
+                "leg": leg_id,
+                "label": af_def["label"],
+                "signal": sig,
+                "entry": original_entry,
+                "sl": sl,
+                "tp": tp,
+                "success": None,
+                "ticket": None,
+                "error": "pending_entry",
+                "risk_distance": filtered["risk_distance"],
+                "fill_hour": filtered["fill_hour"],
+                "volume": volume,
+                "weighted_sizing": volume_meta["weighted"],
+                "weight": volume_meta["weight"],
+                "weight_scale": volume_meta["scale"],
+                "raw_volume": volume_meta["raw_volume"],
+                "doc": _strategy_doc(af_def),
+            })
+            state["trades"] = state["trades"][-1000:]
+            _save_state(state)
+            log_event(
+                "DEMO_PORTFOLIO_PENDING_ARM",
+                f"{leg_id} {sig} entry={original_entry} sl={sl} tp={tp} lot={volume:.2f} "
+                f"expires={S9X_PENDING_MAX_BARS}bars",
+            )
+            await _process_lts_pending_entry(app, state, leg_id, bars, magic, portfolio_name)
+            continue
+
         comment = _demo_comment(leg_id, entry_tf)
-        result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, original_entry=original_entry)
+        result = _place_market_order(
+            sig,
+            sl,
+            tp,
+            comment,
+            magic,
+            volume=volume,
+            original_entry=original_entry,
+            anchor_sl_tp=backtest_anchor,
+        )
 
         sl = result.get("sl", sl)
         tp = result.get("tp", tp)
@@ -859,6 +1143,161 @@ async def demo_scan(app, portfolio_name: str):
                 pass
 
 
+# ── Position management: breakeven + pyramid ────────────────────────────────
+# ⚠️ ทำไมถึงมีส่วนนี้ ทั้งที่ docstring บนไฟล์บอกว่า "ไม่ต้องมี exit-management เพิ่ม":
+# ข้อสรุปเดิมนั้นมาจาก research ของพอร์ต P13/P16 ซึ่งกลยุทธ์ *ไม่ได้* ขอ breakeven.
+# แต่ซีรีส์ rollover (S202/S206/S218/S224) คืนค่า be_rr มาด้วย และ backtest ที่ใช้
+# ตัดสินใจก็จำลอง breakeven ตามนั้น — ถ้า live ไม่ทำ SL จะไม่ถูกเลื่อน ผลจริงจะต่างจาก
+# backtest มาก (วัดแล้ว 2026-07-20: ปิด BE ทำให้ maxDD เกือบเท่าตัวทุกตัว เช่น
+# S206 30.80 -> 58.54, S224 17.46 -> 42.79, S202 33.67 -> 94.34)
+# ดังนั้นส่วนนี้เปิดเฉพาะพอร์ตที่ระบุไว้ใน MANAGED_PORTFOLIOS เท่านั้น พอร์ตเดิมไม่ถูกแตะ
+MANAGED_PORTFOLIOS = {
+    # portfolio -> {"be_rr", "pyramid_r", "pyramid_frac", "pyramid_legs"}
+    # be_rr        = เลื่อน SL มาที่ราคาเปิดเมื่อกำไรถึง N เท่าของ risk (None = ปิด)
+    # pyramid_r    = เติมไม้เมื่อกำไรถึง N เท่าของ risk, SL ไม้ใหม่ = ราคาเปิดไม้แรก (None = ปิด)
+    # pyramid_legs = จำกัด pyramid ให้เฉพาะขาที่ label ตรงกับ substring ในทูเพิลนี้
+    #                (None = ทุกขาในพอร์ต) — จำเป็นเพราะ pyramid ทดสอบมาเป็นรายกลยุทธ์
+    "LTS_ROLLOVER": {"be_rr": 1.0, "pyramid_r": None, "pyramid_frac": 1.0,
+                     "pyramid_legs": None},
+    "LTS_ROLLOVER_SAFE": {"be_rr": 1.0, "pyramid_r": None, "pyramid_frac": 1.0,
+                          "pyramid_legs": None},
+    # pyramid เปิดเฉพาะ S224 (ทดสอบแล้ว: 12m +543.69 = +66% โดย return/DD 16.6->15.1
+    # แทบไม่ตก). ขา S202 ในพอร์ตเดียวกัน **ไม่** pyramid เพราะยังไม่เคยทดสอบ —
+    # อย่าถอด pyramid_legs ออกจนกว่าจะมีผลทดสอบ S202 + pyramid
+    "LTS_ROLLOVER_ORB": {"be_rr": 1.0, "pyramid_r": 3.0, "pyramid_frac": 1.0,
+                         "pyramid_legs": ("S224",)},
+}
+
+
+def _position_risk(position, recorded_sl):
+    """R distance ของไม้ — ใช้ SL เดิมที่บันทึกไว้ ไม่ใช่ SL ปัจจุบัน (ซึ่งอาจถูกเลื่อนแล้ว)"""
+    entry = float(getattr(position, "price_open", 0.0) or 0.0)
+    if entry <= 0.0 or not recorded_sl:
+        return 0.0
+    return abs(entry - float(recorded_sl))
+
+
+async def _manage_open_positions(app, portfolio_name: str):
+    """เลื่อน SL ไป breakeven และ (ถ้าเปิด) เติมไม้ตาม pyramid — ทำงานกับไม้ของพอร์ตนี้เท่านั้น
+
+    ปลอดภัยโดยดีไซน์: แตะเฉพาะ ticket ที่อยู่ใน state["trades"] ของพอร์ตนี้ และ magic ตรงกัน
+    ทุกอย่างห่อ try/except — ถ้าพังก็แค่ไม่จัดการไม้ ไม่กระทบการสแกนหาสัญญาณ
+    """
+    rules = MANAGED_PORTFOLIOS.get(portfolio_name)
+    if not rules:
+        return
+    be_rr = rules.get("be_rr")
+    pyramid_r = rules.get("pyramid_r")
+    if not be_rr and not pyramid_r:
+        return
+
+    magic = _portfolio_magic(portfolio_name)
+    symbol = _demo_symbol()
+    positions = mt5.positions_get(symbol=symbol)
+    if not positions:
+        return
+    state = _load_state()
+    by_ticket = {t["ticket"]: t for t in state["trades"]
+                 if t.get("success") and t.get("ticket")}
+    tick = mt5.symbol_info_tick(symbol)
+    if not tick:
+        return
+    dirty = False
+
+    for pos in positions:
+        if int(getattr(pos, "magic", 0) or 0) != magic:
+            continue
+        record = by_ticket.get(pos.ticket)
+        if record is None:
+            continue
+        risk = _position_risk(pos, record.get("sl"))
+        if risk <= 0.0:
+            continue
+        entry = float(pos.price_open)
+        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+        price = float(tick.bid if is_buy else tick.ask)
+        progress = (price - entry) if is_buy else (entry - price)
+
+        # ── 1) breakeven ────────────────────────────────────────────────
+        if be_rr and not record.get("be_done") and progress >= risk * float(be_rr):
+            try:
+                res = mt5.order_send({
+                    "action": mt5.TRADE_ACTION_SLTP,
+                    "position": pos.ticket,
+                    "symbol": symbol,
+                    "sl": round(entry, 2),
+                    "tp": float(pos.tp),
+                })
+                if res is not None and res.retcode == mt5.TRADE_RETCODE_DONE:
+                    record["be_done"] = True
+                    dirty = True
+                    log_event("DEMO_PORTFOLIO_BE",
+                              f"{record.get('leg')} ticket={pos.ticket} SL->BE {entry:.2f} "
+                              f"(+{progress / risk:.2f}R)")
+                else:
+                    log_error("DEMO_PORTFOLIO",
+                              f"BE modify failed ticket={pos.ticket}: "
+                              f"{getattr(res, 'retcode', None)} {getattr(res, 'comment', '')}")
+            except Exception as e:
+                log_error("DEMO_PORTFOLIO", f"BE error ticket={pos.ticket}: {type(e).__name__}: {e}")
+
+        # ── 2) pyramid (เฉพาะขาที่ระบุใน pyramid_legs) ───────────────────
+        legs_filter = rules.get("pyramid_legs")
+        if legs_filter is not None:
+            tag = f"{record.get('leg', '')} {record.get('label', '')}"
+            pyramid_allowed = any(str(m) in tag for m in legs_filter)
+        else:
+            pyramid_allowed = True
+        if (pyramid_r and pyramid_allowed and not record.get("pyramid_done")
+                and progress >= risk * float(pyramid_r)):
+            try:
+                volume = round(float(getattr(pos, "volume", MIN_LOT)) *
+                               float(rules.get("pyramid_frac", 1.0)), 2)
+                volume = max(MIN_LOT, volume)
+                add = _place_market_order(
+                    "BUY" if is_buy else "SELL",
+                    round(entry, 2),          # SL ไม้เติม = ราคาเปิดไม้แรก
+                    float(pos.tp),            # เป้าเดียวกับไม้แรก
+                    _demo_comment(f"{record.get('leg')}-PYR", ""),
+                    magic,
+                    volume=volume,
+                )
+                record["pyramid_done"] = True
+                dirty = True
+                if add.get("success") and add.get("ticket"):
+                    try:
+                        from trailing import position_sid
+                        position_sid[add["ticket"]] = 21
+                    except Exception as e:
+                        log_error("DEMO_PORTFOLIO",
+                                  f"register pyramid position_sid failed: {type(e).__name__}: {e}")
+                    state["trades"].append({
+                        "ts": _now_bkk().isoformat(),
+                        "leg": f"{record.get('leg')}-PYR",
+                        "label": f"{record.get('label', '')} (pyramid)",
+                        "signal": "BUY" if is_buy else "SELL",
+                        "sl": add.get("sl"),
+                        "tp": add.get("tp"),
+                        "success": True,
+                        "ticket": add["ticket"],
+                        "volume": volume,
+                        "parent_ticket": pos.ticket,
+                    })
+                    log_event("DEMO_PORTFOLIO_PYRAMID",
+                              f"{record.get('leg')} parent={pos.ticket} add={add['ticket']} "
+                              f"lot={volume:.2f} SL={add.get('sl')} (+{progress / risk:.2f}R)")
+                else:
+                    log_error("DEMO_PORTFOLIO",
+                              f"pyramid order failed parent={pos.ticket}: {add.get('error')}")
+            except Exception as e:
+                log_error("DEMO_PORTFOLIO",
+                          f"pyramid error ticket={pos.ticket}: {type(e).__name__}: {e}")
+
+    if dirty:
+        state["trades"] = state["trades"][-1000:]
+        _save_state(state)
+
+
 async def demo_scan_job(app):
     """เรียกจาก scheduler ใน main.py ทุก DEMO_PORTFOLIO_SCAN_INTERVAL นาที — no-op ถ้าไม่มี
     portfolio ไหน active เลย"""
@@ -872,6 +1311,11 @@ async def demo_scan_job(app):
         return
     log_event("DEMO_PORTFOLIO_SCAN", f"{symbol} open active={','.join(active_names)}")
     for name in active_names:
+        # จัดการไม้ที่เปิดอยู่ก่อนหาสัญญาณใหม่เสมอ (ทำงานเฉพาะพอร์ตใน MANAGED_PORTFOLIOS)
+        try:
+            await _manage_open_positions(app, name)
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"{name} manage error: {type(e).__name__}: {e}")
         try:
             await demo_scan(app, name)
         except Exception as e:
@@ -1019,26 +1463,34 @@ def get_status_text(portfolio_name: str) -> str:
     pnl_by_leg = _fetch_leg_pnl(portfolio_name)
     if pnl_by_leg:
         now = _now_bkk()
-        lines.append(f"\n💵 *กำไร/ขาดทุน แยกราย leg:*")
+        lines.append(f"\n💵 *กำไร/ขาดทุน แยกราย leg (แสดงสูงสุด 10 ขา):*")
         total_realized = 0.0
         total_floating = 0.0
         sort_key = lambda k: pnl_by_leg[k]["total"] + pnl_by_leg[k]["floating"]
-        for leg_id in sorted(pnl_by_leg, key=sort_key, reverse=True):
+        sorted_legs = sorted(pnl_by_leg, key=sort_key, reverse=True)
+        
+        for idx, leg_id in enumerate(sorted_legs):
             d = pnl_by_leg[leg_id]
-            key = leg_id.replace(f"{portfolio_name}-", "").replace(f"{portfolio_name}_", "")
-            label = _leg_label(key)
-            first_dt = datetime.fromisoformat(d["first_ts"])
-            days_elapsed = max((now - first_dt).total_seconds() / 86400.0, 1.0)
-            per_day = d["total"] / days_elapsed
-            per_month = per_day * 30
             total_realized += d["total"]
             total_floating += d["floating"]
-            float_part = f" | ลอยอยู่ `${d['floating']:+.2f}` (ยังไม่ปิด)" if d["floating"] != 0 else ""
-            lines.append(
-                f"  `{key}` `{label}`: ปิดแล้ว `${d['total']:+.2f}` "
-                f"({d['n_closed']} ไม้){float_part}\n"
-                f"      เฉลี่ย/วัน `${per_day:+.2f}` | เฉลี่ย/เดือน `${per_month:+.2f}`"
-            )
+            
+            if idx < 10:
+                key = leg_id.replace(f"{portfolio_name}-", "").replace(f"{portfolio_name}_", "")
+                label = _leg_label(key)
+                first_dt = datetime.fromisoformat(d["first_ts"])
+                days_elapsed = max((now - first_dt).total_seconds() / 86400.0, 1.0)
+                per_day = d["total"] / days_elapsed
+                per_month = per_day * 30
+                float_part = f" | ลอยอยู่ `${d['floating']:+.2f}` (ยังไม่ปิด)" if d["floating"] != 0 else ""
+                lines.append(
+                    f"  `{key}` `{label}`: ปิดแล้ว `${d['total']:+.2f}` "
+                    f"({d['n_closed']} ไม้){float_part}\n"
+                    f"      เฉลี่ย/วัน `${per_day:+.2f}` | เฉลี่ย/เดือน `${per_month:+.2f}`"
+                )
+                
+        if len(sorted_legs) > 10:
+            lines.append(f"  *(และขาอื่นๆ อีก {len(sorted_legs) - 10} ขา)*")
+            
         lines.append(
             f"\n**รวม realized (ปิดแล้ว): ${total_realized:+.2f}**\n"
             f"**รวม floating (ยังไม่ปิด): ${total_floating:+.2f}**\n"
@@ -1050,10 +1502,14 @@ def get_status_text(portfolio_name: str) -> str:
     return "\n".join(lines)
 
 
+_LTS_EXIT_LAST_CHECKED_BAR = {}
+
+
 async def lts_exit_manager(app):
     """
     Phase 4 Exit Manager for LTS Portfolios
-    Runs periodically (e.g. 5s) to check Smart Cutloss and Momentum Stall Exit for LTS.
+    Runs periodically (e.g. 5s) to check Smart Cutloss and Momentum Stall Exit for LTS
+    strictly on completed candle boundaries (closed candles) per position timeframe.
     """
     import mt5_worker as mt5
     import pandas as pd
@@ -1061,28 +1517,27 @@ async def lts_exit_manager(app):
     from bot_log import log_event
     from trailing import _close_position
     
+    global _LTS_EXIT_LAST_CHECKED_BAR
+
     positions = mt5.positions_get(symbol=config.SYMBOL)
     if not positions:
+        _LTS_EXIT_LAST_CHECKED_BAR.clear()
         return
-        
-    rates = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_M15, 0, 60)
-    if rates is None or len(rates) < 50:
-        return
-        
-    df = pd.DataFrame(rates)
-    df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
-    df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
-    
-    current_price = df['close'].iloc[-1]
-    ema20 = df['ema20'].iloc[-1]
-    ema50 = df['ema50'].iloc[-1]
-    
-    # Pre-calculate Momentum Stall components
-    recent_highs = df['high'].iloc[-6:-1]
-    recent_lows = df['low'].iloc[-6:-1]
+
+    active_tickets = {pos.ticket for pos in positions}
+    for t in list(_LTS_EXIT_LAST_CHECKED_BAR.keys()):
+        if t not in active_tickets:
+            _LTS_EXIT_LAST_CHECKED_BAR.pop(t, None)
+            
     mult = 100000 if "USD" in config.SYMBOL or "EUR" in config.SYMBOL or "GBP" in config.SYMBOL else 1000
     if config.SYMBOL == "XAUUSD":
         mult = 100
+
+    tf_map = {
+        "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15,
+        "M30": mt5.TIMEFRAME_M30, "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4,
+        "D1": mt5.TIMEFRAME_D1
+    }
         
     for pos in positions:
         ticket = pos.ticket
@@ -1090,60 +1545,94 @@ async def lts_exit_manager(app):
         
         # Check if it's an LTS position (LTS_MAGIC_BASE = 992000) or P15/P16
         if magic >= 992000 and magic <= 992999:
-            portfolio = f"LTS{magic - 992000}"
+            portfolio = _LTS_MAGIC_TO_NAME.get(magic, f"LTS{magic - 992000}")
         elif magic == 990016:
             portfolio = "P16"
         elif magic == 990015:
             portfolio = "P15"
         else:
             continue
-            
+
+        smart_cut_on = config.SMART_CUTLOSS_ENABLED.get(portfolio, False)
+        mom_stall_on = config.MOMENTUM_STALL_EXIT_ENABLED.get(portfolio, False)
+        if not smart_cut_on and not mom_stall_on:
+            continue
+
+        # Extract TF from comment e.g. "M15-LTS_AHR_352" -> "M15"
+        pos_tf_str = "M15"
+        if pos.comment and "-" in pos.comment:
+            prefix = pos.comment.split("-")[0].strip("[]")
+            if prefix in tf_map:
+                pos_tf_str = prefix
+
+        mt5_tf = tf_map.get(pos_tf_str, mt5.TIMEFRAME_M15)
+        rates = mt5.copy_rates_from_pos(config.SYMBOL, mt5_tf, 0, 60)
+        if rates is None or len(rates) < 50:
+            continue
+
+        df = pd.DataFrame(rates)
+        df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
+        df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
+
+        closed_candle = df.iloc[-2]  # Last completed candle
+        closed_bar_time = int(closed_candle['time'])
+
+        if _LTS_EXIT_LAST_CHECKED_BAR.get(ticket) == closed_bar_time:
+            continue  # Already evaluated for this closed candle
+
+        _LTS_EXIT_LAST_CHECKED_BAR[ticket] = closed_bar_time
+
+        closed_price = float(closed_candle['close'])
+        ema20 = float(closed_candle['ema20'])
+        ema50 = float(closed_candle['ema50'])
         is_buy = pos.type == mt5.ORDER_TYPE_BUY
         pos_type = "BUY" if is_buy else "SELL"
         
-        # 1. Smart Cutloss Check
-        if config.SMART_CUTLOSS_ENABLED.get(portfolio, False):
+        # 1. Smart Cutloss Check (Anchored to Closed Candle)
+        if smart_cut_on:
             should_cut = False
             reason = ""
             if is_buy:
-                if current_price < ema50 and ema20 < ema50:
+                if closed_price < ema50 and ema20 < ema50:
                     should_cut = True
-                    reason = "ราคาหลุด EMA50 และเกิด Death Cross (Momentum Reversal)"
+                    reason = f"ราคาปิดแท่ง ({pos_tf_str}) หลุด EMA50 และเกิด Death Cross"
             else:
-                if current_price > ema50 and ema20 > ema50:
+                if closed_price > ema50 and ema20 > ema50:
                     should_cut = True
-                    reason = "ราคาทะลุ EMA50 และเกิด Golden Cross (Momentum Reversal)"
+                    reason = f"ราคาปิดแท่ง ({pos_tf_str}) ทะลุ EMA50 และเกิด Golden Cross"
                     
             if should_cut:
-                ok, cp = _close_position(pos, pos_type, "LTS Smart Cut-loss (EMA)")
+                ok, cp = _close_position(pos, pos_type, f"LTS Smart Cut-loss ({pos_tf_str} EMA)")
                 if ok:
                     log_event("SMART_CUTLOSS", f"[{portfolio}] Closed {pos_type} {ticket} due to {reason}", ticket=ticket)
                     if app:
                         from notifications import tg
-                        await tg(app, f"🛡️ *LTS Smart Cut-loss ทำงาน* [{portfolio}]\nTicket: `{ticket}` ({pos_type})\nเหตุผล: {reason}\nเพื่อรักษาทุนก่อนชน SL")
+                        await tg(app, f"🛡️ *LTS Smart Cut-loss ทำงาน ({pos_tf_str})* [{portfolio}]\nTicket: `{ticket}` ({pos_type})\nเหตุผล: {reason}\nเพื่อรักษาทุนก่อนชน SL")
                 continue # Skip momentum check if already closed
                 
-        # 2. Momentum Stall Check
-        if config.MOMENTUM_STALL_EXIT_ENABLED.get(portfolio, False):
-            profit_points = (pos.price_current - pos.price_open) * mult
+        # 2. Momentum Stall Check (Anchored to Closed Candle)
+        if mom_stall_on:
+            profit_points = (closed_price - pos.price_open) * mult
             if not is_buy:
                 profit_points = -profit_points
                 
             if profit_points >= 150:
+                recent_highs = df['high'].iloc[-7:-2]
+                recent_lows = df['low'].iloc[-7:-2]
                 is_stalled = False
                 if is_buy:
-                    max_recent_high = recent_highs.max()
-                    if pos.price_current < max_recent_high:
+                    max_recent_high = float(recent_highs.max())
+                    if closed_price < max_recent_high:
                         is_stalled = True
                 else:
-                    min_recent_low = recent_lows.min()
-                    if pos.price_current > min_recent_low:
+                    min_recent_low = float(recent_lows.min())
+                    if closed_price > min_recent_low:
                         is_stalled = True
                         
                 if is_stalled:
-                    ok, cp = _close_position(pos, pos_type, "LTS Momentum Stall Exit")
+                    ok, cp = _close_position(pos, pos_type, f"LTS Momentum Stall Exit ({pos_tf_str})")
                     if ok:
                         log_event("MOMENTUM_STALL", f"[{portfolio}] Closed {pos_type} {ticket} due to Momentum Stall (+{profit_points:.0f} pts)", ticket=ticket)
                         if app:
                             from notifications import tg
-                            await tg(app, f"🛑 *LTS Momentum Stall Exit* [{portfolio}]\nTicket: `{ticket}` ({pos_type})\nกำไร: `{profit_points:.0f}` จุด\nเหตุผล: กราฟยึกยัก ไม่ทำยอดใหม่ใน 5 แท่งล่าสุด (M15)")
+                            await tg(app, f"🛑 *LTS Momentum Stall Exit ({pos_tf_str})* [{portfolio}]\nTicket: `{ticket}` ({pos_type})\nกำไร: `{profit_points:.0f}` จุด\nเหตุผล: กราฟยึกยัก ไม่ทำยอดใหม่ใน 5 แท่งล่าสุด ({pos_tf_str})")

@@ -19,13 +19,38 @@ from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
                       check_fill_trend_recheck, check_pending_trend_approach, check_fill_pdfiboplus,
                       check_s14_engulf_exits, check_s20_escape, check_s2_s3_chain_groups,
-                      check_s1_rejection_entry)
+                      check_s1_rejection_entry, check_s20_13_23_breakeven, check_s20_13_breakeven)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
 
 _error_last_sent: dict = {}
 _ERROR_COOLDOWN = 300  # วินาที — ไม่ส่ง error ซ้ำภายใน 5 นาที
+_LTS_AUS_PORTFOLIO = "LTS_AVENGERS_ULTRA_SAFE"
+
+
+def _active_demo_portfolio_names() -> list[str]:
+    active = getattr(config, "DEMO_PORTFOLIO_ACTIVE", {}) or {}
+    return [name for name, enabled in active.items() if enabled]
+
+
+def _is_demo_portfolio_dedicated_profile() -> bool:
+    """Demo-only profiles keep generic scanner/trailing work out of their MT5 lane."""
+    if not getattr(config, "PROFILE_ACTIVE", False):
+        return False
+    if not _active_demo_portfolio_names():
+        return False
+    strategies = getattr(config, "active_strategies", {}) or {}
+    return not any(bool(enabled) for enabled in strategies.values())
+
+
+def _is_lts_aus_fast_scan_profile() -> bool:
+    active_names = _active_demo_portfolio_names()
+    return (
+        _is_demo_portfolio_dedicated_profile()
+        and _LTS_AUS_PORTFOLIO in active_names
+        and all(name == _LTS_AUS_PORTFOLIO for name in active_names)
+    )
 
 
 def _install_stall_watchdog() -> None:
@@ -155,6 +180,9 @@ def main():
 
     async def run_scan():
         try:
+            if _is_demo_portfolio_dedicated_profile():
+                return
+
             import news_filter
             import config
             import time as _time
@@ -212,10 +240,52 @@ def main():
         (ดู demo_portfolio.py) ไม่แตะ active_strategies/scanner.py/trailing.py state ใดๆ
         no-op ถ้าไม่มี portfolio ไหน active (default ปิดทั้งคู่)"""
         try:
+            if _is_lts_aus_fast_scan_profile():
+                return
+
             import demo_portfolio
             await demo_portfolio.demo_scan_job(app)
+            config.last_scan_ts = _time.time()
         except Exception as e:
             await _tg_error(app, "run_demo_portfolio_scan", e)
+
+    async def run_lts_aus_fast_scan():
+        """Fast scan for LTS_AVENGERS_ULTRA_SAFE so MT5 open time can match backtest within seconds."""
+        _t0 = _time.perf_counter()
+        _steps: list[tuple[str, float]] = []
+
+        def _lap(label: str) -> None:
+            _steps.append((label, _time.perf_counter() - _t0))
+
+        try:
+            import demo_portfolio
+            pf = _LTS_AUS_PORTFOLIO
+            if config.DEMO_PORTFOLIO_ACTIVE.get(pf, False):
+                symbol = demo_portfolio._demo_symbol()
+                market_open, reason = demo_portfolio._demo_market_open(symbol)
+                _lap("market_open")
+                if not market_open:
+                    log_event("DEMO_PORTFOLIO_SKIP", f"{symbol} market closed - {reason}", active=pf)
+                    return
+                await demo_portfolio.demo_scan(app, pf)
+                _lap("demo_scan")
+                config.last_scan_ts = _time.time()
+        except Exception as e:
+            await _tg_error(app, "run_lts_aus_fast_scan", e)
+        finally:
+            _total = _time.perf_counter() - _t0
+            if _steps and _total > 1.5:
+                _prev = 0.0
+                _breakdown = []
+                for _label, _t in _steps:
+                    _breakdown.append(f"{_label}={_t - _prev:.2f}s")
+                    _prev = _t
+                log_event(
+                    "LTS_AUS_FAST_SCAN_SLOW",
+                    f"run_lts_aus_fast_scan took {_total:.2f}s",
+                    breakdown=" ".join(_breakdown),
+                    profile=getattr(config, "BOT_PROFILE", ""),
+                )
 
     async def _close_btc_exposure_before_xau_switch():
         """ปิด position และลบ pending ของ BTCUSD ก่อนสลับกลับ XAUUSD"""
@@ -384,6 +454,8 @@ def main():
     async def run_trail_sl():
         """Trail SL — รันได้เลย ไม่ต้องรอ
         มี timing breakdown กัน MT5 call ค้างแบบไม่รู้ตัว (เหมือน auto_scan ใน scanner.py)"""
+        if _is_demo_portfolio_dedicated_profile():
+            return
         if not config.auto_active:
             return
         from mt5_utils import connect_mt5
@@ -426,6 +498,12 @@ def main():
             _steps.append((label, _time.perf_counter() - _t0))
 
         try:
+            if _is_demo_portfolio_dedicated_profile():
+                from demo_portfolio import lts_exit_manager
+                await lts_exit_manager(app); _lap("lts_exit_manager")
+                await check_sl_tp_hits(app); _lap("sl_tp_hits")
+                return
+
             # Limit Fill notify ก่อน (อิสระจาก ENTRY_CANDLE_ENABLED)
             await check_limit_fill_notify(app); _lap("limit_fill_notify")
             
@@ -453,6 +531,8 @@ def main():
             # await check_s1_forward_confirm_rules(app); _lap("s1_forward_confirm_rules")
             await check_cancel_pending_orders(app); _lap("cancel_pending_orders")
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
+            await check_s20_13_23_breakeven(app); _lap("s20_13_23_breakeven")
+            await check_s20_13_breakeven(app); _lap("s20_13_breakeven")
             await check_opposite_order_tp(app); _lap("opposite_order_tp")
             await check_limit_sweep(app); _lap("limit_sweep")
             await check_scale_out_partial(app); _lap("scale_out_partial")
@@ -526,8 +606,18 @@ def main():
             await tg(app, "✅ *Watchdog: MT5 กลับมาเชื่อมต่อแล้ว*")
 
         # scan stall alert (เฉพาะตอน auto ON และเคย scan มาแล้ว)
+        # profile "demo portfolio dedicated" (ไม่มี active_strategies เลย) — run_scan()
+        # จะ no-op ทุกรอบ (return ทันทีบรรทัด 183-184) ไม่เคยอัปเดต last_scan_ts เลย
+        # heartbeat จริงของ profile แบบนี้มาจาก run_demo_portfolio_scan ทุก
+        # DEMO_PORTFOLIO_SCAN_INTERVAL นาทีเท่านั้น — ถ้ายังใช้ WATCHDOG_STALE_SEC (120s)
+        # เดิม จะ false-positive ทุกรอบ 5 นาที (เจอจริง 2026-07-21: watchdog spam "no scan
+        # for 178s" ทุก ~5 นาทีทั้งที่บอททำงานปกติ) ต้องใช้ threshold ตาม scan interval จริง
         if config.auto_active and config.last_scan_ts > 0:
-            stale = (_time.time() - config.last_scan_ts) > config.WATCHDOG_STALE_SEC
+            if _is_demo_portfolio_dedicated_profile():
+                stale_sec = getattr(config, "DEMO_PORTFOLIO_SCAN_INTERVAL", 5) * 60 + 90
+            else:
+                stale_sec = config.WATCHDOG_STALE_SEC
+            stale = (_time.time() - config.last_scan_ts) > stale_sec
             if stale and config._watchdog_scan_ok:
                 config._watchdog_scan_ok = False
                 gap = int(_time.time() - config.last_scan_ts)
@@ -600,6 +690,17 @@ def main():
         id="demo_portfolio_scan_job",
         max_instances=1,
         coalesce=True,
+        next_run_time=datetime.now(_tz2.utc)
+    )
+
+    scheduler.add_job(
+        run_lts_aus_fast_scan,
+        'interval',
+        seconds=5,
+        id="lts_aus_fast_scan_job",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=5,
         next_run_time=datetime.now(_tz2.utc)
     )
 

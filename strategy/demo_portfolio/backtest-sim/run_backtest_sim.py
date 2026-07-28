@@ -1,6 +1,7 @@
 import os
 import sys
 import csv
+import json
 import argparse
 import subprocess
 import pandas as pd
@@ -17,6 +18,7 @@ sys.path.append(root_dir)
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 import config
+config.IN_BACKTEST = True
 import demo_portfolio as dp
 
 # Core imports for S84/S86 backtests (used in AF and LTS portfolios)
@@ -49,23 +51,43 @@ import sim_s56_backtest as s56sim
 import sim_s96_backtest as s96sim
 
 GLOBAL_RAW_TRADES_CACHE = {}
+# เก็บ raw trade ที่ simulated circuit breaker (OVERLAY_CFG) ตัดทิ้งไป ต่อ portfolio — ใช้แค่
+# สำหรับ "อธิบาย" compare report ว่า mismatch แถวไหนเกิดจาก CB จำลอง ไม่ได้เอาไปแก้ตัวเลข
+# P&L ของ backtest หลักเลย (ตามที่พี่ย้ำว่า backtest ต้องไม่ลดลง — ใช้ compare report เพื่อ diagnose
+# เท่านั้น ไม่แตะ simulate_equity_substream/OVERLAY_CFG ของจริง)
+CB_SKIPPED_TRADES = {}
+# path ของ profile จริงที่ connect ล่าสุด (ตั้งใน connect_to_actual_profile_for_portfolio)
+# ใช้อ่าน demo_portfolio_state.json (cb_state จริง) มาแปะอธิบายใน compare report
+LAST_MATCHED_PROFILE_DIR = None
 import pickle
 CACHE_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "raw_trades_cache.pkl"))
+DISK_CACHE_ENABLED = (
+    "--no-cache" not in sys.argv
+    and "--start" not in sys.argv
+    and "--end" not in sys.argv
+)
+
+def _cache_key_has_date_scope(k):
+    """Return True for cache keys tied to a CLI --start/--end range."""
+    if not isinstance(k, tuple):
+        return False
+    if len(k) == 6:
+        return k[4] is not None or k[5] is not None
+    if len(k) == 5:
+        return k[3] is not None or k[4] is not None
+    if len(k) == 4:
+        return k[2] is not None or k[3] is not None
+    return False
 
 def save_disk_cache():
+    if not DISK_CACHE_ENABLED:
+        return
     try:
         os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
         # Filter cache: do not save keys with start_str or end_str to disk
         clean_cache = {}
         for k, v in GLOBAL_RAW_TRADES_CACHE.items():
-            has_date = False
-            if len(k) == 5:
-                if k[3] is not None or k[4] is not None:
-                    has_date = True
-            elif len(k) == 4:
-                if k[2] is not None or k[3] is not None:
-                    has_date = True
-            if not has_date:
+            if not _cache_key_has_date_scope(k):
                 clean_cache[k] = v
         with open(CACHE_FILE, "wb") as f:
             pickle.dump(clean_cache, f)
@@ -74,10 +96,17 @@ def save_disk_cache():
 
 def load_disk_cache():
     global GLOBAL_RAW_TRADES_CACHE
+    if not DISK_CACHE_ENABLED:
+        print("Disk cache disabled for this run.")
+        return
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, "rb") as f:
                 GLOBAL_RAW_TRADES_CACHE = pickle.load(f)
+            GLOBAL_RAW_TRADES_CACHE = {
+                k: v for k, v in GLOBAL_RAW_TRADES_CACHE.items()
+                if not _cache_key_has_date_scope(k)
+            }
             print(f"Loaded {len(GLOBAL_RAW_TRADES_CACHE)} items from disk cache.")
         except Exception as e:
             print(f"⚠️ Failed to load disk cache: {e}")
@@ -124,7 +153,7 @@ PORTFOLIO_BALANCES = {
     "S111": 2000.0,
 }
 
-# Mapping aliases
+# Mapping aliases to canonical dp.PORTFOLIOS keys
 ALIASES = {
     "18-Way": "P18",
     "LTS_AVB": "LTS_AVENGERS_BASE",
@@ -133,6 +162,11 @@ ALIASES = {
     "LTS_AUS": "LTS_AVENGERS_ULTRA_SAFE",
     "LTS_AHF": "LTS_AVENGERS_HIGH_FREQ",
 }
+
+def is_portfolio_match(p1, p2):
+    c1 = ALIASES.get(p1, p1)
+    c2 = ALIASES.get(p2, p2)
+    return (p1 == p2) or (c1 == c2) or (p1 == c2) or (c1 == p2)
 
 def fetch_bars_range(symbol, tf_str, days, start_str=None, end_str=None, extra_bars=400):
     if start_str:
@@ -477,7 +511,11 @@ def run_single_strategy_backtest(portfolio_name, days, start_str=None, end_str=N
             df = pd.read_csv(temp_csv)
             for _, row in df.iterrows():
                 try:
-                    fill_dt = datetime.strptime(row["fill_time"], "%Y-%m-%d %H:%M")
+                    # บาง standalone script (s105/s106/s111) เขียน column ชื่อ "time" แทน
+                    # "fill_time" (ต่างจาก s101/s102) — รองรับทั้งสองชื่อกันไม่ให้เวลากลายเป็น 0
+                    # แล้วโดนกรองทิ้งหมดทุกเทรด (เจอบั๊กจริง 2026-07-27 ตอนกู้ไฟล์คืน)
+                    fill_time_str = row["fill_time"] if "fill_time" in row else row["time"]
+                    fill_dt = datetime.strptime(fill_time_str, "%Y-%m-%d %H:%M")
                     fill_ts = int(fill_dt.timestamp())
                     exit_dt = datetime.strptime(row["exit_time"], "%Y-%m-%d %H:%M")
                     exit_ts = int(exit_dt.timestamp())
@@ -508,17 +546,50 @@ def run_single_strategy_backtest(portfolio_name, days, start_str=None, end_str=N
         
     return trades
 
-def run_s9x_generic(bars, detect_fn, tf, cfg, spread):
+# ดีเลย์ประมวลผลจริงของ live (แท่งปิด -> ดึงบาร์ -> detect pattern -> ส่ง ARM คำสั่ง pending)
+# วัดได้จริงจาก log DEMO_PORTFOLIO_PENDING_ARM ~3 วิหลังแท่งปิดเสมอ (เจอเคสจริง 2026-07-22
+# leg LTS_AVENGERS_ULTRA_SAFE_910: ราคาแตะระดับ fill แค่วูบเดียวตรงวินาทีแรกที่แท่งเปิด (ก่อน
+# ARM ทัน 3 วิ) แล้วร่วงกลับ ไม่เคยแตะอีกเลยตลอดหน้าต่าง 5 แท่ง — backtest แบบเดิมที่เช็คจาก
+# high/low ทั้งแท่งนับว่า fill ทั้งที่ live ไม่มีทางทันจริง ทำให้ P&L backtest สูงเกินจริงเป็นระบบ)
+LIVE_ARM_DELAY_SEC = 3
+
+
+def _tick_fill_check(symbol, direction, entry, spread, window_start_ts, window_end_ts):
+    """เช็คจาก tick (bid) จริงว่าราคาแตะระดับ fill ไหม ในช่วงเวลาที่ live จะเห็นได้จริงเท่านั้น
+    (เริ่มนับหลัง LIVE_ARM_DELAY_SEC ไปแล้ว) คืนค่า epoch ของ tick แรกที่ fill, False ถ้ามี tick
+    data ครบแต่ไม่แตะเลย, หรือ None ถ้าไม่มี tick history ให้เช็ค (ต้อง fallback เป็น bar-based)"""
+    try:
+        start_dt = datetime.fromtimestamp(int(window_start_ts), tz=timezone.utc)
+        end_dt = datetime.fromtimestamp(int(window_end_ts), tz=timezone.utc)
+        ticks = mt5.copy_ticks_range(symbol, start_dt, end_dt, mt5.COPY_TICKS_ALL)
+        if ticks is None or len(ticks) == 0:
+            return None
+        for t in ticks:
+            bid = float(t["bid"])
+            if bid <= 0:
+                continue
+            if direction == "BUY" and bid <= entry - spread:
+                return int(t["time"])
+            if direction == "SELL" and bid >= entry + spread:
+                return int(t["time"])
+        return False
+    except Exception:
+        return None
+
+
+def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None):
     """Simulates standalone S95-S111 strategies bar-by-bar for the blend backtester."""
+    if symbol is None:
+        symbol = config.SYMBOL
     trades = []
     n = len(bars)
     lookback = 300
     if n < lookback + 10:
         return []
-        
+
     last_trade_idx = -100
     cooldown = 5
-    
+
     for i in range(lookback, n - 2):
         if i - last_trade_idx < cooldown:
             continue
@@ -549,71 +620,120 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread):
         if risk_distance <= 0:
             continue
             
-        # Check if filled within 5 bars
-        fill_idx = None
-        for j in range(i + 1, min(i + 6, n)):
-            h, l = float(bars[j]['high']), float(bars[j]['low'])
-            if (direction == "BUY" and l <= entry - spread) or (direction == "SELL" and h >= entry + spread):
-                fill_idx = j
-                break
-                
-        if fill_idx is None:
+        # Check fill+outcome ทั้งสองทิศทางแยกกันอิสระ — leg DIRECT ใช้ entry+spread (ราคาขึ้น)
+        # ส่วน leg INVERSE ของสัญญาณเดียวกันจะเทรดสวนทาง (BUY<->SELL, สลับ sl/tp) แต่ entry เดิม
+        # ซึ่งไลฟ์เช็คเงื่อนไข fill ตาม "ทิศหลัง invert" เอง (ดู strategy_lts.py detect_lts) คือ
+        # รอราคา "ลง" ไปแตะ entry-spread แทน — ทิศตรงข้ามกับ DIRECT เป๊ะ (เจอเคสจริง 2026-07-22:
+        # leg 910 DIRECT ไม่ fill เพราะราคาไม่ขึ้น แต่ leg 911 INVERSE ของสัญญาณเดียวกัน fill จริง
+        # เพราะราคาร่วงลงแรง — ถ้าเช็ค fill แค่ทิศเดียวแล้วแชร์ผลให้ทั้งคู่ จะพัง leg ใดเสมอ)
+        window_start_ts = int(bars[i + 1]["time"]) + LIVE_ARM_DELAY_SEC
+        window_end_ts = int(bars[min(i + 5, n - 1)]["time"])
+
+        def _resolve(dirn, sl_v, tp_v):
+            tick_result = _tick_fill_check(symbol, dirn, entry, spread, window_start_ts, window_end_ts)
+            fidx = None
+            if tick_result is None:
+                for j in range(i + 1, min(i + 6, n)):
+                    h, l = float(bars[j]['high']), float(bars[j]['low'])
+                    if (dirn == "BUY" and l <= entry - spread) or (dirn == "SELL" and h >= entry + spread):
+                        fidx = j
+                        break
+            elif tick_result is not False:
+                fill_ts = tick_result
+                for j in range(i + 1, min(i + 6, n)):
+                    bar_start = int(bars[j]["time"])
+                    bar_end = int(bars[j + 1]["time"]) if j + 1 < n else bar_start + 10 ** 9
+                    if bar_start <= fill_ts < bar_end:
+                        fidx = j
+                        break
+                if fidx is None:
+                    fidx = min(i + 5, n - 1)
+            if fidx is None:
+                return None
+
+            outc = None
+            exit_p = None
+            exit_i = None
+            for j in range(fidx, n):
+                h, l = float(bars[j]['high']), float(bars[j]['low'])
+                if dirn == "BUY":
+                    if l <= sl_v:
+                        outc, exit_p, exit_i = "SL", sl_v, j
+                        break
+                    if h >= tp_v:
+                        outc, exit_p, exit_i = "TP", tp_v, j
+                        break
+                else:
+                    if h >= sl_v:
+                        outc, exit_p, exit_i = "SL", sl_v, j
+                        break
+                    if l <= tp_v:
+                        outc, exit_p, exit_i = "TP", tp_v, j
+                        break
+            if outc is None or exit_i is None:
+                return None
+
+            diff = (exit_p - entry) if dirn == "BUY" else (entry - exit_p)
+            pnl = diff - spread
+            return {
+                "signal": dirn,
+                "outcome": outc,
+                "signal_time_ts": int(bars[i]["time"]),
+                "fill_time_ts": int(bars[fidx]["time"]),
+                "exit_time_ts": int(bars[exit_i]["time"]),
+                "entry": round(entry, 2),
+                "tp": round(tp_v, 2),
+                "sl": round(sl_v, 2),
+                "exit_price": round(exit_p, 2),
+                "risk_distance": round(abs(entry - sl_v), 4),
+                "diff_usd_per_001lot": round(pnl, 4),
+                "spread": spread,
+                "reason": "S9X",
+            }
+
+        direct_record = _resolve(direction, sl, tp)
+        inverse_direction = "SELL" if direction == "BUY" else "BUY"
+        inverse_record = _resolve(inverse_direction, tp, sl)
+
+        if direct_record is None and inverse_record is None:
             continue
-            
-        # Simulate outcome
-        outcome = None
-        exit_price = None
-        exit_idx = None
-        
-        for j in range(fill_idx, n):
-            h, l = float(bars[j]['high']), float(bars[j]['low'])
-            if direction == "BUY":
-                if l <= sl:
-                    outcome = "SL"
-                    exit_price = sl
-                    exit_idx = j
-                    break
-                if h >= tp:
-                    outcome = "TP"
-                    exit_price = tp
-                    exit_idx = j
-                    break
-            else:
-                if h >= sl:
-                    outcome = "SL"
-                    exit_price = sl
-                    exit_idx = j
-                    break
-                if l <= tp:
-                    outcome = "TP"
-                    exit_price = tp
-                    exit_idx = j
-                    break
-                    
-        if outcome is None or exit_idx is None:
-            continue
-            
+
         last_trade_idx = i
-        diff = (exit_price - entry) if direction == "BUY" else (entry - exit_price)
-        pnl = diff - spread
-        
-        trades.append({
-            "signal": direction,
-            "outcome": outcome,
-            "signal_time_ts": int(bars[i]["time"]),
-            "fill_time_ts": int(bars[fill_idx]["time"]),
-            "exit_time_ts": int(bars[exit_idx]["time"]),
-            "entry": round(entry, 2),
-            "tp": round(tp, 2),
-            "sl": round(sl, 2),
-            "exit_price": round(exit_price, 2),
-            "risk_distance": round(risk_distance, 4),
-            "diff_usd_per_001lot": round(pnl, 4),
-            "spread": spread,
-            "reason": "S9X",
-        })
-        
+        if direct_record is not None:
+            direct_record["inverse"] = inverse_record
+            trades.append(direct_record)
+        elif inverse_record is not None:
+            # DIRECT ไม่ fill แต่ INVERSE fill — ยังต้องเก็บไว้ให้ leg inverse ใช้ได้
+            # (ทำเครื่องหมาย direct=None ไว้ให้ _invert_raw_s9x รู้ว่าไม่มี direct trade จริง)
+            trades.append({"signal": None, "inverse": inverse_record, "_direct_only_placeholder": True})
+
     return trades
+
+def _clean_s9x_direct(raw):
+    """เอา trade record ของ run_s9x_generic มาใช้ในทาง DIRECT — ตัด placeholder ที่มีแต่
+    inverse fill (signal=None, ไม่มี direct trade จริง) ทิ้ง และลบ field 'inverse' ที่แนบมา"""
+    out = []
+    for t in raw:
+        if t.get("_direct_only_placeholder"):
+            continue
+        clean = {k: v for k, v in t.items() if k != "inverse"}
+        out.append(clean)
+    return out
+
+
+def _invert_raw_s9x(raw):
+    """เอา trade record ของ run_s9x_generic มาใช้ในทาง INVERSE — ใช้ผล fill/outcome ที่คำนวณ
+    แยกอิสระไว้แล้วในฟิลด์ 'inverse' (เพราะทิศ fill ของ inverse ตรงข้ามกับ direct เป๊ะ ไม่ใช่แค่
+    กลับ signal/sl/tp ของ direct trade เฉยๆ — ดู docstring ใน run_s9x_generic) ข้ามรายการที่
+    inverse ไม่ fill เลย"""
+    out = []
+    for t in raw:
+        inv = t.get("inverse")
+        if inv is None:
+            continue
+        out.append(inv)
+    return out
+
 
 def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scale=1.0):
     """รัน backtest สำหรับ AF และ LTS portfolios โดยจำลอง S84/S86 แต่ละตัวและผสมตาม Weight"""
@@ -687,6 +807,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         
     # 2. Filter, Invert, Scale and Combine trades
     all_portfolio_trades = []
+    CB_SKIPPED_TRADES[portfolio_name] = []
     for leg in legs:
         cache_key = (leg["family"], leg["cfg_idx"], leg["cfg"]["ENTRY_TF"], days, start_str, end_str)
         raw = GLOBAL_RAW_TRADES_CACHE.get(cache_key)
@@ -697,11 +818,31 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         rd_max = leg.get("rd_max")
         rd_band = "all" if (rd_min is None or rd_max is None) else f"{rd_min:.1f}-{rd_max:.1f}"
         filtered_raw = _post_filter_raw(raw, rd_band, leg.get("hour"))
-        if leg.get("mode") == "inverse":
+        if leg.get("is_s9x"):
+            # run_s9x_generic คำนวณ fill/outcome ของ direct กับ inverse แยกอิสระต่อกันไว้แล้ว
+            # (ทิศ fill ตรงข้ามกันจริง ไม่ใช่แค่กลับเครื่องหมาย) ห้ามใช้ _invert_raw ทั่วไป
+            if leg.get("mode") == "inverse":
+                filtered_raw = _invert_raw_s9x(filtered_raw)
+            else:
+                filtered_raw = _clean_s9x_direct(filtered_raw)
+        elif leg.get("mode") == "inverse":
             filtered_raw = _invert_raw(filtered_raw)
-            
+
         _twp, _eq, by_day = _simulate_leg(filtered_raw, OVERLAY_CFG)
-        
+
+        # เก็บ raw trade ที่ simulated circuit breaker (OVERLAY_CFG) ตัดทิ้งไป — ไม่กระทบ
+        # _twp/all_portfolio_trades ที่ใช้คำนวณ P&L จริงเลย ใช้แค่ diagnose ใน compare report
+        if OVERLAY_CFG.get("DD_CONTROL") == "circuit_breaker":
+            _twp_ts = {int(x["fill_time_ts"]) for x in _twp}
+            for rt in filtered_raw:
+                if int(rt["fill_time_ts"]) not in _twp_ts:
+                    CB_SKIPPED_TRADES[portfolio_name].append({
+                        "leg_key": leg["key"],
+                        "fill_time_ts": int(rt["fill_time_ts"]),
+                        "signal": rt.get("signal"),
+                        "entry": rt.get("entry"),
+                    })
+
         # Determine TF
         if leg.get("is_s9x"):
             tf = leg["cfg"]["ENTRY_TF"]
@@ -771,16 +912,19 @@ def setup_mt5_for_portfolio(portfolio_name):
             env_path = os.path.join(p_dir, "profile.env")
             env_data = parse_env_file(env_path)
             active_pf = env_data.get("DEMO_PORTFOLIO_ACTIVE", "")
-            active_pfs = [ALIASES.get(x.strip(), x.strip()) for x in active_pf.split(",") if x.strip()]
-            if normalized_pf in active_pfs:
-                matched_profile_dir = p_dir
-                matched_profile_name = p
-                matched_env = env_data
+            active_pfs = [x.strip() for x in active_pf.split(",") if x.strip()]
+            for apf in active_pfs:
+                if is_portfolio_match(apf, portfolio_name):
+                    matched_profile_dir = p_dir
+                    matched_profile_name = p
+                    matched_env = env_data
+                    break
+            if matched_profile_dir:
                 break
         if matched_profile_dir:
             break
             
-    # 2. If no match, default to main profile: demo-iux-2101182459
+    # 2. If no match, default to main profile for market OHLC bar data
     main_profile_name = "demo-iux-2101182459"
     main_profile_dir = os.path.join(demo_profiles_dir, main_profile_name)
     
@@ -789,7 +933,7 @@ def setup_mt5_for_portfolio(portfolio_name):
         target_dir = matched_profile_dir
         target_env = matched_env
     else:
-        print(f"📌 [Profile Match] No profile matches portfolio '{portfolio_name}'. Defaulting to main profile '{main_profile_name}'")
+        print(f"📌 [Profile Match] No active profile runs portfolio '{portfolio_name}'. Using main profile '{main_profile_name}' for OHLC bar data.")
         target_dir = main_profile_dir
         target_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
         
@@ -831,8 +975,6 @@ def setup_mt5_for_portfolio(portfolio_name):
         print(f"   ⚠️ Warning: Could not load target profile environment settings.")
 
 def connect_to_actual_profile_for_portfolio(portfolio_name):
-    # Locate actual directory (no exness skipping!)
-    normalized_pf = ALIASES.get(portfolio_name, portfolio_name)
     demo_profiles_dir = os.path.join(root_dir, "profiles", "demo")
     real_profiles_dir = os.path.join(root_dir, "profiles", "real")
     
@@ -859,25 +1001,29 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
             continue
         for p in os.listdir(root):
             p_dir = os.path.join(root, p)
-            if not os.path.isdir(p_dir) or "2101114448" in p:
+            if not os.path.isdir(p_dir) or "2101114448" in p or "2101182458" in p:
                 continue
             env_path = os.path.join(p_dir, "profile.env")
             env_data = parse_env_file(env_path)
             active_pf = env_data.get("DEMO_PORTFOLIO_ACTIVE", "")
-            active_pfs = [ALIASES.get(x.strip(), x.strip()) for x in active_pf.split(",") if x.strip()]
-            if normalized_pf in active_pfs:
-                matched_profile_dir = p_dir
-                matched_env = env_data
+            active_pfs = [x.strip() for x in active_pf.split(",") if x.strip()]
+            for apf in active_pfs:
+                if is_portfolio_match(apf, portfolio_name):
+                    matched_profile_dir = p_dir
+                    matched_env = env_data
+                    break
+            if matched_profile_dir:
                 break
         if matched_profile_dir:
             break
             
     if not matched_profile_dir:
-        # Default to main
-        main_profile_dir = os.path.join(demo_profiles_dir, "demo-iux-2101182459")
-        matched_profile_dir = main_profile_dir
-        matched_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
-        
+        # NO profile is currently running this portfolio active in DEMO_PORTFOLIO_ACTIVE!
+        return False
+
+    global LAST_MATCHED_PROFILE_DIR
+    LAST_MATCHED_PROFILE_DIR = matched_profile_dir
+
     # Initialize and login using the matched profile's local terminal path
     rel_path = matched_env.get("MT5_PATH", "mt5\\terminal64.exe")
     abs_path = os.path.abspath(os.path.join(matched_profile_dir, rel_path))
@@ -945,6 +1091,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         
     # 2. Get active magic numbers for this portfolio
     actual_pf = ALIASES.get(portfolio_name, portfolio_name)
+    strict_backtest_match = actual_pf in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK")
     sub_pfs = [x.strip() for x in actual_pf.split(",") if x.strip()]
     target_magics = []
     for pf in sub_pfs:
@@ -953,10 +1100,99 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             target_magics.append(magic)
         except Exception:
             pass
-            
+
+    # Prepare backtest compare list
+    bt_compare_list = []
+    for t in backtest_trades:
+        open_ts = t["fill_time_ts"]
+        close_ts = t["exit_time_ts"]
+        open_dt = datetime.fromtimestamp(open_ts, tz=timezone.utc).astimezone(timezone(timedelta(hours=7)))
+        close_dt = datetime.fromtimestamp(close_ts, tz=timezone.utc).astimezone(timezone(timedelta(hours=7)))
+        bt_compare_list.append({
+            "open_dt": open_dt.replace(tzinfo=None),
+            "close_dt": close_dt.replace(tzinfo=None),
+            "type": t["signal"],
+            "entry": t["entry"],
+            "sl": t["sl"],
+            "tp": t["tp"],
+            "lot": t["lot"],
+            "pnl": t["pnl_usd"],
+            "outcome": t["outcome"],
+            "leg_name": t.get("leg", portfolio_name),
+            "tf": t.get("tf", "M5")
+        })
+        
     # 3. Connect to the actual profile
     if not connect_to_actual_profile_for_portfolio(portfolio_name):
-        print(f"   ⚠️ MT5 connection failed for MT5 real report of {portfolio_name}")
+        print(f"   ℹ️ Skipping MT5 real trade match: No active MT5 profile running portfolio '{portfolio_name}'")
+        # Save empty MT5 real CSV
+        mt5_path = os.path.join(output_dir, f"{portfolio_name}_mt5_real.csv")
+        with open(mt5_path, "w", newline="", encoding="utf-8") as f:
+            f.write("Time (BKK),Close Time,Leg,TF,Type,Entry,Exit,Lot,P&L,Outcome\n")
+            
+        # Write clean SIM-only compare report
+        compare_rows = []
+        for bt in bt_compare_list:
+            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
+            sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
+            compare_rows.append({
+                "SIM_Open_Time": bt["open_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "MT5_Open_Time": "",
+                "SIM_Close_Time": bt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "MT5_Close_Time": "",
+                "SIM_Leg": bt["leg_name"],
+                "SIM_TF": bt["tf"],
+                "MT5_TF": "",
+                "SIM_Type": bt["type"],
+                "MT5_Type": "",
+                "SIM_Entry": round(bt["entry"], 2),
+                "MT5_Entry": "",
+                "MT5_Close_Price": "",
+                "SIM_SL": round(bt["sl"], 2),
+                "MT5_SL": "",
+                "SIM_TP": round(bt["tp"], 2),
+                "MT5_TP": "",
+                "SIM_Lot": round(bt["lot"], 2),
+                "MT5_Volume": "",
+                "SIM_P&L": round(bt["pnl"], 2),
+                "MT5_P&L": "",
+                "SIM_Balance": "",
+                "MT5_Balance": "",
+                "MT5_Comment": "",
+                "MT5_Position_ID": "",
+                "Matched": False,
+                "Match_Detail": "NO_ACTIVE_PROFILE",
+                "SIM_Reason": bt["outcome"],
+                "MT5_Reason": "",
+                "Sim_point": sim_pt,
+                "MT5_point": ""
+            })
+            
+        compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
+        if compare_rows:
+            def sort_key(row):
+                t = row["SIM_Open_Time"] or row["MT5_Open_Time"]
+                return datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
+            compare_rows.sort(key=sort_key)
+            start_balance = PORTFOLIO_BALANCES.get(portfolio_name, 1000.0)
+            sim_running_balance = start_balance
+            for r in compare_rows:
+                if r["SIM_P&L"] != "":
+                    sim_running_balance += r["SIM_P&L"]
+                    r["SIM_Balance"] = round(sim_running_balance, 2)
+            df_comp = pd.DataFrame(compare_rows)
+            cols = [
+                "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
+                "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
+                "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
+                "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
+                "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
+                "MT5_Reason", "Sim_point", "MT5_point"
+            ]
+            df_comp = df_comp[cols]
+            df_comp.to_csv(compare_path, index=False, encoding="utf-8")
+            print(f"Saved: {compare_path} ({len(compare_rows)} rows in compare - NO_ACTIVE_PROFILE)")
         return
         
     # 4. Fetch deals from history (lookback 10 days wider to find entry deals for positions closed in the range)
@@ -988,6 +1224,8 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             # Match exits that closed within the requested date range (including Close By exit type 3)
             if d.time >= start_ts and d.entry in (mt5.DEAL_ENTRY_OUT, 3) and d.position_id in entry_deals:
                 d_in = entry_deals[d.position_id]
+                if strict_backtest_match and d_in.time < start_ts:
+                    continue
                 # Filter by symbol and magic (check both exit and entry deal to support Close By with magic 0)
                 if "XAUUSD" in d.symbol and (d.magic in target_magics or d_in.magic in target_magics):
                     trade_type = "BUY" if d_in.type == mt5.DEAL_TYPE_BUY else "SELL"
@@ -1033,7 +1271,8 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                         "pnl": profit,
                         "comment": d_in.comment if d_in.comment else getattr(d, "comment", ""),
                         "position_id": d.position_id,
-                        "outcome": outcome
+                        "outcome": outcome,
+                        "mt5_reason": getattr(d, "comment", "")
                     })
                     
     # Save mt5 real CSV
@@ -1071,14 +1310,44 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
     def extract_leg_idx(name):
         if not name:
             return None
-        # Extract 3-4 digit index following an underscore or word boundary
-        m = re.search(r'_([0-9]{3,4})\b', name)
+        m = re.search(r'LTS_AVENGERS_[A-Z_]+_([0-9]+)\b', name)
         if m:
             return int(m.group(1))
-        m = re.search(r'\b([0-9]{3,4})\b', name)
+        m = re.search(r'(?:LTS_AUS_|LTS-AUS-|_|\b)([0-9]{1,4})\b', name)
         if m:
             return int(m.group(1))
         return None
+
+    strict_time_tolerance_sec = 30
+    strict_price_tolerance = 0.05
+
+    def _get_time_diff(bt, mt):
+        bt_leg = extract_leg_idx(bt["leg_name"])
+        is_s9x_leg = bt_leg >= 900 if bt_leg is not None else False
+        if is_s9x_leg:
+            bt_tf_mins = {"M15": 15, "M30": 30, "H1": 60}.get(bt["tf"], 15)
+            mt_dt_aligned = mt["dt"] - timedelta(minutes=mt["dt"].minute % bt_tf_mins, seconds=mt["dt"].second)
+            return abs((mt_dt_aligned - bt["open_dt"]).total_seconds())
+        return abs((mt["dt"] - bt["open_dt"]).total_seconds())
+
+    def _strict_mismatch_reason(bt, mt):
+        reasons = []
+        time_diff = _get_time_diff(bt, mt)
+        if time_diff > strict_time_tolerance_sec:
+            reasons.append(f"open_time_diff={time_diff:.0f}s")
+        if mt["tf"] != bt["tf"]:
+            reasons.append(f"tf {bt['tf']}!={mt['tf']}")
+        if mt["type"] != bt["type"]:
+            reasons.append(f"type {bt['type']}!={mt['type']}")
+        if mt["sl"] and abs(float(mt["sl"]) - float(bt["sl"])) > strict_price_tolerance:
+            reasons.append(f"sl_diff={abs(float(mt['sl']) - float(bt['sl'])):.2f}")
+        elif not mt["sl"]:
+            reasons.append("mt5_sl_missing")
+        if mt["tp"] and abs(float(mt["tp"]) - float(bt["tp"])) > strict_price_tolerance:
+            reasons.append(f"tp_diff={abs(float(mt['tp']) - float(bt['tp'])):.2f}")
+        elif not mt["tp"]:
+            reasons.append("mt5_tp_missing")
+        return "; ".join(reasons)
 
     compare_rows = []
     mismatch_mt5 = list(mt5_compare_list)
@@ -1093,30 +1362,46 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             for mt in mismatch_mt5:
                 mt_leg = extract_leg_idx(mt["comment"])
                 if mt_leg is not None and mt_leg == bt_leg and mt["type"] == bt["type"] and mt["tf"] == bt["tf"]:
-                    time_diff = abs((mt["dt"] - bt["open_dt"]).total_seconds())
-                    if time_diff <= 21600: # Within 6 hours
+                    time_diff = _get_time_diff(bt, mt)
+                    if strict_backtest_match:
+                        sl_ok = mt["sl"] and abs(float(mt["sl"]) - float(bt["sl"])) <= strict_price_tolerance
+                        tp_ok = mt["tp"] and abs(float(mt["tp"]) - float(bt["tp"])) <= strict_price_tolerance
+                        if time_diff <= strict_time_tolerance_sec and sl_ok and tp_ok:
+                            matched = mt
+                            break
+                    elif time_diff <= 21600: # Within 6 hours
                         matched = mt
                         break
                         
         # Pass 2: Fallback match by Timeframe + Type + Proximity (time <= 3 hours, price <= 15 USD)
-        if not matched:
+        if not matched and not strict_backtest_match:
             for mt in mismatch_mt5:
                 mt_leg = extract_leg_idx(mt["comment"])
                 # Explicitly forbid matching if both have leg indices and they are different!
                 if bt_leg is not None and mt_leg is not None and bt_leg != mt_leg:
                     continue
-                time_diff = abs((mt["dt"] - bt["open_dt"]).total_seconds())
+                time_diff = _get_time_diff(bt, mt)
                 price_diff = abs(mt["entry"] - bt["entry"])
                 if mt["type"] == bt["type"] and mt["tf"] == bt["tf"] and price_diff <= 15.0 and time_diff <= 10800:
                     matched = mt
                     break
                     
         if matched:
+            # Sim point calculation (exit at TP if outcome is TP, else SL)
+            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
+            sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
+            
+            # MT5 point calculation
+            mt5_diff = (matched["close_price"] - matched["entry"]) if matched["type"] == "BUY" else (matched["entry"] - matched["close_price"])
+            mt5_pt = round(mt5_diff * 100, 1) if matched["entry"] and matched["close_price"] else ""
+            
             compare_rows.append({
                 "SIM_Open_Time": bt["open_dt"].strftime('%Y-%m-%d %H:%M:%S'),
                 "MT5_Open_Time": matched["dt"].strftime('%Y-%m-%d %H:%M:%S'),
                 "SIM_Close_Time": bt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
                 "MT5_Close_Time": matched["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+                "SIM_Leg": bt["leg_name"],
                 "SIM_TF": bt["tf"],
                 "MT5_TF": bt["tf"], # Use SIM_TF for MT5_TF if matched
                 "SIM_Type": bt["type"],
@@ -1137,15 +1422,44 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 "MT5_Comment": matched["comment"],
                 "MT5_Position_ID": matched["position_id"],
                 "Matched": True,
-                "SIM_Reason": bt["outcome"]
+                "Match_Detail": "strict" if strict_backtest_match else "matched",
+                "SIM_Reason": bt["outcome"],
+                "MT5_Reason": matched.get("mt5_reason", ""),
+                "Sim_point": sim_pt,
+                "MT5_point": mt5_pt
             })
             mismatch_mt5.remove(matched)
         else:
+            near_reason = ""
+            if strict_backtest_match:
+                nearest = None
+                nearest_score = None
+                for mt in mismatch_mt5:
+                    mt_leg = extract_leg_idx(mt["comment"])
+                    if bt_leg is not None and mt_leg is not None and bt_leg != mt_leg:
+                        continue
+                    score = abs((mt["dt"] - bt["open_dt"]).total_seconds())
+                    if mt["tf"] != bt["tf"]:
+                        score += 3600
+                    if mt["type"] != bt["type"]:
+                        score += 3600
+                    if nearest is None or score < nearest_score:
+                        nearest = mt
+                        nearest_score = score
+                if nearest is not None:
+                    near_reason = _strict_mismatch_reason(bt, nearest)
+            
+            # Sim point calculation
+            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
+            sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
+            
             compare_rows.append({
                 "SIM_Open_Time": bt["open_dt"].strftime('%Y-%m-%d %H:%M:%S'),
                 "MT5_Open_Time": "",
                 "SIM_Close_Time": bt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
                 "MT5_Close_Time": "",
+                "SIM_Leg": bt["leg_name"],
                 "SIM_TF": bt["tf"],
                 "MT5_TF": "",
                 "SIM_Type": bt["type"],
@@ -1166,17 +1480,65 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 "MT5_Comment": "",
                 "MT5_Position_ID": "",
                 "Matched": False,
-                "SIM_Reason": bt["outcome"]
+                "Match_Detail": near_reason,
+                "SIM_Reason": bt["outcome"],
+                "MT5_Reason": "",
+                "Sim_point": sim_pt,
+                "MT5_point": ""
             })
             
+    # เตรียมข้อมูล cb-desync สำหรับอธิบาย MT5_ONLY ที่แท้จริงเกิดจาก simulated circuit breaker
+    # (OVERLAY_CFG) ตัดทิ้ง ไม่ใช่ backtest หา pattern ไม่เจอจริงๆ — ไม่แตะตัวเลข P&L ใดๆ เลย
+    _cb_skipped_by_leg = {}
+    for rt in CB_SKIPPED_TRADES.get(portfolio_name, []):
+        leg_num = extract_leg_idx(rt["leg_key"])
+        if leg_num is not None:
+            _cb_skipped_by_leg.setdefault(leg_num, []).append(rt["fill_time_ts"])
+
+    _real_cb_state = {}
+    if LAST_MATCHED_PROFILE_DIR:
+        try:
+            state_path = os.path.join(LAST_MATCHED_PROFILE_DIR, "demo_portfolio_state.json")
+            with open(state_path, "r", encoding="utf-8") as f:
+                _real_cb_state = json.load(f).get("cb_state", {})
+        except Exception:
+            _real_cb_state = {}
+
+    def _cb_desync_note(mt):
+        """ถ้า MT5_ONLY แถวนี้ตรงกับ raw trade ที่ simulated CB ตัดทิ้งไป (leg เดียวกัน,
+        เวลาใกล้กันภายใน 6 ชม.) ให้คืน note พร้อมสถานะ cb_state จริงของ leg นั้น — ไม่งั้นคืน None"""
+        leg_num = extract_leg_idx(mt["comment"])
+        if leg_num is None or leg_num not in _cb_skipped_by_leg:
+            return None
+        # mt["dt"] เป็น BKK-naive (tzinfo ถูก strip แล้ว) — ต้องแปะ tzinfo=BKK ก่อนเรียก .timestamp()
+        # ไม่งั้น Python จะตีความเป็น local timezone ของเครื่องที่รัน (ผิดถ้าเครื่องไม่ได้ตั้ง BKK)
+        mt_ts = mt["dt"].replace(tzinfo=timezone(timedelta(hours=7))).timestamp()
+        if not any(abs(mt_ts - ts) <= 21600 for ts in _cb_skipped_by_leg[leg_num]):
+            return None
+        leg_key_guess = f"{ALIASES.get(portfolio_name, portfolio_name)}_{leg_num}"
+        cb = _real_cb_state.get(leg_key_guess, {})
+        return (
+            f"cb_desync: simulated CB (550d) ตัดทิ้ง แต่บัญชีจริง cooldown_remaining="
+            f"{cb.get('cooldown_remaining', '?')} consec_loss={cb.get('consec_loss', '?')} ตอนนี้"
+        )
+
     for mt in mismatch_mt5:
+        # MT5 point calculation
+        mt5_diff = (mt["close_price"] - mt["entry"]) if mt["type"] == "BUY" else (mt["entry"] - mt["close_price"])
+        mt5_pt = round(mt5_diff * 100, 1) if mt["entry"] and mt["close_price"] else ""
+
+        cb_note = _cb_desync_note(mt)
+        match_detail = "MT5_ONLY_CB_DESYNC" if cb_note else "MT5_ONLY"
+        sim_reason = cb_note if cb_note else "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้"
+
         compare_rows.append({
             "SIM_Open_Time": "",
             "MT5_Open_Time": mt["dt"].strftime('%Y-%m-%d %H:%M:%S'),
             "SIM_Close_Time": "",
             "MT5_Close_Time": mt["close_dt"].strftime('%Y-%m-%d %H:%M:%S'),
+            "SIM_Leg": "",
             "SIM_TF": "",
-            "MT5_TF": "M5",
+            "MT5_TF": mt["tf"],
             "SIM_Type": "",
             "MT5_Type": mt["type"],
             "SIM_Entry": "",
@@ -1195,7 +1557,11 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             "MT5_Comment": mt["comment"],
             "MT5_Position_ID": mt["position_id"],
             "Matched": False,
-            "SIM_Reason": "ไม่มี SIM คู่ — backtest ไม่เจอ pattern นี้"
+            "Match_Detail": match_detail,
+            "SIM_Reason": sim_reason,
+            "MT5_Reason": mt.get("mt5_reason", ""),
+            "Sim_point": "",
+            "MT5_point": mt5_pt
         })
         
     compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
@@ -1225,10 +1591,11 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         df_comp = pd.DataFrame(compare_rows)
         cols = [
             "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
-            "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
+            "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
             "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
             "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
-            "MT5_Comment", "MT5_Position_ID", "Matched", "SIM_Reason"
+            "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
+            "MT5_Reason", "Sim_point", "MT5_point"
         ]
         df_comp = df_comp[cols]
         df_comp.to_csv(compare_path, index=False, encoding="utf-8")
@@ -1236,10 +1603,11 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
     else:
         headers = [
             "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
-            "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
+            "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
             "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
             "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
-            "MT5_Comment", "MT5_Position_ID", "Matched", "SIM_Reason"
+            "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
+            "MT5_Reason", "Sim_point", "MT5_point"
         ]
         with open(compare_path, "w", newline="", encoding="utf-8") as f:
             f.write(",".join(headers) + "\n")
@@ -1287,7 +1655,8 @@ def run_compare_only_flow(portfolio_name, args):
                         "tp": float(row.get("TP") or 0.0),
                         "lot": float(row.get("Lot") or 0.01),
                         "pnl_usd": float(row.get("P&L") or 0.0),
-                        "outcome": row.get("Outcome", "")
+                        "outcome": row.get("Outcome", ""),
+                        "leg": row.get("Leg", "")
                     })
         except Exception as e:
             print(f"   ⚠️ Error parsing trades.csv for compare only: {e}")
@@ -1302,7 +1671,16 @@ def run_compare_only_flow(portfolio_name, args):
     }
     has_custom_range = "--days" in sys.argv or "--start" in sys.argv or "--end" in sys.argv
     days = portfolio_days.get(portfolio_name, args.days) if not has_custom_range else args.days
-    
+
+    # โหลด CB_SKIPPED_TRADES ที่ parent process เซฟไว้ (subprocess นี้คนละ memory space)
+    cb_skip_path = os.path.join(pf_out_dir, f"{portfolio_name}_cb_skipped.json")
+    if os.path.exists(cb_skip_path):
+        try:
+            with open(cb_skip_path, "r", encoding="utf-8") as f:
+                CB_SKIPPED_TRADES[portfolio_name] = json.load(f)
+        except Exception as e:
+            print(f"   ⚠️ Failed to load cb_skipped cache: {e}")
+
     generate_mt5_and_compare_reports(portfolio_name, bt_trades, args.start, args.end, days, pf_out_dir)
 
 def main():
@@ -1316,6 +1694,7 @@ def main():
     parser.add_argument("--spread", type=float, default=0.20, help="Spread to apply (default: 0.20)")
     parser.add_argument("--out-dir", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "excel")), help="Output directory for CSV files")
     parser.add_argument("--compare-only", type=str, default=None, help="Internal use: run compare report in separate process")
+    parser.add_argument("--no-cache", action="store_true", help="Do not load or save raw trades disk cache")
     args = parser.parse_args()
     
     if args.compare_only:
@@ -1339,6 +1718,7 @@ def main():
             
             # Ensure previous connection is closed to change profile safely
             mt5.shutdown()
+            GLOBAL_RAW_TRADES_CACHE.clear()
             
             # Match and configure MT5 profile
             setup_mt5_for_portfolio(pf)
@@ -1437,6 +1817,17 @@ def main():
             
             pf_out_dir = os.path.join(args.out_dir, sub)
             save_reports(pf, trades, balance, pf_out_dir)
+            # เซฟ CB_SKIPPED_TRADES ลงดิสก์ — compare report รันเป็น subprocess แยก (คนละ process
+            # memory) ต้องส่งข้อมูลนี้ผ่านไฟล์ ไม่ใช่ตัวแปร module-level เฉยๆ (อ่านคืนใน
+            # run_compare_only_flow ด้านล่าง)
+            if pf in CB_SKIPPED_TRADES:
+                os.makedirs(pf_out_dir, exist_ok=True)
+                cb_skip_path = os.path.join(pf_out_dir, f"{pf}_cb_skipped.json")
+                try:
+                    with open(cb_skip_path, "w", encoding="utf-8") as f:
+                        json.dump(CB_SKIPPED_TRADES[pf], f)
+                except Exception as e:
+                    print(f"   ⚠️ Failed to save cb_skipped cache: {e}")
             # Generate MT5 real trades and comparison CSV files via separate subprocess to avoid path-switching deadlocks
             print(f"   Generating MT5 real trades and compare reports for {pf}...")
             cmd = [sys.executable, __file__, "--compare-only", pf, "--days", str(days), "--out-dir", args.out_dir]

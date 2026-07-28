@@ -87,7 +87,12 @@ python strategy/demo_portfolio/backtest-sim/backtest_demo_portfolio.py all --env
 
 ## 1.1 Unified Portfolio Backtest Simulation — `run_backtest_sim.py`
 
-รัน backtest จำลองการเทรดแบบลึก (สร้างไฟล์สรุปผล `trades`, `daily` และ `monthly` CSV แยกสำหรับทั้ง 19 พอร์ต พร้อมระบบ Caching สปีดสูงประหยัดเวลา)
+รัน backtest จำลองการเทรดแบบลึก (สร้างไฟล์สรุปผล `trades`, `daily` และ `monthly` CSV แยกสำหรับทั้ง 23 พอร์ต พร้อมระบบ Caching สปีดสูงประหยัดเวลา)
+
+⚠️ **ข้อควรระวัง (เจอจริง 2026-07-27):** ถ้าไม่ใส่ `--start` จะ fallback ไปใช้ `--days` (default 550)
+แบบนับจำนวนแท่งดิบ — พอร์ตที่ใช้ TF M5 (P13/P16/P18, LTS_ROLLOVER family) จะขอบาร์เกิน
+~90,000-100,000 แท่ง/ครั้งที่ MT5 terminal รับได้ ทำให้ fetch fail เงียบๆ (แก้แล้วด้วย chunked fetch
+ใน `sim_s30_backtest.fetch_bars`) — ถ้ายังเจอ error แบบนี้อีก ให้เช็คว่า `_MAX_BARS_PER_CALL` ยังทำงานอยู่
 
 ```bash
 python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio all
@@ -97,7 +102,7 @@ python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio S102
 
 | Argument | ความหมาย | Default |
 |---|---|---|
-| `--portfolio` | ชื่อพอร์ตที่ต้องการรัน (`P13`, `AF22`, `LTS890`, `LTS_AVENGERS_HIGH_RISK` ฯลฯ) หรือ `all` | `all` |
+| `--portfolio` | ชื่อพอร์ตที่ต้องการรัน (`P13`, `AF22`, `LTS890`, `LTS_AVENGERS_HIGH_RISK`, `LTS_EVOLUTION9` ฯลฯ) หรือ `all` | `all` |
 | `--days` | จำนวนวันย้อนหลัง (ถ้าเลือก `all` พอร์ตแต่ละตัวจะมีจำนวนวันตั้งต้นที่เหมาะสมอยู่แล้ว) | `365` |
 | `--start` / `--end` | กำหนดวันเริ่มต้นและสิ้นสุดแบบเจาะจง (รองรับ YYYY-MM-DD, YYYY-MM-DD HH:MM หรือ YYYY-MM-DD HH:MM:SS) — หากระบุเฉพาะ `--start` ส่วน `--end` จะถูกอ้างอิงถึงเวลาปัจจุบัน (Now) โดยอัตโนมัติ | None |
 | `--balance` | กำหนดเงินทุนเริ่มต้นสำหรับคำนวณ Balance ($) | None (ใช้ตามพอร์ตนั้นๆ) |
@@ -108,6 +113,9 @@ python strategy/demo_portfolio/backtest-sim/run_backtest_sim.py --portfolio S102
 **ผลลัพธ์การบันทึกไฟล์รายงาน (แยกโฟลเดอร์ตามประเภทอัตโนมัติ):**
 - `strategy/demo_portfolio/excel/p/` -> รายงานพอร์ตกลุ่ม Blend (`P13`, `P16`, `P18`)
 - `strategy/demo_portfolio/excel/s/` -> รายงานพอร์ตกลุ่ม Standalone (`S101`, `S102`, `S105`, `S106`, `S111`)
+  — ⚠️ ไฟล์ `sim_s101/102/105/106/111_backtest.py` เคยหายจาก repo (ลบไปโดยไม่ได้ตั้งใจใน commit
+  "vps" 2026-07-15) ทำให้ portfolio เหล่านี้ error ทันที กู้คืนจาก git history แล้ว (2026-07-27) พร้อม
+  แก้ column mismatch `fill_time`/`time` ในตัวอ่าน CSV ของ `run_backtest_sim.py` ด้วย
 - `strategy/demo_portfolio/excel/af/` -> รายงานพอร์ตกลุ่ม AF (`AF22`, `AF34`, `AF47`)
 - `strategy/demo_portfolio/excel/lts/` -> รายงานพอร์ตกลุ่ม LTS (`LTS44`, `LTS890`, `LTS999` และ Avengers)
 

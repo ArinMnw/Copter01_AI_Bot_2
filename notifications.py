@@ -200,6 +200,45 @@ async def check_sl_tp_hits(app):
 
             tf_label, sid_label, pat_label, trend_filter = _get_tracked_meta(ticket, p_info, deals)
 
+            # S20.13.23 Quant Fuel v23: update repeat-loss guard ตาม outcome จริง
+            # (WIN/LOSS/BE) — BE detect จาก _s20_13_23_be_state[ticket]["done"]
+            # (ตั้งโดย check_s20_13_23_breakeven) ตรงตาม backtest ที่ BE closes
+            # ไม่นับเข้า sl_buy_count/sl_sell_count
+            if sid_label == 20.1323:
+                try:
+                    from trailing import s20_13_23_on_close, _s20_13_23_be_state
+                    _s2013_side = p_info.get("type", "")
+                    _s2013_entry = p_info.get("price_open", 0.0)
+                    if close_type == "🎯 TP Hit":
+                        _s2013_outcome = "WIN"
+                    elif close_type == "🛑 SL Hit":
+                        _s2013_was_be = bool(_s20_13_23_be_state.get(ticket, {}).get("done", False))
+                        _s2013_outcome = "BE" if _s2013_was_be else "LOSS"
+                    else:
+                        _s2013_outcome = "BE"  # ปิดด้วยเหตุผลอื่น (manual/EXPERT) — ไม่แตะ guard
+                    s20_13_23_on_close(_s2013_side, _s2013_entry, _s2013_outcome)
+                    _s20_13_23_be_state.pop(ticket, None)
+                except Exception:
+                    pass
+
+            # S20.13 (base) — เหมือน S20.13.23 แต่ guard เป็น count-based (backtest_s20.13_runner_mt5.py)
+            if sid_label == 20.13:
+                try:
+                    from trailing import s20_13_on_close, _s20_13_be_state
+                    _s2013b_side = p_info.get("type", "")
+                    _s2013b_entry = p_info.get("price_open", 0.0)
+                    if close_type == "🎯 TP Hit":
+                        _s2013b_outcome = "WIN"
+                    elif close_type == "🛑 SL Hit":
+                        _s2013b_was_be = bool(_s20_13_be_state.get(ticket, {}).get("done", False))
+                        _s2013b_outcome = "BE" if _s2013b_was_be else "LOSS"
+                    else:
+                        _s2013b_outcome = "BE"
+                    s20_13_on_close(_s2013b_side, _s2013b_entry, _s2013b_outcome)
+                    _s20_13_be_state.pop(ticket, None)
+                except Exception:
+                    pass
+
             # SL Guard: track SL hits per (tf, side)
             _sl_guard_extra_msg = ""
             if close_type == "🛑 SL Hit" and profit < 0 and _config.SL_GUARD_ENABLED and tf_label:

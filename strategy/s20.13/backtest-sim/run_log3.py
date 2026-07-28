@@ -1,0 +1,45 @@
+import sys
+import os
+
+with open(r'd:\Project\Copter01_AI_Bot_2\strategy\s20.13\strategy20_13_15.py', 'r', encoding='utf-8') as f:
+    text = f.read()
+
+text = text.replace('strategy_20_13_15', 'strategy_20_13_17')
+text = text.replace('S20.13.15', 'S20.13.17')
+
+# Add advanced features to DataFrame
+advanced = '''    df['rsi'] = 100 - (100 / (1 + rs))
+
+    # Z-Score
+    sma_20 = df['close'].rolling(20).mean()
+    std_20 = df['close'].rolling(20).std()
+    df['z_score'] = (df['close'] - sma_20) / std_20
+    
+    # ADX
+    plus_dm = df['high'].diff()
+    minus_dm = df['low'].shift() - df['low']
+    plus_dm = np.where((plus_dm > minus_dm) & (plus_dm > 0), plus_dm, 0.0)
+    minus_dm = np.where((minus_dm > plus_dm) & (minus_dm > 0), minus_dm, 0.0)
+    tr14 = tr.rolling(14).sum()
+    plus_di14 = 100 * (pd.Series(plus_dm).rolling(14).sum() / tr14)
+    minus_di14 = 100 * (pd.Series(minus_dm).rolling(14).sum() / tr14)
+    dx = 100 * (np.abs(plus_di14 - minus_di14) / (plus_di14 + minus_di14))
+    df['adx'] = dx.rolling(14).mean()'''
+
+text = text.replace("    df['rsi'] = 100 - (100 / (1 + rs))", advanced)
+
+log_buy = '''        z = current_bar['z_score']
+        adx = current_bar['adx']
+        ema_dist = current_bar['close'] - current_bar['ema_50']
+        print(f"TRADELOG|BUY|{current_time}|{z:.2f}|{adx:.2f}|{ema_dist:.2f}")'''
+
+log_sell = '''        z = current_bar['z_score']
+        adx = current_bar['adx']
+        ema_dist = current_bar['close'] - current_bar['ema_50']
+        print(f"TRADELOG|SELL|{current_time}|{z:.2f}|{adx:.2f}|{ema_dist:.2f}")'''
+
+text = text.replace('        entry_price = current_bar[\'close\']\n        sweep_bottom = min(recent_3[\'low\'].min(), current_bar[\'low\'])', log_buy + '\n        entry_price = current_bar[\'close\']\n        sweep_bottom = min(recent_3[\'low\'].min(), current_bar[\'low\'])')
+text = text.replace('        entry_price = current_bar[\'close\']\n        sweep_top = max(recent_3[\'high\'].max(), current_bar[\'high\'])', log_sell + '\n        entry_price = current_bar[\'close\']\n        sweep_top = max(recent_3[\'high\'].max(), current_bar[\'high\'])')
+
+with open(r'd:\Project\Copter01_AI_Bot_2\strategy\s20.13\strategy20_13_17.py', 'w', encoding='utf-8') as f:
+    f.write(text)

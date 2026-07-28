@@ -98,6 +98,26 @@ _sl_guard_combined: dict = {}
 #          "tf_retry_signals": {tf: list}}}}
 _sl_guard_group: dict = {}  # {symbol: {side: {gkey: sg}}}
 
+# ── S20.13.23 Quant Fuel v23 — repeat-loss guard + breakeven state ────────────
+# ตรงตาม backtest_s20_13_23_runner.py: หลังไม้ฝั่งใดขาดทุน ห้ามเปิดไม้ฝั่งเดียวกันใหม่
+# ถ้า entry ห่างจากไม้ที่แพ้ <= $5 จนกว่าจะมีไม้ชนะรีเซ็ต (sl_buy_count/sl_sell_count ใน backtest)
+_s20_13_23_guard: dict = {
+    "BUY":  {"active": False, "last_loss_entry": None},
+    "SELL": {"active": False, "last_loss_entry": None},
+}
+# Breakeven @ 40% ไปทาง TP — {ticket: {"tp": float, "done": bool}}
+_s20_13_23_be_state: dict = {}
+
+# ── S20.13 (base) — repeat-loss guard + breakeven state ──────────────────────
+# ตรงตาม backtest_s20.13_runner_mt5.py: block หลังแพ้ 2 ไม้ติดฝั่งเดียวกัน (count>=2)
+# ถ้า entry ใหม่ห่างจากไม้ที่แพ้ครั้งล่าสุด <= cur_atr*2.5 (count reset เมื่อไกลพอ)
+_s20_13_guard: dict = {
+    "BUY":  {"count": 0, "last_loss_entry": None},
+    "SELL": {"count": 0, "last_loss_entry": None},
+}
+# Breakeven @ SD1.5 (tp_dist * 1.5/2.6) — {ticket: {"tp": float, "entry": float, "done": bool}}
+_s20_13_be_state: dict = {}
+
 
 def _sl_guard_record_sl(tf: str, side: str, symbol: str = "") -> bool:
     """
@@ -6314,6 +6334,191 @@ async def check_opposite_order_tp(app):
                                 print(f"🛡️ [{now}] BUY {bp.ticket} SL->{new_sl} (entry={bp.price_open:.2f}+spread={spread:.2f})")
 
 
+def s20_13_23_guard_blocks(signal: str, entry: float) -> bool:
+    """True ถ้าไม้ฝั่งนี้ถูกบล็อกเพราะ entry อยู่ใกล้ไม้ที่เพิ่งแพ้ (<=$5) — เทียบเท่า
+    sl_buy_count/sl_sell_count + last_buy_loss/last_sell_loss ใน backtest_s20_13_23_runner.py"""
+    g = _s20_13_23_guard.get(signal)
+    if not g or not g.get("active"):
+        return False
+    last_loss = g.get("last_loss_entry")
+    if last_loss is None:
+        return False
+    return abs(entry - last_loss) <= 5.0
+
+
+def s20_13_23_on_close(signal: str, entry_price: float, outcome: str) -> None:
+    """เรียกจาก notifications.py หลัง S20.13.23 position ปิด
+    outcome: "WIN" รีเซ็ต guard | "LOSS" เปิด guard ด้วย entry ของไม้ที่แพ้ |
+    "BE" ไม่แตะ guard เลย (ตรงตาม backtest: be_act closes ไม่นับเข้า sl_buy_count/sl_sell_count)"""
+    g = _s20_13_23_guard.get(signal)
+    if g is None or outcome == "BE":
+        return
+    if outcome == "WIN":
+        g["active"] = False
+        g["last_loss_entry"] = None
+    elif outcome == "LOSS":
+        g["active"] = True
+        g["last_loss_entry"] = entry_price
+
+
+def s20_13_23_calc_lot_multiplier() -> float:
+    """คืน multiplier คูณกับ config.get_volume() ตอนส่งออเดอร์จริง — ตรงตาม --compound
+    ของ backtest_s20_13_23_runner.py (ตัวคูณ lot ตรงๆ ไม่ใช่ risk-based sizing) พร้อม
+    safety cap ที่ S20_13_23_MAX_LOT กัน compound ตั้งค่าผิดพลาดจน lot ใหญ่เกิน"""
+    try:
+        compound = float(getattr(config, "S20_13_23_COMPOUND", 1.0))
+        max_lot  = float(getattr(config, "S20_13_23_MAX_LOT", 0.5))
+        base_volume = config.get_volume()
+        if not base_volume or base_volume <= 0:
+            return compound
+        if base_volume * compound > max_lot:
+            return max_lot / base_volume
+        return compound
+    except Exception:
+        return 1.0
+
+
+async def check_s20_13_23_breakeven(app):
+    """Breakeven @ 40% ระยะทางไป TP สำหรับ position S20.13.23 (sid 20.1323) เท่านั้น
+    ตรงตาม be_trig ใน backtest_s20_13_23_runner.py: entry + (tp-entry)*0.4 (BUY) /
+    entry - (entry-tp)*0.4 (SELL) — ย้าย SL ไป entry เมื่อราคาถึงจุดนี้ครั้งแรก"""
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+    for pos in positions:
+        ticket = pos.ticket
+        if position_sid.get(ticket) != 20.1323:
+            continue
+        st = _s20_13_23_be_state.get(ticket)
+        if st is None:
+            st = {"tp": float(pos.tp), "done": False}
+            _s20_13_23_be_state[ticket] = st
+        if st.get("done"):
+            continue
+        entry = pos.price_open
+        tp = st["tp"]
+        if not tp:
+            continue
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        tick = mt5.symbol_info_tick(SYMBOL)
+        if not tick:
+            continue
+        if pos_type == "BUY":
+            be_trig = entry + (tp - entry) * 0.4
+            hit = tick.bid >= be_trig
+        else:
+            be_trig = entry - (entry - tp) * 0.4
+            hit = tick.ask <= be_trig
+        if not hit:
+            continue
+        if abs(pos.sl - entry) < 1e-6:
+            st["done"] = True
+            continue
+        if _modify_sl(pos, entry):
+            st["done"] = True
+            sig_e = "🟢" if pos_type == "BUY" else "🔴"
+            await tg(app, (
+                f"🎯 *S20.13.23 Breakeven @ 40% to TP*\n"
+                f"{sig_e} Ticket:`{ticket}`\n"
+                f"SL: `{pos.sl}` -> `{entry}`"
+            ))
+
+
+def s20_13_guard_blocks(signal: str, entry: float, cur_atr: float) -> bool:
+    """True ถ้าไม้ฝั่งนี้ถูกบล็อกเพราะแพ้ติดกัน >=2 ไม้และ entry ใหม่ยังใกล้ไม้ที่แพ้
+    ล่าสุด (<= cur_atr*2.5) — ตรงตาม backtest_s20.13_runner_mt5.py (SL Guard simulation)
+    หมายเหตุ: ถ้าไกลพอ (> cur_atr*2.5) จะ reset count เป็น side-effect ของการเช็คนี้เอง
+    เหมือน backtest ที่ reset sl_buy_count/sl_sell_count ตอนเจอสัญญาณใหม่ที่ไกลพอ"""
+    g = _s20_13_guard.get(signal)
+    if not g or g.get("count", 0) < 2:
+        return False
+    last_loss = g.get("last_loss_entry")
+    if last_loss is None:
+        return False
+    if abs(entry - last_loss) > (cur_atr * 2.5):
+        g["count"] = 0
+        return False
+    return True
+
+
+def s20_13_on_close(signal: str, entry_price: float, outcome: str) -> None:
+    """เรียกจาก notifications.py หลัง S20.13 position ปิด
+    outcome: "WIN" รีเซ็ต guard count | "LOSS" +1 count และจำ entry ที่แพ้ |
+    "BE" ไม่แตะ guard เลย (ตรงตาม backtest: be_active closes ไม่นับเข้า sl_buy_count/sl_sell_count)"""
+    g = _s20_13_guard.get(signal)
+    if g is None or outcome == "BE":
+        return
+    if outcome == "WIN":
+        g["count"] = 0
+        g["last_loss_entry"] = None
+    elif outcome == "LOSS":
+        g["count"] = g.get("count", 0) + 1
+        g["last_loss_entry"] = entry_price
+
+
+def s20_13_calc_lot_multiplier() -> float:
+    """คืน multiplier คูณกับ config.get_volume() ตอนส่งออเดอร์จริง — ตรงตาม --compound
+    ของ backtest_s20.13_runner_mt5.py พร้อม safety cap ที่ S20_13_MAX_LOT"""
+    try:
+        compound = float(getattr(config, "S20_13_COMPOUND", 1.0))
+        max_lot  = float(getattr(config, "S20_13_MAX_LOT", 1.0))
+        base_volume = config.get_volume()
+        if not base_volume or base_volume <= 0:
+            return compound
+        if base_volume * compound > max_lot:
+            return max_lot / base_volume
+        return compound
+    except Exception:
+        return 1.0
+
+
+async def check_s20_13_breakeven(app):
+    """Breakeven @ SD1.5 สำหรับ position S20.13 (sid 20.13) เท่านั้น — ตรงตาม
+    backtest_s20.13_runner_mt5.py: sd15_dist = |tp-entry| * (1.5/2.6),
+    be_trigger = entry + sd15_dist (BUY) / entry - sd15_dist (SELL)"""
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if not positions:
+        return
+    for pos in positions:
+        ticket = pos.ticket
+        if position_sid.get(ticket) != 20.13:
+            continue
+        st = _s20_13_be_state.get(ticket)
+        if st is None:
+            st = {"tp": float(pos.tp), "entry": float(pos.price_open), "done": False}
+            _s20_13_be_state[ticket] = st
+        if st.get("done"):
+            continue
+        entry = st["entry"]
+        tp = st["tp"]
+        if not tp:
+            continue
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        tick = mt5.symbol_info_tick(SYMBOL)
+        if not tick:
+            continue
+        sd15_dist = abs(tp - entry) * (1.5 / 2.6)
+        if pos_type == "BUY":
+            be_trig = entry + sd15_dist
+            hit = tick.bid >= be_trig
+        else:
+            be_trig = entry - sd15_dist
+            hit = tick.ask <= be_trig
+        if not hit:
+            continue
+        if abs(pos.sl - entry) < 1e-6:
+            st["done"] = True
+            continue
+        if _modify_sl(pos, entry):
+            st["done"] = True
+            sig_e = "🟢" if pos_type == "BUY" else "🔴"
+            await tg(app, (
+                f"🎯 *S20.13 Breakeven @ SD1.5*\n"
+                f"{sig_e} Ticket:`{ticket}`\n"
+                f"SL: `{pos.sl}` -> `{entry}`"
+            ))
+
+
 async def check_breakeven_tp(app):
     """
     Breakeven TP logic for every strategy.
@@ -8258,6 +8463,8 @@ async def check_limit_sweep(app):
     for pos in positions:
         if getattr(pos, "magic", 0) >= 990000: continue
         ticket = pos.ticket
+        if position_sid.get(ticket) in getattr(config, "LIMIT_SWEEP_SKIP_SIDS", ()):
+            continue  # S20.13.23: management เป็น custom (BE@40%+guard) ตาม backtest เท่านั้น
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
         tf = position_tf.get(ticket)
         if not tf:

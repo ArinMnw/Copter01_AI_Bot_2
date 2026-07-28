@@ -415,6 +415,12 @@ async def handle_callback(update, ctx):
                 cur = config.MOMENTUM_STALL_EXIT_ENABLED.get(portfolio, False)
                 config.MOMENTUM_STALL_EXIT_ENABLED[portfolio] = not cur
                 answer_text = f"{'เปิด' if not cur else 'ปิด'} Momentum Stall Exit สำหรับ {portfolio}"
+        elif data == "demo_also_backtest_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+                cur = config.DEMO_PORTFOLIO_CB_ENABLED.get(portfolio, False)
+                config.DEMO_PORTFOLIO_CB_ENABLED[portfolio] = not cur
+                answer_text = f"{'เปิด' if not cur else 'ปิด'} Circuit Breaker (Also Backtest) สำหรับ {portfolio}"
         elif is_toggle and not data.startswith("demo_p3_") and not data.startswith("demo_p4_"):
             portfolio = data[len("demo_"):-len("_toggle")].upper()
             if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890", "LTS999")):
@@ -2362,6 +2368,59 @@ async def handle_callback(update, ctx):
             err_msg = traceback.format_exc()
             try:
                 await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_12_risk_pct:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
+    elif data == 'prompt_s20_13_active_mode':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์ค่าตัวคูณ ATR (Active Mode) สำหรับ S20.13 (เช่น 2.6):")
+            ctx.user_data['awaiting_input'] = 's20_13_active_mode'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_13_active_mode:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
+    elif data.startswith('toggle_s20_13_23_tf_'):
+        tf = data.replace('toggle_s20_13_23_tf_', '')
+        if hasattr(config, 'S20_13_23_TF_ENABLED'):
+            d = getattr(config, 'S20_13_23_TF_ENABLED')
+            d[tf] = not d.get(tf, False)
+            config.save_runtime_state()
+            await _show_strategy_detail(query, 20.1323)
+
+    elif data == 'prompt_s20_13_compound':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์ค่าตัวคูณ Lot (Compound) สำหรับ S20.13 (เช่น 1.0):")
+            ctx.user_data['awaiting_input'] = 's20_13_compound'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_13_compound:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
+            except:
+                pass
+            await _qanswer(query, "Error")
+
+    elif data == 'prompt_s20_13_23_compound':
+        try:
+            msg = await query.message.reply_text("✏️ พิมพ์ค่าตัวคูณ Lot (Compound) สำหรับ S20.13.23 (เช่น 1.0):")
+            ctx.user_data['awaiting_input'] = 's20_13_23_compound'
+            ctx.user_data['prompt_msg_id'] = msg.message_id
+            await _qanswer(query)
+        except Exception as e:
+            import traceback
+            err_msg = traceback.format_exc()
+            try:
+                await ctx.bot.send_message(chat_id=query.message.chat_id, text=f"⚠️ เกิดข้อผิดพลาดใน prompt_s20_13_23_compound:\n```\n{err_msg[-1000:]}\n```", parse_mode="Markdown")
             except:
                 pass
             await _qanswer(query, "Error")

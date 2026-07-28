@@ -29,6 +29,7 @@
 | 🧹 **S105 (Liquidity Sweep)**     |     `S105`       |               $2,000               |  ~$717.54  |   ~$21,526   |    ~-$200    |         550 วัน         |   (ทำแล้ว)   |
 | 🎭 **S106 (Volume Shift)**        |     `S106`       |               $2,000               |  ~$759.22  |   ~$22,776   |    ~-$200    |         550 วัน         |   (ทำแล้ว)   |
 | 🧲 **S111 (Gap Magnet)**          |     `S111`       |               $2,000               |   ~$800+   |  ~$24,000+   |    ~-$200    |         550 วัน         |   (ทำแล้ว)   |
+| 🧬 **LTS_EVOLUTION9 (9 legs)**    |  `LTS_EVO9`      |               $2,000               |   +$9.76   |    ~$293     |  DD $241.08  |    30-365 วัน (6 หน้าต่าง)  | (ทำแล้ว, ปิดอยู่) |
 
 ---
 
@@ -90,3 +91,36 @@
 - 🧹 **S105 (Liquidity Sweep):** Avg Day $717.54 | Total PnL ~$394,647
 - 🎭 **S106 (Volume Shift / Judas Swing):** Avg Day $759.22 | Total PnL ~$417,571
 - 🧲 **S111 (Gap Magnet - รีด Void):** Avg Day $800+ | Total PnL ~$440,000+
+
+---
+
+## 5. LTS_EVOLUTION9 — คัดจากแคมเปญ S103-S302 (2026-07-28)
+
+**สถานะ:** ลงทะเบียนแล้วใน `strategy_lts.py` + `demo_portfolio.py` (magic `992009`) — **ปิดอยู่**
+(`DEMO_PORTFOLIO_ACTIVE["LTS_EVOLUTION9"] = False` ใน `config.py`) จนกว่าจะกดเปิดผ่าน Telegram
+เพราะเป็น backtest ล้วนๆ ยังไม่เคย paper-forward เลย
+
+**ที่มา:** ไล่รีวิว strategy103.py ถึง strategy302.py (200 ไฟล์) จากเอกสาร `strategy/strategy_evolution.md`
++ `rollover_champions.md` แล้ว backtest จริงทีละตัวย้อนหลัง 30/60/90/120/150/365 วัน คัดเหลือ 9 ตัวที่
+PF และ Max DD ยังทนทานที่สุดในหน้าต่าง 365 วัน (ตัด S111/S173/S176 ออกเพราะ DD ที่ 365 วันเกือบเท่า/เกิน
+net เอง)
+
+**9 legs:** S206 (rollover opening-drive), S258 (two-state Kalman fade), S294 (Chow structural break),
+S172 (skewness-tail reclaim BUY), S165/S166 (semivariance capitulation คู่ BUY/SELL), S104 (H1 Macro
+CHoCH), S105 (Liquidity Sweep — ใช้ cfg เดียวกับพอร์ต S105 เดี่ยว), S106 (Judas Swing — ใช้ cfg เดียวกับ
+พอร์ต S106 เดี่ยว)
+
+**ผล backtest รวม (combined, lot 0.01 ต่อขา):**
+
+| Days | Closed | Wins | Net | PF | Max DD |
+|---:|---:|---:|---:|---:|---:|
+| 30 | 100 | 15 | +$90.66 | 1.20 | $223.28 |
+| 60 | 197 | 24 | +$224.13 | 1.28 | $223.28 |
+| 90 | 286 | 30 | +$236.32 | 1.23 | $223.28 |
+| 120 | 375 | 44 | +$958.77 | 1.69 | $223.28 |
+| 150 | 453 | 53 | +$1,668.24 | 2.05 | $223.28 |
+| **365** | **1,134** | **154** | **+$3,563.93** | **1.94** | **$241.08** |
+
+**ข้อจำกัดสำคัญ:** เป็น historical simulation ล้วนๆ ยังไม่เคย forward-test/demo จริงเลยแม้แต่วันเดียว —
+ต้องเปิด paper-forward ดูก่อนอย่างน้อย 2-4 สัปดาห์ก่อนพิจารณาเปิดจริง ไฟล์ผลลัพธ์เต็มอยู่ที่
+`portfolio_backtest_results.csv` และ `portfolio_combined_results_v2.json` (project root)

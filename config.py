@@ -221,7 +221,14 @@ def mt5_ts_to_bkk(ts: int | float | None) -> datetime | None:
         if ts is None:
             return None
         ts_int = int(ts)
-        _refresh_mt5_server_tz(ts_int, datetime.now(timezone.utc).timestamp())
+        if globals().get("IN_BACKTEST", False):
+            return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET)
+        
+        now_utc = datetime.now(timezone.utc).timestamp()
+        expected_server_ts = now_utc + MT5_SERVER_TZ * 3600
+        if MT5_SERVER_TZ == 1 or abs(ts_int - expected_server_ts) < 60:
+            _refresh_mt5_server_tz(ts_int, now_utc)
+            
         return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET - MT5_SERVER_TZ)
     except Exception:
         return None
@@ -258,6 +265,8 @@ def mt5_ts_to_bkk_hist(ts: int | float | None) -> datetime | None:
         if ts is None:
             return None
         ts_int = int(ts)
+        if globals().get("IN_BACKTEST", False):
+            return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET)
         offset = _mt5_server_tz_for_ts(ts_int)
         return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET - offset)
     except Exception:
@@ -512,6 +521,7 @@ MAX_ORDERS     = 9999
 DYNAMIC_LOT_ENABLED = {}
 SMART_CUTLOSS_ENABLED = {}
 MOMENTUM_STALL_EXIT_ENABLED = {}
+DEMO_PORTFOLIO_CB_ENABLED = {}
 SCAN_INTERVAL  = 1
 TIMEFRAME      = mt5.TIMEFRAME_H1
 TP_MULTIPLIER  = 1.0  # fallback RR 1:1
@@ -529,22 +539,23 @@ TRADE_DEBUG = False
 
 # ── Standalone Strategy / Filter Skip Configs ──────────────
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
-PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.1323}  # S20.13/S20.13.23: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
 # เดิม hardcode tuple แยกอยู่ตรงจุดใช้งานใน trailing.py/scanner.py แต่ละจุด แล้ว drift ไม่ตรงกัน
 # (ขาด sid บางตัวไปทีละจุด เช่น 20.12 หายไปจากหลายจุดพร้อมกัน) — ย้ายมารวมไว้ที่นี่ที่เดียว
-RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
-TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
 
@@ -897,6 +908,8 @@ active_strategies = {
     20.10: False, # ท่าที่ 20.10: Allin4s_2 (Reversal Trap)
     20.11: False, # ท่าที่ 20.11: Candle Strength
     20.12: False, # ท่าที่ 20.12: FutureKey
+    20.13: True,  # ท่าที่ 20.13: Quant Fuel (AllIn4s)
+    20.1323: True,  # S20.13.23: Quant Fuel v23 (Live Market Order) — default ON ตามคำขอ (บัญชี demo หลัก, run_supervised.bat นอก profiles/)
     95: False, # ท่าที่ 95: Liquidity Sweep (SMC)
     96: False, # ท่าที่ 96: Volume Profile POC Pullback
 }
@@ -961,6 +974,8 @@ STRATEGY_NAMES = {
     20.10: "S20.10: Wick Purge",
     20.11: "S20.11: Candle Strength",
     20.12: "S20.12: FutureKey",
+    20.13: "S20.13: Quant Fuel",
+    20.1323: "S20.13.23: Quant Fuel v23",
     95: "S95: LiqSweep",
     96: "S96: PoC Pullback",
 }
@@ -1001,6 +1016,10 @@ S20_12_RISK_PCT       = 2.0
 S20_12_MAX_LOT        = 50.0
 S20_12_SESSION_FILTER = False
 
+S20_13_TF_ENABLED     = {"M1": False, "M5": False, "M15": False, "M30": False, "H1": True, "H4": False, "H12": False, "D1": False}
+S20_13_ACTIVE_MODE    = 2.6
+S20_13_TARGET_TF_BUY  = "H12"
+S20_13_TARGET_TF_SELL = "D1"
 
 S20_8_POINTS_MULTIPLIER = 0.01
 S20_ALLOWED_TFS       = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
@@ -1252,7 +1271,7 @@ def _apply_s20_profile_mode_env_override():
     global S20_ENABLED, S20_5_ENABLED, S20_6_FVG_ENABLED, S20_7_ENABLED, S20_8_ENABLED
     global S20_9_ENABLED, S20_10_ENABLED, S20_11_ENABLED, S20_12_ENABLED
 
-    s20_sids = (20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12)
+    s20_sids = (20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13)
     for sid in s20_sids:
         if sid in active_strategies:
             active_strategies[sid] = False
@@ -1268,7 +1287,6 @@ def _apply_s20_profile_mode_env_override():
     S20_12_ENABLED = False
 
     if mode in ("S20_12_ONLY", "20.12", "S2012"):
-        S20_12_ENABLED = True
         active_strategies[20.12] = True
     elif mode in ("OFF", "NONE"):
         return
@@ -1834,6 +1852,8 @@ DEMO_PORTFOLIO_ACTIVE = {
     "S105": False,
     "S106": False,
     "S111": False,
+    "LTS_EVOLUTION9": False,
+    "LTS_WINRATE5": False,
 }
 _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
 if _demo_portfolio_active_env is not None:
@@ -1880,6 +1900,8 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _default_phase4 = True if (_name.startswith("LTS") or _name in ("P15", "P16")) else False
     SMART_CUTLOSS_ENABLED[_name] = _env_bool(f"SMART_CUTLOSS_ENABLED_{_name}", _default_phase4)
     MOMENTUM_STALL_EXIT_ENABLED[_name] = _env_bool(f"MOMENTUM_STALL_EXIT_ENABLED_{_name}", _default_phase4)
+    _default_cb = True if _name == "LTS_AVENGERS_ULTRA_SAFE" else False
+    DEMO_PORTFOLIO_CB_ENABLED[_name] = _env_bool(f"DEMO_PORTFOLIO_CB_ENABLED_{_name}", _default_cb)
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
 DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
 DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely
@@ -2079,6 +2101,7 @@ _RUNTIME_DEFAULTS = {
     "DYNAMIC_LOT_ENABLED": copy.deepcopy(DYNAMIC_LOT_ENABLED),
     "SMART_CUTLOSS_ENABLED": copy.deepcopy(SMART_CUTLOSS_ENABLED),
     "MOMENTUM_STALL_EXIT_ENABLED": copy.deepcopy(MOMENTUM_STALL_EXIT_ENABLED),
+    "DEMO_PORTFOLIO_CB_ENABLED": copy.deepcopy(DEMO_PORTFOLIO_CB_ENABLED),
     "SWEEP_FILTER_ENABLED": SWEEP_FILTER_ENABLED,
     "SWEEP_FILTER_RSI_DIV_ENABLED": SWEEP_FILTER_RSI_DIV_ENABLED,
     "TREND_FILTER_MODE": TREND_FILTER_MODE,
@@ -2251,6 +2274,7 @@ def _sync_runtime_exports():
 
 def reset_runtime_config_to_defaults(save_state: bool = True):
     """รีเซทค่า config runtime กลับไปตามค่าเริ่มต้นในไฟล์ config.py"""
+    global S20_12_ENABLED, S20_12_TF_ENABLED, S20_12_COMPOUNDING_ENABLED, S20_12_RISK_PCT, S20_12_MAX_LOT, S20_13_ENABLED, S20_13_TF_ENABLED, S20_13_COMPOUNDING_ENABLED, S20_13_RISK_PCT, S20_13_MAX_LOT, S20_13_FUEL_MULTIPLIER, S20_13_ACTIVE_MODE
     for key, default in _RUNTIME_DEFAULTS.items():
         current = globals().get(key)
         if isinstance(default, dict) and isinstance(current, dict):
@@ -2354,6 +2378,28 @@ def _write_state_to_disk(state: dict) -> None:
         _save_state_lock.release()
 
 
+
+# S20.13 Quant Fuel (Quant Sniper Fuel)
+S20_13_ENABLED = False
+S20_13_TF_ENABLED = {"M1": False, "M5": False, "M15": False, "M30": False, "H1": True, "H4": False, "H12": False, "D1": False}
+# ⚠️ จำกัดเฉพาะ H1 (2026-07-27): backtest_s20.13_runner_mt5.py รันแยกทีละ TF เสมอ ไม่เคย
+# ทดสอบ 8 TF พร้อมกันจริง เปิดครบทุก TF ทำให้เกิด SL พร้อมกันข้าม TF ที่ไม่เคย validate
+# (นิยามซ้ำก่อนหน้านี้ที่ line ~1019 ตั้ง H1-only ไว้ถูกแล้ว แต่โดน override ด้วยอันนี้)
+S20_13_COMPOUNDING_ENABLED = False
+S20_13_RISK_PCT = 1.0
+S20_13_MAX_LOT = 1.0
+S20_13_FUEL_MULTIPLIER = 3.42
+S20_13_ACTIVE_MODE = 2.6
+# Lot multiplier ตรงตาม --compound ของ backtest_s20.13_runner_mt5.py (คูณตรงกับ config.get_volume())
+S20_13_COMPOUND = 1.0
+
+# S20.13.23 Quant Fuel v23 (Live Market Order — เปิดออเดอร์จริง)
+# เปิดเฉพาะ H1 เพราะเป็น timeframe เดียวที่ backtest ทดสอบ (backtest_s20_13_23_runner.py)
+S20_13_23_TF_ENABLED = {"M1": False, "M5": False, "M15": False, "M30": False, "H1": True, "H4": False, "H12": False, "D1": False}
+# Lot multiplier ตรงตาม --compound ของ backtest_s20_13_23_runner.py (คูณตรงกับ config.get_volume())
+S20_13_23_COMPOUND = 1.0
+S20_13_23_MAX_LOT = 0.5  # safety cap ภายใน ไม่ผูกกับ backtest — กัน compound ตั้งค่าผิดพลาดจน lot ใหญ่เกิน
+
 def save_runtime_state():
     """บันทึก state สำคัญลงไฟล์เพื่อ restore หลัง restart"""
     try:
@@ -2361,8 +2407,17 @@ def save_runtime_state():
             fvg_order_tickets, pending_order_tf, position_tf, position_sid,
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
             _focus_frozen_side, _focus_suppress_until_flat, _fill_notified,
-            _sl_guard_state, _sl_guard_combined, _sl_guard_group, _pdfiboplus_fill_state
+            _sl_guard_state, _sl_guard_combined, _sl_guard_group, _pdfiboplus_fill_state,
+            _s20_13_23_guard, _s20_13_23_be_state, _s20_13_guard, _s20_13_be_state
         )
+        # S20.13.23 repeat-loss guard + breakeven state — กัน restart ล้างความจำ
+        _s20_13_23_guard_snap = copy.deepcopy(_s20_13_23_guard)
+        _s20_13_23_be_snap    = copy.deepcopy(_s20_13_23_be_state)
+        s20_13_23_be_state_serialized = {str(k): v for k, v in _s20_13_23_be_snap.items()}
+        # S20.13 repeat-loss guard (count-based, ATR threshold) + breakeven state
+        _s20_13_guard_snap = copy.deepcopy(_s20_13_guard)
+        _s20_13_be_snap    = copy.deepcopy(_s20_13_be_state)
+        s20_13_be_state_serialized = {str(k): v for k, v in _s20_13_be_snap.items()}
         # SL Guard state — กัน restart (stall) ล้างความจำ guard ก่อนครบเงื่อนไข unblock
         # _sl_guard_state key เป็น tuple (sym, tf, side) ต้องแปลงเป็น string ก่อนเก็บ JSON
         # snapshot ก่อน iterate ทุกตัว — กัน RuntimeError: dictionary changed size during iteration
@@ -2466,8 +2521,12 @@ def save_runtime_state():
             "s20_12_tf_enabled": S20_12_TF_ENABLED,
             "s20_12_compounding_enabled": S20_12_COMPOUNDING_ENABLED,
             "s20_12_risk_pct": S20_12_RISK_PCT,
-            "s20_12_max_lot": S20_12_MAX_LOT,
-            "s20_12_session_filter": S20_12_SESSION_FILTER,
+            "S20_13_MAX_LOT": S20_13_MAX_LOT,
+            "S20_13_FUEL_MULTIPLIER": S20_13_FUEL_MULTIPLIER,
+            "S20_13_ACTIVE_MODE": S20_13_ACTIVE_MODE,
+            "S20_13_COMPOUND": S20_13_COMPOUND,
+            "S20_13_23_COMPOUND": S20_13_23_COMPOUND,
+            "S20_13_23_MAX_LOT": S20_13_23_MAX_LOT,
             "s17_compounding_enabled": S17_COMPOUNDING_ENABLED,
             "s17_risk_pct": S17_RISK_PCT,
             "s17_max_lot": S17_MAX_LOT,
@@ -2497,6 +2556,7 @@ def save_runtime_state():
             "dynamic_lot_enabled": DYNAMIC_LOT_ENABLED,
             "smart_cutloss_enabled": SMART_CUTLOSS_ENABLED,
             "momentum_stall_exit_enabled": MOMENTUM_STALL_EXIT_ENABLED,
+            "demo_portfolio_cb_enabled": DEMO_PORTFOLIO_CB_ENABLED,
             "sweep_filter_enabled": SWEEP_FILTER_ENABLED,
             "sweep_filter_rsi_div_enabled": SWEEP_FILTER_RSI_DIV_ENABLED,
             "trend_filter_mode": TREND_FILTER_MODE,
@@ -2559,6 +2619,10 @@ def save_runtime_state():
             "sl_guard_combined_state": sl_guard_combined_serialized,
             "sl_guard_group_state": sl_guard_group_serialized,
             "pdfiboplus_fill_state": pdfiboplus_fill_state_serialized,
+            "s20_13_23_guard": _s20_13_23_guard_snap,
+            "s20_13_23_be_state": s20_13_23_be_state_serialized,
+            "s20_13_guard": _s20_13_guard_snap,
+            "s20_13_be_state": s20_13_be_state_serialized,
             "s10_last_fired_armed_at": s10_last_fired_serialized,
             # snapshot shared dicts ก่อน serialize — กัน race กับ trailing.py
             "last_traded_per_tf":     copy.deepcopy(last_traded_per_tf),
@@ -2645,6 +2709,39 @@ def restore_runtime_state():
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
             _focus_frozen_side, _focus_suppress_until_flat, _fill_notified
         )
+
+        # S20.13.23 repeat-loss guard + breakeven state
+        try:
+            import trailing as _trailing_mod_2013
+            saved_guard = state.get("s20_13_23_guard", {})
+            if isinstance(saved_guard, dict):
+                for _side in ("BUY", "SELL"):
+                    if isinstance(saved_guard.get(_side), dict):
+                        _trailing_mod_2013._s20_13_23_guard[_side].update(saved_guard[_side])
+            saved_be = state.get("s20_13_23_be_state", {})
+            if isinstance(saved_be, dict):
+                _trailing_mod_2013._s20_13_23_be_state.clear()
+                for k, v in saved_be.items():
+                    try:
+                        _trailing_mod_2013._s20_13_23_be_state[int(k)] = v
+                    except (TypeError, ValueError):
+                        continue
+            # S20.13 (count-based guard) repeat-loss guard + breakeven state
+            saved_guard13 = state.get("s20_13_guard", {})
+            if isinstance(saved_guard13, dict):
+                for _side in ("BUY", "SELL"):
+                    if isinstance(saved_guard13.get(_side), dict):
+                        _trailing_mod_2013._s20_13_guard[_side].update(saved_guard13[_side])
+            saved_be13 = state.get("s20_13_be_state", {})
+            if isinstance(saved_be13, dict):
+                _trailing_mod_2013._s20_13_be_state.clear()
+                for k, v in saved_be13.items():
+                    try:
+                        _trailing_mod_2013._s20_13_be_state[int(k)] = v
+                    except (TypeError, ValueError):
+                        continue
+        except Exception:
+            pass
 
         # SL Guard state — restore ตรงๆ (ไม่เช็ค staleness เพราะเงื่อนไข unblock
         # ใช้ swing confirm ซึ่งกินเวลาได้หลายชั่วโมง ไม่ใช่ timer คงที่)
@@ -2761,6 +2858,7 @@ def restore_runtime_state():
         global S20_9_ENABLED, S20_10_ENABLED, S20_10_COMPOUNDING_ENABLED, S20_10_RISK_PCT, S20_10_MAX_LOT, S20_10_USE_PSYCHOLOGICAL_NUMBERS
         global S20_11_ENABLED, S20_11_COMPOUNDING_ENABLED, S20_11_RISK_PCT, S20_11_MAX_LOT, S20_11_TF_ENABLED
         global S20_12_ENABLED, S20_12_COMPOUNDING_ENABLED, S20_12_RISK_PCT, S20_12_MAX_LOT, S20_12_TF_ENABLED, S20_12_SESSION_FILTER
+        global S20_13_TF_ENABLED, S20_13_ACTIVE_MODE
         TG_QUEUE_DEBUG = bool(state.get("tg_queue_debug", TG_QUEUE_DEBUG))
         SLTP_AUDIT_DEBUG = bool(state.get("sltp_audit_debug", SLTP_AUDIT_DEBUG))
         TRADE_DEBUG = bool(state.get("trade_debug", TRADE_DEBUG))
@@ -2977,6 +3075,9 @@ def restore_runtime_state():
         saved_mom_stall = state.get("momentum_stall_exit_enabled")
         if isinstance(saved_mom_stall, dict):
             MOMENTUM_STALL_EXIT_ENABLED.update(saved_mom_stall)
+        saved_cb = state.get("demo_portfolio_cb_enabled")
+        if isinstance(saved_cb, dict):
+            DEMO_PORTFOLIO_CB_ENABLED.update(saved_cb)
         SWEEP_FILTER_ENABLED = bool(
             state.get("sweep_filter_enabled", state.get("trend_filter_sweep_enabled", SWEEP_FILTER_ENABLED))
         )
@@ -3176,10 +3277,13 @@ def restore_runtime_state():
 
         # S16 state (AMD x iFVG)
         try:
-            from strategy16 import s16_state
+            from strategy16 import s16_state, S16_STATE_DEFAULTS
             saved_s16_state = state.get("s16_state", {})
             if isinstance(saved_s16_state, dict):
                 s16_state.clear()
+                # ใส่ default ก่อนเสมอ กัน saved state เก่า/ไม่ครบ (เช่นไม่มี "range_date")
+                # ทำให้ KeyError ตอน scan (เจอจริง 2026-07-17 profile 2101114448)
+                s16_state.update(S16_STATE_DEFAULTS)
                 s16_state.update(saved_s16_state)
         except Exception as e:
             print(f"⚠️ restore_runtime_state S16 error: {e}")

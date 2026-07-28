@@ -43,6 +43,11 @@ def _build_demo_portfolio_view(context=None):
                 rows.append([
                     InlineKeyboardButton(f"🛑 P4 Mom. Stall: {'🟢' if mom_stall else '🔴'}", callback_data="demo_p4_mom_stall_toggle")
                 ])
+                if managed in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+                    cb_on = getattr(config, "DEMO_PORTFOLIO_CB_ENABLED", {}).get(managed, False)
+                    rows.append([
+                        InlineKeyboardButton(f"⚡ also backtest: {'🟢' if cb_on else '🔴'}", callback_data="demo_also_backtest_toggle")
+                    ])
             
         rows.append([
             InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh"),

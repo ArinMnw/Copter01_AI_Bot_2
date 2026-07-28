@@ -1,0 +1,42 @@
+Symbol resolved: XAUUSD.iux
+Running S99 30d ...
+  -> S99 30d: {'closed': 5, 'wins': 4, 'win_rate': 80.0, 'net': 44.919999999999995, 'pf': 9.152450090744102, 'max_dd': 5.51}
+Running S99 60d ...
+  -> S99 60d: {'closed': 8, 'wins': 6, 'win_rate': 75.0, 'net': 72.26999999999998, 'pf': 5.428308823529412, 'max_dd': 16.32}
+Running S99 90d ...
+  -> S99 90d: {'closed': 10, 'wins': 8, 'win_rate': 80.0, 'net': 97.87, 'pf': 6.996936274509804, 'max_dd': 16.32}
+Running S99 120d ...
+  -> S99 120d: {'closed': 13, 'wins': 10, 'win_rate': 76.92307692307693, 'net': 150.82, 'pf': 6.548933038999265, 'max_dd': 16.320000000000007}
+Running S99 150d ...
+  -> S99 150d: {'closed': 16, 'wins': 12, 'win_rate': 75.0, 'net': 196.46000000000004, 'pf': 6.699448796054541, 'max_dd': 16.319999999999993}
+Running S99 365d ...
+  -> S99 365d: {'closed': 45, 'wins': 24, 'win_rate': 53.333333333333336, 'net': 173.26000000000002, 'pf': 2.0334625708320906, 'max_dd': 47.88}
+Running S100 30d ...
+  -> S100 30d: {'closed': 14, 'wins': 10, 'win_rate': 71.42857142857143, 'net': 141.82, 'pf': 4.057124380254366, 'max_dd': 33.06999999999999}
+Running S100 60d ...
+  -> S100 60d: {'closed': 22, 'wins': 15, 'win_rate': 68.18181818181817, 'net': 187.88, 'pf': 3.2134778510838826, 'max_dd': 33.06999999999999}
+Running S100 90d ...
+  -> S100 90d: {'closed': 27, 'wins': 20, 'win_rate': 74.07407407407408, 'net': 273.84, 'pf': 4.226201696512724, 'max_dd': 33.06999999999999}
+Running S100 120d ...
+  -> S100 120d: {'closed': 37, 'wins': 25, 'win_rate': 67.56756756756756, 'net': 381.71999999999997, 'pf': 3.389334001001503, 'max_dd': 62.98000000000002}
+Running S100 150d ...
+  -> S100 150d: {'closed': 46, 'wins': 30, 'win_rate': 65.21739130434783, 'net': 396.38999999999993, 'pf': 2.752000000000001, 'max_dd': 62.98000000000002}
+Running S100 365d ...
+Traceback (most recent call last):
+  File "D:\Project\Copter01_AI_Bot_2\wr_portfolio_runner.py", line 192, in <module>
+    main()
+  File "D:\Project\Copter01_AI_Bot_2\wr_portfolio_runner.py", line 169, in main
+    trades, out, err = run_script_strat(sid, days)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\Copter01_AI_Bot_2\wr_portfolio_runner.py", line 40, in run_script_strat
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe', 'sim_s100_backtest.py', '--days', '365', '--out-prefix', 'wr_portfolio_trades\\s100_365d']' timed out after 300 seconds

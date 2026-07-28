@@ -1602,6 +1602,33 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(sess_on, callback_data="toggle_s20_12_session")
         ])
 
+    elif sid == 20.13:
+        a_mode = getattr(config, "S20_13_ACTIVE_MODE", 2.6)
+        rows.append([
+            InlineKeyboardButton(f"⚙️ S20.13 Active Mode: {a_mode} (คลิกเปลี่ยน)", callback_data="prompt_s20_13_active_mode")
+        ])
+        s2013_compound = getattr(config, "S20_13_COMPOUND", 1.0)
+        rows.append([
+            InlineKeyboardButton(f"⚙️ S20.13 Compound: {s2013_compound} (คลิกเปลี่ยน)", callback_data="prompt_s20_13_compound")
+        ])
+
+    elif sid == 20.1323:
+        tf_dict = getattr(config, "S20_13_23_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, False)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_13_23_tf_{tf}")
+            if i < 4: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        s2013_compound = getattr(config, "S20_13_23_COMPOUND", 1.0)
+        rows.append([
+            InlineKeyboardButton(f"⚙️ S20.13.23 Compound: {s2013_compound} (คลิกเปลี่ยน)", callback_data="prompt_s20_13_23_compound")
+        ])
+
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
     return InlineKeyboardMarkup(rows)
 
@@ -2766,3 +2793,28 @@ async def show_s20_settings_menu(update_or_query, is_query=False):
             _log_kb_error("show_s20_settings_menu", e)
     else:
         await update_or_query.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+def get_s20_13_settings_keyboard():
+    tfs = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
+    keyboard = []
+    
+    row = []
+    for tf in tfs[:4]:
+        state = "🟢" if config.S20_13_TF_ENABLED.get(tf) else "🔴"
+        row.append(InlineKeyboardButton(f"{state} {tf}", callback_data=f"toggle_s20_13_tf_{tf}"))
+    keyboard.append(row)
+    
+    row2 = []
+    for tf in tfs[4:]:
+        state = "🟢" if config.S20_13_TF_ENABLED.get(tf) else "🔴"
+        row2.append(InlineKeyboardButton(f"{state} {tf}", callback_data=f"toggle_s20_13_tf_{tf}"))
+    keyboard.append(row2)
+
+    comp_state = "🟢 ON" if config.S20_13_COMPOUNDING_ENABLED else "🔴 OFF"
+    keyboard.append([InlineKeyboardButton(f"Compounding: {comp_state}", callback_data="toggle_s20_13_compound")])
+    keyboard.append([
+        InlineKeyboardButton(f"Risk: {config.S20_13_RISK_PCT}%", callback_data="set_s20_13_risk"),
+        InlineKeyboardButton(f"Max Lot: {config.S20_13_MAX_LOT}", callback_data="set_s20_13_max_lot")
+    ])
+    keyboard.append([InlineKeyboardButton("🔙 กลับ", callback_data='menu_strategy')])
+    return InlineKeyboardMarkup(keyboard)

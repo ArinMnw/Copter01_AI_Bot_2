@@ -28,7 +28,7 @@ from mt5_utils import calc_atr
 # runtime state: บันทึกและกู้คืนโดย config.py
 # "fired": one-shot dedup ต่อ (tf, side, killzone window) — แก้เคส 09/06/2026
 #   ที่ pending สะสมจน fill พร้อมกัน 13 ไม้ (dup check entry/tp หลุดเพราะ ATR drift)
-s16_state = {
+S16_STATE_DEFAULTS = {
     "asian_high": 0.0,
     "asian_low": 0.0,
     "range_date": "",
@@ -36,6 +36,14 @@ s16_state = {
     "swept_low": False,
     "fired": {},
 }
+
+s16_state = dict(S16_STATE_DEFAULTS)
+
+
+def _ensure_s16_state_defaults() -> None:
+    for key, default in S16_STATE_DEFAULTS.items():
+        if key not in s16_state:
+            s16_state[key] = dict(default) if isinstance(default, dict) else default
 
 
 def _s16_fired_key(tf: str, sig: str, kz_start_ts: int) -> str:
@@ -84,6 +92,7 @@ def get_current_killzone_start(dt_bkk):
 
 def update_asian_range_today(dt_bkk):
     """คำนวณแนวกรอบราคาช่วงเอเชียของวันนี้ (08:00 - 12:00 BKK)"""
+    _ensure_s16_state_defaults()
     today_str = dt_bkk.strftime("%Y-%m-%d")
     
     # ล้างสถานะเมื่อข้ามวันใหม่

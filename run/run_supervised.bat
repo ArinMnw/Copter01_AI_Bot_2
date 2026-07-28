@@ -1,9 +1,11 @@
 @echo off
-title Copter Gold Bot (Supervised)
 chcp 65001 >nul
 cd /d "%~dp0.."
-set "BOT_PROFILE=demo-iux-2101114448"
-set "BOT_PROFILE_ENV="
+if defined BOT_PROFILE (
+    for /f "delims=" %%T in ('python get_profile_title.py %BOT_PROFILE%') do title %%T
+) else (
+    title Copter Gold Bot (Supervised)
+)
 
 echo ==================================
 echo   Copter Gold Bot - Supervised

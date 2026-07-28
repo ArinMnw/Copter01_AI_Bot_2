@@ -125,6 +125,7 @@ $HeartbeatFile = Join-Path $RuntimeDir "bot_heartbeat.txt"
 $LogDir        = Join-Path $RuntimeDir "logs"
 $LogFile       = Join-Path $LogDir "supervisor.log"
 $LockFile      = Join-Path $RuntimeDir "supervisor.lock"
+$ClosedMarker  = Join-Path $RuntimeDir "supervisor_closed.marker"
 
 if (-not (Test-Path $RuntimeDir)) { New-Item -ItemType Directory -Path $RuntimeDir | Out-Null }
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
@@ -134,6 +135,36 @@ function Write-Log($msg) {
     $line = "[$ts] $msg"
     Write-Host $line
     try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 } catch {}
+}
+
+function Get-ChildProcessIds([int]$ParentPid) {
+    try {
+        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ParentPid" -ErrorAction SilentlyContinue)
+        foreach ($child in $children) {
+            $childPid = [int]$child.ProcessId
+            Get-ChildProcessIds $childPid
+            $childPid
+        }
+    } catch {}
+}
+
+function Stop-ProcessTree([int]$RootPid) {
+    $ids = @()
+    $ids += Get-ChildProcessIds $RootPid
+    $ids += $RootPid
+    $ids = @($ids | Where-Object { $_ } | Select-Object -Unique)
+
+    foreach ($id in $ids) {
+        try {
+            $p = Get-Process -Id $id -ErrorAction SilentlyContinue
+            if ($p) {
+                Stop-Process -Id $id -Force -ErrorAction Stop
+                Write-Log "killed pid=$id ($($p.ProcessName))"
+            }
+        } catch {
+            Write-Log "kill error pid=${id}: $_"
+        }
+    }
 }
 
 # ── Single-instance lock ──────────────────────────────────────────
@@ -158,12 +189,77 @@ if (Test-Path $LockFile) {
 }
 try { Set-Content -Path $LockFile -Value $PID -Encoding ASCII } catch {}
 
+# เริ่มรันใหม่ = เคลียร์ marker "ปิดเอง" เก่าทิ้ง (ไม่ว่าจะ manual restart หรือ
+# guard script สั่ง restart เพราะไม่เจอ marker ก็ตาม) — รอบนี้ถือว่าเริ่มสถานะใหม่
+try { Remove-Item $ClosedMarker -Force -ErrorAction SilentlyContinue } catch {}
+
+# ── Clean-shutdown marker ──────────────────────────────────────────
+# แยกแยะ "ปิดเอง/Ctrl+C/ปิดหน้าต่าง" (มีโอกาสรัน cleanup) ออกจาก "ตายกะทันหัน"
+# (reboot/crash/kill -9 ไม่มีโอกาสรันอะไรเลย) — guard script จะเช็ค marker นี้
+# ก่อนตัดสินใจ restart: มี marker = ปิดตั้งใจ ห้าม restart, ไม่มี marker = ตาย
+# ไม่ตั้งใจ ให้ restart ได้
+#
+# ทดสอบจริงแล้วพบ 2 ปัญหาที่ต้องแก้ตามลำดับ:
+#   1) Register-EngineEvent PowerShell.Exiting "ไม่ทัน" ตอนกดปิดหน้าต่าง (X) —
+#      Windows ฆ่า process group เร็วกว่า engine event จะ fire ต้องใช้
+#      SetConsoleCtrlHandler ระดับ Win32 ตรงๆ แทน (Windows การันตี ~5s ให้ handler
+#      นี้ทำงานก่อน terminate จริงสำหรับ CTRL_CLOSE/LOGOFF/SHUTDOWN)
+#   2) ห้ามใช้ PowerShell scriptblock cast เป็น delegate ตรงๆ — Windows เรียก
+#      callback นี้จาก thread ใหม่ที่ไม่มี PowerShell runspace ทำให้ scriptblock
+#      รันไม่ได้ (เทสจริงแล้วพัง silent) ต้องเขียน logic เป็น C# static method
+#      ล้วนๆ ใน Add-Type แล้ว bind ด้วย [Delegate]::CreateDelegate() เท่านั้น
+try {
+    Add-Type -TypeDefinition @"
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+
+public delegate bool HandlerRoutine(uint ctrlType);
+
+public static class CopterSupervisorCtrlHandler {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetConsoleCtrlHandler(HandlerRoutine handler, bool add);
+
+    public static string MarkerPath;
+
+    // CTRL_C=0, CTRL_BREAK=1, CTRL_CLOSE=2, CTRL_LOGOFF=5, CTRL_SHUTDOWN=6 —
+    // ทุกเคสถือเป็น "มีโอกาส cleanup" เขียน marker แล้วปล่อยให้ terminate ตามปกติ
+    public static bool Handler(uint ctrlType) {
+        try { File.WriteAllText(MarkerPath, DateTime.UtcNow.ToString("o")); } catch {}
+        return false;
+    }
+}
+"@ -ErrorAction Stop
+
+    [CopterSupervisorCtrlHandler]::MarkerPath = $ClosedMarker
+    $methodInfo = [CopterSupervisorCtrlHandler].GetMethod("Handler")
+    $ctrlHandlerDelegate = [Delegate]::CreateDelegate([HandlerRoutine], $methodInfo)
+    [CopterSupervisorCtrlHandler]::SetConsoleCtrlHandler($ctrlHandlerDelegate, $true) | Out-Null
+} catch {
+    Write-Log "WARN: ติดตั้ง SetConsoleCtrlHandler ไม่สำเร็จ ($_) — จะพึ่ง PowerShell.Exiting/finally อย่างเดียว"
+}
+
+$writeClosedMarker = {
+    try { Set-Content -Path $ClosedMarker -Value (Get-Date -Format "o") -Encoding ASCII -Force } catch {}
+}
+Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action $writeClosedMarker | Out-Null
+
 function Read-HeartbeatTs {
     # คืน epoch (long) จากบรรทัด ts=... ของ heartbeat; คืน $null ถ้าอ่านไม่ได้
     if (-not (Test-Path $HeartbeatFile)) { return $null }
     try {
         $line = Get-Content $HeartbeatFile -TotalCount 1 -ErrorAction Stop
         if ($line -match '^ts=(\d+)') { return [long]$Matches[1] }
+    } catch { return $null }
+    return $null
+}
+
+function Read-HeartbeatPid {
+    if (-not (Test-Path $HeartbeatFile)) { return $null }
+    try {
+        foreach ($line in Get-Content $HeartbeatFile -ErrorAction Stop) {
+            if ($line -match '^pid=(\d+)') { return [int]$Matches[1] }
+        }
     } catch { return $null }
     return $null
 }
@@ -175,6 +271,15 @@ if (-not $PSBoundParameters.ContainsKey('Python')) {
 }
 $PythonArgList = @($PythonArgs -split ' ' | Where-Object { $_ -ne '' })
 $PythonCmdLabel = (@($Python) + $PythonArgList) -join ' '
+
+if ($Profile) {
+    try {
+        $dynamicTitle = & $Python "get_profile_title.py" $Profile
+        if ($dynamicTitle) {
+            $Host.UI.RawUI.WindowTitle = $dynamicTitle.Trim()
+        }
+    } catch {}
+}
 
 Write-Log "Supervisor started (profile='$($Profile)', stale=$StaleSec s, check=$CheckEvery s, grace=$GraceSec s, python='$PythonCmdLabel')"
 
@@ -216,7 +321,12 @@ while ($true) {
         $age = [int]($now - $ts)
         if ($age -gt $StaleSec) {
             Write-Log "STALL: heartbeat age=${age}s > ${StaleSec}s (loop hang) -> kill pid=$($proc.Id) + restart"
-            try { Stop-Process -Id $proc.Id -Force -ErrorAction Stop } catch { Write-Log "kill error: $_" }
+            $hbPid = Read-HeartbeatPid
+            $killRoots = @($proc.Id)
+            if ($hbPid -and $hbPid -ne $proc.Id) { $killRoots += $hbPid }
+            foreach ($rootPid in @($killRoots | Select-Object -Unique)) {
+                Stop-ProcessTree ([int]$rootPid)
+            }
             try { $proc.WaitForExit(10000) | Out-Null } catch {}
             break
         }
@@ -229,4 +339,7 @@ while ($true) {
     # คืน lock เสมอไม่ว่าจะออกจาก loop ด้วย Ctrl+C หรือ error ใดๆ
     # กันรอบถัดไป start ไม่ติดเพราะเจอ lock ค้างของตัวเองที่ตายไปแล้ว
     try { if ((Get-Content $LockFile -ErrorAction SilentlyContinue) -eq "$PID") { Remove-Item $LockFile -Force -ErrorAction SilentlyContinue } } catch {}
+    # เขียน marker "ปิดเอง" ซ้ำที่นี่ด้วย (เผื่อ PowerShell.Exiting ไม่ทัน/ไม่ทำงาน
+    # ในบางกรณี) — ครอบคลุม Ctrl+C และ error ปกติที่ finally นี้ดักได้อยู่แล้ว
+    & $writeClosedMarker
 }

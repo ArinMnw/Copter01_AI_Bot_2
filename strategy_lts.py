@@ -24,7 +24,12 @@ def _load_lts_weights(filepath, prefix):
             
             # Check for S9X/S1XX format first: INVERSE_S95_M30, DIRECT_S101_M5
             # รองรับซีรีส์ใหม่ S99-S110 (2026-07: The Full Assembly)
-            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110)_(M5|M15|M30|H1|H4)", label)
+            # + S202/S206 (2026-07-19: แชมป์สาย rollover ผ่าน dual-window validation)
+            # + S218 (2026-07-20: regime-gated S206 — risk-adjusted, ต้อง lookback ≥620)
+            # + S224 (2026-07-20: rollover ORB — แชมป์ตัวที่ 2, ratio 16.6)
+            # + S165/S166/S172/S258/S294 (2026-07-28: 9-strategy evolution portfolio,
+            #   คัดจาก S103-S302 campaign ผ่าน backtest 30-365 วัน — ดู LTS_EVOLUTION9)
+            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110|S165|S166|S172|S202|S206|S218|S224|S258|S294)_(M5|M15|M30|H1|H4)", label)
             if m_s9x:
                 n = i + 1
                 key = f"{prefix}_{n}"
@@ -121,10 +126,19 @@ def detect_lts(name, bars):
     cfg = af_def["cfg"]
     fill_ts = int(bars[-1]["time"])
     
+    pf_name = "LTS_AVENGERS_HIGH_RISK" if name.startswith("LTS_AVENGERS_HIGH_RISK") else ("LTS_AVENGERS_ULTRA_SAFE" if name.startswith("LTS_AVENGERS_ULTRA_SAFE") else name)
+    also_backtest = config.DEMO_PORTFOLIO_CB_ENABLED.get(pf_name, False)
+    
     if af_def.get("is_s9x"):
-        # ส่ง dt_bkk ให้ด้วย — ซีรีส์ S99+ มี time filter ภายใน (ทุกตัวรับ signature เดียวกัน)
-        res = af_def["detect_fn"](bars, tf=cfg["ENTRY_TF"],
-                                  dt_bkk=config.mt5_ts_to_bkk(fill_ts))
+        # The backtest (run_s9x_generic) uses a lookback of 300 bars for S95-S111.
+        # Slice to the last 300 to ensure identical PoC/min/max indicator calculations if also_backtest is enabled.
+        rates_to_pass = bars[-300:] if also_backtest else bars
+        # ต้องส่ง cfg= เสมอ — บาง strategy ใหม่ (S165/S166/S172 เป็นต้น) กำหนด cfg เป็น
+        # positional argument จำเป็น ไม่มี default=None เหมือน S9x ตัวเก่า (เจอบั๊กจริง
+        # 2026-07-28 ตอนเพิ่ม LTS_EVOLUTION9: TypeError missing 1 required argument 'cfg')
+        # ปลอดภัยกับของเดิมด้วย เพราะทุกตัวใช้ pattern c=dict(DEFAULT_CFG); if cfg: c.update(cfg)
+        res = af_def["detect_fn"](rates_to_pass, tf=cfg["ENTRY_TF"],
+                                  dt_bkk=config.mt5_ts_to_bkk(fill_ts), cfg=cfg)
         if not res or res.get("signal") not in ("BUY", "SELL"):
             return res, None, "no_signal"
             
@@ -147,9 +161,15 @@ def detect_lts(name, bars):
             "fill_hour": int(config.mt5_ts_to_bkk(fill_ts).hour)
         }
         return res, filtered, ""
-
+ 
     fill_dt = config.mt5_ts_to_bkk(fill_ts)
-    res = af_def["detect_fn"](bars, tf=cfg["ENTRY_TF"], dt_bkk=fill_dt, cfg=cfg)
+    if also_backtest and not af_def.get("is_s9x"):
+        # S84/S86 detect_fn drops the last bar internally (rates[:-1] and j = len(rates) - 2).
+        # We append a duplicate candle to offset this, running detection on bars[-1] instead of bars[-2].
+        rates_to_pass = list(bars) + [bars[-1]]
+    else:
+        rates_to_pass = bars
+    res = af_def["detect_fn"](rates_to_pass, tf=cfg["ENTRY_TF"], dt_bkk=fill_dt, cfg=cfg)
     filtered, reason = apply_af_filters(res, af_def, fill_ts)
     return res, filtered, reason
 
@@ -159,3 +179,25 @@ _load_lts_weights(os.path.join(weights_dir, "lts_avengers_p34_weights.txt"), "LT
 _load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_risk_weights.txt"), "LTS_AVENGERS_HIGH_RISK")
 _load_lts_weights(os.path.join(weights_dir, "lts_avengers_ultra_safe_weights.txt"), "LTS_AVENGERS_ULTRA_SAFE")
 _load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_freq_weights.txt"), "LTS_AVENGERS_HIGH_FREQ")
+# LTS_ROLLOVER (2026-07-19): S206 rollover drive + S202 kurt-VR — paper-forward
+# เท่านั้น จนกว่าจะกดเปิดใน Telegram (DEMO_PORTFOLIO_ACTIVE เริ่ม False เสมอ)
+_load_lts_weights(os.path.join(weights_dir, "lts_rollover_weights.txt"), "LTS_ROLLOVER")
+# LTS_ROLLOVER_SAFE (2026-07-20): S218 (regime-gated drive) + S202 — conservative
+# variant, PF สูงกว่า/DD ต่ำกว่า LTS_ROLLOVER, เลือกอันใดอันหนึ่ง (S218 subset ของ S206)
+_load_lts_weights(os.path.join(weights_dir, "lts_rollover_safe_weights.txt"), "LTS_ROLLOVER_SAFE")
+# LTS_ROLLOVER_ORB (2026-07-20): S224 (rollover ORB) + S202 v2 — return/DD สูงสุด
+# ที่แคมเปญทำได้ (94.0) และไม่ทับเวลากันเลย (04-06 vs 12-23).
+# ⚠️ S224 ทับไม้กับ S206 บางส่วน — ห้ามเปิดพอร์ตนี้พร้อม LTS_ROLLOVER
+_load_lts_weights(os.path.join(weights_dir, "lts_rollover_orb_weights.txt"), "LTS_ROLLOVER_ORB")
+# LTS_EVOLUTION9 (2026-07-28): 9 กลยุทธ์คัดจากแคมเปญ S103-S302 หลัง backtest 30-365 วัน
+# (S206, S258, S294, S172, S165, S166, S104, S105, S106) — ตัด S111/S173/S176 ออกเพราะ
+# DD ที่ 365d เกือบเท่า/เกิน net เอง — paper-forward เท่านั้นจนกว่าจะกดเปิดใน Telegram
+# (DEMO_PORTFOLIO_ACTIVE เริ่ม False เสมอ) — S105/S106 ใช้ cfg เดียวกับพอร์ต S105/S106
+# เดิมทุกประการ (_CFG_V/_CFG_W ใน demo_portfolio.py = strategy105/106.DEFAULT_CFG ตรงๆ)
+_load_lts_weights(os.path.join(weights_dir, "lts_evolution9_weights.txt"), "LTS_EVOLUTION9")
+# LTS_WINRATE5 (2026-07-28): เป้าหมาย win rate สูง (ต่างจาก LTS_EVOLUTION9 ที่เน้น RR/return-DD)
+# คัดจากแคมเปญ S99-S111 (ICT-SMC liquidity reversal) — S99/S100/S101/S102/S105 ทุกตัว WR
+# ที่ 365 วันยัง >=53% และรวมพอร์ตแล้ว WR ไม่เคยหลุดต่ำกว่า 55% ในทุกช่วง 30-365 วัน — S102 มี
+# ช่วง 60-90d ติดลบเล็กน้อยเมื่อดูเดี่ยวๆ (n เล็ก) แต่พอรวมพอร์ตแล้ว net ยังบวกตลอด — paper-forward
+# เท่านั้นจนกว่าจะกดเปิดใน Telegram (DEMO_PORTFOLIO_ACTIVE เริ่ม False เสมอ)
+_load_lts_weights(os.path.join(weights_dir, "lts_winrate5_weights.txt"), "LTS_WINRATE5")

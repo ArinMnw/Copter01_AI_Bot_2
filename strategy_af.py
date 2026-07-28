@@ -112,7 +112,23 @@ def _make_s86(vals):
     return cfg
 
 
+# cache ATR series ต่อ (จำนวนแท่ง, เวลาแท่งแรก, เวลาแท่งสุดท้าย, period) — legs หลายร้อยตัว
+# ที่ family+TF เดียวกันใช้ bars array เดียวกัน (จาก bars_cache ใน demo_portfolio.py) แต่เดิม
+# คำนวณ ATR ซ้ำทุก leg (954 legs -> ATR คำนวณ 954 ครั้งทั้งที่ผลลัพธ์เหมือนกันหมด) — เจอจริง
+# 2026-07-20 ว่าเป็นส่วนสำคัญที่ทำให้ demo_portfolio scan ช้า cap ขนาด cache กันโตไม่จำกัด
+_ATR_SERIES_CACHE: dict = {}
+_ATR_SERIES_CACHE_MAX = 64
+
+
 def _atr_series(bars, period):
+    if bars is not None and len(bars) > 0:
+        key = (len(bars), int(bars[0]["time"]), int(bars[-1]["time"]), period)
+        cached = _ATR_SERIES_CACHE.get(key)
+        if cached is not None:
+            return cached
+    else:
+        key = None
+
     trs = []
     out = []
     atr = None
@@ -133,6 +149,11 @@ def _atr_series(bars, period):
         else:
             atr = (atr * (period - 1) + tr) / period
             out.append(atr)
+
+    if key is not None:
+        if len(_ATR_SERIES_CACHE) >= _ATR_SERIES_CACHE_MAX:
+            _ATR_SERIES_CACHE.clear()
+        _ATR_SERIES_CACHE[key] = out
     return out
 
 
@@ -386,11 +407,24 @@ def af_min_gap_seconds(af_def):
     return int(cfg.get("MIN_GAP_BARS", 1)) * tf_secs[tf]
 
 
+_TS_TO_IDX_CACHE: dict = {}
+_TS_TO_IDX_CACHE_MAX = 32
+
+
 def af_raw_cooldown_active(last_raw_ts, entry_ts, af_def, bars=None):
     if last_raw_ts is None:
         return False
-    if bars is not None:
-        ts_to_idx = {int(b["time"]): i for i, b in enumerate(bars)}
+    if bars is not None and len(bars) > 0:
+        # bars array เดียวกันถูกแชร์ระหว่างหลายร้อย legs ต่อ TF ในหนึ่งรอบ scan (LTS_AVENGERS_*
+        # มีถึง ~927 legs) — เดิมสร้าง dict ใหม่ทุก leg (925 ครั้ง/รอบ) กิน 70% ของเวลา scan ทั้งหมด
+        # (วัดจริงด้วย cProfile 2026-07-26: 1.15s จาก 1.65s) แคชตาม content ของ bars แทนสร้างซ้ำ
+        key = (len(bars), int(bars[0]["time"]), int(bars[-1]["time"]))
+        ts_to_idx = _TS_TO_IDX_CACHE.get(key)
+        if ts_to_idx is None:
+            ts_to_idx = {int(b["time"]): i for i, b in enumerate(bars)}
+            if len(_TS_TO_IDX_CACHE) >= _TS_TO_IDX_CACHE_MAX:
+                _TS_TO_IDX_CACHE.clear()
+            _TS_TO_IDX_CACHE[key] = ts_to_idx
         last_idx = ts_to_idx.get(int(last_raw_ts))
         entry_idx = ts_to_idx.get(int(entry_ts))
         if last_idx is not None and entry_idx is not None:
