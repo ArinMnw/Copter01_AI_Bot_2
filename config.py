@@ -442,7 +442,7 @@ def profile_symbol(symbol: str | None = None, mt5_module=None, set_runtime: bool
 # ============================================================
 #  SETTINGS
 # ============================================================
-TELEGRAM_TOKEN = "8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0"
+TELEGRAM_TOKEN = "8942892244:AAHVedCRthAQebhy4_PxmPoDLmlP7zBNYYw"
 MY_USER_ID     = 8666020453
 SYMBOL         = "XAUUSD"   # runtime resolves this to broker-specific symbol suffix
 SYMBOL_CANDIDATES = ""
@@ -463,6 +463,10 @@ MT5_PORTABLE   = True
 MT5_TIMEOUT_MS = 120000
 MAGIC_NUMBER   = 234001
 ROOT_IUX_ALLOWED_LOGINS = "2101114448"
+# "thread" (default, พฤติกรรมเดิม) หรือ "subprocess" (opt-in ต่อ profile —
+# read ทั้งหมดผ่าน child process แยก กัน MT5 native call ค้างล็อกทั้ง process
+# ดู หัวไฟล์ mt5_worker.py) เปิดทดสอบทีละ profile ผ่าน profile.env ก่อน rollout กว้าง
+MT5_WORKER_MODE = "thread"
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", TELEGRAM_TOKEN)
 MY_USER_ID     = int(os.getenv("MY_USER_ID", os.getenv("TELEGRAM_USER_ID", str(MY_USER_ID))) or MY_USER_ID)
@@ -475,6 +479,7 @@ MT5_PATH       = os.getenv("MT5_PATH", MT5_PATH)
 MT5_PORTABLE   = os.getenv("MT5_PORTABLE", str(MT5_PORTABLE)).strip().lower() in ("1", "true", "yes", "on")
 MT5_TIMEOUT_MS = int(os.getenv("MT5_TIMEOUT_MS", str(MT5_TIMEOUT_MS)) or MT5_TIMEOUT_MS)
 MAGIC_NUMBER   = int(os.getenv("MAGIC_NUMBER", str(MAGIC_NUMBER)) or MAGIC_NUMBER)
+MT5_WORKER_MODE = os.getenv("MT5_WORKER_MODE", MT5_WORKER_MODE).strip().lower()
 ROOT_IUX_ALLOWED_LOGINS = os.getenv("ROOT_IUX_ALLOWED_LOGINS", ROOT_IUX_ALLOWED_LOGINS)
 if not PROFILE_ACTIVE and not MT5_PATH:
     _default_mt5_paths = (
@@ -539,23 +544,23 @@ TRADE_DEBUG = False
 
 # ── Standalone Strategy / Filter Skip Configs ──────────────
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
-PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.1323}  # S20.13/S20.13.23: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
+PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.1323, 20.1324}  # S20.13/S20.13.23: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
 # เดิม hardcode tuple แยกอยู่ตรงจุดใช้งานใน trailing.py/scanner.py แต่ละจุด แล้ว drift ไม่ตรงกัน
 # (ขาด sid บางตัวไปทีละจุด เช่น 20.12 หายไปจากหลายจุดพร้อมกัน) — ย้ายมารวมไว้ที่นี่ที่เดียว
-RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
-TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.1323, 21, 95, 96}
+RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
 
@@ -910,6 +915,7 @@ active_strategies = {
     20.12: False, # ท่าที่ 20.12: FutureKey
     20.13: True,  # ท่าที่ 20.13: Quant Fuel (AllIn4s)
     20.1323: True,  # S20.13.23: Quant Fuel v23 (Live Market Order) — default ON ตามคำขอ (บัญชี demo หลัก, run_supervised.bat นอก profiles/)
+    20.1324: True,  # S20.13.24: Quant Fuel v24 (Live Market Order) — เปิดตามคำขอพี่ (2026-08-02) แม้ split-half walk-forward เจอ overfitting ชัดเจน (WR 58%→100% ระหว่าง 2 ครึ่งข้อมูล) — พี่รับความเสี่ยงแล้ว
     95: False, # ท่าที่ 95: Liquidity Sweep (SMC)
     96: False, # ท่าที่ 96: Volume Profile POC Pullback
 }
@@ -976,6 +982,7 @@ STRATEGY_NAMES = {
     20.12: "S20.12: FutureKey",
     20.13: "S20.13: Quant Fuel",
     20.1323: "S20.13.23: Quant Fuel v23",
+    20.1324: "S20.13.24: Quant Fuel v24",
     95: "S95: LiqSweep",
     96: "S96: PoC Pullback",
 }
@@ -1885,6 +1892,19 @@ DEMO_PORTFOLIO_WEIGHT_SCALE = {
     "LTS_AVENGERS_ULTRA_SAFE": 1.0, "LTS_AVENGERS_HIGH_FREQ": 1.0,
     "P18": 1.0, "S101": 1.0, "S102": 1.0, "S105": 1.0, "S106": 1.0, "S111": 1.0,
 }
+# ต่อพอร์ต (เดิมเป็นสเกลาร์ตัวเดียวใช้ร่วมกันทุกพอร์ต) — 0 = ไม่ cap ภายใน (broker volume_max
+# ยังกันอยู่ที่ระดับ single order เสมอ) เจอจริง 2026-08-03: LTS_AVENGERS_HIGH_RISK (IUX) มี leg
+# ตระกูล S95/S96/S97 บาง leg weight สูงถึง 2000 → raw_volume ต่อไม้เดียวชนเพดาน single-order
+# (volume_max=20) ได้ง่าย และเพราะมีหลาย leg น้ำหนักสูงแบบนี้พร้อมกัน รวมกันไปชน
+# SYMBOL_VOLUME_LIMIT (aggregate ต่อทิศทาง = 100) เร็วเกินไป จน leg อื่นๆ (S84 ตระกูลหลัก
+# 900+ leg) เข้าคิวไม่ทัน โดนปฏิเสธ 10034 Volume limit reached ทั้งที่ lot เดี่ยวๆ เล็กมาก —
+# cap นี้จำกัดเฉพาะ LTS_AVENGERS_HIGH_RISK ผ่าน profile.env ของ IUX (ไม่กระทบพอร์ตอื่น)
+DEMO_PORTFOLIO_AF_MAX_LOT = {
+    "P13": 0.0, "P16": 0.0, "AF22": 0.0, "AF34": 0.0, "AF47": 0.0, "LTS44": 0.0, "LTS890": 0.0, "LTS999": 0.0,
+    "LTS_AVENGERS_BASE": 0.0, "LTS_AVENGERS_P34": 0.0, "LTS_AVENGERS_HIGH_RISK": 0.0,
+    "LTS_AVENGERS_ULTRA_SAFE": 0.0, "LTS_AVENGERS_HIGH_FREQ": 0.0,
+    "P18": 0.0, "S101": 0.0, "S102": 0.0, "S105": 0.0, "S106": 0.0, "S111": 0.0,
+}
 for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _env_w = os.getenv(f"DEMO_PORTFOLIO_WEIGHT_ENABLED_{_name}")
     if _env_w is not None:
@@ -1895,6 +1915,12 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
             DEMO_PORTFOLIO_WEIGHT_SCALE[_name] = float(_env_s)
         except ValueError:
             pass
+    _env_ml = os.getenv(f"DEMO_PORTFOLIO_AF_MAX_LOT_{_name}")
+    if _env_ml is not None:
+        try:
+            DEMO_PORTFOLIO_AF_MAX_LOT[_name] = float(_env_ml)
+        except ValueError:
+            pass
     _default_phase3 = True if _name.startswith("LTS") else False
     DYNAMIC_LOT_ENABLED[_name] = _env_bool(f"DYNAMIC_LOT_ENABLED_{_name}", _default_phase3)
     _default_phase4 = True if (_name.startswith("LTS") or _name in ("P15", "P16")) else False
@@ -1903,7 +1929,6 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _default_cb = True if _name == "LTS_AVENGERS_ULTRA_SAFE" else False
     DEMO_PORTFOLIO_CB_ENABLED[_name] = _env_bool(f"DEMO_PORTFOLIO_CB_ENABLED_{_name}", _default_cb)
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
-DEMO_PORTFOLIO_AF_MAX_LOT = 0.0                         # 0 = no internal lot cap; broker volume_max still applies
 DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely
 
 # ── Triple Scale-Out (TSO) — Config ───────────────────────────
@@ -2400,6 +2425,15 @@ S20_13_23_TF_ENABLED = {"M1": False, "M5": False, "M15": False, "M30": False, "H
 S20_13_23_COMPOUND = 1.0
 S20_13_23_MAX_LOT = 0.5  # safety cap ภายใน ไม่ผูกกับ backtest — กัน compound ตั้งค่าผิดพลาดจน lot ใหญ่เกิน
 
+# S20.13.24 Quant Fuel v24 (Live Market Order — เปิดออเดอร์จริง)
+# เปิดเฉพาะ H1 เพราะเป็น timeframe เดียวที่ backtest ทดสอบ (backtest_s20_13_24_runner.py)
+# ⚠️ split-half walk-forward เจอ overfitting ชัดเจน (WR 58%→100% ระหว่าง 2 ครึ่งข้อมูล 700 วัน) —
+# active_strategies default OFF ด้านบน ต้องเปิดเองผ่าน Telegram แล้วรับความเสี่ยงเอง
+S20_13_24_TF_ENABLED = {"M1": False, "M5": False, "M15": False, "M30": False, "H1": True, "H4": False, "H12": False, "D1": False}
+# Lot multiplier ตรงตาม --compound ของ backtest_s20_13_24_runner.py (คูณตรงกับ config.get_volume())
+S20_13_24_COMPOUND = 1.0
+S20_13_24_MAX_LOT = 0.5  # safety cap ภายใน ไม่ผูกกับ backtest — กัน compound ตั้งค่าผิดพลาดจน lot ใหญ่เกิน
+
 def save_runtime_state():
     """บันทึก state สำคัญลงไฟล์เพื่อ restore หลัง restart"""
     try:
@@ -2408,7 +2442,8 @@ def save_runtime_state():
             position_pattern, position_trend_filter, position_zone_meta, position_forward_meta, _entry_state, _trail_state, _s8_fill_sl,
             _focus_frozen_side, _focus_suppress_until_flat, _fill_notified,
             _sl_guard_state, _sl_guard_combined, _sl_guard_group, _pdfiboplus_fill_state,
-            _s20_13_23_guard, _s20_13_23_be_state, _s20_13_guard, _s20_13_be_state
+            _s20_13_23_guard, _s20_13_23_be_state, _s20_13_guard, _s20_13_be_state,
+            _s20_13_24_guard, _s20_13_24_be_state
         )
         # S20.13.23 repeat-loss guard + breakeven state — กัน restart ล้างความจำ
         _s20_13_23_guard_snap = copy.deepcopy(_s20_13_23_guard)
@@ -2418,6 +2453,10 @@ def save_runtime_state():
         _s20_13_guard_snap = copy.deepcopy(_s20_13_guard)
         _s20_13_be_snap    = copy.deepcopy(_s20_13_be_state)
         s20_13_be_state_serialized = {str(k): v for k, v in _s20_13_be_snap.items()}
+        # S20.13.24 repeat-loss guard + breakeven state — กัน restart ล้างความจำ
+        _s20_13_24_guard_snap = copy.deepcopy(_s20_13_24_guard)
+        _s20_13_24_be_snap    = copy.deepcopy(_s20_13_24_be_state)
+        s20_13_24_be_state_serialized = {str(k): v for k, v in _s20_13_24_be_snap.items()}
         # SL Guard state — กัน restart (stall) ล้างความจำ guard ก่อนครบเงื่อนไข unblock
         # _sl_guard_state key เป็น tuple (sym, tf, side) ต้องแปลงเป็น string ก่อนเก็บ JSON
         # snapshot ก่อน iterate ทุกตัว — กัน RuntimeError: dictionary changed size during iteration
@@ -2527,6 +2566,8 @@ def save_runtime_state():
             "S20_13_COMPOUND": S20_13_COMPOUND,
             "S20_13_23_COMPOUND": S20_13_23_COMPOUND,
             "S20_13_23_MAX_LOT": S20_13_23_MAX_LOT,
+            "S20_13_24_COMPOUND": S20_13_24_COMPOUND,
+            "S20_13_24_MAX_LOT": S20_13_24_MAX_LOT,
             "s17_compounding_enabled": S17_COMPOUNDING_ENABLED,
             "s17_risk_pct": S17_RISK_PCT,
             "s17_max_lot": S17_MAX_LOT,
@@ -2623,6 +2664,8 @@ def save_runtime_state():
             "s20_13_23_be_state": s20_13_23_be_state_serialized,
             "s20_13_guard": _s20_13_guard_snap,
             "s20_13_be_state": s20_13_be_state_serialized,
+            "s20_13_24_guard": _s20_13_24_guard_snap,
+            "s20_13_24_be_state": s20_13_24_be_state_serialized,
             "s10_last_fired_armed_at": s10_last_fired_serialized,
             # snapshot shared dicts ก่อน serialize — กัน race กับ trailing.py
             "last_traded_per_tf":     copy.deepcopy(last_traded_per_tf),
@@ -2738,6 +2781,20 @@ def restore_runtime_state():
                 for k, v in saved_be13.items():
                     try:
                         _trailing_mod_2013._s20_13_be_state[int(k)] = v
+                    except (TypeError, ValueError):
+                        continue
+            # S20.13.24 repeat-loss guard + breakeven state
+            saved_guard24 = state.get("s20_13_24_guard", {})
+            if isinstance(saved_guard24, dict):
+                for _side in ("BUY", "SELL"):
+                    if isinstance(saved_guard24.get(_side), dict):
+                        _trailing_mod_2013._s20_13_24_guard[_side].update(saved_guard24[_side])
+            saved_be24 = state.get("s20_13_24_be_state", {})
+            if isinstance(saved_be24, dict):
+                _trailing_mod_2013._s20_13_24_be_state.clear()
+                for k, v in saved_be24.items():
+                    try:
+                        _trailing_mod_2013._s20_13_24_be_state[int(k)] = v
                     except (TypeError, ValueError):
                         continue
         except Exception:

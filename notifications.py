@@ -239,6 +239,27 @@ async def check_sl_tp_hits(app):
                 except Exception:
                     pass
 
+            # S20.13.24 Quant Fuel v24: update repeat-loss guard ตาม outcome จริง
+            # (WIN/LOSS/BE) — BE detect จาก _s20_13_24_be_state[ticket]["done"]
+            # (ตั้งโดย check_s20_13_24_breakeven) ตรงตาม backtest ที่ BE closes
+            # ไม่นับเข้า sl_buy_count/sl_sell_count
+            if sid_label == 20.1324:
+                try:
+                    from trailing import s20_13_24_on_close, _s20_13_24_be_state
+                    _s2024_side = p_info.get("type", "")
+                    _s2024_entry = p_info.get("price_open", 0.0)
+                    if close_type == "🎯 TP Hit":
+                        _s2024_outcome = "WIN"
+                    elif close_type == "🛑 SL Hit":
+                        _s2024_was_be = bool(_s20_13_24_be_state.get(ticket, {}).get("done", False))
+                        _s2024_outcome = "BE" if _s2024_was_be else "LOSS"
+                    else:
+                        _s2024_outcome = "BE"  # ปิดด้วยเหตุผลอื่น (manual/EXPERT) — ไม่แตะ guard
+                    s20_13_24_on_close(_s2024_side, _s2024_entry, _s2024_outcome)
+                    _s20_13_24_be_state.pop(ticket, None)
+                except Exception:
+                    pass
+
             # SL Guard: track SL hits per (tf, side)
             _sl_guard_extra_msg = ""
             if close_type == "🛑 SL Hit" and profit < 0 and _config.SL_GUARD_ENABLED and tf_label:

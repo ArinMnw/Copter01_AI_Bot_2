@@ -94,6 +94,8 @@ _LTS_NAMED_MAGIC = {
     "LTS_ROLLOVER_ORB": 992008,
     "LTS_EVOLUTION9": 992009,
     "LTS_WINRATE5": 992010,
+    "LTS_ROLLOVER_HTF": 992011,
+    "LTS_ROLLOVER_HTF_MAX": 992012,
 }
 _LTS_MAGIC_TO_NAME = {magic: name for name, magic in _LTS_NAMED_MAGIC.items()}
 MIN_LOT = 0.01
@@ -401,12 +403,12 @@ def _count_open_positions(magic, leg_id, entry_tf=None):
 
 
 def _round_volume(volume, info):
+    # cap ต่อพอร์ต (DEMO_PORTFOLIO_AF_MAX_LOT) ใช้ที่ _af_order_volume แทน เพราะฟังก์ชันนี้ไม่รู้
+    # portfolio_name — เหลือแค่ clamp กับ broker volume_max/min/step ที่นี่
     vol_min = float(getattr(info, "volume_min", 0.01) or 0.01)
     vol_max = float(getattr(info, "volume_max", 100.0) or 100.0)
     vol_step = float(getattr(info, "volume_step", 0.01) or 0.01)
-    cap_cfg = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", 0.0) or 0.0)
-    cap = min(vol_max, cap_cfg) if cap_cfg > 0 else vol_max
-    volume = max(vol_min, min(float(volume), cap))
+    volume = max(vol_min, min(float(volume), vol_max))
     steps = round((volume - vol_min) / vol_step)
     return round(vol_min + steps * vol_step, 2)
 
@@ -423,9 +425,9 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     if not weight_enabled:
         info = mt5.symbol_info(_demo_symbol())
         volume = _round_volume(base_raw, info) if info else round(base_raw, 2)
-        
+
         # Apply safety lot cap
-        max_lot = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", 0.0) or 0.0)
+        max_lot = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", {}).get(portfolio_name, 0.0) or 0.0)
         if max_lot > 0.0 and volume > max_lot:
             volume = max_lot
             
@@ -440,12 +442,12 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     raw_volume = base_raw * weight * scale
     info = mt5.symbol_info(_demo_symbol())
     volume = _round_volume(raw_volume, info) if info else round(raw_volume, 2)
-    
+
     # Apply safety lot cap
-    max_lot = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", 0.0) or 0.0)
+    max_lot = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", {}).get(portfolio_name, 0.0) or 0.0)
     if max_lot > 0.0 and volume > max_lot:
         volume = max_lot
-        
+
     return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
 
 
@@ -818,6 +820,16 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
     now = _now_bkk()
     bars_cache = {}
     backtest_anchor = portfolio_name in BACKTEST_ANCHORED_PORTFOLIOS
+    # ไฟล์ weights ของ LTS_AUS/LTS_AHR มีบาง leg เป็นสูตรซ้ำกันเป๊ะ (family+cfg_idx+TF เดียวกัน
+    # ต่างแค่ leg slot เพื่อกระจาย weight) — backtest คำนวณ raw signal ครั้งเดียวต่อ unique base
+    # แล้ว apply MIN_GAP_BARS cooldown รวมกัน ก่อนกระจายผลไปทุก leg ที่ใช้สูตรเดียวกัน แต่โค้ดเดิม
+    # เก็บ cooldown แยกราย leg_id ทำให้สูตรเดียวกันหลุด cooldown กันคนละแท่ง ยิงกระจายไม่พร้อมกัน
+    # (เจอจริง 2026-07-31: legs c5505/c6017/c4369 หลาย slot ยิงพร้อมกันตอน live ที่บาร์เดียว แต่
+    # backtest เห็นแค่ครั้งเดียวเพราะ cooldown ที่ unique base ไปกันสัญญาณก่อนหน้าที่ถี่กว่า 5 แท่ง)
+    # เกต cooldown ที่ (family, cfg_idx, TF) แทน leg_id เฉพาะ 2 พอร์ตนี้ ให้ตรงกับ backtest —
+    # เช็ค/อัพเดตครั้งเดียวต่อ unique base ต่อรอบสแกน กันไม่ให้ leg พี่น้องบล็อกกันเองบนบาร์เดียวกัน
+    shared_cooldown = backtest_anchor
+    _base_gate_this_scan = {}
 
     for _leg_i, key in enumerate(PORTFOLIOS[portfolio_name]):
         if _leg_i % 20 == 0:
@@ -839,6 +851,10 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
         entry_ts = int(signal_bars[-1]["time"])
         k = af_def['key']
         leg_id = k if k.startswith(portfolio_name) else f"{portfolio_name}-{k}"
+        cooldown_key = (
+            f"{af_def.get('family')}_{af_def.get('cfg_idx')}_{entry_tf}"
+            if shared_cooldown else leg_id
+        )
         if backtest_anchor and af_def.get("is_s9x"):
             had_pending = leg_id in state.get("pending_lts_entries", {})
             pending_active = await _process_lts_pending_entry(app, state, leg_id, bars, magic, portfolio_name)
@@ -846,8 +862,16 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
                 continue
         if state["last_signal_ts"].get(leg_id) == entry_ts:
             continue
-        if af_raw_cooldown_active(state["last_raw_signal_ts"].get(leg_id), entry_ts, af_def, bars=bars):
+        if cooldown_key in _base_gate_this_scan:
+            # unique base นี้ถูกเช็ค cooldown ไปแล้วในรอบสแกนนี้ (จาก leg พี่น้องตัวก่อนหน้า) —
+            # ใช้ผลเดิมซ้ำ ไม่เช็คใหม่ (กัน entry_ts เดียวกันที่เพิ่ง set ไปหลอกว่า cooldown ติด)
+            if not _base_gate_this_scan[cooldown_key]:
+                continue
+        elif af_raw_cooldown_active(state["last_raw_signal_ts"].get(cooldown_key), entry_ts, af_def, bars=bars):
+            _base_gate_this_scan[cooldown_key] = False
             continue
+        else:
+            _base_gate_this_scan[cooldown_key] = True
 
         try:
             if portfolio_name.startswith("LTS"):
@@ -861,7 +885,25 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
             continue
 
         if res and res.get("signal") in ("BUY", "SELL"):
-            state["last_raw_signal_ts"][leg_id] = entry_ts
+            state["last_raw_signal_ts"][cooldown_key] = entry_ts
+            # เก็บ bar snapshot ตอน raw signal เกิดจริง (เฉพาะ LTS_AUS/LTS_AHR) — ไว้เทียบกับ
+            # bar เดียวกันที่ backtest ดึงมาทีหลัง เพื่อพิสูจน์ทฤษฎีว่า MT5 ปรับ OHLC ของแท่งที่
+            # เพิ่งปิดเล็กน้อยหลัง settle (late tick) ทำให้ pattern ที่ไวต่อ wick/close (เช่น S84)
+            # เห็นคนละผลระหว่าง live (ตอนสด) กับ backtest (ดึงทีหลัง) — ไม่กระทบ order/filter ใดๆ
+            if portfolio_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+                try:
+                    snap_bars = signal_bars[-3:]
+                    bar_str = ";".join(
+                        f"{int(b['time'])}:o{b['open']:.2f}h{b['high']:.2f}l{b['low']:.2f}c{b['close']:.2f}"
+                        for b in snap_bars
+                    )
+                    log_event(
+                        "DEMO_PORTFOLIO_BAR_SNAPSHOT",
+                        f"{leg_id} raw_signal={res.get('signal')} entry_ts={entry_ts} "
+                        f"entry={res.get('entry')} sl={res.get('sl')} tp={res.get('tp')} bars={bar_str}",
+                    )
+                except Exception as e:
+                    log_error("DEMO_PORTFOLIO", f"{leg_id} bar snapshot log failed: {type(e).__name__}: {e}")
 
         if filtered is None:
             if reason != "no_signal":
@@ -1166,6 +1208,13 @@ MANAGED_PORTFOLIOS = {
     # อย่าถอด pyramid_legs ออกจนกว่าจะมีผลทดสอบ S202 + pyramid
     "LTS_ROLLOVER_ORB": {"be_rr": 1.0, "pyramid_r": 3.0, "pyramid_frac": 1.0,
                          "pyramid_legs": ("S224",)},
+    # S303 ทดสอบ pyramid แล้วได้โปรไฟล์เดียวกับ S224: 12m +511.57 (+64%) โดย
+    # return/DD แทบไม่ตก (23.2 -> 22.0) และ 2026-H1 DD ไม่ขยับเลย (10.26)
+    "LTS_ROLLOVER_HTF": {"be_rr": 1.0, "pyramid_r": 3.0, "pyramid_frac": 1.0,
+                         "pyramid_legs": ("S303",)},
+    # S304 ยังไม่ได้ทดสอบ pyramid — เปิดแค่ BE ไว้ก่อน
+    "LTS_ROLLOVER_HTF_MAX": {"be_rr": 1.0, "pyramid_r": None, "pyramid_frac": 1.0,
+                             "pyramid_legs": ("S304",)},
 }
 
 

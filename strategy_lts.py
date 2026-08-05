@@ -29,7 +29,8 @@ def _load_lts_weights(filepath, prefix):
             # + S224 (2026-07-20: rollover ORB — แชมป์ตัวที่ 2, ratio 16.6)
             # + S165/S166/S172/S258/S294 (2026-07-28: 9-strategy evolution portfolio,
             #   คัดจาก S103-S302 campaign ผ่าน backtest 30-365 วัน — ดู LTS_EVOLUTION9)
-            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110|S165|S166|S172|S202|S206|S218|S224|S258|S294)_(M5|M15|M30|H1|H4)", label)
+            # + S303 (2026-07-20: ORB + HTF bias — subset ของ S224, ratio 23.0)
+            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110|S165|S166|S172|S202|S206|S218|S224|S258|S294|S303|S304)_(M5|M15|M30|H1|H4)", label)
             if m_s9x:
                 n = i + 1
                 key = f"{prefix}_{n}"
@@ -189,6 +190,14 @@ _load_lts_weights(os.path.join(weights_dir, "lts_rollover_safe_weights.txt"), "L
 # ที่แคมเปญทำได้ (94.0) และไม่ทับเวลากันเลย (04-06 vs 12-23).
 # ⚠️ S224 ทับไม้กับ S206 บางส่วน — ห้ามเปิดพอร์ตนี้พร้อม LTS_ROLLOVER
 _load_lts_weights(os.path.join(weights_dir, "lts_rollover_orb_weights.txt"), "LTS_ROLLOVER_ORB")
+# LTS_ROLLOVER_HTF (2026-07-20): S303 (ORB + HTF-bias) + S202 v2 — return/DD สูงสุด
+# ที่แคมเปญทำได้ (120.3 บน 2026-H1) ⚠️ S303 เป็น subset ของ S224 และ S224 ทับ S206
+# บางส่วน — เปิดได้ทีละพอร์ตเดียวในกลุ่ม LTS_ROLLOVER*
+_load_lts_weights(os.path.join(weights_dir, "lts_rollover_htf_weights.txt"), "LTS_ROLLOVER_HTF")
+# LTS_ROLLOVER_HTF_MAX (2026-07-20): S304 (rolling-range drive + HTF bias) + S202 v2
+# — กำไรสูงสุด (+1,253.71 บน 2026-H1) แลก DD สูงกว่า HTF (19.26 vs 9.24)
+# ⚠️ S304 ทับ S206 เกือบสนิท (30/31) — เปิดได้ทีละพอร์ตเดียวในกลุ่ม LTS_ROLLOVER*
+_load_lts_weights(os.path.join(weights_dir, "lts_rollover_htfmax_weights.txt"), "LTS_ROLLOVER_HTF_MAX")
 # LTS_EVOLUTION9 (2026-07-28): 9 กลยุทธ์คัดจากแคมเปญ S103-S302 หลัง backtest 30-365 วัน
 # (S206, S258, S294, S172, S165, S166, S104, S105, S106) — ตัด S111/S173/S176 ออกเพราะ
 # DD ที่ 365d เกือบเท่า/เกิน net เอง — paper-forward เท่านั้นจนกว่าจะกดเปิดใน Telegram

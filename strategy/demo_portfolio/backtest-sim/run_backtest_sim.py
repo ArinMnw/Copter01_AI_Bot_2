@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import json
+import re
 import argparse
 import subprocess
 import pandas as pd
@@ -226,6 +227,46 @@ def format_ts_to_bkk(ts):
         return "-"
     bkk_tz = timezone(timedelta(hours=7))
     return datetime.fromtimestamp(int(ts), tz=timezone.utc).astimezone(bkk_tz).strftime('%d-%m-%Y %H:%M:%S')
+
+COMPARE_COLS = [
+    "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
+    "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
+    "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
+    "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
+    "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
+    "MT5_Reason", "Sim_point", "MT5_point"
+]
+
+def save_compare_and_splits(compare_rows, output_dir, portfolio_name):
+    """เซฟ 3 ไฟล์จาก compare_rows ชุดเดียว (ต้องคำนวณ SIM_Balance/MT5_Balance ตามลำดับเวลา
+    ของทุกแถวมาก่อนแล้ว):
+    - {portfolio}_compare.csv          : เฉพาะ Matched=True เท่านั้น (order ที่ตรงกันจริง)
+    - {portfolio}_mt5_not_match.csv     : MT5 มี order แต่ backtest ไม่มีคู่
+    - {portfolio}_backtest_not_match.csv: backtest มี trade แต่ MT5 ไม่มีคู่
+    แทน split_compare_mismatches.py แบบแยกสคริปต์ — เรียกครั้งเดียวจบในตัว run_backtest_sim.py"""
+    matched_rows, mt5_rows, bt_rows = [], [], []
+    for row in compare_rows:
+        if row.get("Matched") is True:
+            matched_rows.append(row)
+            continue
+        mt5_open = (row.get("MT5_Open_Time") or "")
+        sim_open = (row.get("SIM_Open_Time") or "")
+        if mt5_open and not sim_open:
+            mt5_rows.append(row)
+        elif sim_open and not mt5_open:
+            bt_rows.append(row)
+
+    compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
+    pd.DataFrame(matched_rows, columns=COMPARE_COLS).to_csv(compare_path, index=False, encoding="utf-8")
+    print(f"Saved: {compare_path} ({len(matched_rows)} matched rows)")
+
+    mt5_path = os.path.join(output_dir, f"{portfolio_name}_mt5_not_match.csv")
+    pd.DataFrame(mt5_rows, columns=COMPARE_COLS).to_csv(mt5_path, index=False, encoding="utf-8")
+    print(f"Saved: {mt5_path} ({len(mt5_rows)} rows)")
+
+    bt_path = os.path.join(output_dir, f"{portfolio_name}_backtest_not_match.csv")
+    pd.DataFrame(bt_rows, columns=COMPARE_COLS).to_csv(bt_path, index=False, encoding="utf-8")
+    print(f"Saved: {bt_path} ({len(bt_rows)} rows)")
 
 def save_reports(portfolio_name, trades, start_balance, output_dir):
     """คำนวณ Balance และสร้างไฟล์ trades, daily, monthly CSV"""
@@ -577,8 +618,16 @@ def _tick_fill_check(symbol, direction, entry, spread, window_start_ts, window_e
         return None
 
 
-def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None):
-    """Simulates standalone S95-S111 strategies bar-by-bar for the blend backtester."""
+def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5):
+    """Simulates standalone S95-S111 (และตระกูล S1xx/S2xx ที่ผ่าน is_s9x) bar-by-bar สำหรับ
+    blend backtester — cooldown=5 (แท่ง) เป็น default เดิม ไม่ตรงกับ live (live ใช้
+    af_raw_cooldown_active ซึ่ง fallback เป็น MIN_GAP_BARS=1 เพราะ cfg ของ S9x leg ที่สร้างใน
+    strategy_lts.py ไม่เคยกำหนด MIN_GAP_BARS ไว้) verify ตรงๆ 2026-08-04: raw detect_s96 บน
+    bars จริงให้สัญญาณห่างกันแค่ 1 แท่งบ่อยมาก (เช่น 1785798900->1785799800->1785800700
+    ติดกันเป๊ะ) ตรงกับราคา/เวลาที่ live ยิงจริงเป๊ะทุกจุด — cooldown=5 ของ backtest เลยตัดทิ้ง
+    ~80% ของสัญญาณที่ live เก็บได้จริง พารามิเตอร์นี้เปิดให้ override เฉพาะจุดเรียกใน
+    run_lts_af_backtest (LTS_AVENGERS_ULTRA_SAFE/HIGH_RISK เท่านั้น) ไม่กระทบพอร์ตอื่นที่ยังใช้
+    default 5 เดิม"""
     if symbol is None:
         symbol = config.SYMBOL
     trades = []
@@ -588,7 +637,6 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None):
         return []
 
     last_trade_idx = -100
-    cooldown = 5
 
     for i in range(lookback, n - 2):
         if i - last_trade_idx < cooldown:
@@ -735,6 +783,298 @@ def _invert_raw_s9x(raw):
     return out
 
 
+# ── ทำไมมีฟังก์ชันนี้แยกจาก ambfix_sweep2._post_filter_raw ──────────────────────────
+# _post_filter_raw ตัวจริง (ambfix_sweep2.py) เช็ค hour filter จาก trade["fill_time_ts"]
+# (เวลาที่ order เข้าจริง = แท่งถัดจาก signal) แต่ live (apply_af_filters ใน strategy_af.py)
+# เช็ค hour จาก entry_ts ที่เป็นเวลา "แท่ง signal" ตรงๆ — สำหรับ M30/H1 ที่ signal เกิดใกล้ขอบ
+# ชั่วโมง (เช่น signal 16:30 → fill 17:00) จะทำให้ hour bucket เพี้ยนไป 1 ชม. จาก signal จริง
+# (เจอจริง 2026-07-31: leg S84c5505/c6017/c4369 RD5.0-7.0_H16 — sim ตัดทิ้งเพราะ fill_time_ts
+# ตกที่ hour=17 ทั้งที่ signal จริงเกิด hour=16 ตรง H16 พอดี ทำให้ live ยิง order จริงแต่ sim ไม่เจอ)
+# แก้เฉพาะจุดนี้ ไม่แตะ ambfix_sweep2._post_filter_raw ตัวจริง (ไฟล์กลางที่พอร์ตอื่น/sweep tool
+# ใช้ร่วมกัน) เพื่อไม่ให้กระทบผล backtest ของพอร์ตอื่นเลย — ใช้ฟังก์ชันนี้เฉพาะ
+# LTS_AVENGERS_ULTRA_SAFE/HIGH_RISK เท่านั้น (ดูจุดเรียกใน run_lts_af_backtest)
+LTS_AUS_AHR_SETUP_PROFILE_DIR = None
+_LTS_AUS_AHR_SERVER_TZ_HISTORY_CACHE = None  # (profile_dir, history_dict)
+_LTS_AUS_AHR_LOG_HOUR_GROUND_TRUTH_CACHE = None  # (profile_dir, {entry_ts: hour})
+
+_LOG_BAR_SNAPSHOT_RE = re.compile(r"DEMO_PORTFOLIO_BAR_SNAPSHOT \| (\S+) raw_signal=\S+ entry_ts=(\d+)")
+_LOG_SKIP_HOUR_RE = re.compile(r"DEMO_PORTFOLIO_SKIP \| (\S+) skipped - hour (\d+) !=")
+_LOG_SIGNAL_HOUR_RE = re.compile(r"DEMO_PORTFOLIO_SIGNAL \| (\S+) .*? h=(\d+)")
+
+
+def _load_lts_aus_ahr_log_hour_ground_truth():
+    """Parse bot.log ของโปรไฟล์ที่ตรงกับ portfolio นี้จริง (Exness สำหรับ LTS_AUS, IUX สำหรับ
+    LTS_AHR) เพื่อดึง "hour ที่ live daemon คำนวณจริง ณ ตอนนั้น" ต่อ entry_ts ต่อสัญญาณ — วิธีนี้
+    เท่านั้นที่แม่น 100% เพราะ MT5_SERVER_TZ ของโบรกเกอร์นี้ขยับได้แม้ภายในวันเดียวกัน (เจอจริง
+    2026-08-03: server clock ของ Exness ขยับจาก -1 เป็น 0 ภายในไม่กี่ชม. ระหว่างที่กำลัง debug
+    เรื่องนี้อยู่ — ยืนยันด้วยการเทียบเวลาบนหน้าจอ MT5 ตรงๆ) ทำให้ "ค่า offset เดียวทั้ง run" ไม่ว่า
+    จะมาจาก tick สด ณ ตอนรัน backtest หรือจาก mt5_server_tz_history.json (debounce ล่าช้า) ก็ผิด
+    ได้เสมอสำหรับบางช่วงของวัน อ่าน log ตรงๆ จึงถูกต้องเสมอ เพราะเป็นค่าที่ live คำนวณไว้จริง ณ
+    วินาทีนั้นเป๊ะ ไม่ต้องเดา — ใช้ได้เฉพาะช่วงที่มี DEMO_PORTFOLIO_BAR_SNAPSHOT log แล้วเท่านั้น
+    (เริ่มบันทึกตั้งแต่ 2026-07-31) ก่อนหน้านั้น fallback ไปที่ history file/default ตามเดิม
+    ขอบเขต: ใช้เฉพาะ LTS_AUS/LTS_AHR ผ่าน _post_filter_raw_signal_hour"""
+    global _LTS_AUS_AHR_LOG_HOUR_GROUND_TRUTH_CACHE
+    profile_dir = LTS_AUS_AHR_SETUP_PROFILE_DIR
+    if (_LTS_AUS_AHR_LOG_HOUR_GROUND_TRUTH_CACHE is not None
+            and _LTS_AUS_AHR_LOG_HOUR_GROUND_TRUTH_CACHE[0] == profile_dir):
+        return _LTS_AUS_AHR_LOG_HOUR_GROUND_TRUTH_CACHE[1]
+
+    mapping = {}
+    if profile_dir:
+        log_path = os.path.join(profile_dir, "logs", "bot.log")
+        try:
+            pending_entry_ts_by_leg = {}
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    if "DEMO_PORTFOLIO_BAR_SNAPSHOT" in line:
+                        m = _LOG_BAR_SNAPSHOT_RE.search(line)
+                        if m:
+                            pending_entry_ts_by_leg[m.group(1)] = int(m.group(2))
+                        continue
+                    if "DEMO_PORTFOLIO_SKIP" in line:
+                        m = _LOG_SKIP_HOUR_RE.search(line)
+                        if m:
+                            leg_id, hour = m.group(1), int(m.group(2))
+                            entry_ts = pending_entry_ts_by_leg.get(leg_id)
+                            if entry_ts is not None:
+                                mapping[entry_ts] = hour
+                        continue
+                    if "DEMO_PORTFOLIO_SIGNAL" in line:
+                        m = _LOG_SIGNAL_HOUR_RE.search(line)
+                        if m:
+                            leg_id, hour = m.group(1), int(m.group(2))
+                            entry_ts = pending_entry_ts_by_leg.get(leg_id)
+                            if entry_ts is not None:
+                                mapping[entry_ts] = hour
+        except Exception:
+            mapping = {}
+    _LTS_AUS_AHR_LOG_HOUR_GROUND_TRUTH_CACHE = (profile_dir, mapping)
+    return mapping
+
+
+def _derive_latest_server_tz_from_log():
+    """ย้อนคำนวณ MT5_SERVER_TZ จาก entry_ts->hour ล่าสุดใน log ground truth (ดู
+    _load_lts_aus_ahr_log_hour_ground_truth) — ใช้สำหรับกรอง trade ตามช่วง --start/--end
+    (ดู _true_utc_fill_ts) ซึ่งมักอ้างอิงเวลาใกล้ "ตอนนี้" อยู่แล้ว server_tz ล่าสุดที่ log จริง
+    บันทึกไว้จึงแม่นกว่า mt5_server_tz_history.json ที่มี debounce ล่าช้าหลายนาที (เจอจริง
+    2026-08-04: history file ของ IUX ยังค้างที่ 0 จากหลายวันก่อน ทั้งที่ log ล่าสุดยืนยัน server_tz
+    จริงตอนนี้ = +1 ทำให้ trade ใกล้ขอบ --end โดนกรองผิดถ้าใช้ history file เฉยๆ)
+    สูตร: naive_hour (สมมติ server_tz=0) - live_hour ที่บันทึกจริง = server_tz (ปรับ wraparound
+    ข้ามเที่ยงคืน ±24 ชม.)"""
+    mapping = _load_lts_aus_ahr_log_hour_ground_truth()
+    if not mapping:
+        return None
+    latest_ts = max(mapping.keys())
+    live_hour = mapping[latest_ts]
+    naive_hour = (datetime.fromtimestamp(latest_ts, tz=timezone.utc) + timedelta(hours=config.TZ_OFFSET)).hour
+    diff = naive_hour - live_hour
+    if diff > 12:
+        diff -= 24
+    elif diff < -12:
+        diff += 24
+    return diff
+
+
+def _load_lts_aus_ahr_server_tz_history():
+    """โหลด mt5_server_tz_history.json ของโปรไฟล์ที่ตรงกับ portfolio นี้จริง — ใช้เป็น fallback
+    รอง เมื่อ _load_lts_aus_ahr_log_hour_ground_truth ไม่มีข้อมูลของช่วงเวลานั้น (เช่น ก่อน
+    2026-07-31 ที่ยังไม่มี BAR_SNAPSHOT log)"""
+    global _LTS_AUS_AHR_SERVER_TZ_HISTORY_CACHE
+    profile_dir = LTS_AUS_AHR_SETUP_PROFILE_DIR
+    if _LTS_AUS_AHR_SERVER_TZ_HISTORY_CACHE is not None and _LTS_AUS_AHR_SERVER_TZ_HISTORY_CACHE[0] == profile_dir:
+        return _LTS_AUS_AHR_SERVER_TZ_HISTORY_CACHE[1]
+    history = {}
+    if profile_dir:
+        hist_path = os.path.join(profile_dir, "mt5_server_tz_history.json")
+        try:
+            with open(hist_path, "r", encoding="utf-8") as f:
+                history = {str(k): int(v) for k, v in json.load(f).items()}
+        except Exception:
+            history = {}
+    _LTS_AUS_AHR_SERVER_TZ_HISTORY_CACHE = (profile_dir, history)
+    return history
+
+
+def _bkk_hour_server_tz_aware(ts_int):
+    """แปลง MT5 server timestamp -> ชั่วโมง Bangkok แบบเดียวกับที่ live คำนวณจริง
+    (config.mt5_ts_to_bkk ตอน IN_BACKTEST=True จะข้ามการปรับ MT5_SERVER_TZ ไปเลย ใช้แค่
+    +TZ_OFFSET ตรงๆ) ทำให้ backtest กับ live คำนวณชั่วโมงของแท่งเดียวกันต่างกันได้เต็มๆ 1 ชั่วโมง
+    ทุกครั้งที่ broker server clock เพี้ยนไปจาก 0 (เจอจริง 2026-08-03: signal เดียวกันเป๊ะ sim
+    บอก hour 10 แต่ live บอก hour 11) — ลอง fix ด้วย offset เดียวทั้ง run มาสองรอบ (tick สด /
+    history file) แต่พบว่า MT5_SERVER_TZ ของโบรกเกอร์นี้ขยับได้แม้ภายในวันเดียวกัน ทำให้ offset
+    เดียวไม่พอสำหรับ window ที่ยาวหลายชั่วโมง จึงเปลี่ยนมาอ่าน hour ที่ live คำนวณจริงต่อสัญญาณ
+    ตรงๆ จาก bot.log (ดู _load_lts_aus_ahr_log_hour_ground_truth) แม่นที่สุดเพราะไม่ต้องเดา
+    offset เลย — ถ้าไม่มี log ของช่วงนั้น (ก่อน 2026-07-31) fallback ไปที่ server_tz history file
+    แล้วค่อย default สุดท้าย ขอบเขต: ใช้เฉพาะ LTS_AUS/LTS_AHR ผ่าน _post_filter_raw_signal_hour"""
+    ts_int = int(ts_int)
+    ground_truth = _load_lts_aus_ahr_log_hour_ground_truth()
+    if ts_int in ground_truth:
+        return ground_truth[ts_int]
+
+    history = _load_lts_aus_ahr_server_tz_history()
+    utc_dt = datetime.fromtimestamp(ts_int, tz=timezone.utc)
+    date_key = utc_dt.strftime("%Y-%m-%d")
+    server_tz = config.MT5_SERVER_TZ
+    for k in sorted(history.keys(), reverse=True):
+        if k <= date_key:
+            server_tz = history[k]
+            break
+    return (utc_dt + timedelta(hours=config.TZ_OFFSET - server_tz)).hour
+
+
+def _post_filter_raw_signal_hour(raw, rd_band, fill_hour):
+    out = []
+    rd_min, rd_max = 0.0, 0.0
+    if rd_band != "all":
+        parts = rd_band.split("-")
+        rd_min, rd_max = float(parts[0]), float(parts[1])
+    for trade in raw:
+        if rd_band != "all":
+            rd = float(trade.get("risk_distance", 0.0))
+            if rd < rd_min or rd > rd_max:
+                continue
+        if fill_hour is not None and fill_hour >= 0:
+            hour = _bkk_hour_server_tz_aware(int(trade["signal_time_ts"]))
+            if hour != fill_hour:
+                continue
+        out.append(trade)
+    return out
+
+
+_LTS_AUS_AHR_EXIT_OVERLAY_BARS_CACHE = {}  # (tf, days, start_str, end_str) -> (bars, closes, highs, lows, ema20, ema50, ts_to_idx)
+_LTS_AUS_AHR_EXIT_OVERLAY_TRADE_CACHE = {}  # (tf, days, start_str, end_str, fill_ts, direction, entry, exit_ts) -> triggered or None
+
+
+def _ewm_series(values, span):
+    """ewm(span=X, adjust=False) เวอร์ชัน pure-python — สูตรเดียวกับ pandas.Series.ewm ที่ live
+    ใช้จริงใน demo_portfolio.py (_check_lts_position_exits) alpha = 2/(span+1)"""
+    if not values:
+        return []
+    alpha = 2.0 / (span + 1.0)
+    out = [float(values[0])]
+    for i in range(1, len(values)):
+        out.append(alpha * float(values[i]) + (1 - alpha) * out[-1])
+    return out
+
+
+def _apply_lts_exit_overlay(trades, tf, portfolio_name, days, start_str, end_str):
+    """จำลอง Smart Cut-loss + Momentum Stall Exit (live-only overlay ที่ปิดไม้ก่อนถึง SL/TP
+    เดิม) ให้ backtest — ตรรกะ COPY ตรงจาก demo_portfolio.py:_check_lts_position_exits (ที่ live
+    ใช้จริง) ไม่ใช่เดา:
+      Smart Cut-loss ต่อแท่งปิด: BUY เช็ค close<ema50 และ ema20<ema50 (Death Cross),
+      SELL เช็ค close>ema50 และ ema20>ema50 (Golden Cross) — EMA20/50 จาก close ของ TF เดียวกับ
+      leg นั้น (ewm span=20/50, adjust=False)
+      Momentum Stall (เช็คถ้า Smart Cut-loss ไม่ทำงานก่อน): กำไร >= 150 pts (mult=100 สำหรับ
+      XAUUSD) แล้ว 5 แท่งก่อนหน้าไม่ทำ high/low ใหม่
+
+    เจอจริง 2026-08-04: ticket 568028532 (leg S96 M15) ปิดจริงด้วย Smart Cut-loss ที่ -244 USD
+    ไม่ใช่ SL/TP เดิมเลย — backtest เดิมไม่จำลองส่วนนี้เลยทำให้ order แทบทุกตัวที่โดนกลไกนี้ไม่ match
+    กับ live (ยืนยันด้วย log: SMART_CUTLOSS 14 + MOMENTUM_STALL 25 ครั้งใน AHR, 22+28 ใน AUS —
+    ใกล้เคียงจำนวน order ไม่ match ทั้งหมดที่เจอมาตลอดเซสชัน)
+
+    ข้อจำกัด: EMA คำนวณต่อเนื่องทั้งช่วง bars ที่ fetch มา (ไม่ใช่ re-window 60 แท่งล่าสุดทุกครั้ง
+    แบบ live) — หลัง warmup ~30 แท่งค่าจะลู่เข้าใกล้กันมาก ความต่างเล็กน้อยที่ขอบเป็นข้อจำกัดที่
+    ยอมรับได้ของการประมาณ ราคาที่ปิดใช้ close ของแท่งที่ trigger (live ปิดที่ market ไม่กี่วินาที
+    หลังจากนั้น ราคาจริงอาจต่างจากนี้เล็กน้อย)
+
+    ขอบเขต: เรียกเฉพาะ LTS_AUS/LTS_AHR จาก run_lts_af_backtest เท่านั้น — cache 2 ชั้น (bars/EMA
+    ต่อ tf, และผลลัพธ์ต่อ trade จริง) เพราะ leg หลายร้อยตัวใน unique_base เดียวกัน (เช่น RD-band
+    ต่างกัน) มักได้ raw trade ชุดเดียวกันมาเรียกซ้ำ — ไม่ cache จะ walk-forward bar-by-bar ซ้ำ
+    เดิมหลายสิบ-หลายร้อยรอบต่อ trade จริง 1 ตัว (เจอจริง 2026-08-04: ทำให้รัน 550 วันช้าลงมาก)"""
+    smart_cut_on = config.SMART_CUTLOSS_ENABLED.get(portfolio_name, False)
+    mom_stall_on = config.MOMENTUM_STALL_EXIT_ENABLED.get(portfolio_name, False)
+    if not smart_cut_on and not mom_stall_on:
+        return trades
+    if not trades:
+        return trades
+
+    bars_key = (tf, days, start_str, end_str)
+    cached = _LTS_AUS_AHR_EXIT_OVERLAY_BARS_CACHE.get(bars_key)
+    if cached is None:
+        bars = fetch_bars_range(config.SYMBOL, tf, days, start_str, end_str, extra_bars=700)
+        if bars is None or len(bars) < 60:
+            cached = ()
+        else:
+            closes = [float(b["close"]) for b in bars]
+            highs = [float(b["high"]) for b in bars]
+            lows = [float(b["low"]) for b in bars]
+            ema20 = _ewm_series(closes, 20)
+            ema50 = _ewm_series(closes, 50)
+            ts_to_idx = {int(b["time"]): i for i, b in enumerate(bars)}
+            cached = (bars, closes, highs, lows, ema20, ema50, ts_to_idx)
+        _LTS_AUS_AHR_EXIT_OVERLAY_BARS_CACHE[bars_key] = cached
+    if not cached:
+        return trades
+    bars, closes, highs, lows, ema20, ema50, ts_to_idx = cached
+    n = len(bars)
+    mult = 100.0  # XAUUSD points (เหมือน demo_portfolio.py:_check_lts_position_exits)
+
+    out = []
+    for t in trades:
+        direction = t.get("signal")
+        fill_ts = t.get("fill_time_ts")
+        exit_ts = t.get("exit_time_ts")
+        entry = t.get("entry")
+        if direction not in ("BUY", "SELL") or fill_ts is None or entry is None:
+            out.append(t)
+            continue
+        fill_idx = ts_to_idx.get(int(fill_ts))
+        if fill_idx is None or fill_idx < 55:
+            out.append(t)
+            continue
+
+        entry = float(entry)
+        trade_key = bars_key + (int(fill_ts), direction, round(entry, 4),
+                                 int(exit_ts) if exit_ts is not None else None)
+        if trade_key in _LTS_AUS_AHR_EXIT_OVERLAY_TRADE_CACHE:
+            triggered = _LTS_AUS_AHR_EXIT_OVERLAY_TRADE_CACHE[trade_key]
+        else:
+            triggered = None
+            for j in range(fill_idx + 1, n):
+                bar_ts = int(bars[j]["time"])
+                if exit_ts is not None and bar_ts > int(exit_ts):
+                    break
+                closed_price = closes[j]
+                if smart_cut_on:
+                    e20, e50 = ema20[j], ema50[j]
+                    if direction == "BUY" and closed_price < e50 and e20 < e50:
+                        triggered = (bar_ts, closed_price)
+                        break
+                    if direction == "SELL" and closed_price > e50 and e20 > e50:
+                        triggered = (bar_ts, closed_price)
+                        break
+                if mom_stall_on and j >= fill_idx + 5:
+                    profit_points = (closed_price - entry) * mult
+                    if direction == "SELL":
+                        profit_points = -profit_points
+                    if profit_points >= 150:
+                        recent_highs = highs[j - 5:j]
+                        recent_lows = lows[j - 5:j]
+                        is_stalled = (
+                            closed_price < max(recent_highs) if direction == "BUY"
+                            else closed_price > min(recent_lows)
+                        )
+                        if is_stalled:
+                            triggered = (bar_ts, closed_price)
+                            break
+            _LTS_AUS_AHR_EXIT_OVERLAY_TRADE_CACHE[trade_key] = triggered
+
+        if triggered is None:
+            out.append(t)
+            continue
+
+        exit_bar_ts, exit_price = triggered
+        spread = float(t.get("spread", 0.0))
+        diff = (exit_price - entry) if direction == "BUY" else (entry - exit_price)
+        new_t = dict(t)
+        new_t["exit_time_ts"] = exit_bar_ts
+        new_t["exit_price"] = round(exit_price, 2)
+        new_t["outcome"] = "SMART_EXIT"
+        new_t["diff_usd_per_001lot"] = round(diff - spread, 4)
+        out.append(new_t)
+    return out
+
+
 def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scale=1.0):
     """รัน backtest สำหรับ AF และ LTS portfolios โดยจำลอง S84/S86 แต่ละตัวและผสมตาม Weight"""
     actual_name = ALIASES.get(portfolio_name, portfolio_name)
@@ -756,12 +1096,15 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
     
     # 1. Fetch bars and cache raw trades for unique base configs
     from optimize_s88_allin4s_fast import _make_s84, _make_s86, _grid_s84, _grid_s86, TF_EXTRA_BARS
-    
-    for fam, cfg_idx, tf in unique_bases:
+
+    _ub_total = len(unique_bases)
+    for _ub_i, (fam, cfg_idx, tf) in enumerate(sorted(unique_bases), 1):
         cache_key = (fam, cfg_idx, tf, days, start_str, end_str)
         if cache_key in GLOBAL_RAW_TRADES_CACHE:
+            print(f"  [{_ub_i}/{_ub_total}] {fam}c{cfg_idx} {tf} (cached, skip)", flush=True)
             continue
-            
+        print(f"  [{_ub_i}/{_ub_total}] {fam}c{cfg_idx} {tf} — fetching bars & detecting...", flush=True)
+
         # Find if any leg matching (fam, cfg_idx, tf) is is_s9x
         leg = next((l for l in legs if l["family"] == fam and l["cfg_idx"] == cfg_idx and l["cfg"]["ENTRY_TF"] == tf), None)
         is_s9x = leg.get("is_s9x", False) if leg else False
@@ -817,7 +1160,10 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         rd_min = leg.get("rd_min")
         rd_max = leg.get("rd_max")
         rd_band = "all" if (rd_min is None or rd_max is None) else f"{rd_min:.1f}-{rd_max:.1f}"
-        filtered_raw = _post_filter_raw(raw, rd_band, leg.get("hour"))
+        if actual_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+            filtered_raw = _post_filter_raw_signal_hour(raw, rd_band, leg.get("hour"))
+        else:
+            filtered_raw = _post_filter_raw(raw, rd_band, leg.get("hour"))
         if leg.get("is_s9x"):
             # run_s9x_generic คำนวณ fill/outcome ของ direct กับ inverse แยกอิสระต่อกันไว้แล้ว
             # (ทิศ fill ตรงข้ามกันจริง ไม่ใช่แค่กลับเครื่องหมาย) ห้ามใช้ _invert_raw ทั่วไป
@@ -827,6 +1173,19 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
                 filtered_raw = _clean_s9x_direct(filtered_raw)
         elif leg.get("mode") == "inverse":
             filtered_raw = _invert_raw(filtered_raw)
+
+        # Determine TF (ย้ายขึ้นมาก่อน _simulate_leg เพื่อใช้ fetch bars สำหรับ exit overlay)
+        if leg.get("is_s9x"):
+            tf = leg["cfg"]["ENTRY_TF"]
+        else:
+            maker = _make_s84 if leg["family"] == "s84" else _make_s86
+            grid = _grid_s84("micro") if leg["family"] == "s84" else _grid_s86("micro")
+            all_vals = list(itertools.product(*grid))
+            cfg_vals = all_vals[leg["cfg_idx"]]
+            tf = maker(cfg_vals)["ENTRY_TF"]
+
+        if actual_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+            filtered_raw = _apply_lts_exit_overlay(filtered_raw, tf, actual_name, days, start_str, end_str)
 
         _twp, _eq, by_day = _simulate_leg(filtered_raw, OVERLAY_CFG)
 
@@ -843,16 +1202,6 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
                         "entry": rt.get("entry"),
                     })
 
-        # Determine TF
-        if leg.get("is_s9x"):
-            tf = leg["cfg"]["ENTRY_TF"]
-        else:
-            maker = _make_s84 if leg["family"] == "s84" else _make_s86
-            grid = _grid_s84("micro") if leg["family"] == "s84" else _grid_s86("micro")
-            all_vals = list(itertools.product(*grid))
-            cfg_vals = all_vals[leg["cfg_idx"]]
-            tf = maker(cfg_vals)["ENTRY_TF"]
-        
         for t in _twp:
             t_scaled = {
                 "fill_time_ts": t.get("fill_time_ts"),
@@ -861,6 +1210,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
                 "entry": t.get("entry"),
                 "sl": t.get("sl"),
                 "tp": t.get("tp"),
+                "exit_price": t.get("exit_price"),  # เฉพาะ trade ที่ผ่าน _apply_lts_exit_overlay (SMART_EXIT)
                 "lot": t.get("lot", 0.01) * leg["weight"] * scale,
                 "pnl_usd": t.get("pnl_usd", 0.0) * leg["weight"] * scale,
                 "outcome": t.get("outcome", ""),
@@ -936,7 +1286,14 @@ def setup_mt5_for_portfolio(portfolio_name):
         print(f"📌 [Profile Match] No active profile runs portfolio '{portfolio_name}'. Using main profile '{main_profile_name}' for OHLC bar data.")
         target_dir = main_profile_dir
         target_env = parse_env_file(os.path.join(main_profile_dir, "profile.env"))
-        
+
+    # เก็บ target_dir ไว้ใช้อ่าน mt5_server_tz_history.json ของโปรไฟล์นี้โดยตรง (ดู
+    # _bkk_hour_server_tz_aware) — ไฟล์ history ถูก scope ต่อโปรไฟล์ (config.PROFILE_DIR)
+    # ไม่ใช่ตัวเดียวกันข้ามบัญชี ต่างจาก path ที่ config มองเห็นตอนรันสคริปต์นี้แบบ standalone
+    # (PROFILE_ACTIVE=False เลยได้ path fallback ที่ root ซึ่งไม่มีใครเขียนจริง)
+    global LTS_AUS_AHR_SETUP_PROFILE_DIR
+    LTS_AUS_AHR_SETUP_PROFILE_DIR = target_dir
+
     # 3. Apply settings
     if target_env:
         # Resolve absolute MT5 path
@@ -971,6 +1328,67 @@ def setup_mt5_for_portfolio(portfolio_name):
             
         print(f"   Using MT5 Terminal: {config.MT5_PATH}")
         print(f"   Account Details: Login={config.MT5_LOGIN}, Server={config.MT5_SERVER}, Symbol={config.SYMBOL}")
+
+        # ── scoped profile.env behavioral override (เฉพาะ LTS_AUS/LTS_AHR) ──────────
+        # `import config` เกิดที่บรรทัดบนสุดของไฟล์นี้ (ก่อน setup_mt5_for_portfolio ถูกเรียก
+        # ด้วยซ้ำ) ทำให้ config.py อ่านค่า default hardcode เสมอ ไม่เคยเห็น override เฉพาะ
+        # โปรไฟล์จาก profile.env เลย (เช่น DEMO_PORTFOLIO_CB_ENABLED_*, DYNAMIC_LOT_ENABLED_*)
+        # เจอจริง 2026-08-04: profile.env ของ IUX ตั้ง DEMO_PORTFOLIO_CB_ENABLED_LTS_AVENGERS_
+        # HIGH_RISK=true ไว้ แต่ config.DEMO_PORTFOLIO_CB_ENABLED อ่านได้ False เสมอ (default
+        # เดิมเป็น True เฉพาะ ULTRA_SAFE) ทำให้ backtest จำลอง CB ผิดเปิด/ปิดสำหรับ AHR มาตลอด
+        # ตั้งค่าย้อนหลังตรงนี้เข้า config dict โดยตรง (เหมือนที่ config.py เองทำตอน import แต่
+        # runtime) — เขียนเฉพาะ key ของ LTS_AUS/LTS_AHR เท่านั้น ไม่กระทบพอร์ตอื่นเลย
+        if normalized_pf in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+            def _env_bool_from(env_val, default):
+                if env_val is None or env_val == "":
+                    return default
+                return str(env_val).strip().lower() == "true"
+
+            def _env_float_from(env_val, default):
+                if env_val is None or env_val == "":
+                    return default
+                try:
+                    return float(env_val)
+                except ValueError:
+                    return default
+
+            config.DEMO_PORTFOLIO_CB_ENABLED[normalized_pf] = _env_bool_from(
+                target_env.get("DEMO_PORTFOLIO_CB_ENABLED_" + normalized_pf),
+                config.DEMO_PORTFOLIO_CB_ENABLED.get(normalized_pf, False),
+            )
+            config.DYNAMIC_LOT_ENABLED[normalized_pf] = _env_bool_from(
+                target_env.get("DYNAMIC_LOT_ENABLED_" + normalized_pf),
+                config.DYNAMIC_LOT_ENABLED.get(normalized_pf, False),
+            )
+            config.DEMO_PORTFOLIO_WEIGHT_ENABLED[normalized_pf] = _env_bool_from(
+                target_env.get("DEMO_PORTFOLIO_WEIGHT_ENABLED_" + normalized_pf),
+                config.DEMO_PORTFOLIO_WEIGHT_ENABLED.get(normalized_pf, False),
+            )
+            config.DEMO_PORTFOLIO_WEIGHT_SCALE[normalized_pf] = _env_float_from(
+                target_env.get("DEMO_PORTFOLIO_WEIGHT_SCALE_" + normalized_pf),
+                config.DEMO_PORTFOLIO_WEIGHT_SCALE.get(normalized_pf, 1.0),
+            )
+            config.DEMO_PORTFOLIO_AF_MAX_LOT[normalized_pf] = _env_float_from(
+                target_env.get("DEMO_PORTFOLIO_AF_MAX_LOT_" + normalized_pf),
+                config.DEMO_PORTFOLIO_AF_MAX_LOT.get(normalized_pf, 0.0),
+            )
+            config.SMART_CUTLOSS_ENABLED[normalized_pf] = _env_bool_from(
+                target_env.get("SMART_CUTLOSS_ENABLED_" + normalized_pf),
+                config.SMART_CUTLOSS_ENABLED.get(normalized_pf, False),
+            )
+            config.MOMENTUM_STALL_EXIT_ENABLED[normalized_pf] = _env_bool_from(
+                target_env.get("MOMENTUM_STALL_EXIT_ENABLED_" + normalized_pf),
+                config.MOMENTUM_STALL_EXIT_ENABLED.get(normalized_pf, False),
+            )
+            print(
+                f"   [profile.env override] CB_ENABLED={config.DEMO_PORTFOLIO_CB_ENABLED[normalized_pf]} "
+                f"DYNAMIC_LOT={config.DYNAMIC_LOT_ENABLED[normalized_pf]} "
+                f"WEIGHT_ENABLED={config.DEMO_PORTFOLIO_WEIGHT_ENABLED[normalized_pf]} "
+                f"WEIGHT_SCALE={config.DEMO_PORTFOLIO_WEIGHT_SCALE[normalized_pf]} "
+                f"MAX_LOT={config.DEMO_PORTFOLIO_AF_MAX_LOT[normalized_pf]} "
+                f"SMART_CUTLOSS={config.SMART_CUTLOSS_ENABLED[normalized_pf]} "
+                f"MOMENTUM_STALL={config.MOMENTUM_STALL_EXIT_ENABLED[normalized_pf]}"
+            )
     else:
         print(f"   ⚠️ Warning: Could not load target profile environment settings.")
 
@@ -1133,7 +1551,12 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         # Write clean SIM-only compare report
         compare_rows = []
         for bt in bt_compare_list:
-            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            # SMART_EXIT (Smart Cut-loss/Momentum Stall overlay ของ LTS_AUS/LTS_AHR) ปิดที่ราคา
+            # จริงไม่ใช่ SL/TP เดิม — ใช้ exit_price ที่เก็บไว้แทน (ดู _apply_lts_exit_overlay)
+            if bt["outcome"] == "SMART_EXIT" and bt.get("exit_price") is not None:
+                sim_exit = bt["exit_price"]
+            else:
+                sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
             sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
             sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
             compare_rows.append({
@@ -1169,7 +1592,6 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 "MT5_point": ""
             })
             
-        compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
         if compare_rows:
             def sort_key(row):
                 t = row["SIM_Open_Time"] or row["MT5_Open_Time"]
@@ -1181,18 +1603,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 if r["SIM_P&L"] != "":
                     sim_running_balance += r["SIM_P&L"]
                     r["SIM_Balance"] = round(sim_running_balance, 2)
-            df_comp = pd.DataFrame(compare_rows)
-            cols = [
-                "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
-                "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
-                "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
-                "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
-                "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
-                "MT5_Reason", "Sim_point", "MT5_point"
-            ]
-            df_comp = df_comp[cols]
-            df_comp.to_csv(compare_path, index=False, encoding="utf-8")
-            print(f"Saved: {compare_path} ({len(compare_rows)} rows in compare - NO_ACTIVE_PROFILE)")
+        save_compare_and_splits(compare_rows, output_dir, portfolio_name)
         return
         
     # 4. Fetch deals from history (lookback 10 days wider to find entry deals for positions closed in the range)
@@ -1303,6 +1714,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             "lot": bt.get("lot", 0.01),
             "pnl": bt.get("pnl_usd", 0.0),
             "outcome": bt.get("outcome", ""),
+            "exit_price": bt.get("exit_price"),  # เฉพาะ trade ที่ผ่าน _apply_lts_exit_overlay (SMART_EXIT)
             "leg_name": bt.get("leg", "")
         })
         
@@ -1388,7 +1800,12 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                     
         if matched:
             # Sim point calculation (exit at TP if outcome is TP, else SL)
-            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            # SMART_EXIT (Smart Cut-loss/Momentum Stall overlay ของ LTS_AUS/LTS_AHR) ปิดที่ราคา
+            # จริงไม่ใช่ SL/TP เดิม — ใช้ exit_price ที่เก็บไว้แทน (ดู _apply_lts_exit_overlay)
+            if bt["outcome"] == "SMART_EXIT" and bt.get("exit_price") is not None:
+                sim_exit = bt["exit_price"]
+            else:
+                sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
             sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
             sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
             
@@ -1450,7 +1867,12 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                     near_reason = _strict_mismatch_reason(bt, nearest)
             
             # Sim point calculation
-            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            # SMART_EXIT (Smart Cut-loss/Momentum Stall overlay ของ LTS_AUS/LTS_AHR) ปิดที่ราคา
+            # จริงไม่ใช่ SL/TP เดิม — ใช้ exit_price ที่เก็บไว้แทน (ดู _apply_lts_exit_overlay)
+            if bt["outcome"] == "SMART_EXIT" and bt.get("exit_price") is not None:
+                sim_exit = bt["exit_price"]
+            else:
+                sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
             sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
             sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
             
@@ -1564,54 +1986,29 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             "MT5_point": mt5_pt
         })
         
-    compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
     if compare_rows:
         def sort_key(row):
             t = row["SIM_Open_Time"] or row["MT5_Open_Time"]
             return datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
         compare_rows.sort(key=sort_key)
-        
+
         start_balance = PORTFOLIO_BALANCES.get(portfolio_name, 1000.0)
         sim_running_balance = start_balance
         mt5_running_balance = start_balance
-        
+
         for r in compare_rows:
             if r["SIM_P&L"] != "":
                 sim_running_balance += r["SIM_P&L"]
                 r["SIM_Balance"] = round(sim_running_balance, 2)
             else:
                 r["SIM_Balance"] = ""
-                
+
             if r["MT5_P&L"] != "":
                 mt5_running_balance += r["MT5_P&L"]
                 r["MT5_Balance"] = round(mt5_running_balance, 2)
             else:
                 r["MT5_Balance"] = ""
-                
-        df_comp = pd.DataFrame(compare_rows)
-        cols = [
-            "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
-            "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
-            "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
-            "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
-            "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
-            "MT5_Reason", "Sim_point", "MT5_point"
-        ]
-        df_comp = df_comp[cols]
-        df_comp.to_csv(compare_path, index=False, encoding="utf-8")
-        print(f"Saved: {compare_path} ({len(compare_rows)} rows in compare)")
-    else:
-        headers = [
-            "SIM_Open_Time", "MT5_Open_Time", "SIM_Close_Time", "MT5_Close_Time",
-            "SIM_Leg", "SIM_TF", "MT5_TF", "SIM_Type", "MT5_Type", "SIM_Entry", "MT5_Entry",
-            "MT5_Close_Price", "SIM_SL", "MT5_SL", "SIM_TP", "MT5_TP", "SIM_Lot",
-            "MT5_Volume", "SIM_P&L", "MT5_P&L", "SIM_Balance", "MT5_Balance",
-            "MT5_Comment", "MT5_Position_ID", "Matched", "Match_Detail", "SIM_Reason",
-            "MT5_Reason", "Sim_point", "MT5_point"
-        ]
-        with open(compare_path, "w", newline="", encoding="utf-8") as f:
-            f.write(",".join(headers) + "\n")
-        print(f"Saved empty compare: {compare_path}")
+    save_compare_and_splits(compare_rows, output_dir, portfolio_name)
         
     # Cleanup connection to return to safe state if possible
     mt5.shutdown()
@@ -1789,16 +2186,42 @@ def main():
                 start_dt = now_bkk - timedelta(days=days)
                 start_dt = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
                 start_ts = int(start_dt.timestamp())
-                
-            trades = [t for t in trades if t.get("fill_time_ts", 0) >= start_ts]
-            
+
+            # fill_time_ts ของ trade คือ raw MT5 epoch (server wall clock แปะป้ายเป็น UTC) ไม่ใช่
+            # true UTC ตรงๆ — เทียบตรงๆ กับ start_ts/end_ts (ซึ่งแปลงจาก BKK wall-clock ที่พี่พิมพ์
+            # ด้วย pytz แบบถูกต้องเป๊ะ) จะเพี้ยนไปตาม MT5_SERVER_TZ ของวันนั้น (เจอจริง 2026-08-04:
+            # IUX server_tz=+1 ทำให้ trade ที่ fill จริงตอน BKK 10:52 ถูกกรองทิ้งไปทั้งที่ --end
+            # ตั้งไว้ 11:00 — เพราะ raw fill_time_ts เพี้ยนไปเกิน end_ts) แก้เฉพาะ LTS_AUS/LTS_AHR
+            # โดยแปลง fill_time_ts เป็น true UTC ก่อนเทียบ ใช้ server_tz history เดียวกับที่ fix
+            # เรื่อง hour bucket ไปแล้ว ไม่กระทบพอร์ตอื่น (ยังเทียบ raw ตรงๆ เหมือนเดิม)
+            def _true_utc_fill_ts(fill_ts):
+                if actual_pf not in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+                    return fill_ts
+                # เชื่อ server_tz ที่ย้อนคำนวณจาก log จริงล่าสุดก่อน (สดกว่า history file
+                # ที่มี debounce ล่าช้า — ดู _derive_latest_server_tz_from_log) fallback ไป
+                # history file ถ้า log ยังไม่มีข้อมูล (เช่น รันช่วงก่อน 2026-07-31)
+                derived = _derive_latest_server_tz_from_log()
+                if derived is not None:
+                    return int(fill_ts) - derived * 3600
+                history = _load_lts_aus_ahr_server_tz_history()
+                utc_dt = datetime.fromtimestamp(int(fill_ts), tz=timezone.utc)
+                date_key = utc_dt.strftime("%Y-%m-%d")
+                server_tz = config.MT5_SERVER_TZ
+                for k in sorted(history.keys(), reverse=True):
+                    if k <= date_key:
+                        server_tz = history[k]
+                        break
+                return int(fill_ts) - server_tz * 3600
+
+            trades = [t for t in trades if _true_utc_fill_ts(t.get("fill_time_ts", 0)) >= start_ts]
+
             if args.end:
                 end_dt = parse_date(args.end)
                 if len(args.end.strip()) <= 10:
                     end_dt = end_dt + timedelta(days=1)
                 end_dt = bkk.localize(end_dt)
                 end_ts = int(end_dt.timestamp())
-                trades = [t for t in trades if t.get("fill_time_ts", 0) <= end_ts]
+                trades = [t for t in trades if _true_utc_fill_ts(t.get("fill_time_ts", 0)) <= end_ts]
                     
             print(f"Processing reports for {pf} (found {len(trades)} trades)...")
             

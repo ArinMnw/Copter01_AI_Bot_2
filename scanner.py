@@ -61,6 +61,12 @@ except ImportError:
         return {"signal": "WAIT", "reason": "S20_13_23 module not found"}
 
 try:
+    from strategy20_13_24 import strategy_20_13_24
+except ImportError:
+    def strategy_20_13_24(*args, **kwargs):
+        return {"signal": "WAIT", "reason": "S20_13_24 module not found"}
+
+try:
     from strategy21 import strategy_21
 except ModuleNotFoundError:
     def strategy_21(*args, **kwargs):
@@ -2847,7 +2853,15 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         # last_label = swing label ล่าสุด (HH/HL/LH/LL) — reset เมื่อเปลี่ยน
         _sf_last_label  = (hhll_swing.get_hhll_data(tf_name) or {}).get("last_label", "")
         _sf.update_trend_and_check_reset(tf_name, _sf_trend_label, _sf_last_label)
-        _sf.check_and_update(tf_name)
+        # check_and_update() ภายในเรียก mt5.copy_rates_range() ผ่าน mt5_worker
+        # ซึ่งเป็น blocking call (fut.result รอ worker thread) — ถ้าเรียก sync
+        # ตรงๆ ในนี้ จะบล็อก event loop หลักไปด้วย ทำให้ write_heartbeat_job/
+        # _check_mt5_wedge (งานบน loop เดียวกัน) ไม่มีจังหวะได้รันเพื่อตรวจจับ+ตัดจบ
+        # เร็ว ต้องรอ supervisor ระดับนอก (heartbeat file, 180s) แทน ซึ่งช้ากว่ามาก
+        # → offload ไป thread pool executor กัน event loop โดนบล็อก (การเรียก MT5
+        # จริงยังวิ่งผ่าน MT5Worker thread เดียวเหมือนเดิม แค่ thread ที่ "รอผล"
+        # เปลี่ยนจาก main loop เป็น executor thread แทน)
+        await asyncio.get_running_loop().run_in_executor(None, _sf.check_and_update, tf_name)
     except Exception:
         pass
     # Guard: แท่งล่าสุดจะถือว่าปิดสมบูรณ์ ก็ต่อเมื่อแท่งใหม่เริ่มแล้ว
@@ -3006,6 +3020,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 
     r20_13 = strategy_20_13(rates, tf=tf_name) if active_strategies.get(20.13, False) and getattr(config, "S20_13_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.13 ปิด หรือ TF ปิด"}
+    r20_14 = strategy_20_14(rates, tf=tf_name) if active_strategies.get(20.14, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14 ปิด'}
     if r20_13.get("signal") in ("BUY", "SELL"):
         from trailing import s20_13_guard_blocks, s20_13_calc_lot_multiplier
         # ATR แบบง่าย (high-low rolling mean 14 แท่ง) ตรงตาม backtest_s20.13_runner_mt5.py
@@ -3039,6 +3054,24 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             r20_13_23["order_mode"] = "market"
             r20_13_23["quant_lot_multiplier"] = s20_13_23_calc_lot_multiplier()
             _log_divergence_once(tf_name, 20.1323, r20_13_23["signal"], last_candle_time, r20_13_23)
+
+    # S20.13.24 Quant Fuel v24 — เปิดออเดอร์จริง (market order), ต่อยอดจาก v23
+    # ไม่แก้ strategy20_13_24.py เลย (source of truth เดียวกับ backtest) — inject
+    # order_mode/quant_lot_multiplier เพิ่มที่นี่แทน
+    # ⚠️ default OFF ใน active_strategies — split-half walk-forward เจอ overfitting (WR 58%→100%)
+    r20_13_24 = strategy_20_13_24(rates, tf=tf_name) if active_strategies.get(20.1324, False) and getattr(config, "S20_13_24_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.13.24 ปิด หรือ TF ปิด"}
+    if r20_13_24.get("signal") in ("BUY", "SELL"):
+        from trailing import s20_13_24_guard_blocks, s20_13_24_calc_lot_multiplier
+        if s20_13_24_guard_blocks(r20_13_24["signal"], r20_13_24["entry"]):
+            log_event(
+                "S20_13_24_GUARD_BLOCK", "repeat_loss_within_5usd",
+                tf=tf_name, sid=20.1324, signal=r20_13_24["signal"], entry=r20_13_24["entry"],
+            )
+            r20_13_24 = {"signal": "WAIT", "reason": "S20.13.24 repeat-loss guard active"}
+        else:
+            r20_13_24["order_mode"] = "market"
+            r20_13_24["quant_lot_multiplier"] = s20_13_24_calc_lot_multiplier()
+            _log_divergence_once(tf_name, 20.1324, r20_13_24["signal"], last_candle_time, r20_13_24)
 
     r21 = strategy_21(rates, tf_name=tf_name, config=config) if active_strategies.get(21, False) else {"signal": "WAIT", "reason": "S21 ปิด"}
     if r21.get("signal") in ("BUY", "SELL"):
@@ -3472,7 +3505,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13), (20.1323, r20_13_23), (21, r21), (95, r95), (96, r96), (97, r97)]:
+    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
+                                  (20.14, r20_14), (20.1323, r20_13_23), (20.1324, r20_13_24), (21, r21), (95, r95), (96, r96), (97, r97)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3504,7 +3538,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13), (20.1323, r20_13_23), (21, r21), (95, r95), (96, r96), (97, r97)]:
+    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
+                                  (20.14, r20_14), (20.1323, r20_13_23), (20.1324, r20_13_24), (21, r21), (95, r95), (96, r96), (97, r97)]:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")

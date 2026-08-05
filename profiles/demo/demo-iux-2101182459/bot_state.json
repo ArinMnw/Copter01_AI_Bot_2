@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-07-28 22:28:50",
+  "saved_at": "2026-08-05 15:55:39",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -33,6 +33,7 @@
     "20.12": false,
     "20.13": false,
     "20.1323": false,
+    "20.1324": false,
     "95": false,
     "96": false
   },
@@ -146,6 +147,8 @@
   "S20_13_COMPOUND": 1.0,
   "S20_13_23_COMPOUND": 1.0,
   "S20_13_23_MAX_LOT": 0.5,
+  "S20_13_24_COMPOUND": 1.0,
+  "S20_13_24_MAX_LOT": 0.5,
   "s17_compounding_enabled": false,
   "s17_risk_pct": 2.0,
   "s17_max_lot": 50.0,
@@ -360,13 +363,13 @@
   "daily_loss_limit_enabled": false,
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
-    "date": "2026-07-28",
-    "realized": -69500.0,
-    "wins": 3,
-    "losses": 5,
-    "count": 8,
-    "gross_win": 700.0,
-    "gross_loss": -70200.0
+    "date": "2026-08-05",
+    "realized": 9334.0,
+    "wins": 23,
+    "losses": 8,
+    "count": 31,
+    "gross_win": 62106.0,
+    "gross_loss": -52772.0
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -437,12 +440,47 @@
     }
   },
   "s20_13_be_state": {},
+  "s20_13_24_guard": {
+    "BUY": {
+      "active": false,
+      "last_loss_entry": null
+    },
+    "SELL": {
+      "active": false,
+      "last_loss_entry": null
+    }
+  },
+  "s20_13_24_be_state": {},
   "s10_last_fired_armed_at": {},
   "last_traded_per_tf": {},
   "last_traded_sid_tf": {},
   "pending_order_tf": {},
   "position_tf": {},
-  "position_sid": {},
+  "position_sid": {
+    "568296169": 21,
+    "568308961": 21,
+    "568383850": 21,
+    "568387318": 21,
+    "568417168": 21,
+    "568446793": 21,
+    "568446796": 21,
+    "568449492": 21,
+    "568449493": 21,
+    "568501173": 21,
+    "568525782": 21,
+    "568569969": 21,
+    "568593555": 21,
+    "568593557": 21,
+    "568593563": 21,
+    "568596177": 21,
+    "568596181": 21,
+    "568643765": 21,
+    "568643791": 21,
+    "568643801": 21,
+    "568643820": 21,
+    "568643826": 21,
+    "568691709": 21
+  },
   "position_pattern": {},
   "position_trend_filter": {},
   "position_zone_meta": {},

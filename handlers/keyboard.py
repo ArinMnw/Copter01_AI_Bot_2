@@ -1602,6 +1602,19 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(sess_on, callback_data="toggle_s20_12_session")
         ])
 
+    elif sid == 20.14:
+        tf_buttons = []
+        for tf in config.S20_ALLOWED_TFS:
+            is_on = getattr(config, "S20_14_TF_ENABLED", {}).get(tf, True)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"cb_toggle_s20_14_tf_{tf}")
+            tf_buttons.append(btn)
+        for i in range(0, len(tf_buttons), 4):
+            rows.append(tf_buttons[i:i+4])
+
+        a_mode = getattr(config, "S20_14_ACTIVE_MODE", 2.0)
+        rows.append([
+            InlineKeyboardButton(f"⚙️ S20.14 Active Mode: {a_mode} (คลิกเปลี่ยน)", callback_data="prompt_s20_14_active_mode")
+        ])
     elif sid == 20.13:
         a_mode = getattr(config, "S20_13_ACTIVE_MODE", 2.6)
         rows.append([
@@ -1627,6 +1640,26 @@ def build_strategy_detail_keyboard(sid: int):
         s2013_compound = getattr(config, "S20_13_23_COMPOUND", 1.0)
         rows.append([
             InlineKeyboardButton(f"⚙️ S20.13.23 Compound: {s2013_compound} (คลิกเปลี่ยน)", callback_data="prompt_s20_13_23_compound")
+        ])
+
+    elif sid == 20.1324:
+        rows.append([
+            InlineKeyboardButton("⚠️ split-half walk-forward เจอ overfitting (WR 58%→100%)", callback_data="noop")
+        ])
+        tf_dict = getattr(config, "S20_13_24_TF_ENABLED", {})
+        tfs = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1"]
+        tf_row1, tf_row2 = [], []
+        for i, tf in enumerate(tfs):
+            is_on = tf_dict.get(tf, False)
+            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"toggle_s20_13_24_tf_{tf}")
+            if i < 4: tf_row1.append(btn)
+            else: tf_row2.append(btn)
+        rows.append(tf_row1)
+        rows.append(tf_row2)
+
+        s2024_compound = getattr(config, "S20_13_24_COMPOUND", 1.0)
+        rows.append([
+            InlineKeyboardButton(f"⚙️ S20.13.24 Compound: {s2024_compound} (คลิกเปลี่ยน)", callback_data="prompt_s20_13_24_compound")
         ])
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])

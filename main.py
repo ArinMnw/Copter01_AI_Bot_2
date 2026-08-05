@@ -1,7 +1,7 @@
 import mt5_worker as mt5
 import asyncio
 import time as _time
-from datetime import datetime
+from datetime import datetime, timedelta
 from bot_log import log_event, log_error, setup_python_logging, cleanup_old_logs
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.error import Conflict, NetworkError
@@ -19,7 +19,8 @@ from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
                       check_fill_trend_recheck, check_pending_trend_approach, check_fill_pdfiboplus,
                       check_s14_engulf_exits, check_s20_escape, check_s2_s3_chain_groups,
-                      check_s1_rejection_entry, check_s20_13_23_breakeven, check_s20_13_breakeven)
+                      check_s1_rejection_entry, check_s20_13_23_breakeven, check_s20_13_breakeven,
+                      check_s20_13_24_breakeven)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
@@ -27,6 +28,20 @@ from handlers.callback_handler import handle_callback
 _error_last_sent: dict = {}
 _ERROR_COOLDOWN = 300  # วินาที — ไม่ส่ง error ซ้ำภายใน 5 นาที
 _LTS_AUS_PORTFOLIO = "LTS_AVENGERS_ULTRA_SAFE"
+
+
+def _stagger_seconds(divisor: int) -> int:
+    """offset วินาทีคงที่เฉพาะของแต่ละ profile (deterministic จาก BOT_PROFILE,
+    ไม่ใช้ hash() ของ Python ตรงๆ เพราะ PYTHONHASHSEED สุ่มใหม่ทุก process ทำให้
+    offset เปลี่ยนไม่คงที่) ใช้เลื่อน next_run_time ของ job คาบเวลาเดิม (trail_sl/
+    position_check/lts_aus_fast_scan ทุก 5s ฯลฯ) กันหลาย profile (หลาย MT5
+    terminal + python process บนเครื่องเดียวกัน) ยิง MT5 read พร้อมกันเป๊ะทุกรอบ
+    ซึ่งเป็นสาเหตุนึงที่ทำให้ STALL เกิดพร้อมกันหลายโปรไฟล์ในวินาทีเดียวกัน
+    (ไม่แตะ auto_scan_job — ตัวนั้นตั้งใจ sync กับวินาทีนาฬิกาจริงเพื่อความแม่นของ
+    market order หลัง candle ปิด ห้าม stagger)"""
+    import hashlib
+    name = (getattr(config, "BOT_PROFILE", "") or "default").encode("utf-8")
+    return int(hashlib.md5(name).hexdigest(), 16) % max(1, divisor)
 
 
 def _active_demo_portfolio_names() -> list[str]:
@@ -533,6 +548,7 @@ def main():
             # await check_breakeven_tp(app)  # ปิดชั่วคราว
             await check_s20_13_23_breakeven(app); _lap("s20_13_23_breakeven")
             await check_s20_13_breakeven(app); _lap("s20_13_breakeven")
+            await check_s20_13_24_breakeven(app); _lap("s20_13_24_breakeven")
             await check_opposite_order_tp(app); _lap("opposite_order_tp")
             await check_limit_sweep(app); _lap("limit_sweep")
             await check_scale_out_partial(app); _lap("scale_out_partial")
@@ -655,6 +671,8 @@ def main():
     from datetime import timezone as _tz2
 
     # ตรวจสลับ symbol ทุก 1 นาที
+    # next_run_time เลื่อนตาม stagger offset (0-59s คงที่ต่อ profile) กันหลาย
+    # profile ยิง MT5 read พร้อมกันเป๊ะทุกรอบ (ดู _stagger_seconds ด้านบน)
     scheduler.add_job(
         check_symbol_switch,
         'interval',
@@ -662,7 +680,7 @@ def main():
         id="symbol_switch_job",
         max_instances=1,
         coalesce=True,
-        next_run_time=datetime.now(_tz2.utc)
+        next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(60))
     )
 
     # Pattern scan ทุก 5 วินาที — max_instances=1 กัน scan วิ่งซ้อน
@@ -690,7 +708,7 @@ def main():
         id="demo_portfolio_scan_job",
         max_instances=1,
         coalesce=True,
-        next_run_time=datetime.now(_tz2.utc)
+        next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(max(1, config.DEMO_PORTFOLIO_SCAN_INTERVAL * 60)))
     )
 
     scheduler.add_job(
@@ -701,7 +719,7 @@ def main():
         max_instances=1,
         coalesce=True,
         misfire_grace_time=5,
-        next_run_time=datetime.now(_tz2.utc)
+        next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(5))
     )
 
     # Trail SL ทุก 5 วินาที — max_instances=1 กันแก้ SL ของ position เดียวซ้อนกัน
@@ -714,7 +732,7 @@ def main():
         max_instances=1,
         coalesce=True,
         misfire_grace_time=10,
-        next_run_time=datetime.now(_tz.utc)
+        next_run_time=datetime.now(_tz.utc) + timedelta(seconds=_stagger_seconds(5))
     )
 
     # Position check ทุก 5 วินาที — รอ job ก่อนหน้าเสร็จ
@@ -725,7 +743,7 @@ def main():
         id="position_check_job",
         max_instances=1,
         coalesce=True,
-        next_run_time=datetime.now(_tz.utc)
+        next_run_time=datetime.now(_tz.utc) + timedelta(seconds=_stagger_seconds(5))
     )
 
     scheduler.add_job(
@@ -735,7 +753,7 @@ def main():
         id="save_state_job",
         max_instances=1,
         coalesce=True,
-        next_run_time=datetime.now(_tz.utc)
+        next_run_time=datetime.now(_tz.utc) + timedelta(seconds=_stagger_seconds(15))
     )
 
     # ลบ log เก่าเกิน 7 วัน — รันเที่ยงคืน BKK ทุกวัน
@@ -770,7 +788,7 @@ def main():
         id="watchdog_job",
         max_instances=1,
         coalesce=True,
-        next_run_time=datetime.now(_tz.utc)
+        next_run_time=datetime.now(_tz.utc) + timedelta(seconds=_stagger_seconds(60))
     )
 
     # Heartbeat ถี่ — ทุก 15 วินาที (ให้ external supervisor detect loop hang ได้ไว)

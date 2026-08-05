@@ -46,3 +46,21 @@ Running S110 120d ...
 Running S110 150d ...
   -> S110 150d: {'closed': 68, 'wins': 29, 'win_rate': 42.64705882352941, 'net': 336.69000000000005, 'pf': 1.4899304443991743, 'max_dd': 203.64}
 Running S110 365d ...
+Traceback (most recent call last):
+  File "D:\Project\Copter01_AI_Bot_2\wr_portfolio_runner.py", line 212, in <module>
+    main()
+  File "D:\Project\Copter01_AI_Bot_2\wr_portfolio_runner.py", line 179, in main
+    trades, out, err = run_script_strat(sid, days)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\Copter01_AI_Bot_2\wr_portfolio_runner.py", line 43, in run_script_strat
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe', 'sim_s110_backtest.py', '--days', '365', '--out-prefix', 'wr_portfolio_trades\\s110_365d']' timed out after 900 seconds

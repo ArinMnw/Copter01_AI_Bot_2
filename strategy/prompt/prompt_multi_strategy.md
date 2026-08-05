@@ -113,10 +113,10 @@
 ---
 ### 🛠️ [ASSIGNMENT - ข้อมูลสั่งงานประจำรอบนี้]
 - **ไฟล์สรุปหลัก และ ไฟล์ PDF คู่ขนาน (ให้อ่านเพื่อหาจุดเชื่อมโยงร่วมกันทั้งหมด):**
-  1. `docs\allin4s\4s vip\Fibo_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Quant fuel`
-  2. `docs\allin4s\4s vip\FVG_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Quant fuel`
-  3. `docs\allin4s\4s vip\ท่าไม้ตายอออิน4วิ 1_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Quant fuel`
-  4. `docs\allin4s\4s vip\Sarawut_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Quant fuel`
+  1. `docs\allin4s\4s vip\Fibo_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Full Trading`
+  2. `docs\allin4s\4s vip\FVG_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Full Trading`
+  3. `docs\allin4s\4s vip\ท่าไม้ตายอออิน4วิ 1_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Full Trading`
+  4. `docs\allin4s\4s vip\Sarawut_pdf.md` คู่กับ `C:\Users\Copter\Downloads\อออิน4s\Full Trading`
 - โค้ดกลยุทธ์หลักต้นแบบ (เพื่อใช้ศึกษา Flow เท่านั้น): `[ระบุ Strategy ต้นแบบ เช่น Strategy S20 (strategy20.py)]`
 - หัวข้อและชื่อไฟล์ท่าย่อยเป้าหมาย: **[ระบุรหัสและชื่อท่าเป้าหมาย เช่น S21_Ultimate_Combo]** (สร้างไฟล์ใหม่ตาม Path นี้: `strategy/[ระบุโฟลเดอร์รหัสท่า]/strategy[ระบุรหัส].py` โดยให้เขียนโค้ดที่เกิดจากการประกอบร่างเงื่อนไขของไฟล์ทั้ง 4 ด้านบนเข้าด้วยกันให้สมบูรณ์)
 
