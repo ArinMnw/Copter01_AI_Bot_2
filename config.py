@@ -1861,6 +1861,7 @@ DEMO_PORTFOLIO_ACTIVE = {
     "S111": False,
     "LTS_EVOLUTION9": False,
     "LTS_WINRATE5": False,
+    "LTS_SCREEN13": False,
 }
 _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
 if _demo_portfolio_active_env is not None:

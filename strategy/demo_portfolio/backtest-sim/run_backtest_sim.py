@@ -374,6 +374,80 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
             f.write("Month,Trades,Win,Loss,Net Profit,Win Rate (%),Balance\n")
         print(f"Saved empty placeholder: {monthly_path}")
 
+def compute_portfolio_summary(portfolio_name, trades, start_balance):
+    """สรุปสถิติระดับพอร์ตหนึ่งแถว สำหรับรวมเป็นตาราง cross-portfolio (--portfolio all).
+    Win/Lose นับจากเครื่องหมาย P&L จริง (ไม่ใช่ string outcome TP/SL) เพื่อให้ Win+Lose
+    เท่ากับจำนวนไม้เสมอ แม้มี outcome แปลกๆ (SMART_EXIT ฯลฯ) ที่ยังกำไร/ขาดทุนได้ทั้งคู่"""
+    ordered = sorted(trades, key=lambda x: x.get("fill_time_ts", 0))
+    profits = [t.get("pnl_usd", 0.0) for t in ordered]
+    n = len(profits)
+    if n == 0:
+        return {
+            "Portfolio": portfolio_name, "Trades": 0, "Win": 0, "Lose": 0,
+            "Win Rate (%)": None, "Total PnL": 0.0, "Avg PnL/Trade": None,
+            "Avg PnL/Day": None, "PF": None, "DD Max": 0.0, "DD Avg": 0.0,
+            "DD %": None, "Ratio (Net/DD)": None,
+            "Start Balance": round(start_balance, 2), "End Balance": round(start_balance, 2),
+            "Test Start": "-", "Test End": "-",
+        }
+
+    wins = sum(1 for p in profits if p > 0)
+    loses = sum(1 for p in profits if p <= 0)
+    total_pnl = sum(profits)
+    gross_win = sum(p for p in profits if p > 0)
+    gross_loss = -sum(p for p in profits if p < 0)
+
+    # Equity curve -> DD max, DD avg (mean depth across every distinct drawdown
+    # period, not just the worst one), DD % (worst DD as % of the peak it fell from)
+    equity = peak = 0.0
+    troughs = []
+    in_dd = False
+    cur_depth = cur_peak = 0.0
+    for p in profits:
+        equity += p
+        if equity > peak:
+            if in_dd and cur_depth > 0:
+                troughs.append((cur_depth, cur_peak))
+            peak = equity
+            in_dd = False
+            cur_depth = 0.0
+        else:
+            depth = peak - equity
+            if depth > cur_depth:
+                cur_depth = depth
+                cur_peak = peak
+            in_dd = True
+    if in_dd and cur_depth > 0:
+        troughs.append((cur_depth, cur_peak))
+    dd_max, peak_at_max = max(troughs, key=lambda t: t[0]) if troughs else (0.0, 0.0)
+    dd_avg = (sum(t[0] for t in troughs) / len(troughs)) if troughs else 0.0
+    dd_pct = (dd_max / peak_at_max * 100.0) if peak_at_max > 0 else None
+
+    start_ts = ordered[0].get("fill_time_ts")
+    end_ts = ordered[-1].get("exit_time_ts") or ordered[-1].get("fill_time_ts")
+    span_days = max(1.0, (end_ts - start_ts) / 86400.0) if start_ts and end_ts else 1.0
+
+    return {
+        "Portfolio": portfolio_name,
+        "Trades": n,
+        "Win": wins,
+        "Lose": loses,
+        "Win Rate (%)": round(wins / n * 100.0, 2),
+        "Total PnL": round(total_pnl, 2),
+        "Avg PnL/Trade": round(total_pnl / n, 4),
+        "Avg PnL/Day": round(total_pnl / span_days, 2),
+        "PF": round(gross_win / gross_loss, 2) if gross_loss else None,
+        "DD Max": round(dd_max, 2),
+        "DD Avg": round(dd_avg, 2),
+        "DD %": round(dd_pct, 2) if dd_pct is not None else None,
+        "Ratio (Net/DD)": round(total_pnl / dd_max, 2) if dd_max else None,
+        "Start Balance": round(start_balance, 2),
+        "End Balance": round(start_balance + total_pnl, 2),
+        "Test Start": format_ts_to_bkk(start_ts) if start_ts else "-",
+        "Test End": format_ts_to_bkk(end_ts) if end_ts else "-",
+    }
+
+
 def run_standard_blend_backtest(portfolio_name, days, spread, start_str=None, end_str=None, scale=1.0):
     """รัน backtest สำหรับ P13, P16, P18 โดยการจำลองแต่ละขาและดึงรายการไม้เทรด"""
     actual_name = ALIASES.get(portfolio_name, portfolio_name)
@@ -1075,6 +1149,16 @@ def _apply_lts_exit_overlay(trades, tf, portfolio_name, days, start_str, end_str
     return out
 
 
+def _in_lts_scoped_fixes(name):
+    """เจอ 2026-08-07: ขยาย scope hour-bug fix/exit-overlay/profile.env override/strict-match/
+    true-UTC filter จาก AUS/AHR/LTS44 ไปทุกพอร์ตที่ขึ้นต้นด้วย LTS ตามที่พี่สั่ง — เคยตัด LTS_SCREEN13
+    ออกชั่วคราวเพราะรันช้ามาก (ค้างเกิน 20 นาที) แต่ตรวจแล้วว่าไม่เกี่ยวกับ fix นี้เลย (Smart
+    Cutloss ปิดอยู่แล้วโดย default, ลองรันแม้ cache ครบ 13/13 ก็ยังช้า) ตัวการจริงคือ MT5 terminal
+    contention จาก fallback ไปใช้ terminal ของ AHR (ไม่มี profile เป็นของตัวเอง) — เพิ่มกลับเข้า
+    scope ตามปกติแล้ว 2026-08-07"""
+    return name.startswith("LTS")
+
+
 def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scale=1.0):
     """รัน backtest สำหรับ AF และ LTS portfolios โดยจำลอง S84/S86 แต่ละตัวและผสมตาม Weight"""
     actual_name = ALIASES.get(portfolio_name, portfolio_name)
@@ -1160,7 +1244,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         rd_min = leg.get("rd_min")
         rd_max = leg.get("rd_max")
         rd_band = "all" if (rd_min is None or rd_max is None) else f"{rd_min:.1f}-{rd_max:.1f}"
-        if actual_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+        if _in_lts_scoped_fixes(actual_name):
             filtered_raw = _post_filter_raw_signal_hour(raw, rd_band, leg.get("hour"))
         else:
             filtered_raw = _post_filter_raw(raw, rd_band, leg.get("hour"))
@@ -1184,7 +1268,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
             cfg_vals = all_vals[leg["cfg_idx"]]
             tf = maker(cfg_vals)["ENTRY_TF"]
 
-        if actual_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+        if _in_lts_scoped_fixes(actual_name):
             filtered_raw = _apply_lts_exit_overlay(filtered_raw, tf, actual_name, days, start_str, end_str)
 
         _twp, _eq, by_day = _simulate_leg(filtered_raw, OVERLAY_CFG)
@@ -1218,7 +1302,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
                 "tf": tf
             }
             all_portfolio_trades.append(t_scaled)
-            
+
     return all_portfolio_trades
 
 
@@ -1338,7 +1422,8 @@ def setup_mt5_for_portfolio(portfolio_name):
         # เดิมเป็น True เฉพาะ ULTRA_SAFE) ทำให้ backtest จำลอง CB ผิดเปิด/ปิดสำหรับ AHR มาตลอด
         # ตั้งค่าย้อนหลังตรงนี้เข้า config dict โดยตรง (เหมือนที่ config.py เองทำตอน import แต่
         # runtime) — เขียนเฉพาะ key ของ LTS_AUS/LTS_AHR เท่านั้น ไม่กระทบพอร์ตอื่นเลย
-        if normalized_pf in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+        # 2026-08-07: ขยายจาก AUS/AHR/LTS44 ไปทุกพอร์ต LTS (ทดสอบ — พี่บอกย้อนกลับได้ถ้าไม่เวิร์ค)
+        if _in_lts_scoped_fixes(normalized_pf):
             def _env_bool_from(env_val, default):
                 if env_val is None or env_val == "":
                     return default
@@ -1509,7 +1594,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         
     # 2. Get active magic numbers for this portfolio
     actual_pf = ALIASES.get(portfolio_name, portfolio_name)
-    strict_backtest_match = actual_pf in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK")
+    strict_backtest_match = _in_lts_scoped_fixes(actual_pf)
     sub_pfs = [x.strip() for x in actual_pf.split(",") if x.strip()]
     target_magics = []
     for pf in sub_pfs:
@@ -2108,7 +2193,9 @@ def main():
             print(f"❌ Portfolio name '{target}' not found in demo_portfolio.PORTFOLIOS")
             sys.exit(1)
         portfolios = [actual]
-        
+
+    all_summaries = []
+
     try:
         for pf in portfolios:
             actual_pf = ALIASES.get(pf, pf)
@@ -2195,7 +2282,7 @@ def main():
             # โดยแปลง fill_time_ts เป็น true UTC ก่อนเทียบ ใช้ server_tz history เดียวกับที่ fix
             # เรื่อง hour bucket ไปแล้ว ไม่กระทบพอร์ตอื่น (ยังเทียบ raw ตรงๆ เหมือนเดิม)
             def _true_utc_fill_ts(fill_ts):
-                if actual_pf not in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+                if not _in_lts_scoped_fixes(actual_pf):
                     return fill_ts
                 # เชื่อ server_tz ที่ย้อนคำนวณจาก log จริงล่าสุดก่อน (สดกว่า history file
                 # ที่มี debounce ล่าช้า — ดู _derive_latest_server_tz_from_log) fallback ไป
@@ -2240,6 +2327,7 @@ def main():
             
             pf_out_dir = os.path.join(args.out_dir, sub)
             save_reports(pf, trades, balance, pf_out_dir)
+            all_summaries.append(compute_portfolio_summary(pf, trades, balance))
             # เซฟ CB_SKIPPED_TRADES ลงดิสก์ — compare report รันเป็น subprocess แยก (คนละ process
             # memory) ต้องส่งข้อมูลนี้ผ่านไฟล์ ไม่ใช่ตัวแปร module-level เฉยๆ (อ่านคืนใน
             # run_compare_only_flow ด้านล่าง)
@@ -2261,6 +2349,13 @@ def main():
             subprocess.run(cmd)
             
     finally:
+        if args.portfolio == "all" and all_summaries:
+            summary_path = os.path.join(args.out_dir, "all_portfolios_summary.csv")
+            try:
+                pd.DataFrame(all_summaries).to_csv(summary_path, index=False, encoding="utf-8")
+                print(f"\n📊 Saved cross-portfolio summary: {summary_path} ({len(all_summaries)} portfolios)")
+            except Exception as e:
+                print(f"   ⚠️ Failed to save all_portfolios_summary.csv: {e}")
         mt5.shutdown()
         print("\nMT5 Shutdown completed.")
 

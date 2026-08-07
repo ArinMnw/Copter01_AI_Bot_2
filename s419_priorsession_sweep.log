@@ -1,0 +1,26 @@
+[H1] rolling_baseline: {"n": 2560, "net": 2032.71, "dd": 260.87, "ratio": 7.79}
+[H1] prior_sess_anchor0: {"n": 2991, "net": 2202.75, "dd": 298.61, "ratio": 7.38}
+[H1] prior_sess_anchor4: {"n": 2498, "net": 2808.28, "dd": 276.19, "ratio": 10.17}
+[H1] prior_sess_anchor6: {"n": 2501, "net": 2840.78, "dd": 215.38, "ratio": 13.19}
+[H1] prior_sess_anchor8: {"n": 3235, "net": 2644.31, "dd": 289.34, "ratio": 9.14}
+[H1] prior_sess_anchor12: {"n": 3189, "net": 2661.51, "dd": 288.44, "ratio": 9.23}
+[H1] prior_sess_anchor16: {"n": 3150, "net": 2240.35, "dd": 241.19, "ratio": 9.29}
+[H1] prior_sess_anchor20: {"n": 3118, "net": 2674.89, "dd": 206.92, "ratio": 12.93}
+[WF] rolling_baseline: {"n": 2442, "net": 581.62, "dd": 336.27, "ratio": 1.73}
+[WF] prior_sess_anchor0: {"n": 2712, "net": 255.12, "dd": 234.61, "ratio": 1.09}
+[WF] prior_sess_anchor4: {"n": 2545, "net": -70.13, "dd": 322.92, "ratio": -0.22}
+[WF] prior_sess_anchor6: {"n": 2518, "net": -80.29, "dd": 283.08, "ratio": -0.28}
+[WF] prior_sess_anchor8: {"n": 3128, "net": 450.74, "dd": 264.56, "ratio": 1.7}
+[WF] prior_sess_anchor12: {"n": 2955, "net": 417.19, "dd": 202.38, "ratio": 2.06}
+[WF] prior_sess_anchor16: {"n": 2846, "net": 417.46, "dd": 235.05, "ratio": 1.78}
+[WF] prior_sess_anchor20: {"n": 2771, "net": 434.74, "dd": 247.18, "ratio": 1.76}
+
+=== combined REAL dual-window (sorted by ratio) ===
+{"config": "prior_sess_anchor20", "net": 3109.63, "worst_dd": 247.18, "combined_ratio": 12.58, "dual_pos": true, "n_h1": 3118, "n_wf": 2771}
+{"config": "prior_sess_anchor16", "net": 2657.81, "worst_dd": 241.19, "combined_ratio": 11.02, "dual_pos": true, "n_h1": 3150, "n_wf": 2846}
+{"config": "prior_sess_anchor8", "net": 3095.05, "worst_dd": 289.34, "combined_ratio": 10.7, "dual_pos": true, "n_h1": 3235, "n_wf": 3128}
+{"config": "prior_sess_anchor12", "net": 3078.7, "worst_dd": 288.44, "combined_ratio": 10.67, "dual_pos": true, "n_h1": 3189, "n_wf": 2955}
+{"config": "prior_sess_anchor6", "net": 2760.49, "worst_dd": 283.08, "combined_ratio": 9.75, "dual_pos": false, "n_h1": 2501, "n_wf": 2518}
+{"config": "prior_sess_anchor4", "net": 2738.15, "worst_dd": 322.92, "combined_ratio": 8.48, "dual_pos": false, "n_h1": 2498, "n_wf": 2545}
+{"config": "prior_sess_anchor0", "net": 2457.87, "worst_dd": 298.61, "combined_ratio": 8.23, "dual_pos": true, "n_h1": 2991, "n_wf": 2712}
+{"config": "rolling_baseline", "net": 2614.33, "worst_dd": 336.27, "combined_ratio": 7.77, "dual_pos": true, "n_h1": 2560, "n_wf": 2442}

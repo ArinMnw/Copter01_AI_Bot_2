@@ -2778,3 +2778,54 @@
 [2026-08-05 09:05:10] Supervisor started (profile='', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
 [2026-08-05 09:05:10] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
 [2026-08-05 09:05:10] main.py running (pid=23748)
+[2026-08-05 18:26:26] WARN: lock file ค้างจาก pid=6180 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-08-05 18:26:28] Supervisor started (profile='', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
+[2026-08-05 18:26:28] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-08-05 18:26:28] main.py running (pid=29692)
+[2026-08-06 09:10:27] WARN: lock file ค้างจาก pid=29168 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-08-06 09:10:29] Supervisor started (profile='', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
+[2026-08-06 09:10:29] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-08-06 09:10:29] main.py running (pid=16184)
+[2026-08-06 13:48:18] STALL: heartbeat age=205s > 180s (loop hang) -> kill pid=16184 + restart
+[2026-08-06 13:48:43] killed pid=2164 (msedgewebview2)
+[2026-08-06 13:48:44] killed pid=14856 (msedgewebview2)
+[2026-08-06 13:48:46] killed pid=14644 (msedgewebview2)
+[2026-08-06 13:48:48] killed pid=12508 (msedgewebview2)
+[2026-08-06 13:48:49] killed pid=27804 (msedgewebview2)
+[2026-08-06 13:48:53] killed pid=17792 (msedgewebview2)
+[2026-08-06 13:48:54] killed pid=27236 (terminal64)
+[2026-08-06 13:48:56] killed pid=17156 (python)
+[2026-08-06 13:48:57] killed pid=5784 (python)
+[2026-08-06 13:49:00] killed pid=17740 (python)
+[2026-08-06 13:49:01] Restarting in 5 s ...
+[2026-08-06 13:49:07] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-08-06 13:49:09] main.py running (pid=13664)
+[2026-08-06 13:50:40] WARN: heartbeat missing/unreadable (up=91s) — wait next cycle
+[2026-08-06 13:51:11] WARN: heartbeat missing/unreadable (up=122s) — wait next cycle
+[2026-08-06 13:51:41] WARN: heartbeat missing/unreadable (up=152s) — wait next cycle
+[2026-08-06 13:52:11] WARN: heartbeat missing/unreadable (up=183s) — wait next cycle
+[2026-08-06 13:52:41] WARN: heartbeat missing/unreadable (up=213s) — wait next cycle
+[2026-08-06 13:53:12] WARN: heartbeat missing/unreadable (up=243s) — wait next cycle
+[2026-08-06 13:53:42] WARN: heartbeat missing/unreadable (up=273s) — wait next cycle
+[2026-08-06 13:54:12] WARN: heartbeat missing/unreadable (up=303s) — wait next cycle
+[2026-08-06 13:54:42] WARN: heartbeat missing/unreadable (up=334s) — wait next cycle
+[2026-08-06 13:55:13] WARN: heartbeat missing/unreadable (up=364s) — wait next cycle
+[2026-08-06 13:55:43] WARN: heartbeat missing/unreadable (up=394s) — wait next cycle
+[2026-08-06 13:56:13] WARN: heartbeat missing/unreadable (up=424s) — wait next cycle
+[2026-08-07 08:54:34] WARN: lock file ค้างจาก pid=2608 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-08-07 08:54:39] Supervisor started (profile='', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
+[2026-08-07 08:54:39] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-08-07 08:54:39] main.py running (pid=31840)
+[2026-08-07 08:56:10] WARN: heartbeat missing/unreadable (up=90s) — wait next cycle
+[2026-08-07 09:02:10] STALL: heartbeat age=188s > 180s (loop hang) -> kill pid=31840 + restart
+[2026-08-07 09:02:12] killed pid=3592 (python)
+[2026-08-07 09:02:12] killed pid=31876 (python)
+[2026-08-07 09:02:12] killed pid=31840 (python)
+[2026-08-07 09:02:12] Restarting in 5 s ...
+[2026-08-07 09:02:17] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-08-07 09:02:17] main.py running (pid=34608)
+[2026-08-07 17:03:37] ERROR: พบ supervisor ตัวอื่นรันอยู่แล้ว (pid=30948) — เลิกรัน ตัวนี้เพื่อกัน main.py ซ้อน 2 instance (Telegram getUpdates Conflict)
+[2026-08-07 17:09:09] WARN: lock file ค้างจาก pid=30948 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ
+[2026-08-07 17:09:10] Supervisor started (profile='', stale=180 s, check=30 s, grace=90 s, python='C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe')
+[2026-08-07 17:09:10] Launching: C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe main.py
+[2026-08-07 17:09:10] main.py running (pid=37356)

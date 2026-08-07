@@ -30,7 +30,7 @@ def _load_lts_weights(filepath, prefix):
             # + S165/S166/S172/S258/S294 (2026-07-28: 9-strategy evolution portfolio,
             #   คัดจาก S103-S302 campaign ผ่าน backtest 30-365 วัน — ดู LTS_EVOLUTION9)
             # + S303 (2026-07-20: ORB + HTF bias — subset ของ S224, ratio 23.0)
-            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110|S165|S166|S172|S202|S206|S218|S224|S258|S294|S303|S304)_(M5|M15|M30|H1|H4)", label)
+            m_s9x = re.match(r"^(DIRECT|INVERSE)_(S9[5-9]|S10[0-9]|S110|S165|S166|S172|S202|S206|S218|S224|S258|S294|S303|S304|S305|S311|S312|S322|S327|S332|S411|S413|S418|S286|S199|S293|S419)_(M5|M15|M30|H1|H4)", label)
             if m_s9x:
                 n = i + 1
                 key = f"{prefix}_{n}"
@@ -210,3 +210,23 @@ _load_lts_weights(os.path.join(weights_dir, "lts_evolution9_weights.txt"), "LTS_
 # ช่วง 60-90d ติดลบเล็กน้อยเมื่อดูเดี่ยวๆ (n เล็ก) แต่พอรวมพอร์ตแล้ว net ยังบวกตลอด — paper-forward
 # เท่านั้นจนกว่าจะกดเปิดใน Telegram (DEMO_PORTFOLIO_ACTIVE เริ่ม False เสมอ)
 _load_lts_weights(os.path.join(weights_dir, "lts_winrate5_weights.txt"), "LTS_WINRATE5")
+# LTS_SCREEN13 (2026-08-06): 13 กลยุทธ์ที่ผ่านเกณฑ์คัดกรอง dual-window (บวกทั้ง 2026-H1
+# และ 2025-H2 walk-forward, combined return/DD>=10) จากแคมเปญ confluence-scoring +
+# statistical-gate แต่ยังไม่เคยเข้าพอร์ตไหนมาก่อน — S305 (rollover drive ablation),
+# S311/S312/S322/S327/S332 (สาย distribution-shift/self-excitation/volume-coupling),
+# S411/S413 (สาย robust-shape/gap-response — เคยตกตอนทดสอบรวมกับ baseline S409-lineage
+# ใน strategy_evolution.md แต่ยังไม่เคยทดสอบกับพอร์ตชุดนี้), S418 (FVG-only confluence,
+# พิสูจน์แล้วว่าช่วย P13/P16 ตอนทดสอบรวมพอร์ต), S286/S199/S293 (คัดจาก DD% ต่ำ 6m ก่อน
+# แล้วเพิ่งทดสอบ WF ทีหลัง — จาก 11 ตัวที่ DD% ต่ำ มีแค่ 3 ตัวนี้ผ่าน WF จริง อีก 7 ตัว
+# net ติดลบทันทีที่ WF พิสูจน์ว่าเป็น overfit ล้วนๆ), S419 (Orochi Auction Market Theory —
+# prior-session fixed value area, SESSION_ANCHOR_HOUR=20, ratio 12.58 เดี่ยวๆ) —
+# combined backtest (2025-07-18 ถึง 2026-07-18): net $12,380.23 / DD $398.27 /
+# ratio 31.09, dual_pos ทั้งสองหน้าต่าง (WF เดี่ยวๆ ก็ทะลุ 10 แล้ว ratio 10.28)
+# ตัดสาย S306 ออกเพราะทับเวลากับ S305 เกือบสนิท (33/33 คู่ overlap) — เช็ค overlap ของ
+# S286/S199/S293 กับ 9 ตัวเดิมแล้ว ทุกคู่ต่ำกว่า 1% ไม่มีปัญหาซ้ำซ้อน — ⚠️ S419↔S418
+# ทับเวลากันสูง (75% ของไม้ S419 มีไม้ S418 เปิดอยู่พร้อมกัน เพราะทั้งคู่เป็น M5 ความถี่สูง
+# ไม่กรอง session เหมือนกัน) ทำให้ ratio รวมลดจาก 39.60 (12 ตัว) เหลือ 31.09 (13 ตัว)
+# แม้ net เพิ่มขึ้นก็ตาม — ยังคงสูงกว่าเกณฑ์มาก แค่ต้องรู้ว่า DD จะโตไวกว่าตัวอื่นเพราะ
+# overlap นี้ — paper-forward เท่านั้นจนกว่าจะกดเปิดใน Telegram
+# (DEMO_PORTFOLIO_ACTIVE เริ่ม False เสมอ)
+_load_lts_weights(os.path.join(weights_dir, "lts_screen9_weights.txt"), "LTS_SCREEN13")

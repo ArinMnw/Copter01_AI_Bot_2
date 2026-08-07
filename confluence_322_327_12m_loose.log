@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "D:\Project\Copter01_AI_Bot_2\confluence_scan.py", line 255, in <module>
+    main()
+  File "D:\Project\Copter01_AI_Bot_2\confluence_scan.py", line 115, in main
+    bars, _, start_index = prepare_rates(args.months, "M5", end, args.lookback)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\Copter01_AI_Bot_2\sim_strategy_backtest.py", line 78, in prepare_rates
+    raise RuntimeError("not enough MT5 rates")
+RuntimeError: not enough MT5 rates

@@ -1,0 +1,23 @@
+[H1] fade_only: {"n": 9, "wr": null, "net": -3.71, "dd": 3.71, "ratio": -1.0}
+[H1] breakout_only: {"n": 229, "wr": 5.7, "net": 18.01, "dd": 187.14, "ratio": 0.1}
+[H1] both_default: {"n": 236, "wr": 5.5, "net": 14.7, "dd": 187.14, "ratio": 0.08}
+[H1] fade_loose_vwap: {"n": 503, "wr": 6.0, "net": 383.07, "dd": 100.17, "ratio": 3.82}
+[H1] breakout_loose_vwap: {"n": 1359, "wr": 5.2, "net": 462.46, "dd": 195.17, "ratio": 2.37}
+[H1] fade_no_vwap_gate: {"n": 1614, "wr": 4.5, "net": 167.29, "dd": 323.62, "ratio": 0.52}
+[H1] breakout_no_vwap_gate: {"n": 2702, "wr": 5.6, "net": 1426.16, "dd": 225.51, "ratio": 6.32}
+[WF] fade_only: {"n": 15, "wr": 6.7, "net": -12.34, "dd": 18.64, "ratio": -0.66}
+[WF] breakout_only: {"n": 149, "wr": 2.7, "net": -95.27, "dd": 166.5, "ratio": -0.57}
+[WF] both_default: {"n": 158, "wr": 3.2, "net": -101.52, "dd": 172.75, "ratio": -0.59}
+[WF] fade_loose_vwap: {"n": 517, "wr": 4.6, "net": -29.74, "dd": 186.2, "ratio": -0.16}
+[WF] breakout_loose_vwap: {"n": 1281, "wr": 5.5, "net": 282.72, "dd": 264.44, "ratio": 1.07}
+[WF] fade_no_vwap_gate: {"n": 1524, "wr": 4.6, "net": 55.44, "dd": 168.48, "ratio": 0.33}
+[WF] breakout_no_vwap_gate: {"n": 2486, "wr": 4.8, "net": 389.68, "dd": 351.88, "ratio": 1.11}
+
+=== combined dual-window (sorted by ratio) ===
+{"config": "breakout_no_vwap_gate", "net": 1815.84, "worst_dd": 351.88, "combined_ratio": 5.16, "dual_pos": true, "n_h1": 2702, "n_wf": 2486}
+{"config": "breakout_loose_vwap", "net": 745.18, "worst_dd": 264.44, "combined_ratio": 2.82, "dual_pos": true, "n_h1": 1359, "n_wf": 1281}
+{"config": "fade_loose_vwap", "net": 353.33, "worst_dd": 186.2, "combined_ratio": 1.9, "dual_pos": false, "n_h1": 503, "n_wf": 517}
+{"config": "fade_no_vwap_gate", "net": 222.73, "worst_dd": 323.62, "combined_ratio": 0.69, "dual_pos": true, "n_h1": 1614, "n_wf": 1524}
+{"config": "breakout_only", "net": -77.26, "worst_dd": 187.14, "combined_ratio": -0.41, "dual_pos": false, "n_h1": 229, "n_wf": 149}
+{"config": "both_default", "net": -86.82, "worst_dd": 187.14, "combined_ratio": -0.46, "dual_pos": false, "n_h1": 236, "n_wf": 158}
+{"config": "fade_only", "net": -16.05, "worst_dd": 18.64, "combined_ratio": -0.86, "dual_pos": false, "n_h1": 9, "n_wf": 15}

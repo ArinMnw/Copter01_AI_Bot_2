@@ -1,0 +1,47 @@
+patterns_buy = []
+            
+            swing_h = row.recent_high_50
+            swing_l = row.recent_low_50
+            fibo_38_2 = swing_l + (swing_h - swing_l) * 0.382
+            fibo_61_8 = swing_l + (swing_h - swing_l) * 0.618
+            
+            if tf_str in target_tfs["FVG"] and row.bull_fvg_10 and row.fvg_buy_ml == 1:
+                if 15.0 <= row.rsi <= 68.0 and row.atr >= 7.0:
+                    # PD Fibo Zone Check (Must be in Discount < 38.2%)
+                    if row.recent_low < fibo_38_2:
+                        patterns_buy.append("FVG")
+            
+            # S1 -> S11 Integration (Fibo 3/1)
+            s1_res = strategy1.strategy_1(current_rates, tf_str)
+            if s1_res and s1_res.get('signal') in ['BUY', 'SELL']:
+                strategy11.record_s1_pattern(tf_str, s1_res['signal'], current_rates, current_rates[-1]['time'])
+            
+            s11_res = strategy11.strategy_11(current_rates, tf_str)
+            if s11_res and s11_res.get('signal') == 'BUY':
+                patterns_buy.append("Fibo")
+                
+            # S9 Integration (Div)
+            s9_res = strategy9.strategy_9(current_rates, tf_str)
+            if s9_res and s9_res.get('signal') == 'BUY':
+                if 10.0 <= row.rsi <= 34.0 and row.atr >= 8.0:
+                    patterns_buy.append("Div")
+                
+            if row.div_buy_instant:
+                recent_div_buy = 10
+            elif recent_div_buy > 0:
+                recent_div_buy -= 1
+                
+            if recent_div_buy > 0 and row.engulfing_bull:
+                patterns_buy.append("FollowDiv")
+                
+            # S20.13.24 Integration (ATR)
+            atr_res = strategy20_13_24.evaluate_bar(df, i, tf=tf_str)
+            if atr_res and atr_res.get('signal') == 'BUY':
+                patterns_buy.append("ATR")
+                
+            if tf_str in target_tfs["Doji"] and row.range > 0 and row.body < 0.4 * row.range and (row.close - row.low) > 0.5 * row.range and row.low <= row.recent_low + row.atr*0.5 and row.rsi >= 0 and row.rsi <= 2:
+                patterns_buy.append("Doji")
+            if tf_str in target_tfs["MA12"] and row.low <= row.sma12 and row.close > row.sma12 and row.rsi >= 0 and row.rsi <= 18:
+                patterns_buy.append("MA12")
+                
+            

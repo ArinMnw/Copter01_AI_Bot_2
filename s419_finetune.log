@@ -1,0 +1,47 @@
+[H1] acc1_buf0.1: {"n": 3554, "net": 1434.66, "dd": 322.89, "ratio": 4.44}
+[H1] acc1_buf0.15: {"n": 3508, "net": 1433.68, "dd": 354.05, "ratio": 4.05}
+[H1] acc1_buf0.25: {"n": 3243, "net": 1672.08, "dd": 254.3, "ratio": 6.58}
+[H1] acc2_buf0.1: {"n": 2704, "net": 1337.02, "dd": 273.64, "ratio": 4.89}
+[H1] acc2_buf0.15: {"n": 2702, "net": 1426.16, "dd": 225.51, "ratio": 6.32}
+[H1] acc2_buf0.25: {"n": 2560, "net": 2032.71, "dd": 260.87, "ratio": 7.79}
+[H1] acc3_buf0.1: {"n": 2403, "net": 978.28, "dd": 299.72, "ratio": 3.26}
+[H1] acc3_buf0.15: {"n": 2341, "net": 869.3, "dd": 317.24, "ratio": 2.74}
+[H1] acc3_buf0.25: {"n": 2239, "net": 1098.87, "dd": 398.38, "ratio": 2.76}
+[H1] acc4_buf0.1: {"n": 2168, "net": 484.87, "dd": 301.79, "ratio": 1.61}
+[H1] acc4_buf0.15: {"n": 2134, "net": 490.93, "dd": 294.09, "ratio": 1.67}
+[H1] acc4_buf0.25: {"n": 1974, "net": 1036.94, "dd": 276.98, "ratio": 3.74}
+[H1] acc2_buf0.15_rr7: {"n": 2702, "net": 1426.16, "dd": 225.51, "ratio": 6.32}
+[H1] acc2_buf0.15_rr8: {"n": 2560, "net": 1596.82, "dd": 165.12, "ratio": 9.67}
+[H1] acc2_buf0.15_rr10: {"n": 2352, "net": 1398.43, "dd": 240.88, "ratio": 5.81}
+[WF] acc1_buf0.1: {"n": 3246, "net": 271.92, "dd": 448.19, "ratio": 0.61}
+[WF] acc1_buf0.15: {"n": 3222, "net": 333.1, "dd": 412.08, "ratio": 0.81}
+[WF] acc1_buf0.25: {"n": 2953, "net": 440.17, "dd": 365.1, "ratio": 1.21}
+[WF] acc2_buf0.1: {"n": 2529, "net": 408.38, "dd": 311.23, "ratio": 1.31}
+[WF] acc2_buf0.15: {"n": 2486, "net": 389.68, "dd": 351.88, "ratio": 1.11}
+[WF] acc2_buf0.25: {"n": 2442, "net": 581.62, "dd": 336.27, "ratio": 1.73}
+[WF] acc3_buf0.1: {"n": 2253, "net": 379.83, "dd": 316.86, "ratio": 1.2}
+[WF] acc3_buf0.15: {"n": 2238, "net": 341.39, "dd": 389.97, "ratio": 0.88}
+[WF] acc3_buf0.25: {"n": 2044, "net": 267.76, "dd": 315.05, "ratio": 0.85}
+[WF] acc4_buf0.1: {"n": 2090, "net": 281.92, "dd": 304.23, "ratio": 0.93}
+[WF] acc4_buf0.15: {"n": 2051, "net": 190.22, "dd": 244.14, "ratio": 0.78}
+[WF] acc4_buf0.25: {"n": 1916, "net": 361.46, "dd": 276.36, "ratio": 1.31}
+[WF] acc2_buf0.15_rr7: {"n": 2486, "net": 389.68, "dd": 351.88, "ratio": 1.11}
+[WF] acc2_buf0.15_rr8: {"n": 2426, "net": 612.92, "dd": 339.69, "ratio": 1.8}
+[WF] acc2_buf0.15_rr10: {"n": 2171, "net": 447.26, "dd": 334.54, "ratio": 1.34}
+
+=== combined dual-window (sorted by ratio) ===
+{"config": "acc2_buf0.25", "net": 2614.33, "worst_dd": 336.27, "combined_ratio": 7.77, "dual_pos": true, "n_h1": 2560, "n_wf": 2442}
+{"config": "acc2_buf0.15_rr8", "net": 2209.74, "worst_dd": 339.69, "combined_ratio": 6.51, "dual_pos": true, "n_h1": 2560, "n_wf": 2426}
+{"config": "acc1_buf0.25", "net": 2112.25, "worst_dd": 365.1, "combined_ratio": 5.79, "dual_pos": true, "n_h1": 3243, "n_wf": 2953}
+{"config": "acc2_buf0.1", "net": 1745.4, "worst_dd": 311.23, "combined_ratio": 5.61, "dual_pos": true, "n_h1": 2704, "n_wf": 2529}
+{"config": "acc2_buf0.15_rr10", "net": 1845.69, "worst_dd": 334.54, "combined_ratio": 5.52, "dual_pos": true, "n_h1": 2352, "n_wf": 2171}
+{"config": "acc2_buf0.15", "net": 1815.84, "worst_dd": 351.88, "combined_ratio": 5.16, "dual_pos": true, "n_h1": 2702, "n_wf": 2486}
+{"config": "acc2_buf0.15_rr7", "net": 1815.84, "worst_dd": 351.88, "combined_ratio": 5.16, "dual_pos": true, "n_h1": 2702, "n_wf": 2486}
+{"config": "acc4_buf0.25", "net": 1398.4, "worst_dd": 276.98, "combined_ratio": 5.05, "dual_pos": true, "n_h1": 1974, "n_wf": 1916}
+{"config": "acc1_buf0.15", "net": 1766.78, "worst_dd": 412.08, "combined_ratio": 4.29, "dual_pos": true, "n_h1": 3508, "n_wf": 3222}
+{"config": "acc3_buf0.1", "net": 1358.11, "worst_dd": 316.86, "combined_ratio": 4.29, "dual_pos": true, "n_h1": 2403, "n_wf": 2253}
+{"config": "acc1_buf0.1", "net": 1706.58, "worst_dd": 448.19, "combined_ratio": 3.81, "dual_pos": true, "n_h1": 3554, "n_wf": 3246}
+{"config": "acc3_buf0.25", "net": 1366.63, "worst_dd": 398.38, "combined_ratio": 3.43, "dual_pos": true, "n_h1": 2239, "n_wf": 2044}
+{"config": "acc3_buf0.15", "net": 1210.69, "worst_dd": 389.97, "combined_ratio": 3.1, "dual_pos": true, "n_h1": 2341, "n_wf": 2238}
+{"config": "acc4_buf0.1", "net": 766.79, "worst_dd": 304.23, "combined_ratio": 2.52, "dual_pos": true, "n_h1": 2168, "n_wf": 2090}
+{"config": "acc4_buf0.15", "net": 681.15, "worst_dd": 294.09, "combined_ratio": 2.32, "dual_pos": true, "n_h1": 2134, "n_wf": 2051}

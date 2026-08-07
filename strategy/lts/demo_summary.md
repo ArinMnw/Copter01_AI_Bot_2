@@ -29,7 +29,8 @@
 | 🧹 **S105 (Liquidity Sweep)**     |     `S105`       |               $2,000               |  ~$717.54  |   ~$21,526   |    ~-$200    |         550 วัน         |   (ทำแล้ว)   |
 | 🎭 **S106 (Volume Shift)**        |     `S106`       |               $2,000               |  ~$759.22  |   ~$22,776   |    ~-$200    |         550 วัน         |   (ทำแล้ว)   |
 | 🧲 **S111 (Gap Magnet)**          |     `S111`       |               $2,000               |   ~$800+   |  ~$24,000+   |    ~-$200    |         550 วัน         |   (ทำแล้ว)   |
-| 🧬 **LTS_EVOLUTION9 (9 legs)**    |  `LTS_EVO9`      |               $2,000               |   +$9.76   |    ~$293     |  DD $241.08  |    30-365 วัน (6 หน้าต่าง)  | (ทำแล้ว, ปิดอยู่) |
+| 🧬 **LTS_EVOLUTION9 (9 legs)**    |  `LTS_EVO9`      |               $2,000               |   +$9.76   |    ~$293     |  DD $241.08  |  30-365 วัน (6 หน้าต่าง)  | (ทำแล้ว, ปิดอยู่) |
+| 📐 **LTS_SCREEN13 (13 legs)**     |  `LTS_SCREEN13`  |               $2,000               |   ~$33.92  |   ~$1,032    |  DD $398.27  |  365 วัน (dual-window)  | (ทำแล้ว, ปิดอยู่) |
 
 ---
 
@@ -124,3 +125,55 @@ CHoCH), S105 (Liquidity Sweep — ใช้ cfg เดียวกับพอ�
 **ข้อจำกัดสำคัญ:** เป็น historical simulation ล้วนๆ ยังไม่เคย forward-test/demo จริงเลยแม้แต่วันเดียว —
 ต้องเปิด paper-forward ดูก่อนอย่างน้อย 2-4 สัปดาห์ก่อนพิจารณาเปิดจริง ไฟล์ผลลัพธ์เต็มอยู่ที่
 `portfolio_backtest_results.csv` และ `portfolio_combined_results_v2.json` (project root)
+
+---
+
+## 6. LTS_SCREEN13 — 13 กลยุทธ์ที่ผ่านเกณฑ์คัดกรอง dual-window (2026-08-06)
+
+**สถานะ:** ลงทะเบียนแล้วใน `strategy_lts.py` + `demo_portfolio.py` (magic `992013`) — **ปิดอยู่**
+(`DEMO_PORTFOLIO_ACTIVE["LTS_SCREEN13"] = False` ใน `config.py`) จนกว่าจะกดเปิดผ่าน Telegram
+เพราะเป็น backtest ล้วนๆ ยังไม่เคย paper-forward เลย
+
+**ที่มา:** งานสี่สายในเซสชันเดียวกัน — (1) ทดสอบ ICT-style confluence-scoring ตามที่พี่เสนอ (FVG/OB/
+BOS-CHoCH/Sweep แบบให้คะแนน) จนได้ S418 (FVG-only ล้วนๆ ชนะทุก combo ที่ต้อง confluence) (2) ไล่คัด
+strategy S99-S417 ทั้งหมดที่ผ่านเกณฑ์ dual-window (บวกทั้ง 2026-H1 และ 2025-H2 walk-forward, combined
+return/DD≥10) แต่ยังไม่เคยเข้าพอร์ตไหนมาก่อน — ตัดตัวที่ n<10 ต่อหน้าต่างออก (สัญญาณ overfit เช่น S313
+ratio 1026 จาก n=6, S326/S309) และตัด S306 ออกเพราะทับเวลากับ S305 เกือบสนิท (33/33 คู่ overlap) (3) ไล่หาตัว
+ที่ DD% (drawdown ต่อ peak equity — เมตริกที่ไม่ขึ้นกับ lot size จึงบอกได้ว่าท่าไหนยังปลอดภัยแม้อัด
+compounding) ต่ำเป็นพิเศษบน 2026-H1 แต่ยังไม่เคยทดสอบ WF (11 ตัว: S302, S286, S288, S292, S275, S301,
+S239, S199, S293, S299, S296) แล้วเอาไปพิสูจน์ WF จริง — **7 จาก 11 ตัวติดลบทันทีที่ WF** (ยืนยันว่า DD%
+ต่ำเดี่ยวๆ โดยไม่เช็ค WF หลอกได้ง่ายมาก), คัดได้ 3 ตัว (S286, S199, S293) และ (4) วิจัย "Orochi Trading"
+(Auction Market Theory + Volume Profile + VWAP) ตามที่พี่ขอ ได้ S419 — เจอ breakthrough ตอน tune ต่อ:
+เปลี่ยนจาก rolling value-area window เป็น **prior-session (fixed) value area** (เทียบราคาวันนี้กับ
+value area ของ session ก่อนหน้าที่ปิดแล้ว ไม่ใช่หน้าต่างที่ไหลตลอด) + SESSION_ANCHOR_HOUR=20 ทำให้
+ratio เดี่ยวๆ ทะลุ 10 (12.58) — ดูรายละเอียดที่ `strategy419.py`
+
+**13 legs:** S305 (rollover drive + HTF bias, ต่อยอด S304), S311 (Cramér-von Mises distribution-shift),
+S312 (energy-distance distribution break), S322 (distance-correlation volume coupling), S327
+(Hawkes-style shock self-excitation), S332 (return-volume tail-copula), S411 (tail-range wick-absorption),
+S413 (robust-shape/gap-response decoupled BUY), S418 (FVG-only ICT confluence), S286, S199, S293
+(คัดจาก DD% ต่ำก่อนแล้วพิสูจน์ WF ทีหลัง), S419 (Orochi Auction Market Theory — prior-session value area)
+
+**⚠️ หมายเหตุ S411/S413:** ทั้งคู่เคยถูกทดสอบรวมกับ portfolio baseline อีกสาย (S409-lineage,
+`scratch/portfolio_s417_events.json`) ใน `strategy_evolution.md` แล้ว **ตก** (ทำให้ ratio ของ baseline
+นั้นแย่ลงทุกน้ำหนักที่ลอง) — แต่ผ่านสบายเมื่อรวมกับตัวที่เหลือใน LTS_SCREEN13 นี้ ยืนยันอีกครั้งว่า
+"ผ่าน/ตก" ขึ้นกับพอร์ตที่รวมด้วย ไม่ใช่คุณสมบัติตายตัวของตัว strategy เอง
+
+**⚠️ หมายเหตุ S419↔S418:** ทั้งคู่เป็น M5 ความถี่สูงไม่กรอง session เหมือนกัน ทำให้ทับเวลากันสูงถึง 75%
+ของไม้ S419 (มีไม้ S418 เปิดอยู่พร้อมกัน) — DD ของพอร์ตรวมเลยโตเร็วกว่าตอนไม่มี S419 (ratio รวมลดจาก 39.60
+เหลือ 31.09 แม้ net จะเพิ่มขึ้นก็ตาม) ยังคงสูงกว่าเกณฑ์มาก แค่ต้องรู้ไว้ว่า correlation สูงกว่า leg อื่น
+
+**ผล backtest รวม (combined, lot 0.01 ต่อขา, 2025-07-18 ถึง 2026-07-18):**
+
+| หน้าต่าง | n | Net | DD | Ratio (net/DD) |
+|---|---:|---:|---:|---:|
+| 2026-H1 | 6,287 | +$9,812.20 | $398.27 | 24.64 |
+| 2025-H2 (WF) | 6,047 | +$2,568.03 | $249.78 | 10.28 |
+| **รวม (dual-window)** | **12,334** | **+$12,380.23** | **$398.27** | **31.09** |
+
+dual-window บวกทั้งคู่ — เพิ่ม S419 เข้ามาทำให้ net โต 34% (จาก $9,271 เป็น $12,380) DD โตตามสัดส่วน
+เยอะกว่ารอบก่อนๆ (234.10→398.27) เพราะ overlap กับ S418 ที่กล่าวไว้ข้างบน — จุดเด่นคือ **WF เดี่ยวๆ
+ก็ทะลุเกณฑ์ ≥10 แล้ว** (ratio 10.28) ไม่ต้องพึ่ง H1 ช่วยพยุง
+
+**ข้อจำกัดสำคัญ:** เป็น historical simulation ล้วนๆ ยังไม่เคย forward-test/demo จริงเลยแม้แต่วันเดียว —
+ต้องเปิด paper-forward ดูก่อนอย่างน้อย 2-4 สัปดาห์ก่อนพิจารณาเปิดจริง เช่นเดียวกับ LTS_EVOLUTION9 ด้านบน

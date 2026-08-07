@@ -96,6 +96,7 @@ _LTS_NAMED_MAGIC = {
     "LTS_WINRATE5": 992010,
     "LTS_ROLLOVER_HTF": 992011,
     "LTS_ROLLOVER_HTF_MAX": 992012,
+    "LTS_SCREEN13": 992013,
 }
 _LTS_MAGIC_TO_NAME = {magic: name for name, magic in _LTS_NAMED_MAGIC.items()}
 MIN_LOT = 0.01
@@ -378,7 +379,13 @@ def _demo_comment(leg_id, entry_tf):
     return comment[:29]
 
 
-BACKTEST_ANCHORED_PORTFOLIOS = {"LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"}
+BACKTEST_ANCHORED_PORTFOLIOS = {
+    "LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK",
+    # 2026-08-07: LTS890/LTS999/P34/HIGH_FREQ มี leg สูตรซ้ำกันเป๊ะแบบเดียวกับ AUS/AHR (ยืนยันแล้ว
+    # สูงสุด 66 ซ้ำต่อสัญญาณ) เพิ่มเข้ามาให้ได้ shared-cooldown-gating + closed-bar-only entry
+    # (ตัดแท่งที่ยังไม่ปิดออกก่อนตรวจจับสัญญาณ) เหมือนกัน ให้ live match กับ backtest เป็นหลัก
+    "LTS890", "LTS999", "LTS_AVENGERS_P34", "LTS_AVENGERS_HIGH_FREQ",
+}
 
 
 def _strategy_doc(af_def):

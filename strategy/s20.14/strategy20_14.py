@@ -3,6 +3,16 @@ import numpy as np
 import config
 import joblib
 import os
+import sys
+
+# Append base strategy dir to path so we can import other strategies
+base_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.abspath(os.path.join(base_dir, '..', '..')))
+
+import strategy.s1.strategy1 as strategy1
+import strategy.s9.strategy9 as strategy9
+import strategy.s11.strategy11 as strategy11
+import strategy.s20.13.strategy20_13_24 as strategy20_13_24
 
 # Global models cache
 MODELS = {}
@@ -10,8 +20,7 @@ MODELS = {}
 def load_models():
     global MODELS
     if MODELS: return
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_dir = os.path.join(base_dir, 'backtest-sim')
+    model_dir = os.path.join(base_dir, '..', 's20.14.1', 'backtest-sim')
     models_to_load = ["fvg_buy_v22.pkl", "fvg_sell_v22.pkl", "naiya_buy_v22.pkl", "naiya_sell_v22.pkl"]
     for m in models_to_load:
         path = os.path.join(model_dir, m)
@@ -20,8 +29,6 @@ def load_models():
                 MODELS[m] = joblib.load(path)
             except Exception as e:
                 print(f"Error loading {m}: {e}")
-        else:
-            print(f"Model {m} not found at {path}")
 
 def get_ml_pred(model_name, features):
     if model_name not in MODELS: return 0
@@ -107,8 +114,17 @@ def strategy_20_14(rates, tf="H1"):
     swing_l = current_bar['recent_low_50']
     fibo_38_2 = swing_l + (swing_h - swing_l) * 0.382
     fibo_61_8 = swing_l + (swing_h - swing_l) * 0.618
+    
+    # Get External Strategy Signals
+    s1_res = strategy1.strategy_1(rates, tf)
+    if s1_res and s1_res.get("signal") in ["BUY", "SELL"]:
+        strategy11.record_s1_pattern(tf, s1_res["signal"], rates, rates[-1]["time"])
+    s11_res = strategy11.strategy_11(rates, tf)
+    s9_res = strategy9.strategy_9(rates, tf)
+    atr_res = strategy20_13_24.evaluate_bar(df, len(df)-1, tf=tf)
 
-    # BUY Logic
+    # ------------------ BUY Logic ------------------
+    fibo_buy_krh3 = 0.0
     if current_bar['bull_fvg_10']:
         if fvg_buy_ml == 1 or current_bar['rsi'] > 70:
             if 15.0 <= current_bar['rsi'] <= 68.0 and current_bar['atr'] >= 7.0:
@@ -120,18 +136,38 @@ def strategy_20_14(rates, tf="H1"):
             if current_bar['recent_low'] < fibo_38_2 or current_bar['rsi'] < 30:
                 patterns_buy.append("Naiya")
                 
-    # Fibo KRH3 for BUY
-    for b in range(2, 20):
+    if s11_res and s11_res.get("signal") == "BUY":
+        patterns_buy.append("Fibo")
+        
+    for b in range(2, 45):
         b_bar = df.iloc[-b]
-        if b_bar['close'] > b_bar['open']:
+        # BUY Reversal: Look for RED anchor, KRH3 goes DOWN
+        if b_bar['close'] < b_bar['open']:
             rng = b_bar['high'] - b_bar['low']
             if rng > 0:
-                krh3 = b_bar['high'] - rng * 5.165
-                if abs(current_bar['low'] - krh3) < 2.0 and current_bar['close'] > current_bar['open']:
+                krh3 = b_bar['high'] - (rng * 5.165)
+                # Price drops and hits KRH3 -> BUY
+                if abs(current_bar['low'] - krh3) < 3.0 and current_bar['close'] > current_bar['open']:
                     patterns_buy.append("Fibo")
+                    fibo_buy_krh3 = krh3
                     break
+                    
+    if s9_res and s9_res.get("signal") == "BUY":
+        if 10.0 <= current_bar['rsi'] <= 34.0 and current_bar['atr'] >= 8.0:
+            patterns_buy.append("Div")
+            
+    if atr_res and atr_res.get("signal") == "BUY":
+        patterns_buy.append("ATR")
+        
+    if current_bar['range'] > 0 and current_bar['body'] < 0.4 * current_bar['range'] and (current_bar['close'] - current_bar['low']) > 0.5 * current_bar['range'] and current_bar['low'] <= current_bar['recent_low'] + current_bar['atr']*0.5 and 0 <= current_bar['rsi'] <= 2:
+        patterns_buy.append("Doji")
+        
+    if current_bar['low'] <= current_bar['sma12'] and current_bar['close'] > current_bar['sma12'] and 0 <= current_bar['rsi'] <= 18:
+        patterns_buy.append("MA12")
 
-    # SELL Logic
+    # ------------------ SELL Logic ------------------
+    patterns_sell = []
+    fibo_sell_krh3 = 0.0
     if current_bar['bear_fvg_10']:
         if fvg_sell_ml == 1 or current_bar['rsi'] < 30:
             if 10.0 <= current_bar['rsi'] <= 77.0 and current_bar['atr'] >= 10.0:
@@ -143,29 +179,37 @@ def strategy_20_14(rates, tf="H1"):
             if current_bar['recent_high'] > fibo_61_8 or current_bar['rsi'] > 70:
                 patterns_sell.append("Naiya")
                 
-    # Fibo KRH3 for SELL
-    for b in range(2, 20):
+    if s11_res and s11_res.get("signal") == "SELL":
+        patterns_sell.append("Fibo")
+        
+    for b in range(2, 45):
         b_bar = df.iloc[-b]
-        if b_bar['close'] < b_bar['open']:
+        if b_bar['close'] > b_bar['open']:
             rng = b_bar['high'] - b_bar['low']
             if rng > 0:
                 krh3 = b_bar['low'] + rng * 5.165
-                if abs(current_bar['high'] - krh3) < 2.0 and current_bar['close'] < current_bar['open']:
+                if abs(current_bar['high'] - krh3) < 3.0 and current_bar['close'] < current_bar['open']:
                     patterns_sell.append("Fibo")
+                    fibo_sell_krh3 = krh3
                     break
                     
-    # Div Logic
-    if current_bar['low'] < current_bar['recent_low'] and current_bar['rsi'] > current_bar['rsi_low']:
-        if 10.0 <= current_bar['rsi'] <= 34.0 and current_bar['atr'] >= 8.0:
-            patterns_buy.append("Div")
-    if current_bar['high'] > current_bar['recent_high'] and current_bar['rsi'] < current_bar['rsi_high']:
+    if s9_res and s9_res.get("signal") == "SELL":
         if 66.0 <= current_bar['rsi'] <= 90.0 and current_bar['atr'] >= 8.0:
             patterns_sell.append("Div")
+            
+    if atr_res and atr_res.get("signal") == "SELL":
+        patterns_sell.append("ATR")
+        
+    if current_bar['range'] > 0 and current_bar['body'] < 0.4 * current_bar['range'] and (current_bar['high'] - current_bar['close']) > 0.5 * current_bar['range'] and current_bar['high'] >= current_bar['recent_high'] - current_bar['atr']*0.5 and 74 <= current_bar['rsi'] <= 78 and current_bar['close'] < current_bar['sma50'] and current_bar['close'] < current_bar['sma200']:
+        patterns_sell.append("Doji")
+        
+    if current_bar['high'] >= current_bar['sma12'] and current_bar['close'] < current_bar['sma12'] and 74 <= current_bar['rsi'] <= 76 and current_bar['close'] < current_bar['sma50']:
+        patterns_sell.append("MA12")
 
     if patterns_buy:
-        pat = "/".join(patterns_buy)
-        entry_price = current_bar['recent_low']
-        sl = current_bar['recent_low'] - (2.5 * current_bar['atr'])
+        pat = "/".join(set(patterns_buy))
+        entry_price = fibo_buy_krh3 if "Fibo" in patterns_buy else current_bar['recent_low']
+        sl = entry_price - (2.5 * current_bar['atr'])
         tp = entry_price + ((current_bar['recent_high'] - current_bar['recent_low']) * 1.618)
         return {
             "signal": "BUY",
@@ -177,9 +221,9 @@ def strategy_20_14(rates, tf="H1"):
         }
         
     if patterns_sell:
-        pat = "/".join(patterns_sell)
-        entry_price = current_bar['recent_high']
-        sl = current_bar['recent_high'] + (2.5 * current_bar['atr'])
+        pat = "/".join(set(patterns_sell))
+        entry_price = fibo_sell_krh3 if "Fibo" in patterns_sell else current_bar['recent_high']
+        sl = entry_price + (2.5 * current_bar['atr'])
         tp = entry_price - ((current_bar['recent_high'] - current_bar['recent_low']) * 1.618)
         return {
             "signal": "SELL",
