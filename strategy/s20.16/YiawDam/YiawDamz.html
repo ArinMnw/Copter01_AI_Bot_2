@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YiawDam-Quant Auto Combinator Engine (Median & Clustering Enabled)</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --input-bg: #1f2937;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #1f2937;
+            --accent-green: #10b981;
+            --accent-green-bright: #34d399;
+            --accent-green-glow: rgba(16, 185, 129, 0.25);
+            --accent-gold: #fbbf24;
+            --accent-gold-glow: rgba(251, 191, 36, 0.25);
+            --accent-red: #ef4444;
+            --accent-red-bright: #f87171;
+            --accent-purple: #a855f7;
+            --accent-purple-bright: #c084fc;
+            --accent-purple-glow: rgba(168, 85, 247, 0.25);
+            --accent-cyan: #06b6d4;
+            --accent-cyan-bright: #22d3ee;
+            --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+            --low-color: #10b981;
+            --high-color: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px 16px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .brand-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #ffffff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            box-shadow: 0 0 15px var(--accent-green-glow);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: #ffffff;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        header h1 span {
+            color: var(--accent-green-bright);
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .input-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+            border-top: 4px solid var(--accent-green);
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+        }
+
+        .input-group input {
+            padding: 12px 14px;
+            background-color: var(--input-bg);
+            border: 1px solid #374151;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            color: #ffffff;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 3px var(--accent-green-glow);
+        }
+
+        .derived-info {
+            display: flex;
+            gap: 16px;
+            background: rgba(31, 41, 55, 0.5);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .derived-item {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .derived-item span {
+            color: var(--accent-green-bright);
+            font-weight: bold;
+        }
+
+        .btn-calc {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px var(--accent-green-glow);
+        }
+
+        .btn-calc:hover {
+            background: linear-gradient(135deg, #34d399, #10b981);
+        }
+
+        /* Cluster Card */
+        .cluster-card {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-top: 4px solid var(--accent-cyan);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 0 20px var(--accent-cyan-glow);
+        }
+
+        .cluster-card h2 {
+            font-size: 1.3rem;
+            color: var(--accent-cyan-bright);
+            margin-bottom: 8px;
+        }
+
+        .cluster-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .cluster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .median-card {
+            background: rgba(168, 85, 247, 0.05);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-top: 4px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 0 20px var(--accent-purple-glow);
+        }
+
+        .median-card h2 {
+            font-size: 1.3rem;
+            color: var(--accent-purple-bright);
+            margin-bottom: 8px;
+        }
+
+        .median-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .median-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .golden-card {
+            background: rgba(251, 191, 36, 0.05);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-top: 4px solid var(--accent-gold);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 0 20px var(--accent-gold-glow);
+        }
+
+        .golden-card h2 {
+            font-size: 1.3rem;
+            color: var(--accent-gold);
+            margin-bottom: 8px;
+        }
+
+        .golden-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .golden-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .golden-item {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .golden-item.buy-zone {
+            border-left: 4px solid var(--accent-green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .golden-item.sell-zone {
+            border-left: 4px solid var(--accent-red);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .golden-item.median-zone {
+            border-left: 4px solid var(--accent-purple);
+            background: rgba(168, 85, 247, 0.05);
+        }
+
+        .golden-item.cluster-zone {
+            border-left: 4px solid var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .golden-item-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .golden-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .golden-detail {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: var(--card-bg);
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+
+        .stat-item strong {
+            color: var(--accent-green-bright);
+            font-size: 1.1rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 24px;
+        }
+
+        @media (max-width: 520px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .result-card.low { border-top: 4px solid var(--low-color); }
+        .result-card.high { border-top: 4px solid var(--high-color); }
+
+        .result-card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #ffffff;
+        }
+
+        .table-container {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #1f2937;
+        }
+
+        th {
+            background-color: #1a2332;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        .formula-text {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #d1d5db;
+        }
+
+        .value-text {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--accent-green-bright);
+        }
+
+        .prob-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .prob-high { background-color: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .prob-med { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .prob-low { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+        .rank-num {
+            color: var(--text-muted);
+            font-weight: bold;
+            margin-right: 4px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="brand-badge">Auto-Calculated Engine</div>
+        <h1>YiawDam-Quant <span>Median Analysis & Confluence Cluster</span></h1>
+        <p>ค้นหากลุ่มราคาที่ซ้ำ/ใกล้เคียงกันมากที่สุด (Cluster Analysis) เพื่อชี้จุดแนวรับ-แนวต้านที่มีน้ำหนักสูงสุด</p>
+    </header>
+
+    <div class="input-card">
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="pLow">Price Low (L):</label>
+                <input type="number" id="pLow" step="any" value="100" oninput="generateAndAnalyze()">
+            </div>
+            <div class="input-group">
+                <label for="pHigh">Price High (H):</label>
+                <input type="number" id="pHigh" step="any" value="110" oninput="generateAndAnalyze()">
+            </div>
+            <div class="input-group">
+                <label for="atrVal">ATR:</label>
+                <input type="number" id="atrVal" step="any" value="2.5" oninput="generateAndAnalyze()">
+            </div>
+        </div>
+
+        <div class="derived-info">
+            <div class="derived-item">⚡ High - Low Range: <span id="dispRange">0.0000</span></div>
+            <div class="derived-item">⚡ ATR / 2.6: <span id="dispAtrDiv">0.0000</span></div>
+            <div class="derived-item">⚡ √ATR (รากที่ 2): <span id="dispAtrRoot">0.0000</span></div>
+            <div class="derived-item">⚡ <sup>2.6</sup>√ATR (รากที่ 2.6): <span id="dispAtrNthRoot" style="color: var(--accent-gold);">0.0000</span></div>
+        </div>
+
+        <button class="btn-calc" onclick="generateAndAnalyze()">คำนวณและประมวลผลทันที</button>
+    </div>
+
+    <!-- Cluster Special Card -->
+    <div class="cluster-card">
+        <h2>🌐 กลุ่มตัวเลขที่ใกล้เคียงและซ้ำกันมากที่สุด (Top Confluence Clusters)</h2>
+        <p>สแกนหาจุดราคาที่ผลลัพธ์ของสมการต่าง ๆ คำนวณออกมาตกลงในกลุ่มเดียวกันมากที่สุด (ระยะห่าง Tolerance ≤ 0.5% ของ ATR)</p>
+        <div class="cluster-grid" id="clusterContainer"></div>
+    </div>
+
+    <!-- Median Special Card -->
+    <div class="median-card">
+        <h2>💜 วิเคราะห์ค่ามัธยฐาน (Median Analysis)</h2>
+        <p>ค่ากลางทางสถิติของผลลัพธ์ราคาทั้งหมด (ช่วยตัดค่าผันผวนสุดขั้ว Outliers ออกไป)</p>
+        <div class="median-grid" id="medianContainer"></div>
+    </div>
+
+    <!-- Golden Entry Point Section -->
+    <div class="golden-card">
+        <h2>🎯 จุดเข้ายืนยันหลัก (Buy -√ATR & Sell +√ATR)</h2>
+        <p>คำนวณจาก Base Confluence Price แล้วปรับ Buffer เพิ่มความปลอดภัยด้วย √ATR สำหรับฝั่ง Buy และ Sell</p>
+        <div class="golden-grid" id="goldenContainer"></div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item">จำนวนสมการทั้งหมด: <strong id="totalCount">0</strong> รูปแบบ</div>
+        <div class="stat-item">ระยะซ้อนทับต่ำสุด (Closer Gap): <strong id="minGapDisplay">-</strong></div>
+    </div>
+
+    <div class="results-grid">
+        <!-- Low Base -->
+        <div class="result-card low">
+            <h2>
+                <span>สมการฐาน PriceLow (เรียงความน่าจะเป็น)</span>
+            </h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">สมการคำนวณ</th>
+                            <th style="width: 25%;">ผลลัพธ์ราคา</th>
+                            <th style="width: 30%;">ความน่าจะเป็น</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lowTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- High Base -->
+        <div class="result-card high">
+            <h2>
+                <span>สมการฐาน PriceHigh (เรียงความน่าจะเป็น)</span>
+            </h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">สมการคำนวณ</th>
+                            <th style="width: 25%;">ผลลัพธ์ราคา</th>
+                            <th style="width: 30%;">ความน่าจะเป็น</th>
+                        </tr>
+                    </thead>
+                    <tbody id="highTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calculateMedian(arr) {
+        if (arr.length === 0) return 0;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    // ฟังก์ชันจัดกลุ่มราคาที่ใกล้เคียงกันมากที่สุด (Clustering)
+    function findPriceClusters(allItems, atr) {
+        if (allItems.length === 0) return [];
+        
+        // ระยะยอมรับได้ว่า "ใกล้เคียงกัน" (กำหนดไว้ที่ 0.25 ของ √ATR หรือ 15% ของ ATR)
+        const tolerance = atr > 0 ? Math.max(0.05, atr * 0.15) : 0.5;
+
+        // ดึงเฉพาะราคานำมา Sort
+        const sortedItems = [...allItems].sort((a, b) => a.calc - b.calc);
+        let clusters = [];
+
+        sortedItems.forEach(item => {
+            let matchedCluster = null;
+
+            for (let c of clusters) {
+                // ถ้าค่าราคาห่างจากค่าเฉลี่ยของ Cluster ไม่เกิน Tolerance ให้เข้าร่วมกลุ่ม
+                if (Math.abs(item.calc - c.avgPrice) <= tolerance) {
+                    matchedCluster = c;
+                    break;
+                }
+            }
+
+            if (matchedCluster) {
+                matchedCluster.items.push(item);
+                // อัปเดตค่าเฉลี่ยใหม่ของกลุ่ม
+                matchedCluster.avgPrice = matchedCluster.items.reduce((sum, i) => sum + i.calc, 0) / matchedCluster.items.length;
+            } else {
+                clusters.push({
+                    avgPrice: item.calc,
+                    items: [item]
+                });
+            }
+        });
+
+        // กรองเอาเฉพาะกลุ่มที่มีตัวเลขซ้ำ/ชนกันตั้งแต่ 2 สมการขึ้นไป แล้วเรียงลำดับจากจำนวนการชนกันมากไปน้อย
+        return clusters
+            .filter(c => c.items.length >= 2)
+            .sort((a, b) => b.items.length - a.items.length);
+    }
+
+    function evaluateProbability(baseType, targetPrice, basePrice, atr) {
+        if (atr <= 0) return { prob: 0, desc: "Invalid" };
+
+        const diff = targetPrice - basePrice; 
+        const atrMultiple = diff / atr;       
+
+        let score = 50;
+        let desc = "ปานกลาง";
+
+        if (baseType === 'LOW') {
+            if (atrMultiple >= 0.3 && atrMultiple <= 1.8) {
+                score = Math.round(95 - Math.abs(atrMultiple - 1.2) * 20);
+                desc = "สูง (กรอบแกว่งตัวปรกติ)";
+            } else if (atrMultiple > 1.8 && atrMultiple <= 3.0) {
+                score = Math.round(75 - (atrMultiple - 1.8) * 20);
+                desc = "ปานกลาง-สูง (Expansion)";
+            } else if (atrMultiple < 0.3 && atrMultiple >= -0.5) {
+                score = Math.round(60 - Math.abs(atrMultiple) * 20);
+                desc = "ปานกลาง (Sideway)";
+            } else {
+                score = Math.max(15, Math.round(40 - Math.abs(atrMultiple) * 10));
+                desc = "ต่ำ (Extremely Volatile)";
+            }
+        } else {
+            const dropMultiple = -atrMultiple; 
+            if (dropMultiple >= 0.2 && dropMultiple <= 1.5) {
+                score = Math.round(95 - Math.abs(dropMultiple - 0.77) * 20);
+                desc = "สูง (Retracement ปรกติ)";
+            } else if (dropMultiple > 1.5 && dropMultiple <= 2.5) {
+                score = Math.round(70 - (dropMultiple - 1.5) * 20);
+                desc = "ปานกลาง (ย่อลึก)";
+            } else if (dropMultiple < 0.2 && dropMultiple >= -0.5) {
+                score = Math.round(65 - Math.abs(dropMultiple) * 0.2);
+                desc = "ปานกลาง (พักตัวน้อย)";
+            } else {
+                score = Math.max(15, Math.round(35 - Math.abs(dropMultiple) * 10));
+                desc = "ต่ำ (Extreme Drop)";
+            }
+        }
+
+        score = Math.min(95, Math.max(15, score));
+        return { prob: score, desc: desc };
+    }
+
+    function generateAndAnalyze() {
+        const L = parseFloat(document.getElementById('pLow').value) || 0;
+        const H = parseFloat(document.getElementById('pHigh').value) || 0;
+        const ATR = parseFloat(document.getElementById('atrVal').value) || 0;
+
+        const rangeHL = H - L;
+        const A_div = ATR > 0 ? ATR / 2.6 : 0;
+        const A_root = ATR > 0 ? Math.sqrt(ATR) : 0;
+        const A_nthRoot = ATR > 0 ? Math.pow(ATR, 1 / 2.6) : 0;
+
+        document.getElementById('dispRange').innerText = rangeHL.toFixed(4);
+        document.getElementById('dispAtrDiv').innerText = A_div.toFixed(4);
+        document.getElementById('dispAtrRoot').innerText = A_root.toFixed(4);
+        document.getElementById('dispAtrNthRoot').innerText = A_nthRoot.toFixed(4);
+
+        if (ATR <= 0) return;
+
+        const components = [
+            { expr: "ATR", val: ATR },
+            { expr: "(ATR/2.6)", val: A_div },
+            { expr: "(√ATR)", val: A_root },
+            { expr: "((ATR/2.6)*2)", val: A_div * 2 },
+            { expr: "((ATR/2.6)*3)", val: A_div * 3 },
+            { expr: "((√ATR)*2.6)", val: A_root * 2.6 }
+        ];
+
+        let lowResults = [];
+        let highResults = [];
+
+        components.forEach(c => {
+            lowResults.push(buildItem('LOW', `L + ${c.expr}`, L + c.val, L, ATR));
+            lowResults.push(buildItem('LOW', `L - ${c.expr}`, L - c.val, L, ATR));
+            
+            highResults.push(buildItem('HIGH', `H - ${c.expr}`, H - c.val, H, ATR));
+            highResults.push(buildItem('HIGH', `H + ${c.expr}`, H + c.val, H, ATR));
+        });
+
+        for (let i = 0; i < components.length; i++) {
+            for (let j = i + 1; j < components.length; j++) {
+                const c1 = components[i];
+                const c2 = components[j];
+
+                lowResults.push(buildItem('LOW', `L + ${c1.expr} + ${c2.expr}`, L + c1.val + c2.val, L, ATR));
+                lowResults.push(buildItem('LOW', `L + ${c1.expr} - ${c2.expr}`, L + c1.val - c2.val, L, ATR));
+                lowResults.push(buildItem('LOW', `L - ${c1.expr} + ${c2.expr}`, L - c1.val + c2.val, L, ATR));
+
+                highResults.push(buildItem('HIGH', `H - ${c1.expr} - ${c2.expr}`, H - c1.val - c2.val, H, ATR));
+                highResults.push(buildItem('HIGH', `H - ${c1.expr} + ${c2.expr}`, H - c1.val + c2.val, H, ATR));
+                highResults.push(buildItem('HIGH', `H + ${c1.expr} - ${c2.expr}`, H + c1.val - c2.val, H, ATR));
+            }
+        }
+
+        // ค้นหา Cluster
+        const allItemsCombined = [...lowResults, ...highResults];
+        const topClusters = findPriceClusters(allItemsCombined, ATR);
+        renderClusterZone(topClusters.slice(0, 3));
+
+        // ประมวลผล Median
+        const lowValuesAll = lowResults.map(item => item.calc);
+        const highValuesAll = highResults.map(item => item.calc);
+        const allValuesCombined = [...lowValuesAll, ...highValuesAll];
+
+        const medianLow = calculateMedian(lowValuesAll);
+        const medianHigh = calculateMedian(highValuesAll);
+        const medianOverall = calculateMedian(allValuesCombined);
+
+        renderMedianZone(medianLow, medianHigh, medianOverall, A_root);
+
+        lowResults.sort((a, b) => b.prob - a.prob);
+        highResults.sort((a, b) => b.prob - a.prob);
+
+        let minDiff = Infinity;
+        let bestPair = null;
+
+        const topLowList = lowResults.slice(0, 10);
+        const topHighList = highResults.slice(0, 10);
+
+        topLowList.forEach(lItem => {
+            topHighList.forEach(hItem => {
+                const diff = Math.abs(lItem.calc - hItem.calc);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestPair = {
+                        lowItem: lItem,
+                        highItem: hItem,
+                        diff: diff,
+                        avgPrice: (lItem.calc + hItem.calc) / 2,
+                        combinedProb: Math.round((lItem.prob + hItem.prob) / 2)
+                    };
+                }
+            });
+        });
+
+        const avgTopLow = lowResults.slice(0, 5).reduce((acc, curr) => acc + curr.calc, 0) / 5;
+        const avgTopHigh = highResults.slice(0, 5).reduce((acc, curr) => acc + curr.calc, 0) / 5;
+        const grandAvg = (avgTopLow + avgTopHigh) / 2;
+
+        renderGoldenZone(bestPair, A_root, avgTopLow, avgTopHigh, grandAvg);
+
+        document.getElementById('totalCount').innerText = lowResults.length + highResults.length;
+        document.getElementById('minGapDisplay').innerText = minDiff !== Infinity ? minDiff.toFixed(4) : '-';
+
+        renderTable('lowTable', lowResults.slice(0, 15));
+        renderTable('highTable', highResults.slice(0, 15));
+    }
+
+    function renderClusterZone(clusters) {
+        const container = document.getElementById('clusterContainer');
+        if (clusters.length === 0) {
+            container.innerHTML = '<div style="color: var(--text-muted); font-size:0.85rem;">ไม่พบกลุ่มตัวเลขที่มีการซ้ำซ้อนกันในระยะประชิด</div>';
+            return;
+        }
+
+        container.innerHTML = clusters.map((c, idx) => {
+            const formulasList = c.items.map(i => `• ${i.name} (${i.calc.toFixed(2)})`).join('<br>');
+            return `
+                <div class="golden-item cluster-zone">
+                    <div class="golden-item-title" style="color: var(--accent-cyan-bright);">🔥 Cluster อันดับ #${idx + 1} (ชนกัน ${c.items.length} สมการ)</div>
+                    <div class="golden-value" style="color: var(--accent-cyan-bright);">${c.avgPrice.toFixed(2)}</div>
+                    <div class="golden-detail">
+                        <b>รายการสมการที่คำนวณได้ตรงกัน:</b><br>
+                        ${formulasList}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderMedianZone(mLow, mHigh, mOverall, rootAtr) {
+        const container = document.getElementById('medianContainer');
+        container.innerHTML = `
+            <div class="golden-item median-zone">
+                <div class="golden-item-title" style="color: var(--accent-purple-bright);">💜 Median ฝั่ง Low Base</div>
+                <div class="golden-value" style="color: var(--accent-purple-bright);">${mLow.toFixed(2)}</div>
+                <div class="golden-detail">มัธยฐานของผลลัพธ์ราคาสมการฝั่ง Low ทั้งหมด</div>
+            </div>
+
+            <div class="golden-item median-zone">
+                <div class="golden-item-title" style="color: var(--accent-purple-bright);">💜 Median ฝั่ง High Base</div>
+                <div class="golden-value" style="color: var(--accent-purple-bright);">${mHigh.toFixed(2)}</div>
+                <div class="golden-detail">มัธยฐานของผลลัพธ์ราคาสมการฝั่ง High ทั้งหมด</div>
+            </div>
+
+            <div class="golden-item median-zone">
+                <div class="golden-item-title" style="color: var(--accent-purple-bright);">🔮 Overall Combined Median</div>
+                <div class="golden-value" style="color: var(--accent-purple-bright);">${mOverall.toFixed(2)}</div>
+                <div class="golden-detail">
+                    มัธยฐานรวมทุกสมการ<br>
+                    Buy: <b>${(mOverall - rootAtr).toFixed(2)}</b> | Sell: <b>${(mOverall + rootAtr).toFixed(2)}</b>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderGoldenZone(pair, rootAtr, avgLow, avgHigh, grandAvg) {
+        const container = document.getElementById('goldenContainer');
+        if (!pair) {
+            container.innerHTML = '<div>ไม่พบจุดซ้อนทับ</div>';
+            return;
+        }
+
+        const basePrice = pair.avgPrice;
+        const buyPrice = basePrice - rootAtr;
+        const sellPrice = basePrice + rootAtr;
+
+        container.innerHTML = `
+            <div class="golden-item" style="border-left: 4px solid var(--accent-gold);">
+                <div class="golden-item-title" style="color: var(--accent-gold);">👑 Base Confluence Price</div>
+                <div class="golden-value" style="color: var(--accent-gold);">${basePrice.toFixed(2)}</div>
+                <div class="golden-detail">
+                    จุดซ้อนทับสมการหลัก (ก่อนปรับ Offset):<br>
+                    • <b>${pair.lowItem.name}</b> (${pair.lowItem.calc.toFixed(2)})<br>
+                    • <b>${pair.highItem.name}</b> (${pair.highItem.calc.toFixed(2)})<br>
+                    <span style="color: var(--accent-green-bright);">ระยะห่าง: ${pair.diff.toFixed(4)} | ยืนยัน: ${pair.combinedProb}%</span>
+                </div>
+            </div>
+
+            <div class="golden-item buy-zone">
+                <div class="golden-item-title" style="color: var(--accent-green-bright);">🟢 BUY ENTRY ZONE</div>
+                <div class="golden-value" style="color: var(--accent-green-bright);">${buyPrice.toFixed(2)}</div>
+                <div class="golden-detail">
+                    สูตร: <b>Base Price - √ATR</b><br>
+                    (${basePrice.toFixed(2)} - ${rootAtr.toFixed(4)})<br>
+                    <span style="color: #9ca3af;">ตั้งรับซื้อแบบเผื่อระยะย่อ Buffer ปลอดภัย</span>
+                </div>
+            </div>
+
+            <div class="golden-item sell-zone">
+                <div class="golden-item-title" style="color: var(--accent-red-bright);">🔴 SELL ENTRY ZONE</div>
+                <div class="golden-value" style="color: var(--accent-red-bright);">${sellPrice.toFixed(2)}</div>
+                <div class="golden-detail">
+                    สูตร: <b>Base Price + √ATR</b><br>
+                    (${basePrice.toFixed(2)} + ${rootAtr.toFixed(4)})<br>
+                    <span style="color: #9ca3af;">ตั้งรับขายแบบเผื่อระยะ Spike / Overshoot</span>
+                </div>
+            </div>
+
+            <div class="golden-item">
+                <div class="golden-item-title" style="color: #9ca3af;">⚖️ Grand Average Base</div>
+                <div class="golden-value" style="font-size: 1.3rem;">${grandAvg.toFixed(2)}</div>
+                <div class="golden-detail">
+                    Buy Avg: <b>${(grandAvg - rootAtr).toFixed(2)}</b><br>
+                    Sell Avg: <b>${(grandAvg + rootAtr).toFixed(2)}</b>
+                </div>
+            </div>
+        `;
+    }
+
+    function buildItem(baseType, name, calcVal, basePrice, atr) {
+        const evalRes = evaluateProbability(baseType, calcVal, basePrice, atr);
+        return {
+            name: name,
+            calc: calcVal,
+            prob: evalRes.prob,
+            desc: evalRes.desc
+        };
+    }
+
+    function renderTable(elementId, data) {
+        const tbody = document.getElementById(elementId);
+        tbody.innerHTML = '';
+
+        data.forEach((item, idx) => {
+            let badgeClass = 'prob-low';
+            if (item.prob >= 75) badgeClass = 'prob-high';
+            else if (item.prob >= 50) badgeClass = 'prob-med';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="formula-text"><span class="rank-num">#${idx + 1}</span>${item.name}</td>
+                <td class="value-text">${item.calc.toFixed(2)}</td>
+                <td>
+                    <span class="prob-badge ${badgeClass}">${item.prob}%</span>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">${item.desc}</div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    generateAndAnalyze();
+</script>
+
+</body>
+</html>

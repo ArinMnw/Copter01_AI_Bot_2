@@ -346,13 +346,21 @@ def _old_s84_follow_cfg():
     return cfg
 
 
+_S84_GRID_CACHE = None
+_S86_GRID_CACHE = None
+
 def _cfg_for_ladder_leg(leg_name):
+    global _S84_GRID_CACHE, _S86_GRID_CACHE
     if "S86RUN" in leg_name:
+        if _S86_GRID_CACHE is None:
+            _S86_GRID_CACHE = list(itertools.product(*_grid_s86()))
         cfg_idx = int(re.search(r"c([0-9]+)", leg_name).group(1))
-        return "s86", _make_s86(list(itertools.product(*_grid_s86()))[cfg_idx]), detect_s86_af, cfg_idx
+        return "s86", _make_s86(_S86_GRID_CACHE[cfg_idx]), detect_s86_af, cfg_idx
     if "c" in leg_name:
+        if _S84_GRID_CACHE is None:
+            _S84_GRID_CACHE = list(itertools.product(*_grid_s84()))
         cfg_idx = int(re.search(r"c([0-9]+)", leg_name).group(1))
-        return "s84", _make_s84(list(itertools.product(*_grid_s84()))[cfg_idx]), detect_s84_af, cfg_idx
+        return "s84", _make_s84(_S84_GRID_CACHE[cfg_idx]), detect_s84_af, cfg_idx
     return "s84", _old_s84_follow_cfg(), detect_s84_af, 28
 
 

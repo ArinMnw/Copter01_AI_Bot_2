@@ -49,6 +49,22 @@ if (-not $OnlyCloseWindow) {
     }
 }
 
+function Stop-Mt5Terminal([string]$ExePath) {
+    if (-not $ExePath) { return }
+    try {
+        if (-not (Test-Path $ExePath)) { return }
+        $full = [IO.Path]::GetFullPath($ExePath)
+        $procs = @(Get-CimInstance Win32_Process -Filter "Name='terminal64.exe'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -ieq $full) })
+        foreach ($p in $procs) {
+            Stop-Process -Id ([int]$p.ProcessId) -Force -ErrorAction SilentlyContinue
+            Write-Host "ปิด MT5 terminal: pid=$($p.ProcessId) ($full)"
+        }
+    } catch {
+        Write-Host "WARN: ปิด MT5 terminal ไม่สำเร็จ ($ExePath): $_"
+    }
+}
+
 function Stop-ProcessTreeLocal([int]$RootPid) {
     if (-not $RootPid) { return }
     try {
@@ -83,6 +99,18 @@ if (-not $OnlyCloseWindow) {
             }
             if ($hbPid) { Stop-ProcessTreeLocal $hbPid }
         } catch {}
+    }
+
+    # ปิด MT5 terminal ของ profile นี้ด้วย (เหมือน profiles\...\run\close_mt5.bat
+    # แต่รวมเข้ามาในสคริปต์เดียวกันเลย ไม่ต้องเรียกแยก) — profile ใช้ terminal64.exe
+    # แบบ portable ในโฟลเดอร์ profile เอง (profile.env: MT5_PATH=mt5\terminal64.exe)
+    # ส่วน root/main ไม่มี profile.env ใช้ MT5 ที่ติดตั้งแบบ global แทน (ตรงกับ
+    # ค่า default ของ config.py: C:\MT5\terminal64.exe หรือ Program Files)
+    if ($Profile) {
+        Stop-Mt5Terminal (Join-Path $RuntimeDir "mt5\terminal64.exe")
+    } else {
+        Stop-Mt5Terminal "C:\MT5\terminal64.exe"
+        Stop-Mt5Terminal "C:\Program Files\MetaTrader 5\terminal64.exe"
     }
 }
 

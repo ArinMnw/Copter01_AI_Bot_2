@@ -4,7 +4,7 @@ import asyncio
 import importlib.util as _importlib_util
 from pathlib import Path as _Path
 import time as _time
-from bot_log import log_block, log_event
+from bot_log import log_block, log_event, log_error
 from mt5_utils import connect_mt5, get_dynamic_volume, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
 from strategy1 import strategy_1
 from strategy2 import strategy_2
@@ -29,6 +29,7 @@ from strategy18 import strategy_18
 from strategy19 import strategy_19
 from strategy20 import strategy_20
 import sys, os
+import s20_institutional_hub
 sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.5"))
 from strategy20_5 import strategy_20_5
 sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.6"))
@@ -60,11 +61,33 @@ except ImportError:
     def strategy_20_13_23(*args, **kwargs):
         return {"signal": "WAIT", "reason": "S20_13_23 module not found"}
 
+
+try:
+    import sys, os
+    sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.14"))
+    import strategy20_14_groups
+    import s20_14_merge
+except ImportError as e:
+    print(f"Error importing strategy20_14_groups: {e}")
+
+
 try:
     from strategy20_13_24 import strategy_20_13_24
 except ImportError:
     def strategy_20_13_24(*args, **kwargs):
         return {"signal": "WAIT", "reason": "S20_13_24 module not found"}
+
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.16"))
+    import strategy20_16
+except ImportError as e:
+    print(f"Error importing strategy20_16: {e}")
+
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.17"))
+    import strategy20_17
+except ImportError as e:
+    print(f"Error importing strategy20_17: {e}")
 
 try:
     from strategy21 import strategy_21
@@ -100,6 +123,7 @@ _scan_results: dict = {}   # {tf_name: dict}
 # Swing fallback state: {(tf, sid, signal): first_blocked_bar_time}
 _lookback_fallback_start: dict = {}
 _scan_lock = None
+_sweep_filter_call_lock = None  # กัน sweep_filter.check_and_update ของหลาย TF ยิง MT5 พร้อมกัน
 _auto_scan_running = False  # กัน auto_scan() ทำงานซ้อนข้าม job (scheduler vs symbol switch)
 _last_scan_summary_telegram = ""
 _last_scan_summary_cmd = ""
@@ -1711,6 +1735,11 @@ def _get_lock():
     if _scan_lock is None:
         _scan_lock = asyncio.Lock()
     return _scan_lock
+def _get_sweep_filter_lock():
+    global _sweep_filter_call_lock
+    if _sweep_filter_call_lock is None:
+        _sweep_filter_call_lock = asyncio.Lock()
+    return _sweep_filter_call_lock
 def tf_label(tf_name: str) -> str:
     """แปลง TF name เป็นชื่อพร้อมสี rainbow"""
     return f"{TF_COLOR.get(tf_name, '')}{tf_name}{RESET}"
@@ -2861,7 +2890,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         # → offload ไป thread pool executor กัน event loop โดนบล็อก (การเรียก MT5
         # จริงยังวิ่งผ่าน MT5Worker thread เดียวเหมือนเดิม แค่ thread ที่ "รอผล"
         # เปลี่ยนจาก main loop เป็น executor thread แทน)
-        await asyncio.get_running_loop().run_in_executor(None, _sf.check_and_update, tf_name)
+        # เจอจริง 2026-08-26 11:38: หลาย TF (M1-D1, gather พร้อมกันทั้งหมด) ยิง
+        # check_and_update() พร้อมกันหมด แต่ mt5_worker serialize คำสั่งจริงทีละ
+        # อันอยู่แล้ว (_sub_call_lock) — พอ MT5 terminal ค้างจริง คำขอทั้งหมดกอง
+        # รอพร้อมกันจนเกิน heartbeat 180s ต้อง kill ทั้ง terminal+python — คุม
+        # ด้วย asyncio.Lock ให้ยิงทีละ TF แทน ลด request ที่กองรอพร้อมกันตอน MT5
+        # ช้า/ค้าง (ไม่ได้แก้ terminal ค้างได้ แต่ลดจำนวน thread ที่ไปกองรอ)
+        async with _get_sweep_filter_lock():
+            await asyncio.get_running_loop().run_in_executor(None, _sf.check_and_update, tf_name)
     except Exception:
         pass
     # Guard: แท่งล่าสุดจะถือว่าปิดสมบูรณ์ ก็ต่อเมื่อแท่งใหม่เริ่มแล้ว
@@ -3020,7 +3056,21 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         _log_divergence_once(tf_name, 20.12, r20_12["signal"], last_candle_time, r20_12)
 
     r20_13 = strategy_20_13(rates, tf=tf_name) if active_strategies.get(20.13, False) and getattr(config, "S20_13_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.13 ปิด หรือ TF ปิด"}
-    r20_14 = strategy_20_14(rates, tf=tf_name) if active_strategies.get(20.14, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14 ปิด'}
+    # S20.14 Groups Integration
+    r20_14_1 = strategy20_14_groups.strategy_20_14_1(rates, tf=tf_name) if active_strategies.get(20.141, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_2 = strategy20_14_groups.strategy_20_14_2(rates, tf=tf_name) if active_strategies.get(20.142, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.2 ปิด'}
+    r20_14_5 = strategy20_14_groups.strategy_20_14_5(rates, tf=tf_name) if active_strategies.get(20.145, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.5 ปิด'}
+    r20_14_9 = strategy20_14_groups.strategy_20_14_9(rates, tf=tf_name) if active_strategies.get(20.149, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.9 ปิด'}
+    r20_14_12 = strategy20_14_groups.strategy_20_14_12(rates, tf=tf_name) if active_strategies.get(20.1412, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.12 ปิด'}
+    r20_14_13 = strategy20_14_groups.strategy_20_14_13(rates, tf=tf_name) if active_strategies.get(20.1413, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.13 ปิด'}
+    r20_14_14 = strategy20_14_groups.strategy_20_14_14(rates, tf=tf_name) if active_strategies.get(20.1414, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_16 = strategy20_14_groups.strategy_20_14_16(rates, tf=tf_name) if active_strategies.get(20.1416, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_18 = strategy20_14_groups.strategy_20_14_18(rates, tf=tf_name) if active_strategies.get(20.1418, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_19 = strategy20_14_groups.strategy_20_14_19(rates, tf=tf_name) if active_strategies.get(20.1419, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.19 ปิด'}
+    r20_14_21 = strategy20_14_groups.strategy_20_14_21(rates, tf=tf_name) if active_strategies.get(20.1421, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.21 ปิด'}
+    r20_14_22 = strategy20_14_groups.strategy_20_14_22(rates, tf=tf_name) if active_strategies.get(20.1422, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.22 ปิด'}
+    r20_14_23 = strategy20_14_groups.strategy_20_14_23(rates, tf=tf_name) if active_strategies.get(20.1423, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.23 ปิด'}
+    r20_14_24 = strategy20_14_groups.strategy_20_14_24(rates, tf=tf_name) if active_strategies.get(20.1424, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.24 ปิด'}
     if r20_13.get("signal") in ("BUY", "SELL"):
         from trailing import s20_13_guard_blocks, s20_13_calc_lot_multiplier
         # ATR แบบง่าย (high-low rolling mean 14 แท่ง) ตรงตาม backtest_s20.13_runner_mt5.py
@@ -3073,6 +3123,28 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             r20_13_24["quant_lot_multiplier"] = s20_13_24_calc_lot_multiplier()
             _log_divergence_once(tf_name, 20.1324, r20_13_24["signal"], last_candle_time, r20_13_24)
 
+    r20_16 = {"signal": "WAIT", "reason": "S20.16 ปิด หรือ TF ผิด"}
+    if active_strategies.get(20.16, False) and getattr(config, "S20_16_TF_ENABLED", {}).get(tf_name, False) and _s20_ok:
+        try:
+            df_master = strategy20_16.compute_indicators_df(rates)
+            res = strategy20_16.evaluate_bar(df_master, len(rates) - 1, tf=tf_name)
+            if res and res.get("signal") in ("BUY", "SELL"):
+                r20_16 = res
+                _log_divergence_once(tf_name, 20.16, r20_16["signal"], last_candle_time, r20_16)
+        except Exception as e:
+            log_error("S20.16", f"Error in strategy 20.16 eval: {e}")
+
+    r20_17 = {"signal": "WAIT", "reason": "S20.17 ปิด หรือ TF ผิด"}
+    if active_strategies.get(20.17, False) and getattr(config, "S20_17_TF_ENABLED", {}).get(tf_name, False) and _s20_ok:
+        try:
+            df_master = strategy20_17.compute_indicators_df(rates)
+            res = strategy20_17.evaluate_bar(df_master, len(rates) - 1, tf=tf_name)
+            if res and res.get("signal") in ("BUY", "SELL"):
+                r20_17 = res
+                _log_divergence_once(tf_name, 20.17, r20_17["signal"], last_candle_time, r20_17)
+        except Exception as e:
+            log_error("S20.17", f"Error in strategy 20.17 eval: {e}")
+
     r21 = strategy_21(rates, tf_name=tf_name, config=config) if active_strategies.get(21, False) else {"signal": "WAIT", "reason": "S21 ปิด"}
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
@@ -3088,6 +3160,38 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r97 = detect_s97(rates, tf=tf_name, dt_bkk=now_bkk()) if active_strategies.get(97, False) else {"signal": "WAIT", "reason": "S97 ปิด"}
     if r97.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 97, r97["signal"], last_candle_time, r97)
+
+    # ── S20 Institutional Suite (11 Standalone Strategies) ─────────────────
+    S20_INSTITUTIONAL_SIDS = (20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304)
+    r_s20_inst = {}
+    for _s_inst in S20_INSTITUTIONAL_SIDS:
+        if active_strategies.get(_s_inst, False):
+            try:
+                _r = s20_institutional_hub.evaluate_s20_institutional(_s_inst, rates, tf_name=tf_name, symbol=SYMBOL)
+                r_s20_inst[_s_inst] = _r
+                if _r.get("signal") in ("BUY", "SELL"):
+                    _log_divergence_once(tf_name, _s_inst, _r["signal"], last_candle_time, _r)
+            except Exception as _e_inst:
+                log_error(f"S20_{_s_inst}", f"Error in S{_s_inst} eval: {_e_inst}")
+                r_s20_inst[_s_inst] = {"signal": "WAIT", "reason": str(_e_inst)}
+        else:
+            r_s20_inst[_s_inst] = {"signal": "WAIT", "reason": f"S{_s_inst} ปิด"}
+
+    # S20 Multi-Asset Switchboard (ONLY S20.304 scans other symbols; other strategies use single primary symbol)
+    s20_multi_results = []
+    if tf_name == "M5" and active_strategies.get(20.304, False):
+        enabled_s20_syms = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
+        for _other_sym, _is_on in enabled_s20_syms.items():
+            if _is_on and _other_sym != SYMBOL:
+                try:
+                    _other_bar = mt5.copy_rates_from_pos(_other_sym, tf_val, 1, _normal_rate_count)
+                    if _other_bar is not None and len(_other_bar) >= lookback:
+                        _r_inst = s20_institutional_hub.evaluate_s20_institutional(20.304, _other_bar, tf_name=tf_name, symbol=_other_sym)
+                        if _r_inst.get("signal") in ("BUY", "SELL"):
+                            _r_inst["symbol"] = _other_sym
+                            s20_multi_results.append((20.304, _r_inst))
+                except Exception as _e_inst:
+                    log_error("S20.304_MULTI", f"Error scanning {_other_sym}: {_e_inst}")
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -3497,7 +3601,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── News Filter Bypass Application ──
     if getattr(config, "news_pause_active", False):
         _n_skip = getattr(config, "NEWS_FILTER_SKIP_SIDS", set())
-        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (20.10,r20_10), (20.11,r20_11), (20.12,r20_12), (21,r21)]:
+        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (20.10,r20_10), (20.11,r20_11), (20.12,r20_12), (20.16,r20_16), (20.17,r20_17), (21,r21)]:
             if _s not in _n_skip and _r.get("signal") not in ("WAIT", None):
                 _r["signal"] = "WAIT"
                 _r["reason"] = "📰 ติด News Filter Embargo"
@@ -3505,8 +3609,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── เลือก result ที่จะ execute — แต่ละท่าอิสระ ───────────────
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
-    for sid, r in [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
-                                  (20.14, r20_14), (20.1323, r20_13_23), (20.1324, r20_13_24), (21, r21), (95, r95), (96, r96), (97, r97)]:
+    _all_evaluated = [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
+                      (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (20.17, r20_17), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
+
+    for sid, r in _all_evaluated:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3533,13 +3639,23 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         elif s15_sig == "MULTI":
             for s15_order in r15.get("orders", []):
                 signal_results.append((15, s15_order))
+    # ── S20.14 merge (พี่สั่ง): sub-group หลายตัวที่เจอ entry/sl/tp ตรงกันใน
+    # สแกนรอบเดียวกัน (TF เดียวกัน) รวมเป็น result เดียว เพิ่ม lot ตามจำนวน
+    # group — กัน S20.14 กินโควตา pending order ของบัญชี (limit_orders บน MT5)
+    # จนท่า S1-S19 วางไม่ได้ ดูรายละเอียดที่ strategy/s20.14/s20_14_merge.py
+    try:
+        signal_results = s20_14_merge.cluster_same_scan(signal_results)
+    except Exception as _e:
+        log_error("S20_14_MERGE", f"cluster_same_scan error: {type(_e).__name__}: {_e}", tf=tf_name)
     # ── สรุปผลทุกท่าใน TF เดียวกัน เพื่อให้ Scan Summary เห็นครบทุก strategy ──
     parts = []
     has_entry_signal = False
     first_entry_part = None
 
-    for sid, r in [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
-                                  (20.14, r20_14), (20.1323, r20_13_23), (20.1324, r20_13_24), (21, r21), (95, r95), (96, r96), (97, r97)]:
+    _all_parts = [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
+                  (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
+
+    for sid, r in _all_parts:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
@@ -3845,7 +3961,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 f"{clr} แท่ง{labels[i]}: O:`{o:.2f}` H:`{h:.2f}` "
                 f"L:`{l:.2f}` C:`{cl:.2f}` {_fmt_swing_dt(candle_ts)}\n"
             )
-        tick          = mt5.symbol_info_tick(SYMBOL)
+        _item_sym     = result.get("symbol", SYMBOL)
+        tick          = mt5.symbol_info_tick(_item_sym)
         current_price = (tick.ask if signal == "BUY" else tick.bid) if tick else 0
         if sid == 9:
             setup_sig = _build_strategy9_setup_sig(tf_name, signal, result)
@@ -3874,20 +3991,24 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 )
                 continue
         elif result.get("order_mode") != "market":
-            # S16: SL คำนวณจาก ATR ทุกนาที → drift เกิน tol=0.05 ทำให้สร้าง order ซ้ำ
-            # เช็ก duplicate บน (signal, entry, tp) อย่างเดียว ไม่รวม SL
-            if sid == 16:
+            # S16 และกลุ่ม S20.14 (Group 5/9/... ที่คำนวณ SL จาก ATR ของแท่งที่ยัง
+            # ไม่ปิด): ATR ขยับทุกสแกน (5s) → SL drift เกิน tol=0.05 ทำให้ dedup
+            # เดิม (เทียบ entry+SL+TP) มองว่าเป็น setup ใหม่ทุกรอบ สร้าง order ซ้ำ
+            # รัวๆ จนโดน Telegram flood control (เจอจริง 2026-09-04, sid=20.145
+            # ยิง order ใหม่ทุก ~5s นานหลายนาที) — เช็ก duplicate บน
+            # (signal, entry, tp) อย่างเดียว ไม่รวม SL เหมือนที่แก้ให้ S16 ไว้แล้ว
+            if sid == 16 or s20_14_merge.is_s20_14_sid(sid):
                 dup_ticket = next(
                     (t for t, info in pending_order_tf.items()
                      if isinstance(info, dict)
                      and info.get("tf") == tf_name
-                     and info.get("sid") == 16
+                     and info.get("sid") == sid
                      and info.get("signal") == signal
                      and _same_price(info.get("entry"), entry, 0.05)
                      and _same_price(info.get("tp"), tp, 0.05)),
                     None
                 )
-                dup_source = "runtime_state_s16_entry_tp" if dup_ticket else ""
+                dup_source = "runtime_state_atr_entry_tp" if dup_ticket else ""
             else:
                 dup_ticket, dup_source = _find_duplicate_pending_setup(tf_name, sid, signal, entry, sl, tp)
             if dup_ticket:
@@ -4414,9 +4535,48 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             )
             swing_h_text = _fmt_swing_dt(_sh_info["time"]) if _sh_info else ""
             swing_l_text = _fmt_swing_dt(_sl_info["time"]) if _sl_info else ""
-            # Apply Quant Lot Multiplier — คำนวณก่อน เพื่อให้ข้อความ Telegram โชว์ lot จริงที่จะส่ง
-            # order (ไม่ใช่ AUTO_VOLUME เฉยๆ) เคยเจอบั๊ก S20.12 compound แล้วแต่ Telegram ยังโชว์ 0.01
-            final_volume = round(get_dynamic_volume(tf_name, signal, get_volume()) * result.get("quant_lot_multiplier", 1.0), 2)
+            # ── S20.14 merge cross-cycle (พี่สั่ง) — ถ้ามี pending order เดิม
+            # (จาก sub-group อื่นที่วางไปก่อนหน้าในสแกนรอบก่อน ไม่ใช่รอบนี้) ที่
+            # tf/entry/sl/tp ตรงกับ signal นี้เป๊ะ ให้ยกเลิกของเดิมแล้วรวมเป็น
+            # order เดียว (group ใหม่ขึ้นก่อน ตามด้วย group เดิม) เพิ่ม lot ตาม
+            # จำนวน group ที่รวม — กรณีเจอพร้อมกันในสแกนรอบเดียวกันถูกรวมไปแล้ว
+            # ที่ cluster_same_scan() ก่อนหน้านี้ (result["_s20_14_labels"])
+            _order_pattern = pattern
+            if s20_14_merge.is_s20_14_sid(sid):
+                _labels = list(result.get("_s20_14_labels")
+                                or [s20_14_merge.S20_14_SID_GROUP.get(sid, str(sid))])
+                try:
+                    _xt, _xtf, _xlabels = s20_14_merge.find_cross_cycle_match(
+                        mt5, SYMBOL, tf_name, signal, entry, sl, tp,
+                    )
+                except Exception as _e:
+                    _xt, _xlabels = None, []
+                    log_error("S20_14_MERGE", f"find_cross_cycle_match error: {type(_e).__name__}: {_e}",
+                              tf=tf_name, sid=sid)
+                if _xt:
+                    _cancel_r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": _xt})
+                    if _cancel_r is not None and _cancel_r.retcode == mt5.TRADE_RETCODE_DONE:
+                        pending_order_tf.pop(_xt, None)
+                        position_tf.pop(_xt, None)
+                        position_sid.pop(_xt, None)
+                        position_pattern.pop(_xt, None)
+                        _labels = _labels + [g for g in _xlabels if g not in _labels]
+                        log_event(
+                            "S20_14_MERGE_CANCEL",
+                            f"ยกเลิก pending เดิม (group {'-'.join(_xlabels)}) รวมเป็น {'-'.join(_labels)}",
+                            tf=tf_name, sid=sid, signal=signal, ticket=_xt, entry=entry, sl=sl, tp=tp,
+                        )
+                    else:
+                        log_error("S20_14_MERGE", f"ยกเลิก pending เดิม ticket={_xt} ไม่สำเร็จ",
+                                  tf=tf_name, sid=sid)
+                if len(_labels) > 1:
+                    result["quant_lot_multiplier"] = result.get("quant_lot_multiplier", 1.0) * len(_labels)
+                    _order_pattern = f"S20_14_MERGE:{'-'.join(_labels)}"
+            # Apply Quant Lot Multiplier or S20 Symbol Weight for all 11 strategies
+            if sid in S20_INSTITUTIONAL_SIDS:
+                final_volume = getattr(config, "get_s20_volume", lambda s_id, s, v: v)(sid, result.get("symbol", SYMBOL), get_volume())
+            else:
+                final_volume = round(get_dynamic_volume(tf_name, signal, get_volume()) * result.get("quant_lot_multiplier", 1.0), 2)
             await _notify_pattern_found_once(
                 app,
                 f"pattern|{base_flow_id}",
@@ -4447,12 +4607,13 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             order_sl = 0.0 if use_delay_sl else sl
 
             try:
+                _order_sym = result.get("symbol", SYMBOL)
                 if order_mode == "stop":
-                    order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order_stop(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=_order_pattern, symbol=_order_sym)
                 elif order_mode == "market":
-                    order = open_order_market(signal, final_volume, order_sl, tp, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order_market(signal, final_volume, order_sl, tp, tf=tf_name, sid=sid, pattern=_order_pattern, symbol=_order_sym)
                 else:
-                    order = open_order(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=pattern)
+                    order = open_order(signal, final_volume, order_sl, tp, entry_price=entry, tf=tf_name, sid=sid, pattern=_order_pattern, symbol=_order_sym)
             except Exception as _order_exc:
                 log_event("ORDER_PLACEMENT_EXCEPTION",
                            f"{type(_order_exc).__name__}: {_order_exc}",
@@ -4471,6 +4632,8 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             if order.get("ticket"):
                 _pend_info = {
                     "tf":              tf_name,
+                    "symbol":          result.get("symbol", SYMBOL),
+                    "risk":            result.get("risk", abs(entry - sl)),
                     "entry":           round(entry, 2),
                     "sl":              round(sl, 2),
                     "tp":              round(tp, 2),

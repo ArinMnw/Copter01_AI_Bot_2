@@ -1,0 +1,41 @@
+
+===== simulate leg M1 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=814.95 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 12:20:37  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 11:20:37
+  [M1] คำนวณสัญญาณขนานเสร็จใน 5050s (351884 แท่ง)
+M1: 1290 ไม้ปิด, ใช้เวลา 5050s
+
+===== simulate leg M5 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=813.17 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 13:44:47  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 12:44:47
+  [M5] คำนวณสัญญาณขนานเสร็จใน 200s (70553 แท่ง)
+M5: 387 ไม้ปิด, ใช้เวลา 200s
+
+===== simulate leg M15 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=818.75 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 13:48:07  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 12:48:07
+  [M15] คำนวณสัญญาณขนานเสร็จใน 24s (23567 แท่ง)
+M15: 285 ไม้ปิด, ใช้เวลา 24s
+
+===== simulate leg M30 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=818.75 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 13:48:31  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 12:48:31
+  [M30] คำนวณสัญญาณขนานเสร็จใน 8s (11786 แท่ง)
+M30: 241 ไม้ปิด, ใช้เวลา 8s
+
+===== simulate leg H1 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=818.75 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 13:48:40  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 12:48:40
+หมายเหตุ: ประวัติก่อน --start มีแค่ 345 แท่ง (น้อยกว่า LOOKBACK_BARS[H1]=350 ที่ตั้งใจไว้ให้ตรง live) — ใช้เท่าที่มีแทน ⚠️ ผลอาจเปลี่ยนได้จริง (ยืนยันแล้วว่า lookback สั้นไปทำให้ pivot chain ไม่ครบ พลาด pattern บางแบบไปเลย ไม่ใช่แค่ลู่เข้าช้า — ดู comment บน LOOKBACK_BARS ด้านบนไฟล์)
+  [H1] คำนวณสัญญาณขนานเสร็จใน 4s (5895 แท่ง)
+H1: 236 ไม้ปิด, ใช้เวลา 4s
+
+
+===== สรุปพอร์ต S420 ทั้ง 5 TF พร้อมกัน (MAX_POS_PER_LEG=1, lot=0.01 ต่อไม้) =====
+ช่วง: 2025-08-17 11:20:36 - 2026-08-17 11:20:36
+ไม้ปิดทั้งหมด: 2439
+Net P&L: 34156.09 USD | Max Drawdown: 1538.69 USD
+จำนวนไม้เปิดพร้อมกันสูงสุด (รวมทุก TF/leg): 5 ไม้ (ตอน 2025-08-19 12:02:00+07:00)
+จำนวนไม้ทิศเดียวกันที่เปิดพร้อมกันสูงสุด: 5 ไม้ (ตอน 2025-08-19 12:02:00+07:00)
+
+เขียน 2439 ไม้ลง s420_portfolio_trades_365d_cap1_v2.csv

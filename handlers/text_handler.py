@@ -37,27 +37,62 @@ def _md_escape(s) -> str:
     return text
 
 
+# Telegram hard-limits a single message to 4096 chars — keep some headroom
+# for the Markdown fallback (entity-stripping can't shrink it, only re-encode).
+_TG_MSG_LIMIT = 4000
+
+
+def _split_text_for_telegram(text: str, limit: int = _TG_MSG_LIMIT) -> list:
+    """แตก text ยาวเป็นหลายชิ้น ไม่เกิน `limit` ตัวอักษรต่อชิ้น
+    พยายามตัดตรงขอบย่อหน้า (\\n\\n) ก่อนเสมอ กันตัด markdown entity ขาดครึ่ง
+    ถ้าย่อหน้าเดียวยาวเกิน limit เองก็ค่อย hard-slice"""
+    if len(text) <= limit:
+        return [text]
+
+    chunks = []
+    for para in text.split("\n\n"):
+        if not chunks or len(chunks[-1]) + 2 + len(para) > limit:
+            if len(para) > limit:
+                # ย่อหน้ายาวเกิน limit เดี่ยว ๆ — hard-slice เป็นก้อนย่อย
+                for i in range(0, len(para), limit):
+                    chunks.append(para[i:i + limit])
+            else:
+                chunks.append(para)
+        else:
+            chunks[-1] = chunks[-1] + "\n\n" + para
+    return chunks
+
+
 # ── Safe reply: ลอง Markdown ก่อน ถ้า parse fail → fallback plain text ──
 async def _safe_reply_md(message, text: str, **kwargs):
     """
     พยายามตอบด้วย parse_mode='Markdown' ถ้า BadRequest (entity error)
     → ลอง plain text เป็น fallback
+    ข้อความที่ยาวเกิน limit ของ Telegram จะถูกแตกส่งเป็นหลายข้อความอัตโนมัติ
+    (reply_markup แนบไว้กับข้อความชิ้นสุดท้ายเท่านั้น)
     """
-    try:
-        return await message.reply_text(text, parse_mode="Markdown", **kwargs)
-    except Exception as e:
-        emsg = str(e).lower()
-        if "can't parse entities" in emsg or "parse entities" in emsg:
-            # Markdown พัง — strip markers แล้วส่ง plain text
-            # หมายเหตุ: ไม่ลบ '_' เพราะมันอยู่ใน field names (base_volume, rsi2_state ฯลฯ)
-            try:
-                import re as _re
-                plain = _re.sub(r'`([^`\n]*)`?', r'\1', text)
-                plain = plain.replace('`', '').replace('*', '')
-                return await message.reply_text(plain, **kwargs)
-            except Exception:
-                pass
-        raise
+    chunks = _split_text_for_telegram(text)
+    last = len(chunks) - 1
+    result = None
+    for idx, chunk in enumerate(chunks):
+        chunk_kwargs = kwargs if idx == last else {k: v for k, v in kwargs.items() if k != "reply_markup"}
+        try:
+            result = await message.reply_text(chunk, parse_mode="Markdown", **chunk_kwargs)
+        except Exception as e:
+            emsg = str(e).lower()
+            if "can't parse entities" in emsg or "parse entities" in emsg:
+                # Markdown พัง — strip markers แล้วส่ง plain text
+                # หมายเหตุ: ไม่ลบ '_' เพราะมันอยู่ใน field names (base_volume, rsi2_state ฯลฯ)
+                try:
+                    import re as _re
+                    plain = _re.sub(r'`([^`\n]*)`?', r'\1', chunk)
+                    plain = plain.replace('`', '').replace('*', '')
+                    result = await message.reply_text(plain, **chunk_kwargs)
+                    continue
+                except Exception:
+                    pass
+            raise
+    return result
 
 
 # Route map: ข้อความปุ่ม → handler function
@@ -630,6 +665,21 @@ async def _handle_custom_input(update, context, text, awaiting):
             async def edit_message_text(self, *args, **kwargs):
                 await self.message.reply_text(*args, **kwargs)
         await _show_strategy_detail(MockQuery(update.effective_message), 20.13)
+
+    elif awaiting == "s20_14_active_mode":
+        config.S20_14_ACTIVE_MODE = val
+        config.save_runtime_state()
+        await update.effective_message.reply_text(
+            f"✅ ตั้งค่า **S20.14 Active Mode** เป็น {val} เรียบร้อย",
+            parse_mode="Markdown"
+        )
+        from handlers.callback_handler import _show_strategy_detail
+        class MockQuery:
+            def __init__(self, msg):
+                self.message = msg
+            async def edit_message_text(self, *args, **kwargs):
+                await self.message.reply_text(*args, **kwargs)
+        await _show_strategy_detail(MockQuery(update.effective_message), 20.14)
 
     elif awaiting == "s20_13_compound":
         config.S20_13_COMPOUND = val

@@ -71,14 +71,11 @@ def backtest_patterns_to_csv(days, compound):
     }
     
     target_tfs = {
-        "FVG": ["M30", "H1", "H12", "D1"],
-        "ATR": ["H1", "D1"],
-        "Fibo": ["M15", "M30", "H1"],
-        "Doji": ["M30", "H1"],
-        "Div": ["H1"],
-        "MA12": ["H1"],
-        "Naiya": ["M30", "H1", "H12", "D1"],
-        "GapSweep": ["M30", "H1"]
+        "Naiya": ["H1", "H12"],
+        "Inst_Gap": [],
+        "Fibo": [],
+        "FVG": [],
+        "GapSweep": []
     }
     
     all_tfs = set()
@@ -196,9 +193,9 @@ def backtest_patterns_to_csv(days, compound):
         df['rsi_low'] = df['rsi'].rolling(window=20).min().shift(1)
         df['rsi_high'] = df['rsi'].rolling(window=20).max().shift(1)
         
-        # 50-bar lookback for Fibo
-        df['recent_low_50'] = df['low'].rolling(window=50).min().shift(1)
-        df['recent_high_50'] = df['high'].rolling(window=50).max().shift(1)
+        # 35-bar lookback for Naiya Hidden SL to capture the macro W-shape without bleeding into previous week
+        df['recent_low_35'] = df['low'].rolling(window=35).min().shift(1)
+        df['recent_high_35'] = df['high'].rolling(window=35).max().shift(1)
         
         df['body'] = np.abs(df['close'] - df['open'])
         df['range'] = df['high'] - df['low']
@@ -231,9 +228,7 @@ def backtest_patterns_to_csv(days, compound):
                                (df['low'].shift(1) < df['low']) & (df['low'].shift(1) < df['low'].shift(2)) & \
                                (df['close'] > df['high'].shift(1))
 
-        df['naiya_doji_sell_base'] = df['is_red'] & df['is_red_doji'].shift(1) & df['is_green'].shift(2) & \
-                                (df['high'].shift(1) > df['high']) & (df['high'].shift(1) > df['high'].shift(2)) & \
-                                (df['close'] < df['low'].shift(1))
+        df['naiya_doji_sell_base'] = False # Will compute in loop
                                 
         # 2. Naiya Standard (Red -> Green Engulfing)
         df['naiya_std_buy_base'] = df['is_red'].shift(1) & df['is_green'] & (df['close'] > df['high'].shift(1))
@@ -287,7 +282,7 @@ def backtest_patterns_to_csv(days, compound):
         
 
         
-        valid = df.dropna(subset=['atr', 'rsi', 'recent_low_50']).copy()
+        valid = df.dropna(subset=['atr', 'rsi', 'recent_low_35']).copy()
         print(f"[{tf_str}] df len: {len(df)}, valid len: {len(valid)}")
         
         list_of_dicts = valid.to_dict('records')
@@ -421,11 +416,29 @@ def backtest_patterns_to_csv(days, compound):
             # 2. Check Naiya Base Formations and Confirmations                
             if tf_str in target_tfs.get("Naiya", ["H1", "H12", "D1"]):
                 # 2.1 Naiya Doji
-                if getattr(row, 'naiya_doji_buy_base', False):
-                    doji = list_of_dicts[i-1]
-                    limit_p = max(doji['open'], doji['close'])
-                    sl = doji['low']
-                    tp = limit_p + (limit_p - sl) * 1.618 # default fallback
+                # Dynamic structural detection for Naiya Doji BUY
+                found_doji_buy = False
+                for b in range(1, 30):
+                    if i - b < 0: continue
+                    b_bar = list_of_dicts[i-b]
+                    rng = b_bar['high'] - b_bar['low']
+                    body = abs(b_bar['close'] - b_bar['open'])
+                    is_doji = (body <= rng * 0.35) and rng > 0
+                    if is_doji:
+                        # Check if it's a 3-bar fractal low
+                        prev_low = list_of_dicts[i-b-1]['low'] if i-b-1 >= 0 else 999999
+                        next_low = list_of_dicts[i-b+1]['low'] if i-b+1 < len(list_of_dicts) else 999999
+                        if b_bar['low'] < prev_low and b_bar['low'] < next_low:
+                            # Has price broken above Doji's high?
+                            if row.close > b_bar['high']:
+                                base = b_bar
+                                limit_p = round((base['high'] + base['low']) / 2, 2)
+                                sl = base['low']
+                                tp = limit_p + (limit_p - sl) * 1.618
+                                found_doji_buy = True
+                                break
+                
+                if found_doji_buy: # default fallback
                     dyn_tp = get_dynamic_tp(row.time_dt, True, tf_str, ['Naiya Doji'])
                     if dyn_tp is not None and dyn_tp > limit_p:
                         tp = sl + (dyn_tp - sl) * 1.618
@@ -438,11 +451,30 @@ def backtest_patterns_to_csv(days, compound):
                         'body': round(row.body, 2), 'range': round(row.range, 2),
                         'Bars_Waited': 0
                     })
-                if getattr(row, 'naiya_doji_sell_base', False):
-                    doji = list_of_dicts[i-1]
-                    limit_p = min(doji['open'], doji['close'])
-                    sl = doji['high']
-                    tp = limit_p - (sl - limit_p) * 1.618 # default fallback
+                # Dynamic structural detection for Naiya Doji SELL
+                # Look back up to 30 bars for a Doji that is a Swing High
+                found_doji_sell = False
+                for b in range(1, 30):
+                    if i - b < 0: continue
+                    b_bar = list_of_dicts[i-b]
+                    rng = b_bar['high'] - b_bar['low']
+                    body = abs(b_bar['close'] - b_bar['open'])
+                    is_doji = (body <= rng * 0.35) and rng > 0
+                    if is_doji:
+                        # Check if it's a 3-bar fractal high
+                        prev_high = list_of_dicts[i-b-1]['high'] if i-b-1 >= 0 else 0
+                        next_high = list_of_dicts[i-b+1]['high'] if i-b+1 < len(list_of_dicts) else 0
+                        if b_bar['high'] > prev_high and b_bar['high'] > next_high:
+                            # Has price broken below Doji's low?
+                            if row.close < b_bar['low']:
+                                base = b_bar
+                                limit_p = round((base['high'] + base['low']) / 2, 2)
+                                sl = base['high']
+                                tp = limit_p - (sl - limit_p) * 1.618
+                                found_doji_sell = True
+                                break
+                
+                if found_doji_sell: # default fallback
                     dyn_tp = get_dynamic_tp(row.time_dt, False, tf_str, ['Naiya Doji'])
                     if dyn_tp is not None and dyn_tp < limit_p:
                         tp = sl - (sl - dyn_tp) * 1.618
@@ -494,7 +526,9 @@ def backtest_patterns_to_csv(days, compound):
                 if getattr(row, 'naiya_hidden_buy_base', False):
                     base = list_of_dicts[i-3]
                     limit_p = min(base['open'], base['close'])
-                    sl = base['low']
+                    
+                    # Naiya Hidden BUY SL: The lowest low of the 4-candle anchor group
+                    sl = min(row.low, list_of_dicts[i-1]['low'], list_of_dicts[i-2]['low'], base['low'])
                     tp = limit_p + (limit_p - sl) * 1.618
                     
                     dyn_tp = get_dynamic_tp(row.time_dt, True, tf_str, ['Naiya Hidden'])
@@ -512,7 +546,9 @@ def backtest_patterns_to_csv(days, compound):
                 if getattr(row, 'naiya_hidden_sell_base', False):
                     base = list_of_dicts[i-3]
                     limit_p = max(base['open'], base['close'])
-                    sl = base['high']
+                    
+                    # Naiya Hidden SELL SL: The highest high of the 4-candle anchor group
+                    sl = max(row.high, list_of_dicts[i-1]['high'], list_of_dicts[i-2]['high'], base['high'])
                     tp = limit_p - (sl - limit_p) * 1.618
                     
                     dyn_tp = get_dynamic_tp(row.time_dt, False, tf_str, ['Naiya Hidden'])
@@ -571,7 +607,7 @@ def backtest_patterns_to_csv(days, compound):
             fibo_38_2 = swing_l + (swing_h - swing_l) * 0.382
             fibo_61_8 = swing_l + (swing_h - swing_l) * 0.618
             
-            if tf_str in target_tfs["FVG"] and row.bull_fvg_10 and row.fvg_buy_ml == 1:
+            if tf_str in target_tfs.get("FVG", []) and row.bull_fvg_10 and row.fvg_buy_ml == 1:
                 if 15.0 <= row.rsi <= 68.0 and row.atr >= 7.0:
                     # PD Fibo Zone Check (Must be in Discount < 38.2%)
                     if row.recent_low < fibo_38_2:
@@ -605,6 +641,8 @@ def backtest_patterns_to_csv(days, compound):
                             if abs(row.low - krh3_down) < 3.0 and row.close > row.open:
                                 patterns_buy.append("Fibo")
                                 fibo_buy_krh3 = krh3_down
+                                if not s11_sl_buy: s11_sl_buy = krh3_down - (row.atr * 1.5)
+                                if not s11_tp_buy: s11_tp_buy = krh3_down + (row.atr * 5.0)
                                 break
                                 
                             # Pattern 3 (3/1): Touched KRH3 earlier, now retesting KRH1 downwards
@@ -615,6 +653,8 @@ def backtest_patterns_to_csv(days, compound):
                                     if abs(row.low - krh1_down) < 4.0:
                                         patterns_buy.append("Fibo")
                                         fibo_buy_krh3 = krh1_down
+                                        if not s11_sl_buy: s11_sl_buy = krh1_down - (row.atr * 1.5)
+                                        if not s11_tp_buy: s11_tp_buy = krh1_down + (row.atr * 5.0)
                                         break
                                         
                     # BUY Reversal Pattern 3 (3/1) BUY Anchor: Look for GREEN anchor, KRH3 goes UP
@@ -631,6 +671,8 @@ def backtest_patterns_to_csv(days, compound):
                                     if abs(row.low - krh1_up) < 4.0:
                                         patterns_buy.append("Fibo")
                                         fibo_buy_krh3 = krh1_up
+                                        if not s11_sl_buy: s11_sl_buy = krh1_up - (row.atr * 1.5)
+                                        if not s11_tp_buy: s11_tp_buy = krh1_up + (row.atr * 5.0)
                                         break
                 
             # S9 Integration (Div)
@@ -652,9 +694,9 @@ def backtest_patterns_to_csv(days, compound):
             if atr_res and atr_res.get('signal') == 'BUY':
                 patterns_buy.append("ATR")
                 
-            if tf_str in target_tfs["Doji"] and row.range > 0 and row.body < 0.4 * row.range and (row.close - row.low) > 0.5 * row.range and row.low <= row.recent_low + row.atr*0.5 and row.rsi >= 0 and row.rsi <= 2:
+            if tf_str in target_tfs.get("Doji", []) and row.range > 0 and row.body < 0.4 * row.range and (row.close - row.low) > 0.5 * row.range and row.low <= row.recent_low + row.atr*0.5 and row.rsi >= 0 and row.rsi <= 2:
                 patterns_buy.append("Doji")
-            if tf_str in target_tfs["MA12"] and row.low <= row.sma12 and row.close > row.sma12 and row.rsi >= 0 and row.rsi <= 18:
+            if tf_str in target_tfs.get("MA12", []) and row.low <= row.sma12 and row.close > row.sma12 and row.rsi >= 0 and row.rsi <= 18:
                 patterns_buy.append("MA12")
                 
             if patterns_buy:
@@ -687,7 +729,7 @@ def backtest_patterns_to_csv(days, compound):
             fibo_sell_krh3 = 0.0
             s11_sl_sell = None
             s11_tp_sell = None
-            if tf_str in target_tfs["FVG"] and row.bear_fvg_10:
+            if tf_str in target_tfs.get("FVG", []) and row.bear_fvg_10:
                 if row.fvg_sell_ml == 1 or row.rsi < 30: # Momentum bypass
                     if 10.0 <= row.rsi <= 77.0 and row.atr >= 10.0:
                         if row.recent_high > fibo_61_8 or row.rsi < 30:
@@ -713,6 +755,8 @@ def backtest_patterns_to_csv(days, compound):
                             if abs(row.high - krh3_up) < 3.0 and row.close < row.open:
                                 patterns_sell.append("Fibo")
                                 fibo_sell_krh3 = krh3_up
+                                if not s11_sl_sell: s11_sl_sell = krh3_up + (row.atr * 1.5)
+                                if not s11_tp_sell: s11_tp_sell = krh3_up - (row.atr * 5.0)
                                 break
                                 
                             # Pattern 3 (3/1) BUY Anchor: Touched KRH3 Up earlier, now retesting KRH1 Upwards
@@ -723,6 +767,8 @@ def backtest_patterns_to_csv(days, compound):
                                     if abs(row.high - krh1_up) < 4.0:
                                         patterns_sell.append("Fibo")
                                         fibo_sell_krh3 = krh1_up
+                                        if not s11_sl_sell: s11_sl_sell = krh1_up + (row.atr * 1.5)
+                                        if not s11_tp_sell: s11_tp_sell = krh1_up - (row.atr * 5.0)
                                         break
                                         
                     # SELL Reversal Pattern 3 (3/1) SELL Anchor: Look for RED anchor, KRH3 goes DOWN
@@ -739,6 +785,8 @@ def backtest_patterns_to_csv(days, compound):
                                     if abs(row.high - krh1_down) < 4.0:
                                         patterns_sell.append("Fibo")
                                         fibo_sell_krh3 = krh1_down
+                                        if not s11_sl_sell: s11_sl_sell = krh1_down + (row.atr * 1.5)
+                                        if not s11_tp_sell: s11_tp_sell = krh1_down - (row.atr * 5.0)
                                         break
                 
             if s9_res and s9_res.get('signal') == 'SELL':
@@ -756,9 +804,9 @@ def backtest_patterns_to_csv(days, compound):
             if atr_res and atr_res.get('signal') == 'SELL':
                 patterns_sell.append("ATR")
 
-            if tf_str in target_tfs["Doji"] and row.range > 0 and row.body < 0.4 * row.range and (row.high - row.close) > 0.5 * row.range and row.high >= row.recent_high - row.atr*0.5 and row.rsi >= 74 and row.rsi <= 78 and row.close < row.sma50 and row.close < row.sma200:
+            if tf_str in target_tfs.get("Doji", []) and row.range > 0 and row.body < 0.4 * row.range and (row.high - row.close) > 0.5 * row.range and row.high >= row.recent_high - row.atr*0.5 and row.rsi >= 74 and row.rsi <= 78 and row.close < row.sma50 and row.close < row.sma200:
                 patterns_sell.append("Doji")
-            if tf_str in target_tfs["MA12"] and row.high >= row.sma12 and row.close < row.sma12 and row.rsi >= 74 and row.rsi <= 76 and row.close < row.sma50:
+            if tf_str in target_tfs.get("MA12", []) and row.high >= row.sma12 and row.close < row.sma12 and row.rsi >= 74 and row.rsi <= 76 and row.close < row.sma50:
                 patterns_sell.append("MA12")
                 
             if patterns_sell:

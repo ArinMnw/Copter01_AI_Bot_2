@@ -1,6 +1,6 @@
 import re
 import config as _config
-from bot_log import log_event
+from bot_log import log_event, log_error
 from config import *
 from mt5_utils import connect_mt5
 from trailing import position_tf, position_sid, position_pattern, position_trend_filter
@@ -18,6 +18,13 @@ def _parse_bot_comment(comment: str):
     """
     if not comment:
         return None, None
+    if str(comment).startswith("DEMO-"):
+        parts = str(comment).split("-")
+        tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
+        return tf, 21
+    m_demo = re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR\d*|LTS_AUS\d*|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+|LTS_EVOLUTION9|LTS_SCREEN13|LTS_WINRATE5|LTS_ROLLOVER[A-Z_]*|S4\d\d)-", str(comment))
+    if m_demo:
+        return m_demo.group(1), 21
     m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S([A-Za-z0-9]+(?:\.\d+)?))?", comment)
     if not m:
         return None, None
@@ -153,6 +160,18 @@ async def check_sl_tp_hits(app):
         p_info = tracked_positions.get(ticket)
         if not p_info:
             tracked_positions.pop(ticket, None)
+            continue
+        # ⚠️ กัน phantom close: positions_get(symbol=SYMBOL) อาจ "หาย" ticket ไปชั่วขณะ
+        # เดียว (เช่น MT5 sync สะดุด/symbol resolve ชั่วคราว) ทั้งที่ position จริงยัง
+        # เปิดอยู่ — เจอจริง 2026-08-18: ticket ยังเปิดค้างอยู่หลายชั่วโมงหลังจาก log
+        # บอกว่า "ปิดแล้ว profit=0" (ดู [[project-s420-zigzagpa-status]]) — double-check
+        # ด้วย positions_get(ticket=...) ตรงๆ อีกที ก่อนเชื่อว่าปิดจริง ถ้ายังเจอ position
+        # อยู่ ให้ข้ามรอบนี้ไปก่อน (คง tracked_positions ไว้ ไม่ยิง phantom close)
+        _still_open = mt5.positions_get(ticket=ticket)
+        if _still_open:
+            log_error("PHANTOM_CLOSE_GUARD",
+                      f"ticket={ticket} หายจาก positions_get(symbol=SYMBOL) ชั่วขณะ แต่ยังเปิดอยู่จริง "
+                      f"(positions_get(ticket=...) เจอ) — ข้ามรอบนี้ไม่ถือว่าปิด")
             continue
         # ดูประวัติ deal ล่าสุด
         deals = mt5.history_deals_get(position=ticket)

@@ -197,31 +197,13 @@ def _scale_out_register_ticket(ticket: int, direction: str, entry: float,
 
 
 def _symbol_consistency_error(entry, sl, tp, send_volume,
-                              signal: str = "", sid="", base_volume: float = 0.0):
+                              signal: str = "", sid="", base_volume: float = 0.0, symbol: str = None):
     """
     Symbol/Volume guard — กันออเดอร์ "ปนข้าม symbol" ตอนสลับ XAU<->BTC
-
-    ต้นเหตุ: config.SYMBOL เป็น global ที่ถูก mutate กลางอากาศโดย set_runtime_symbol()
-    บน symbol_switch_job (ทุก 1 นาที) ขณะที่ scan jobs (ทุก 5 วิ) กำลังอ่าน rates +
-    คำนวณ get_volume()/points_scale() พร้อมกัน + per-TF cache ไม่ถูกล้าง → order รอบนั้น
-    อาจได้ "ราคา/level ของ symbol หนึ่ง" ผสม "volume scaling ของอีก symbol"
-    (เคสจริง: XAU order entry=4571 ติด base=0.04 ของ BTC → lot 0.16, หรือ BTC entry ติด
-    tp ราคา XAU)
-
-    ตรวจ 3 ชั้น (ground truth = ราคา live ของ SYMBOL ปัจจุบัน เดียวกับที่ order_send ใช้):
-      0) switch-guard: ถ้ากำลังสลับ symbol อยู่ (config.symbol_switch_in_progress)
-                       → ห้ามสร้างออเดอร์ เลื่อนไปรอบ scan ถัดไป (ตัด race ที่ต้นทาง)
-      1) price-band : entry/sl/tp ต้องอยู่ในช่วง [0.5x, 2.0x] ของ mid price ปัจจุบัน
-                      (XAU~4500 vs BTC~77000 ต่างกัน ~17 เท่า → จับการปนข้ามได้สบาย
-                       order ปกติ SL/TP ห่าง entry ไม่กี่ % → ไม่มีทาง false-positive)
-      2) volume-cap : send_volume ห้ามเกิน base ของ symbol ปัจจุบัน × 4 (TSO สูงสุด 4 steps)
-                      XAU cap=0.04, BTC cap=0.16 — reverse-limit (base 0.01) ยังผ่านทุกกรณี
-
-    คืน: error string ถ้าผิดปกติ (caller ควร skip ออเดอร์), คืน None ถ้าผ่าน
-    fail-safe: error ใดๆ ภายใน → คืน None (ไม่ขวาง flow ปกติ)
     """
     try:
         reason = None
+        target_sym = symbol or SYMBOL
 
         # 0) switch-guard — ห้ามสร้างออเดอร์ระหว่าง set_runtime_symbol กำลังทำงาน
         if getattr(config, "symbol_switch_in_progress", False):
@@ -229,7 +211,7 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
                       "(กัน race ตอนสลับ XAU/BTC)")
 
         if reason is None:
-            tick = mt5.symbol_info_tick(SYMBOL)
+            tick = mt5.symbol_info_tick(target_sym)
             if not tick:
                 return None  # ดึงราคาไม่ได้ → ปล่อยให้ logic เดิมจัดการ
             mid = (float(getattr(tick, "ask", 0.0)) + float(getattr(tick, "bid", 0.0))) / 2.0
@@ -242,7 +224,7 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
                     continue
                 ratio = float(val) / mid
                 if ratio < 0.5 or ratio > 2.0:
-                    reason = (f"price-symbol mismatch: {label}={val} อยู่ไกลจากราคา {SYMBOL} "
+                    reason = (f"price-symbol mismatch: {label}={val} อยู่ไกลจากราคา {target_sym} "
                               f"(mid={mid:.2f}, ratio={ratio:.3f}) — น่าจะปนข้าม symbol ตอนสลับ")
                     break
 
@@ -258,10 +240,12 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
                         cap_base = max(cap_base, float(getattr(config, "S20_8_MAX_LOT", 50.0)))
                     if str(sid) == "20.12" and getattr(config, "S20_12_COMPOUNDING_ENABLED", False):
                         cap_base = max(cap_base, float(getattr(config, "S20_12_MAX_LOT", 50.0)))
+                    if sid in (20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304):
+                        cap_base = max(cap_base, float(send_volume))
                     max_vol = round(cap_base * 4.0, 2) + 1e-9
                     if float(send_volume) > max_vol:
                         reason = (f"volume-symbol mismatch: send_volume={send_volume} > cap "
-                                  f"{max_vol - 1e-9:.2f} ของ {SYMBOL} (base={config.get_volume()}) "
+                                  f"{max_vol - 1e-9:.2f} ของ {target_sym} (base={config.get_volume()}) "
                                   f"— น่าจะใช้ base ของอีก symbol")
                 except Exception:
                     pass
@@ -272,7 +256,7 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
                 log_event(
                     "SYMBOL_GUARD_BLOCK",
                     reason,
-                    symbol=SYMBOL,
+                    symbol=target_sym,
                     side=signal,
                     sid=sid,
                     entry=float(entry or 0.0),
@@ -292,6 +276,51 @@ def _symbol_consistency_error(entry, sl, tp, send_volume,
 _pending_cap_cache  = [0]      # cache ของ account_info().limit_orders
 _orders_limit_until = [0.0]    # cooldown timestamp หลังโดน 10033
 _orders_limit_logged_at = [0.0]
+
+# digit-suffix ของ comment (หลัง "_S20.") ที่เป็น S20.14 group family จริง —
+# ต้องเช็คแบบนี้ไม่ใช่ substring เฉยๆ เพราะ "_S20." เป็น prefix ร่วมกับ
+# strategy S20.x อื่นที่ไม่เกี่ยวกัน (เช่น S20.13, S20.5, S20.1323/1324)
+_S20_14_GROUP_DIGITS = {"141", "142", "145", "149", "1412", "1413", "1414",
+                        "1416", "1418", "1419", "1421", "1422", "1424"}
+
+
+def _is_s20_14_comment(comment: str) -> bool:
+    """True เฉพาะ comment ของ S20.14 group family (เดี่ยวหรือ merge ของ
+    s20_14_merge.py) — ไม่รวม strategy S20.x อื่นที่หน้าตาคล้ายกัน"""
+    if not comment:
+        return False
+    if "_s20.14-" in comment:
+        return True
+    if "_S20." in comment:
+        digits = comment.split("_S20.", 1)[1].split("_", 1)[0]
+        return digits in _S20_14_GROUP_DIGITS
+    return False
+
+
+def _evict_oldest_s20_14_pending() -> bool:
+    """ยกเลิก pending order ของ S20.14 group family (ทุก sub-group ทั้งเดี่ยว
+    และแบบ merge) ที่เก่าที่สุด 1 ตัว เพื่อเปิดที่ว่างให้ order ใหม่ — เรียก
+    เฉพาะตอนใกล้/เต็ม broker cap (10033) เท่านั้น (พี่สั่งไว้ชัดเจน 2026-09-01:
+    "ลบได้แค่ s20.14 นะ ตัวอื่นไม่ต้อง") ถ้าไม่มี pending S20.14 เหลือให้ลบเลย
+    (เช่นเต็มด้วย order ของท่าอื่นล้วนๆ) คืน False ไม่แตะอะไรทั้งนั้น"""
+    try:
+        orders = mt5.orders_get(symbol=SYMBOL) or []
+        candidates = [o for o in orders if _is_s20_14_comment(getattr(o, "comment", ""))]
+        if not candidates:
+            return False
+        oldest = min(candidates, key=lambda o: o.time_setup)
+        r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": oldest.ticket})
+        ok = r is not None and r.retcode == mt5.TRADE_RETCODE_DONE
+        if ok:
+            from bot_log import log_event
+            log_event(
+                "PENDING_LIMIT_EVICT_S20_14",
+                f"ยกเลิก pending S20.14 เก่าสุดเพื่อเปิดที่ว่าง (ใกล้/เต็ม cap) ticket={oldest.ticket}",
+                symbol=SYMBOL, comment=oldest.comment,
+            )
+        return ok
+    except Exception:
+        return False
 
 def _pending_orders_cap() -> int:
     """broker cap ของจำนวน pending orders (account_info().limit_orders) — cache ไว้"""
@@ -323,12 +352,20 @@ def _pending_limit_blocked(sid=None) -> tuple:
         import time
         now = time.time()
         if now < _orders_limit_until[0]:
-            return True, f"orders-limit cooldown {_orders_limit_until[0]-now:.0f}s (เพิ่งเต็ม 10033)"
+            # เพิ่งโดน 10033 (cooldown) — ลองยกเลิก pending S20.14 ที่เก่าสุด
+            # เปิดที่ว่างก่อน ถ้าสำเร็จเคลียร์ cooldown แล้วปล่อยให้ยิงต่อได้เลย
+            # (ตามที่พี่สั่ง: เต็มแล้วให้ลบ S20.14 เก่าสุดแทนตัวอื่น)
+            if _evict_oldest_s20_14_pending():
+                _orders_limit_until[0] = 0.0
+            else:
+                return True, f"orders-limit cooldown {_orders_limit_until[0]-now:.0f}s (เพิ่งเต็ม 10033)"
         cap = _pending_orders_cap()
         if cap > 0:
             buf = int(getattr(config, "PENDING_LIMIT_BUFFER", 2) or 0)
             n = mt5.orders_total()
             if n is not None and n >= cap - buf:
+                if _evict_oldest_s20_14_pending():
+                    return False, ""
                 return True, f"pending {n} ≥ cap {cap}-buf {buf}"
     except Exception:
         return False, ""
@@ -481,6 +518,13 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
 def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str = "",
                          parallel_tfs: list = None, parallel_patterns: list = None,
                          order_index=None) -> str:
+    # S20.14 group merge (ดู strategy/s20.14/s20_14_merge.py): scanner.py ส่ง
+    # pattern="S20_14_MERGE:<labels>" มาแทนที่จะเป็น pattern ปกติ ตอน sub-group
+    # หลายตัว entry/sl/tp ตรงกันแล้วรวมเป็น order เดียว — bypass logic ปกติ
+    # ด้านล่างทั้งหมด ใช้ comment สั้นๆ ที่ parse_merge_comment() อ่านกลับได้ตรง
+    if pattern and str(pattern).startswith("S20_14_MERGE:"):
+        labels = str(pattern).split(":", 1)[1]
+        return f"{tf}_s20.14-{labels}"[:28]
     # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF_LTF]"
     tf_label = tf
     if pattern and str(sid or "") == "10":
@@ -807,35 +851,38 @@ def get_existing_tp(signal: str, entry: float = 0.0, tf: str = "", requester_sid
     return 0.0
 
 
-def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=""):
+def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern="", symbol=None):
     """
     ตั้ง Stop Order ที่ entry_price (ท่า 4 นัยยะสำคัญ FVG)
     BUY  → BUY_STOP  (รอราคาขึ้นไปแตะ Swing High)
     SELL → SELL_STOP (รอราคาลงไปแตะ Swing Low)
     """
-    tick = mt5.symbol_info_tick(SYMBOL)
+    target_sym = symbol or SYMBOL
+    tick = mt5.symbol_info_tick(target_sym)
     if not tick:
-        return {"success": False, "error": "ดึงราคาไม่ได้"}
+        return {"success": False, "error": f"ดึงราคา {target_sym} ไม่ได้"}
 
     current = tick.ask if signal == "BUY" else tick.bid
     price   = entry_price
 
-    info      = mt5.symbol_info(SYMBOL)
-    spread_pts = info.spread * info.point if info else 0
-    tol        = max(spread_pts, 0.30)
+    info = mt5.symbol_info(target_sym)
+    point = float(info.point) if info and getattr(info, "point", 0) else 0.01
+    spread_pts = float(info.spread * point) if info and getattr(info, "spread", 0) else (point * 2.0)
+    tol = max(spread_pts, point * 2.0)
+    digits = int(info.digits) if info and getattr(info, "digits", 0) else 2
 
     if signal == "BUY":
         if price <= current + tol:
             return {
                 "success": False, "skipped": True,
-                "error": f"⏭️ Entry BUY STOP ต้องสูงกว่าราคาปัจจุบัน\nEntry:{price:.2f} | Ask:{current:.2f}"
+                "error": f"⏭️ Entry BUY STOP ต้องสูงกว่าราคาปัจจุบัน\nEntry:{price:.{digits}f} | Ask:{current:.{digits}f}"
             }
         ot = mt5.ORDER_TYPE_BUY_STOP
     else:
         if price >= current - tol:
             return {
                 "success": False, "skipped": True,
-                "error": f"⏭️ Entry SELL STOP ต้องต่ำกว่าราคาปัจจุบัน\nEntry:{price:.2f} | Bid:{current:.2f}"
+                "error": f"⏭️ Entry SELL STOP ต้องต่ำกว่าราคาปัจจุบัน\nEntry:{price:.{digits}f} | Bid:{current:.{digits}f}"
             }
         ot = mt5.ORDER_TYPE_SELL_STOP
 
@@ -852,13 +899,13 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
         return _plim
 
     _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
-                                           signal=signal, sid=sid, base_volume=base_volume)
+                                           signal=signal, sid=sid, base_volume=base_volume, symbol=target_sym)
     if _guard_err:
         return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
 
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_PENDING,
-        "symbol":       SYMBOL,
+        "symbol":       target_sym,
         "volume":       send_volume,
         "type":         ot,
         "price":        price,
@@ -946,15 +993,16 @@ def get_dynamic_volume(tf, signal, base_vol=None, portfolio=None):
         return base_vol if base_vol else 0.01
 
 def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern="",
-               parallel_tfs=None, parallel_patterns=None, order_index=None):
+               parallel_tfs=None, parallel_patterns=None, order_index=None, symbol=None):
     """
     ตั้ง Limit Order ที่ entry_price
     BUY  → BUY_LIMIT  (รอราคาลงมาแตะ)
     SELL → SELL_LIMIT (รอราคาขึ้นมาแตะ)
     """
-    tick = mt5.symbol_info_tick(SYMBOL)
+    target_sym = symbol or SYMBOL
+    tick = mt5.symbol_info_tick(target_sym)
     if not tick:
-        return {"success": False, "error": "ดึงราคาไม่ได้"}
+        return {"success": False, "error": f"ดึงราคา {target_sym} ไม่ได้"}
 
     current = tick.ask if signal == "BUY" else tick.bid
 
@@ -971,7 +1019,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             
             # --- Regime Detection Filter ---
             try:
-                regime = ml_scoring.detect_market_regime(SYMBOL, tf)
+                regime = ml_scoring.detect_market_regime(target_sym, tf)
                 if regime["is_strong_trend"]:
                     if (regime["trend_direction"] == "BUY" and signal == "SELL") or \
                        (regime["trend_direction"] == "SELL" and signal == "BUY"):
@@ -983,7 +1031,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
                 print(f"⚠️ [Regime Filter] Error: {e}")
             # -------------------------------
             
-            features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
+            features = ml_scoring.extract_features(target_sym, tf, signal, current, time_bkk)
             prob = ml_scoring.predict_success_probability(features)
 
             # Dynamic Lot Sizing based on ML Prob and ATR
@@ -1003,7 +1051,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
                     mult *= 1.2
                 if mult != 1.0:
                     volume = volume * mult
-                    info = mt5.symbol_info(SYMBOL)
+                    info = mt5.symbol_info(target_sym)
                     if info:
                         v_step = info.volume_step
                         volume = round(volume / v_step) * v_step
@@ -1032,9 +1080,11 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     # เป็นคำสั่งที่ "ผ่านจุดเข้าไปแล้ว" เท่านั้น จึงควรเล็กมาก
     # ไม่ควรใช้ระดับ spread ทั้งก้อน เพราะจะทำให้ limit ที่ยัง valid
     # ถูก skip เร็วเกินไป (เช่น S9 ที่ราคาใกล้ entry มาก)
-    info = mt5.symbol_info(SYMBOL)
+    info = mt5.symbol_info(target_sym)
     point = float(info.point) if info and getattr(info, "point", 0) else 0.01
-    tol = max(point * 2.0, 0.01)
+    spread_pts = float(info.spread * point) if info and getattr(info, "spread", 0) else (point * 2.0)
+    tol = max(spread_pts, point * 2.0)
+    digits = int(info.digits) if info and getattr(info, "digits", 0) else 2
 
     if signal == "BUY":
         # BUY_LIMIT: Entry ต้องต่ำกว่าราคาปัจจุบัน (ask) อย่างน้อย tol
@@ -1042,7 +1092,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             return {
                 "success": False,
                 "skipped": True,
-                "error": f"⏭️ ราคาผ่าน Entry BUY ไปแล้ว\nEntry:{price:.2f} | Ask:{current:.2f} | ต้องการ Entry < {current-tol:.2f}"
+                "error": f"⏭️ ราคาผ่าน Entry BUY ไปแล้ว\nEntry:{price:.{digits}f} | Ask:{current:.{digits}f} | ต้องการ Entry < {current-tol:.{digits}f}"
             }
         ot = mt5.ORDER_TYPE_BUY_LIMIT
     else:
@@ -1051,7 +1101,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
             return {
                 "success": False,
                 "skipped": True,
-                "error": f"⏭️ ราคาผ่าน Entry SELL ไปแล้ว\nEntry:{price:.2f} | Bid:{current:.2f} | ต้องการ Entry > {current+tol:.2f}"
+                "error": f"⏭️ ราคาผ่าน Entry SELL ไปแล้ว\nEntry:{price:.{digits}f} | Bid:{current:.{digits}f} | ต้องการ Entry > {current+tol:.{digits}f}"
             }
         ot = mt5.ORDER_TYPE_SELL_LIMIT
 
@@ -1068,13 +1118,13 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
         return _plim
 
     _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
-                                           signal=signal, sid=sid, base_volume=base_volume)
+                                           signal=signal, sid=sid, base_volume=base_volume, symbol=target_sym)
     if _guard_err:
         return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
 
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_PENDING,
-        "symbol":       SYMBOL,
+        "symbol":       target_sym,
         "volume":       send_volume,
         "type":         ot,
         "price":        price,
@@ -1123,7 +1173,7 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
     return {"success": False, "error": f"{err_code} — {err_msg}"}
 
 
-def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_index=None):
+def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_index=None, symbol=None):
     """
     Market order — fill ทันทีที่ราคาปัจจุบัน
     BUY  → ส่ง market BUY  (ask)
@@ -1133,9 +1183,10 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     เมื่อ SCALE_OUT_ENABLED=True → volume ×4, register TSO steps ใน scale_out_state
     trailing.py จะ partial-close ตาม steps และอัปเดต entry เป็น fill จริงอัตโนมัติ
     """
-    tick = mt5.symbol_info_tick(SYMBOL)
+    target_sym = symbol or SYMBOL
+    tick = mt5.symbol_info_tick(target_sym)
     if not tick:
-        return {"success": False, "error": "ดึงราคาไม่ได้"}
+        return {"success": False, "error": f"ดึงราคา {target_sym} ไม่ได้"}
         
     current = tick.ask if signal == "BUY" else tick.bid
     
@@ -1148,7 +1199,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
             
             # --- Regime Detection Filter ---
             try:
-                regime = ml_scoring.detect_market_regime(SYMBOL, tf)
+                regime = ml_scoring.detect_market_regime(target_sym, tf)
                 if regime["is_strong_trend"]:
                     if (regime["trend_direction"] == "BUY" and signal == "SELL") or \
                        (regime["trend_direction"] == "SELL" and signal == "BUY"):
@@ -1160,7 +1211,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
                 print(f"⚠️ [Regime Filter] Error: {e}")
             # -------------------------------
             
-            features = ml_scoring.extract_features(SYMBOL, tf, signal, current, time_bkk)
+            features = ml_scoring.extract_features(target_sym, tf, signal, current, time_bkk)
             prob = ml_scoring.predict_success_probability(features)
 
             # Dynamic Lot Sizing based on ML Prob and ATR
@@ -1180,7 +1231,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
                     mult *= 1.2
                 if mult != 1.0:
                     volume = volume * mult
-                    info = mt5.symbol_info(SYMBOL)
+                    info = mt5.symbol_info(target_sym)
                     if info:
                         v_step = info.volume_step
                         volume = round(volume / v_step) * v_step
@@ -1220,13 +1271,13 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
         return _plim
 
     _guard_err = _symbol_consistency_error(price, sl, tp, send_volume,
-                                           signal=signal, sid=sid, base_volume=base_volume)
+                                           signal=signal, sid=sid, base_volume=base_volume, symbol=target_sym)
     if _guard_err:
         return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
 
     r = mt5.order_send({
         "action":       mt5.TRADE_ACTION_DEAL,
-        "symbol":       SYMBOL,
+        "symbol":       target_sym,
         "volume":       send_volume,
         "type":         ot,
         "price":        price,

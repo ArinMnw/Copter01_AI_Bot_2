@@ -1,0 +1,1 @@
+with open("strategy20_14_groups_generated.py", "w", encoding="utf-8") as f2:\n    f2.write(content)\n

@@ -31,7 +31,14 @@ def _build_demo_portfolio_view(context=None):
                 InlineKeyboardButton(label_w, callback_data=f"demo_weight_toggle"),
                 InlineKeyboardButton(label_s, callback_data=f"demo_scale_toggle")
             ])
-            
+
+            if managed in getattr(demo_portfolio, "AF_PORTFOLIO_LEGS", {}):
+                max_lot = getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", {}).get(managed, 0.0)
+                label_ml = f"🧢 Max Lot {max_lot}" if max_lot > 0 else "🧢 Max Lot: ไม่จำกัด"
+                rows.append([
+                    InlineKeyboardButton(label_ml, callback_data="demo_maxlot_toggle")
+                ])
+
             if managed.startswith("LTS"):
                 dyn_lot = getattr(config, "DYNAMIC_LOT_ENABLED", {}).get(managed, False)
                 smart_cut = getattr(config, "SMART_CUTLOSS_ENABLED", {}).get(managed, False)
@@ -43,10 +50,23 @@ def _build_demo_portfolio_view(context=None):
                 rows.append([
                     InlineKeyboardButton(f"🛑 P4 Mom. Stall: {'🟢' if mom_stall else '🔴'}", callback_data="demo_p4_mom_stall_toggle")
                 ])
-                if managed in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+                if managed in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK", "LTS_AUS2", "LTS_AHR2", "LTS_AUS3", "LTS_AHR3"):
                     cb_on = getattr(config, "DEMO_PORTFOLIO_CB_ENABLED", {}).get(managed, False)
                     rows.append([
                         InlineKeyboardButton(f"⚡ also backtest: {'🟢' if cb_on else '🔴'}", callback_data="demo_also_backtest_toggle")
+                    ])
+                if managed in ("LTS_AUS3", "LTS_AHR3"):
+                    # ปุ่มแยกคุม supervisor_lts_avengers.py (รันแยก process ต่างหาก, เข้า order
+                    # ตาม backtest จริง) — ต้องแยกจากปุ่ม "เปิด/หยุด" ด้านบนที่คุม regular scan
+                    # เดิม (_demo_scan_af_ladder) เพราะถ้าใช้ flag เดียวกัน เปิด regular scan
+                    # กลับมาจะทำงานคู่ขนานกับ supervisor พร้อมกัน เข้า order ซ้ำซ้อนได้
+                    # (เจอจริง 2026-08-31) — supervisor อ่านค่านี้จาก bot_state.json ตรงๆ ทุกรอบ
+                    sup_on = getattr(config, "LTS_SUPERVISOR_ACTIVE", {}).get(managed, False)
+                    rows.append([
+                        InlineKeyboardButton(
+                            f"🤖 LTS Supervisor: {'🟢 ON' if sup_on else '🔴 OFF'}",
+                            callback_data="demo_lts_supervisor_toggle",
+                        )
                     ])
             
         rows.append([
@@ -96,7 +116,12 @@ def _build_demo_portfolio_view(context=None):
             row = []
             for name in names[i:i + 2]:
                 icon = "✅" if config.DEMO_PORTFOLIO_ACTIVE.get(name) else "⚙️"
-                row.append(InlineKeyboardButton(f"{icon} {name}", callback_data=f"demo_manage_{name.lower()}"))
+                # 🤖 นำหน้าสุดถ้า LTS Supervisor (backtest-driven order, supervisor_lts_avengers.py)
+                # เปิดอยู่สำหรับพอร์ตนี้ — กันงงตอนย้อนกลับมาดูรายการแล้วมองไม่ออกว่าพอร์ตไหนมี
+                # supervisor รันอยู่บ้าง (เจอจริง 2026-08-31 พี่ขอเพิ่ม)
+                sup_on = getattr(config, "LTS_SUPERVISOR_ACTIVE", {}).get(name, False)
+                label = f"{'🤖 ' if sup_on else ''}{icon} {name}"
+                row.append(InlineKeyboardButton(label, callback_data=f"demo_manage_{name.lower()}"))
             rows.append(row)
         rows.append([
             InlineKeyboardButton("🔄 รีเฟรช", callback_data="demo_refresh"),

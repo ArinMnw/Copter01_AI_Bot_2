@@ -22,7 +22,16 @@ START_EQUITY = 1000.0
 DEFAULT_SPREAD = 0.20
 
 
-def replay84(bars, spread, cfg):
+def replay84(bars, spread, cfg, include_open=False):
+    """include_open=False (ค่าเดิม เสมอสำหรับผู้เรียกทั่วไป): ไม้ที่ยังไม่ TP/SL ภายใน bars ที่
+    fetch มา จะถูกทิ้ง (outcome=="OPEN" -> continue) เหมือนเดิมทุกประการ ไม่กระทบใครที่ใช้อยู่แล้ว
+    (win-rate/PF/P&L ของ optimize/backtest scripts อื่นๆ ทั้งหมดพึ่งพฤติกรรมนี้)
+
+    include_open=True (opt-in เฉพาะ supervisor_lts_avengers.py เท่านั้น 2026-08-31): คืนไม้ OPEN
+    ด้วย (outcome="OPEN", exit_time_ts/exit_price=None) — entry/sl/tp คำนวณเสร็จตั้งแต่แท่ง
+    สัญญาณปิดแล้ว ไม่ต้องรอผล TP/SL ก่อนถึงจะรู้ — ใช้ให้ supervisor เข้า order ได้ทันทีที่สัญญาณ
+    เกิด แทนที่จะรอจนกว่า backtest จะยืนยันผลจบก่อน (เจอจริง 2026-08-31: ทำให้เข้า order ช้ากว่า
+    ที่ควรได้สูงสุดเกือบ 15 นาที)"""
     min_gap_bars = int(cfg.get("MIN_GAP_BARS", 5))
     min_start = int(cfg["LOOKBACK"]) + 90
     all_dt = cfg.get("_DT_BKK") or [config.mt5_ts_to_bkk(int(b["time"])) for b in bars]
@@ -62,6 +71,23 @@ def replay84(bars, spread, cfg):
                 exit_idx = m
                 break
         if outcome == "OPEN":
+            if include_open:
+                risk_distance = abs(entry - sl)
+                trades.append({
+                    "signal": direction,
+                    "outcome": "OPEN",
+                    "signal_time_ts": int(bars[j]["time"]),
+                    "fill_time_ts": int(bars[fill_idx]["time"]),
+                    "exit_time_ts": None,
+                    "entry": round(entry, 2),
+                    "tp": round(tp, 2),
+                    "sl": round(sl, 2),
+                    "exit_price": None,
+                    "risk_distance": round(risk_distance, 4),
+                    "diff_usd_per_001lot": 0.0,
+                    "spread": spread,
+                    "reason": sig["reason"],
+                })
             continue
         risk_distance = abs(entry - sl)
         diff = (exit_price - entry) if direction == "BUY" else (entry - exit_price)
@@ -83,8 +109,8 @@ def replay84(bars, spread, cfg):
     return trades
 
 
-def run_single(entry_bars, cfg, days, spread):
-    return replay84(entry_bars, spread, cfg)
+def run_single(entry_bars, cfg, days, spread, include_open=False):
+    return replay84(entry_bars, spread, cfg, include_open=include_open)
 
 
 def run_backtest(cfg, days, spread, label, verbose=True):

@@ -1,0 +1,364 @@
+2026-09-08 23:07:54,134 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,134 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,134 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,134 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,134 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,136 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,136 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,136 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,136 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,137 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,137 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:07:54,793 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:07:54,794 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.
+2026-09-08 23:08:28,709 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,709 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,710 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,710 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,710 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,710 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,710 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,712 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,712 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,712 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:28,712 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:08:29,348 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:08:29,348 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.
+2026-09-08 23:09:04,375 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,375 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,376 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,376 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,376 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,377 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,377 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,378 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,378 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,379 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:04,379 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:05,062 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:09:05,063 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.
+2026-09-08 23:09:38,901 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,901 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,902 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,902 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,902 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,902 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,903 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,903 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,904 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,904 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:38,904 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:09:39,540 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:09:39,541 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.
+2026-09-08 23:10:14,067 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,067 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,068 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,068 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,068 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,068 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,068 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,069 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,069 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,069 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,069 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:14,731 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:10:14,731 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.
+2026-09-08 23:10:50,635 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,635 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,637 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,637 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,637 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,638 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,638 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,638 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,639 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,639 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:50,639 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:10:51,394 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:10:51,396 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.
+2026-09-08 23:11:24,657 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,658 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,658 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,658 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,659 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,659 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,659 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,660 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,660 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,660 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:24,662 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-08 23:11:25,410 INFO httpx: HTTP Request: POST https://api.telegram.org/bot8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0/getMe "HTTP/1.1 401 Unauthorized"
+2026-09-08 23:11:25,411 ERROR telegram.ext: Network Retry Loop (Bootstrap Initialize Application): Invalid token. Aborting retry loop.
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 865, in initialize
+    await self.get_me()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 2040, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 1005, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 712, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 378, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 741, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 136, in do_action
+    await action_cb()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\ext\_extbot.py", line 324, in initialize
+    await super().initialize()
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\telegram\_bot.py", line 868, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8731980788:AAHJ1_L3F44ZZbxR3yrPQhtZQzxgQE0d5s0` was rejected by the server.

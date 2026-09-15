@@ -1,0 +1,27 @@
+Timeout (0:02:30)!
+Thread 0x0000427c (most recent call first):
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\threading.py", line 327 in wait
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\queues.py", line 231 in _feed
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\threading.py", line 982 in run
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\threading.py", line 1045 in _bootstrap_inner
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\threading.py", line 1002 in _bootstrap
+
+Thread 0x0000a4f4 (most recent call first):
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\connection.py", line 828 in _exhaustive_wait
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\connection.py", line 896 in wait
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\connection.py", line 346 in _poll
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\connection.py", line 257 in poll
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\queues.py", line 113 in get
+  File "D:\Project\Copter01_AI_Bot_2\mt5_worker.py", line 297 in _call_subprocess
+  File "D:\Project\Copter01_AI_Bot_2\mt5_worker.py", line 130 in _call
+  File "D:\Project\Copter01_AI_Bot_2\mt5_worker.py", line 371 in symbol_info_tick
+  File "D:\Project\Copter01_AI_Bot_2\bot_log.py", line 81 in _now_bkk
+  File "D:\Project\Copter01_AI_Bot_2\bot_log.py", line 401 in emit
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\logging\__init__.py", line 978 in handle
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\logging\__init__.py", line 1706 in callHandlers
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\logging\__init__.py", line 1644 in handle
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\logging\__init__.py", line 1634 in _log
+  File "C:\Users\Copter\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\logging\__init__.py", line 1489 in info
+  File "C:\Users\Copter\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\apscheduler\schedulers\base.py", line 507 in add_job
+  File "D:\Project\Copter01_AI_Bot_2\main.py", line 693 in main
+  File "D:\Project\Copter01_AI_Bot_2\main.py", line 952 in <module>

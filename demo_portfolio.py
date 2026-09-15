@@ -59,6 +59,14 @@ from strategy102 import DEFAULT_CFG as S102_DEFAULTS, detect_s102
 from strategy105 import DEFAULT_CFG as S105_DEFAULTS, detect_s105
 from strategy106 import DEFAULT_CFG as S106_DEFAULTS, detect_s106
 from strategy111 import DEFAULT_CFG as S111_DEFAULTS, detect_s111
+from strategy.s420.strategy420 import DEFAULT_CFG as S420_DEFAULTS, detect_s420
+from strategy.s421.strategy421 import DEFAULT_CFG as S421_DEFAULTS, detect_s421
+from strategy.s422.strategy422 import DEFAULT_CFG as S422_DEFAULTS, detect_s422
+from strategy.s427.strategy427 import DEFAULT_CFG as S427_DEFAULTS, detect_s427
+from strategy.s429.strategy429 import DEFAULT_CFG as S429_DEFAULTS, detect_s429
+from strategy.s432.strategy432 import DEFAULT_CFG as S432_DEFAULTS, detect_s432
+from strategy.s433.strategy433 import cfg_for_tf as s433_cfg_for_tf, detect_s433
+from strategy.s434.strategy434 import cfg_for_tf as s434_cfg_for_tf, detect_s434
 from strategy_af import (
     AF_LADDER_LEGS,
     AF_PORTFOLIO_LEGS,
@@ -97,6 +105,12 @@ _LTS_NAMED_MAGIC = {
     "LTS_ROLLOVER_HTF": 992011,
     "LTS_ROLLOVER_HTF_MAX": 992012,
     "LTS_SCREEN13": 992013,
+    # LTS_AUS2/LTS_AHR2 (2026-08-09): เวอร์ชันตัด leg ที่ contribution จำลองจริงติดลบ
+    # ออกจาก LTS_AUS/LTS_AHR เดิม — ดู strategy_lts.py สำหรับที่มาไฟล์ weights
+    "LTS_AUS2": 992014,
+    "LTS_AHR2": 992015,
+    "LTS_AUS3": 992016,
+    "LTS_AHR3": 992017,
 }
 _LTS_MAGIC_TO_NAME = {magic: name for name, magic in _LTS_NAMED_MAGIC.items()}
 MIN_LOT = 0.01
@@ -106,10 +120,11 @@ S9X_PENDING_MAX_BARS = 5
 S9X_PENDING_SPREAD = 0.20
 
 _TF_MAP = {
-    "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, 
-    "M30": mt5.TIMEFRAME_M30, "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4, "D1": mt5.TIMEFRAME_D1
+    "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15,
+    "M30": mt5.TIMEFRAME_M30, "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4,
+    "H12": mt5.TIMEFRAME_H12, "D1": mt5.TIMEFRAME_D1
 }
-_TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400, "D1": 86400}
+_TF_SECS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400, "H12": 43200, "D1": 86400}
 
 
 def _demo_symbol():
@@ -181,6 +196,33 @@ _CFG_U = dict(S102_DEFAULTS)
 _CFG_V = dict(S105_DEFAULTS)
 _CFG_W = dict(S106_DEFAULTS)
 _CFG_X = dict(S111_DEFAULTS)
+_CFG_J = dict(S420_DEFAULTS)
+_CFG_O = dict(S421_DEFAULTS)
+_CFG_Y = dict(S422_DEFAULTS)
+_CFG_S427 = dict(S427_DEFAULTS)
+# strategy427.DEFAULT_CFG ตั้ง USE_ATR_STOP=False (ตรงต้นฉบับ Pine ที่ไม่มี SL จริง)
+# แต่ backtest_s427.py บังคับ USE_ATR_STOP=True เสมอ (เว้นแต่สั่ง override ผ่าน
+# --cfg-json) ตอนรัน sweep ที่ใช้ตัดสินใจเอา M30/H1 เข้าพอร์ตนี้ — ถ้าไม่ override
+# ตรงนี้ detect_s427() จะคืน sl=tp=None ทุกครั้งที่มี signal จริง แล้ว demo_scan()
+# ที่ float(res["sl"]) แบบไม่กัน None จะ crash ทุกรอบ (เจอจริงบน profile 3587
+# ตั้งแต่ 2026-08-17 12:34 — TypeError: float() argument ... not 'NoneType',
+# ทำให้ S427 ไม่เคยเปิดไม้จริงได้เลยตั้งแต่เพิ่มเข้าพอร์ต) ต้องบังคับ True ให้ตรงกับ
+# config ที่ backtest ใช้ตัดสินใจจริง
+_CFG_S427["USE_ATR_STOP"] = True
+_CFG_S429 = dict(S429_DEFAULTS)
+_CFG_S432 = dict(S432_DEFAULTS)
+# S433 ผูก ATR_MULT/TP3_R กับ TF (cfg_for_tf ใช้ TF_CFG_OVERRIDES ของ
+# strategy433.py เอง ดู sweep+walk-forward ใน project memory
+# s433_coppock_ai_gold_star_progress) — สร้าง cfg แยกต่อ leg TF ตรงนี้เลย
+_CFG_S433_H4 = s433_cfg_for_tf("H4")
+_CFG_S433_H12 = s433_cfg_for_tf("H12")
+# S434 ผูก ATR_MULT/MIN_TP_ATR_MULT กับ TF (cfg_for_tf ใช้ TF_CFG_OVERRIDES ของ
+# strategy434.py เอง ดู sweep+walk-forward ใน project memory
+# s434_breakout_probability_negative_result) — สร้าง cfg แยกต่อ leg TF ตรงนี้เลย
+_CFG_S434_H1 = s434_cfg_for_tf("H1")
+_CFG_S434_H4 = s434_cfg_for_tf("H4")
+_CFG_S434_H12 = s434_cfg_for_tf("H12")
+_CFG_S434_D1 = s434_cfg_for_tf("D1")
 
 # leg registry: (label, detect_fn, cfg, needs_htf, extra_kind)
 # extra_kind: None | "bar_dt_list" (S46/S49/S51) | "prev_week_hl" (S56)
@@ -207,17 +249,89 @@ _LEG_DEFS = {
     "V": ("S105 Liquidity Sweep",  detect_s105, _CFG_V, False, None),
     "W": ("S106 Volume Shift",     detect_s106, _CFG_W, False, None),
     "X": ("S111 Gap Magnet",       detect_s111, _CFG_X, False, None),
+    # S420/S421 สแกนทุก TF พร้อมกัน (M1/M5/M15/M30/H1) — leg แยกตาม TF เพราะ backtest
+    # ยืนยันแล้วว่า limit ชนะ market ทุก TF (20/20 ชุด) ไม่มี TF ไหนแย่พอจะตัดทิ้ง —
+    # ดู strategy/lts/demo_summary.md หัวข้อ 7 สำหรับตัวเลขเทียบครบทุก TF จริง TF ของแต่ละ
+    # leg มาจาก _LEG_ENTRY_TF ด้านล่าง (ไม่ใช่ M5 ตายตัวเหมือน leg อื่นในตารางนี้)
+    "J_M1":  ("S420 ZigZag PA V4.1 (M1)",  detect_s420, _CFG_J, False, None),
+    "J_M5":  ("S420 ZigZag PA V4.1 (M5)",  detect_s420, _CFG_J, False, None),
+    "J_M15": ("S420 ZigZag PA V4.1 (M15)", detect_s420, _CFG_J, False, None),
+    "J_M30": ("S420 ZigZag PA V4.1 (M30)", detect_s420, _CFG_J, False, None),
+    "J_H1":  ("S420 ZigZag PA V4.1 (H1)",  detect_s420, _CFG_J, False, None),
+    "O_M1":  ("S421 ZigZag PA V4 (M1)",  detect_s421, _CFG_O, False, None),
+    "O_M5":  ("S421 ZigZag PA V4 (M5)",  detect_s421, _CFG_O, False, None),
+    "O_M15": ("S421 ZigZag PA V4 (M15)", detect_s421, _CFG_O, False, None),
+    "O_M30": ("S421 ZigZag PA V4 (M30)", detect_s421, _CFG_O, False, None),
+    "O_H1":  ("S421 ZigZag PA V4 (H1)",  detect_s421, _CFG_O, False, None),
+    "Y": ("S422 FTSMA",            detect_s422, _CFG_Y, False, None),
+    # S427/S429 — TF ที่เลือกมาจากผล sweep 8 หน้าต่างเวลา (30-365 วัน) ที่กำไร
+    # ตลอดทุกหน้าต่างเท่านั้น (ดู strategy/lts/demo_summary.md) S429 มีแค่ M30
+    # เดียวที่ผ่านเกณฑ์, S427 ผ่านที่ M30/H1 (M1 ขาดทุนหนักทุกหน้าต่าง ไม่เอา)
+    "S427_M30": ("S427 Open Close Cross (M30)", detect_s427, _CFG_S427, False, None),
+    "S427_H1":  ("S427 Open Close Cross (H1)",  detect_s427, _CFG_S427, False, None),
+    "S429_M30": ("S429 UT Bot Alerts (M30)",    detect_s429, _CFG_S429, False, None),
+    # S432 — TF ที่เลือกมาจาก sweep 365 วัน (TP_BASE_MULT=2.0) ที่กำไรทั้ง full-year
+    # และผ่าน dual-window robustness (ครึ่งปีแรก/หลังบวกทั้งคู่): M15/M30/H1/H4
+    # (M1/M5 ขาดทุน/เท่าทุนทุกกรณี ตัดออก, H12/D1 ไม้น้อยเกิน n<25 ตัดออกด้วย)
+    "S432_M15": ("S432 Market Path Forecast (M15)", detect_s432, _CFG_S432, False, None),
+    "S432_M30": ("S432 Market Path Forecast (M30)", detect_s432, _CFG_S432, False, None),
+    "S432_H1":  ("S432 Market Path Forecast (H1)",  detect_s432, _CFG_S432, False, None),
+    "S432_H4":  ("S432 Market Path Forecast (H4)",  detect_s432, _CFG_S432, False, None),
+    # S433 — เฉพาะ H4/H12 เท่านั้นที่ผ่าน sweep 365d + dual-window walk-forward
+    # (M1/M5/M15/M30/H1 PF<1 ทุก combo ที่ลอง, D1 full-year PF ดูดีแต่ n น้อยเกิน
+    # ไม่น่าเชื่อถือ — ดู project memory s433_coppock_ai_gold_star_progress)
+    # ⚠️ deviation จาก backtest: strategy433.run_backtest() flip-close ไม้เดิมทันที
+    # ที่มีสัญญาณสวนทาง แต่ demo_scan() ทั่วไปไม่มี close-on-opposite (เปิดไม้ใหม่
+    # อย่างเดียว รอ SL/TP เอง) — คุยกับพี่แล้วตัดสินใจปล่อยตาม cap ปกติก่อน
+    # (ไม่ใส่ MAX_POS_PER_LEG override พิเศษ) เพื่อดูพฤติกรรมจริงบน demo ก่อน
+    "S433_H4":  ("S433 AI Gold Star 123 Coppock (H4)",  detect_s433, _CFG_S433_H4, False, None),
+    "S433_H12": ("S433 AI Gold Star 123 Coppock (H12)", detect_s433, _CFG_S433_H12, False, None),
+    # S434 — H1/H4/H12/D1 เท่านั้นที่ผ่าน sweep 365d (MIN_TP_ATR_MULT floor) +
+    # dual-window walk-forward ทั้งสองครึ่งปี (M1/M5/M15/M30 PF<1 ทุก combo ที่
+    # ลอง แม้ตั้ง TP floor สูงสุดที่ลอง — ดู project memory
+    # s434_breakout_probability_negative_result) H12 แข็งแรงสุด (PF>1.9 ทั้งสอง
+    # ครึ่งปี WR~83%), H4/D1 กำไรจริงแต่ robustness อ่อนกว่า (ครึ่งใดครึ่งหนึ่ง
+    # อ่อนกว่าอีกครึ่งชัดเจน)
+    "S434_H1":  ("S434 Breakout Probability (H1)",  detect_s434, _CFG_S434_H1, False, None),
+    "S434_H4":  ("S434 Breakout Probability (H4)",  detect_s434, _CFG_S434_H4, False, None),
+    "S434_H12": ("S434 Breakout Probability (H12)", detect_s434, _CFG_S434_H12, False, None),
+    "S434_D1":  ("S434 Breakout Probability (D1)",  detect_s434, _CFG_S434_D1, False, None),
 }
+
+# TF override ต่อ leg (ไม่มีใน dict นี้ = ใช้ "M5" ตามเดิม) — เฉพาะ S420/S421 ที่แยก TF
+_LEG_ENTRY_TF = {
+    "J_M1": "M1", "J_M5": "M5", "J_M15": "M15", "J_M30": "M30", "J_H1": "H1",
+    "O_M1": "M1", "O_M5": "M5", "O_M15": "M15", "O_M30": "M30", "O_H1": "H1",
+    "S427_M30": "M30", "S427_H1": "H1", "S429_M30": "M30",
+    "S432_M15": "M15", "S432_M30": "M30", "S432_H1": "H1", "S432_H4": "H4",
+    "S433_H4": "H4", "S433_H12": "H12",
+    "S434_H1": "H1", "S434_H4": "H4", "S434_H12": "H12", "S434_D1": "D1",
+}
+# จำนวนแท่ง base-TF ที่ fetch ต่อรอบ scan — คำนวณให้ครอบคลุม ~300 แท่ง H1-equivalent
+# เท่ากัน (ตาม LOOKBACK_BARS ของ backtest_s420.py) ไม่ว่าจะ TF ไหน: 300 * (3600/TF_seconds)
+# M30/H1 ปรับขึ้นจาก 600/350 -> 900 (H4 เพิ่มใหม่ 900) เพื่อให้ S432 มีบาร์พอสร้าง
+# swing-sample array ได้ครบ (compute_state ต้องการ >= atr_len(200)+swing_len*20+300
+# ~820 บาร์ ถึงจะ forecastReady ได้จริง ดู strategy/s432/backtest_s432.py
+# _lookback_bars()) เพิ่มแค่ทำให้ strategy อื่นบน TF เดียวกัน (S420/S421/S427/S429)
+# เห็นประวัติยาวขึ้นเฉยๆ ไม่ตัดข้อมูลที่มีอยู่เดิมออก ไม่กระทบผลตรวจจับของพวกนั้น
+_ENTRY_BAR_COUNT = {"M1": 18000, "M5": 3600, "M15": 1200, "M30": 900, "H1": 900, "H4": 900, "H12": 900, "D1": 900}
 
 AF_DEFS = {**AF_LADDER_LEGS, **LTS_STRATEGIES}
 
 P13_KEYS = list("BCDFGHIKMNPQR")  # Champion — ถอด A(S31)/E(S38)/L(S45) ที่เป็น sharpe-drag
 P16_KEYS = list("ABCDEFGHIKLMNPQRS")  # Max-Yield Blend — ครบทุก leg รวม S96
 P18_KEYS = P13_KEYS + list("TUVWX")  # 18-Way Ultimate Hybrid (P13 + 5 จตุรเทพ)
+S420_KEYS = ["J_M1", "J_M5", "J_M15", "J_M30", "J_H1"]
+S421_KEYS = ["O_M1", "O_M5", "O_M15", "O_M30", "O_H1"]
 
 PORTFOLIOS = {
-    "P13": P13_KEYS, "P16": P16_KEYS, "P18": P18_KEYS, 
+    "P13": P13_KEYS, "P16": P16_KEYS, "P18": P18_KEYS,
     "S101": ["T"], "S102": ["U"], "S105": ["V"], "S106": ["W"], "S111": ["X"],
+    "S420": S420_KEYS, "S421": S421_KEYS, "S422": ["Y"],
+    "S427": ["S427_M30", "S427_H1"], "S429": ["S429_M30"],
+    "S432": ["S432_M15", "S432_M30", "S432_H1", "S432_H4"],
+    "S433": ["S433_H4", "S433_H12"],
+    "S434": ["S434_H1", "S434_H4", "S434_H12", "S434_D1"],
     **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS
 }
 PORTFOLIO_DISPLAY_NAME = {
@@ -233,27 +347,51 @@ PORTFOLIO_DISPLAY_NAME = {
     "LTS_AVENGERS_BASE": "🦸‍♂️ Avengers Base",
     "LTS_AVENGERS_P34": "⚡ Avengers P34",
     "LTS_AVENGERS_HIGH_RISK": "🔥 Avengers High Risk",
+    "LTS_AHR2": "🔥✨ Avengers High Risk v2",
+    "LTS_AHR3": "🔥🚀 Avengers High Risk v3",
     "LTS_AVENGERS_ULTRA_SAFE": "💎 Avengers Ultra Safe",
+    "LTS_AUS2": "💎✨ Avengers Ultra Safe v2",
+    "LTS_AUS3": "💎🚀 Avengers Ultra Safe v3",
     "LTS_AVENGERS_HIGH_FREQ": "⚡ Avengers High Freq",
     "S101": "⚔️ S101 Micro-Fractal",
     "S102": "🚀 S102 Session Breakout",
     "S105": "🧹 S105 Liquidity Sweep",
     "S106": "🎭 S106 Volume Shift",
     "S111": "🧲 S111 Gap Magnet",
+    "S420": "🌀 S420 ZigZag PA V4.1",
+    "S421": "🌀 S421 ZigZag PA V4",
+    "S422": "🎵 S422 FTSMA",
+    "S427": "🔀 S427 Open Close Cross",
+    "S429": "🎯 S429 UT Bot Alerts",
+    "S432": "🧭 S432 Market Path Forecast",
+    "S433": "🌟 S433 AI Gold Star (Coppock)",
+    "S434": "📊 S434 Breakout Probability",
+    "LTS_EVOLUTION9": "🧬 LTS_EVOLUTION9",
+    "LTS_SCREEN13": "📐 LTS_SCREEN13",
 }
 PORTFOLIO_ORDER = (
     "P13", "P16", "P18",
     "AF22", "AF34", "AF47",
     "LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34",
-    "LTS_AVENGERS_HIGH_RISK", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_FREQ",
-    "S101", "S102", "S105", "S106", "S111"
+    "LTS_AVENGERS_HIGH_RISK", "LTS_AHR2", "LTS_AHR3", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AUS2", "LTS_AUS3", "LTS_AVENGERS_HIGH_FREQ",
+    "S101", "S102", "S105", "S106", "S111",
+    "S420", "S421", "S422", "S427", "S429", "S432", "S433", "S434",
+    # เจอจริง 2026-08-10: LTS_EVOLUTION9/LTS_SCREEN13 ลงทะเบียนใน config.DEMO_PORTFOLIO_ACTIVE
+    # และ PORTFOLIOS มาตั้งแต่ 2026-07-28/2026-08-06 แต่ไม่เคยอยู่ใน PORTFOLIO_ORDER — demo_scan_job()
+    # กรอง active_names จาก PORTFOLIO_ORDER เท่านั้น ทำให้ต่อให้ DEMO_PORTFOLIO_ACTIVE=True ก็ไม่เคย
+    # ถูกสแกน/เทรดจริงเลยสักครั้งตั้งแต่สร้างมา (ไม่มีใครกดเปิดจน 2026-08-10 ถึงเจอ)
+    "LTS_EVOLUTION9", "LTS_SCREEN13",
 )
 
 DEMO_GROUPS = {
     "AF": {"title": "🎯 AF Auto-Ladder", "keys": ["AF22", "AF34", "AF47"]},
     "P": {"title": "🏆 P Lean Blend", "keys": ["P13", "P16", "P18"]},
-    "LTS": {"title": "🧠 LTS Avengers", "keys": ["LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34", "LTS_AVENGERS_HIGH_RISK", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_FREQ"]},
+    "LTS": {"title": "🧠 LTS Avengers", "keys": ["LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34", "LTS_AVENGERS_HIGH_RISK", "LTS_AHR2", "LTS_AHR3", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AUS2", "LTS_AUS3", "LTS_AVENGERS_HIGH_FREQ", "LTS_EVOLUTION9", "LTS_SCREEN13"]},
     "100": {"title": "⚔️ 5 จตุรเทพ 100", "keys": ["S101", "S102", "S105", "S106", "S111"]},
+    "400": {"title": "🌀 400 ZigZag/FTSMA", "keys": ["S420", "S421", "S422"]},
+    "432": {"title": "🧭 S432 Path Forecast", "keys": ["S432"]},
+    "433": {"title": "🌟 S433 AI Gold Star", "keys": ["S433"]},
+    "434": {"title": "📊 S434 Breakout Probability", "keys": ["S434"]},
 }
 
 
@@ -319,7 +457,7 @@ def _prev_week_hl_now(entry_ts):
 
 def _load_state():
     if not os.path.exists(STATE_FILE):
-        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "pending_lts_entries": {}, "trades": []}
+        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "pending_lts_entries": {}, "pending_limit_orders": {}, "trades": []}
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             state = json.load(f)
@@ -327,10 +465,11 @@ def _load_state():
             state.setdefault("last_signal_ts", {})
             state.setdefault("last_raw_signal_ts", {})
             state.setdefault("pending_lts_entries", {})
+            state.setdefault("pending_limit_orders", {})
             state.setdefault("trades", [])
             return state
     except Exception:
-        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "pending_lts_entries": {}, "trades": []}
+        return {"active": {"P13": False, "P16": False}, "last_signal_ts": {}, "last_raw_signal_ts": {}, "pending_lts_entries": {}, "pending_limit_orders": {}, "trades": []}
 
 
 def _save_state(state):
@@ -385,6 +524,11 @@ BACKTEST_ANCHORED_PORTFOLIOS = {
     # สูงสุด 66 ซ้ำต่อสัญญาณ) เพิ่มเข้ามาให้ได้ shared-cooldown-gating + closed-bar-only entry
     # (ตัดแท่งที่ยังไม่ปิดออกก่อนตรวจจับสัญญาณ) เหมือนกัน ให้ live match กับ backtest เป็นหลัก
     "LTS890", "LTS999", "LTS_AVENGERS_P34", "LTS_AVENGERS_HIGH_FREQ",
+    # 2026-08-28: LTS_AUS2/LTS_AHR2/LTS_AUS3/LTS_AHR3 ตกหล่นจาก set นี้มาตั้งแต่สร้าง
+    # (AUS2/AHR2 2026-08-09, AUS3/AHR3 2026-08-26) เจอจริงว่า LTS_AUS3 live 113 ไม้ backtest
+    # เห็นแค่ 17 ไม้ (0 matched) และ P&L กลับทิศกันสิ้นเชิง (live -$5,014 vs backtest +$6,517)
+    # เพราะ live ไม่ได้ closed-bar-only + shared-cooldown เหมือนพี่น้องรุ่นแรก
+    "LTS_AUS2", "LTS_AHR2", "LTS_AUS3", "LTS_AHR3",
 }
 
 
@@ -407,6 +551,41 @@ def _count_open_positions(magic, leg_id, entry_tf=None):
         prefixes.append(_demo_comment(leg_id, entry_tf))
         prefixes.append(f"DEMO-{entry_tf}-{leg_id}")  # legacy format with TF after DEMO
     return sum(1 for p in positions if p.magic == magic and any(p.comment.startswith(prefix) for prefix in prefixes))
+
+
+def _active_leg_count_on_profile():
+    """นับจำนวน leg รวมของทุกพอร์ตที่ active อยู่บน profile นี้ (ไม่รวม AF/LTS
+    ladder ซึ่งใช้ _af_order_volume/weight sizing แยกต่างหากอยู่แล้ว) — ใช้หาร
+    balance ก่อนคำนวณ lot ต่อ leg ใน _balance_based_volume() เพื่อไม่ให้แต่ละ
+    leg/TF สร้าง exposure ซ้อนกันเกินจริงตอนมีหลาย leg ใช้ balance เดียวกัน (เจอ
+    จริง 2026-08-18: S427(2 leg)+S421(5 leg)+S429(1 leg) บนบัญชีเดียวกัน แต่ละ
+    leg คิด lot=balance/10000 เต็มๆ ไม่หารกัน ทำให้ exposure รวมสูงกว่าที่ตั้งใจ
+    8 เท่า จนบัญชีแตก) คืนอย่างน้อย 1 เสมอกันหารด้วยศูนย์"""
+    active_names = [name for name in PORTFOLIO_ORDER
+                     if config.DEMO_PORTFOLIO_ACTIVE.get(name, False)
+                     and name not in AF_PORTFOLIO_LEGS and not name.startswith("LTS")]
+    total = sum(max(1, len(PORTFOLIOS.get(name, [name]))) for name in active_names)
+    return max(1, total)
+
+
+def _balance_based_volume(portfolio_name):
+    """lot = (balance / จำนวน leg รวมทุกพอร์ตที่ active บน profile นี้) / 10000
+    (เช่น S420 เดี่ยว 5 leg บน balance 50,000 -> lot 1.00 ต่อ leg; balance 100
+    ต่อ leg -> lot 0.01) clamp กับ broker volume_min/max/step — ใช้เมื่อ
+    config.DEMO_PORTFOLIO_BALANCE_LOT_ENABLED[portfolio_name] เป็น True เท่านั้น
+    (default False ทุกพอร์ต ไม่กระทบพอร์ตเดิมที่ใช้ MIN_LOT คงที่) หารด้วยจำนวน
+    leg รวมทั้ง profile (ไม่ใช่แค่ leg ของพอร์ตนี้พอร์ตเดียว) เพราะหลายพอร์ตแชร์
+    balance เดียวกันได้ (เช่น S421+S427+S429 บนบัญชีเดียวกัน) — ดู docstring ของ
+    _active_leg_count_on_profile() สำหรับที่มาของ fix นี้"""
+    if not getattr(config, "DEMO_PORTFOLIO_BALANCE_LOT_ENABLED", {}).get(portfolio_name, False):
+        return MIN_LOT
+    account = mt5.account_info()
+    balance = float(getattr(account, "balance", 0.0) or 0.0) if account else 0.0
+    if balance <= 0.0:
+        return MIN_LOT
+    raw_volume = (balance / _active_leg_count_on_profile()) / 10000.0
+    info = mt5.symbol_info(_demo_symbol())
+    return _round_volume(raw_volume, info) if info else round(raw_volume, 2)
 
 
 def _round_volume(volume, info):
@@ -518,6 +697,82 @@ def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original
     return {"success": False, "error": f"{result.retcode} — {result.comment}", "sl": sl, "tp": tp}
 
 
+def _place_limit_order(signal, entry_level, sl, tp, comment, magic, volume=MIN_LOT):
+    """วาง pending order จริงที่ broker (mt5.TRADE_ACTION_PENDING, BUY_LIMIT/
+    SELL_LIMIT) ที่ราคา entry_level พอดี (เช่น fib_ew ของ S420/S421) — ต่างจาก
+    _place_market_order() ที่ fill ทันทีที่ราคาตลาดปัจจุบัน
+
+    ไม่ตั้ง broker-side expiration (type_time=GTC) เพราะเราคุมการยกเลิกเองด้วย
+    จำนวนแท่ง (CANCEL_BARS) ผ่าน _cancel_pending_order()/pending_limit_orders
+    ใน state แทน — ตรงกับที่ backtest_s420.py/backtest_s421.py จำลองไว้ (ยืนยัน
+    แล้วว่า limit ที่ fib_ew ให้ P&L/WR/PF ดีกว่า market ทุก TF/ช่วงเวลาที่ทดสอบ)"""
+    symbol = _demo_symbol()
+    tick = mt5.symbol_info_tick(symbol)
+    if not tick:
+        return {"success": False, "error": "ดึงราคาไม่ได้"}
+    price = float(entry_level)
+
+    # sanity: BUY LIMIT ต้องอยู่ต่ำกว่าราคาตลาดปัจจุบัน (ไม่งั้น broker จะปฏิเสธ
+    # เพราะเข้าเงื่อนไข fill ทันทีอยู่แล้ว ควรใช้ market แทนถ้าเจอกรณีนี้)
+    if signal == "BUY" and price >= float(tick.ask):
+        return {"success": False, "error": f"BUY LIMIT price {price:.2f} >= ask {tick.ask:.2f} (ควรใช้ market)"}
+    if signal == "SELL" and price <= float(tick.bid):
+        return {"success": False, "error": f"SELL LIMIT price {price:.2f} <= bid {tick.bid:.2f} (ควรใช้ market)"}
+
+    # clamp SL/TP ให้ห่างจาก price ตาม broker's SYMBOL_TRADE_STOPS_LEVEL (เหมือน _place_market_order)
+    info = mt5.symbol_info(symbol)
+    if info:
+        min_stops = float(getattr(info, "trade_stops_level", 0.0) or 0.0) * float(getattr(info, "point", 0.0) or 0.0)
+        if min_stops > 0:
+            min_stops += float(getattr(info, "point", 0.0) or 0.0) * 2.0
+        if signal == "BUY":
+            if sl > price - min_stops: sl = price - min_stops
+            if tp > 0 and tp < price + min_stops: tp = price + min_stops
+        else:
+            if sl > 0 and sl < price + min_stops: sl = price + min_stops
+            if tp > 0 and tp > price - min_stops: tp = price - min_stops
+
+    order_type = mt5.ORDER_TYPE_BUY_LIMIT if signal == "BUY" else mt5.ORDER_TYPE_SELL_LIMIT
+    try:
+        margin = mt5.order_calc_margin(order_type, symbol, float(volume), price)
+        account = mt5.account_info()
+        free_margin = float(getattr(account, "margin_free", 0.0) or 0.0) if account else 0.0
+        if margin is not None and free_margin > 0 and float(margin) > free_margin:
+            return {"success": False, "error": f"margin not enough: need {float(margin):.2f}, free {free_margin:.2f}", "sl": sl, "tp": tp}
+    except Exception:
+        pass
+    result = mt5.order_send({
+        "action": mt5.TRADE_ACTION_PENDING,
+        "symbol": symbol,
+        "volume": float(volume),
+        "type": order_type,
+        "price": price,
+        "sl": sl,
+        "tp": tp,
+        "magic": magic,
+        "comment": comment[:31],
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": mt5.ORDER_FILLING_FOK,
+    })
+    if result is None:
+        return {"success": False, "error": f"order_send returned None — {mt5.last_error()}", "sl": sl, "tp": tp}
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        return {"success": True, "ticket": result.order, "price": price, "sl": sl, "tp": tp}
+    return {"success": False, "error": f"{result.retcode} — {result.comment}", "sl": sl, "tp": tp}
+
+
+def _cancel_pending_order(ticket):
+    """ยกเลิก pending order ที่ broker ผ่าน ticket — คืน True ถ้ายกเลิกสำเร็จหรือ
+    ticket หายไปแล้ว (โดน fill/หมดอายุ/ยกเลิกไปแล้วก่อนหน้า ก็ถือว่าไม่ต้องทำอะไรต่อ)"""
+    orders = mt5.orders_get(ticket=ticket)
+    if not orders:
+        return True  # ไม่มีอยู่แล้ว (fill ไปแล้ว หรือหายไปด้วยเหตุผลอื่น)
+    result = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+    if result is None:
+        return False
+    return result.retcode == mt5.TRADE_RETCODE_DONE
+
+
 async def _demo_scan_af(app, portfolio_name: str):
     af_def = AF_DEFS[portfolio_name]
     state = _load_state()
@@ -557,10 +812,11 @@ async def _demo_scan_af(app, portfolio_name: str):
 
     state["last_signal_ts"][leg_id] = entry_ts
     open_count = _count_open_positions(magic, leg_id, entry_tf)
-    if open_count >= config.DEMO_PORTFOLIO_MAX_POS_PER_LEG:
+    max_pos_per_leg = config.demo_portfolio_max_pos_per_leg(leg_id)
+    if open_count >= max_pos_per_leg:
         log_event("DEMO_PORTFOLIO_SKIP",
                   f"{leg_id} {filtered['signal']} skipped — {open_count} positions already open "
-                  f"(cap={config.DEMO_PORTFOLIO_MAX_POS_PER_LEG})")
+                  f"(cap={max_pos_per_leg})")
         return
 
     sig = filtered["signal"]
@@ -819,7 +1075,10 @@ def _update_circuit_breaker_state(state, portfolio_name):
         _save_state(state)
 
 
-async def _demo_scan_af_ladder(app, portfolio_name: str):
+async def _demo_scan_af_ladder(app, portfolio_name: str, tf_filter: str | None = None):
+    """tf_filter: ถ้าตั้งไว้ จะสแกนเฉพาะ leg ที่ ENTRY_TF ตรงกับค่านี้เท่านั้น (default
+    None = สแกนทุก TF เหมือนเดิม ไม่กระทบพฤติกรรมเดิม) — เผื่อไว้ใช้กับ per-TF caller
+    ในอนาคต ปัจจุบันไม่มีตัวเรียกที่ใช้ค่านี้"""
     state = _load_state()
     if portfolio_name in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
         _update_circuit_breaker_state(state, portfolio_name)
@@ -847,6 +1106,8 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
         af_def = AF_DEFS[key]
         cfg = af_def["cfg"]
         entry_tf = cfg["ENTRY_TF"]
+        if tf_filter is not None and entry_tf != tf_filter:
+            continue
         if entry_tf not in bars_cache:
             bars_cache[entry_tf] = _fetch_bars(entry_tf, 500)
         bars = bars_cache[entry_tf]
@@ -932,7 +1193,7 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
                 continue
 
         state["last_signal_ts"][leg_id] = entry_ts
-        cap = int(getattr(config, "DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG", 0) or 0)
+        cap = int(getattr(config, "DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG", {}).get(portfolio_name, 0) or 0)
         open_count = _count_open_positions(magic, leg_id, entry_tf)
         if cap > 0 and open_count >= cap:
             log_event(
@@ -1078,6 +1339,99 @@ async def _demo_scan_af_ladder(app, portfolio_name: str):
                 pass
 
 
+async def _process_pending_limit_order(app, state, leg_id, bars, magic):
+    """เช็ค pending order จริงที่ broker (mt5.TRADE_ACTION_PENDING) ที่วางไว้ผ่าน
+    _place_limit_order() — ต่างจาก _process_lts_pending_entry() ที่เป็น pending
+    แบบ software-simulated (เช็คราคาแล้วค่อยยิง market เอง) อันนี้เป็น pending
+    order จริงที่ broker เป็นคนดูแลราคาให้เอง เราแค่ query สถานะทุกรอบ scan
+
+    คืน True ถ้ายังมี pending order ค้างอยู่ (leg นี้ควร skip การหาสัญญาณใหม่
+    รอบนี้ไปก่อน), False ถ้าไม่มี pending หรือจัดการ (fill/cancel) เสร็จแล้ว"""
+    pending = state.get("pending_limit_orders", {}).get(leg_id)
+    if not pending:
+        return False
+
+    ticket = pending["ticket"]
+    orders = mt5.orders_get(ticket=ticket)
+
+    if orders:  # ยัง resting อยู่ที่ broker ไม่โดน fill
+        signal_idx = _bar_index_by_ts(bars, int(pending["signal_bar_ts"]))
+        current_idx = len(bars) - 1
+        cancel_bars = int(pending.get("cancel_bars", 3))
+        if signal_idx is not None and current_idx - signal_idx >= cancel_bars:
+            if _cancel_pending_order(ticket):
+                state["pending_limit_orders"].pop(leg_id, None)
+                _save_state(state)
+                log_event("DEMO_PORTFOLIO_PENDING_CANCEL",
+                           f"{leg_id} limit order #{ticket} หมดอายุ ({cancel_bars} แท่ง) ยกเลิกแล้ว")
+                if app is not None:
+                    try:
+                        await app.bot.send_message(
+                            chat_id=config.MY_USER_ID,
+                            text=f"⏱️ {pending.get('label', leg_id)} pending limit #{ticket} หมดอายุ ยกเลิกแล้ว",
+                        )
+                    except Exception:
+                        pass
+            return False
+        return True  # ยัง resting อยู่ ยังไม่ครบ cancel_bars — รอต่อรอบหน้า
+
+    # ไม่เจอใน orders_get แล้ว -> โดน fill ไปแล้ว (เราไม่เคยตั้ง broker-side
+    # expiration เอง มีแต่เรายกเลิกเองด้านบนซึ่ง pop ออกจาก state ไปแล้ว)
+    symbol = _demo_symbol()
+    positions = mt5.positions_get(symbol=symbol)
+    matched = None
+    if positions:
+        known_tickets = {t.get("ticket") for t in state["trades"] if t.get("ticket")}
+        for pos in positions:
+            if int(getattr(pos, "magic", 0) or 0) != magic:
+                continue
+            if getattr(pos, "comment", "") != pending.get("comment"):
+                continue
+            if pos.ticket in known_tickets:
+                continue
+            matched = pos
+            break
+
+    state["pending_limit_orders"].pop(leg_id, None)
+    if matched is not None:
+        try:
+            from trailing import position_sid
+            position_sid[matched.ticket] = 21
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+        state["trades"].append({
+            "ts": _now_bkk().isoformat(),
+            "entry_bar_ts": int(pending["signal_bar_ts"]),
+            "leg": leg_id, "label": pending.get("label", leg_id),
+            "signal": pending["signal"], "sl": pending["sl"], "tp": pending["tp"],
+            "success": True, "ticket": matched.ticket, "error": None,
+        })
+        state["trades"] = state["trades"][-500:]
+        _save_state(state)
+        log_event("DEMO_PORTFOLIO_PENDING_FILLED",
+                   f"{leg_id} limit order #{ticket} โดน fill แล้ว -> position #{matched.ticket}")
+        if app is not None:
+            try:
+                await app.bot.send_message(
+                    chat_id=config.MY_USER_ID,
+                    text=(f"✅ *{pending.get('label', leg_id)}* limit filled\n"
+                          f"{'🟢 BUY' if pending['signal']=='BUY' else '🔴 SELL'} @ {pending['level']:.2f}\n"
+                          f"SL `{pending['sl']:.2f}` TP `{pending['tp']:.2f}`\n"
+                          f"Ticket: `{matched.ticket}`"),
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                pass
+    else:
+        # ไม่เจอทั้ง pending order และ position ที่ match — อาจโดน broker ยกเลิกเอง
+        # (เช่น margin ไม่พอตอน fill จริง) log ไว้ ไม่ throw เพราะ state ต้อง clean ต่อได้
+        _save_state(state)
+        log_error("DEMO_PORTFOLIO",
+                   f"{leg_id} pending order #{ticket} หายไปแต่หา position ที่ตรงกันไม่เจอ "
+                   f"(อาจโดนยกเลิกจาก broker เอง — เช่น margin ไม่พอตอน fill จริง)")
+    return False
+
+
 async def demo_scan(app, portfolio_name: str):
     """สแกน 1 รอบสำหรับ portfolio ที่ระบุ (P13 หรือ P16) — เรียก detect_s<N>() ของทุก leg
     ด้วยข้อมูล live ล่าสุด ถ้ามี signal ใหม่ (และไม่ติด cooldown) วางออเดอร์ตลาดทันที"""
@@ -1091,17 +1445,28 @@ async def demo_scan(app, portfolio_name: str):
     keys = PORTFOLIOS[portfolio_name]
     magic = _portfolio_magic(portfolio_name)  # P13->990013, P16->990016
 
-    entry_bars = _fetch_bars("M5", 400)
-    if entry_bars is None:
-        log_error("DEMO_PORTFOLIO", f"{portfolio_name}: fetch M5 bars failed")
-        return
     htf_bars = _fetch_bars("M15", 200)
     now = _now_bkk()
-    entry_ts = int(entry_bars[-1]["time"])
+    bars_cache = {}  # tf -> bars, กัน fetch ซ้ำถ้าหลาย leg ใช้ TF เดียวกัน (เช่น S420/S421 หลาย leg)
 
     for key in keys:
         label, detect_fn, cfg, needs_htf, extra_kind = _LEG_DEFS[key]
         leg_id = f"{portfolio_name}-{key}"
+
+        # TF ของ leg นี้ — ปกติ M5 ตายตัว ยกเว้น S420/S421 ที่แยกสแกนหลาย TF (ดู _LEG_ENTRY_TF)
+        entry_tf = _LEG_ENTRY_TF.get(key, "M5")
+        if entry_tf not in bars_cache:
+            bars_cache[entry_tf] = _fetch_bars(entry_tf, _ENTRY_BAR_COUNT.get(entry_tf, 400))
+        entry_bars = bars_cache[entry_tf]
+        if entry_bars is None:
+            log_error("DEMO_PORTFOLIO", f"{leg_id}: fetch {entry_tf} bars failed")
+            continue
+        entry_ts = int(entry_bars[-1]["time"])
+
+        # เช็ค pending limit order จริงที่ broker ก่อน (ถ้ามี) — ถ้ายัง resting
+        # อยู่ให้ skip การหาสัญญาณใหม่ของ leg นี้ไปก่อน ไม่งั้นจะซ้อนออเดอร์กัน
+        if await _process_pending_limit_order(app, state, leg_id, entry_bars, magic):
+            continue
 
         # cooldown เดียวกับ MIN_GAP_BARS=1 ของ backtest — ห้ามยิงซ้ำในแท่งเดียวกัน
         last_ts = state["last_signal_ts"].get(leg_id)
@@ -1113,7 +1478,7 @@ async def demo_scan(app, portfolio_name: str):
             htf_series = _calc_ema_adx_htf(htf_bars, cfg)
             htf_ctx = _htf_ctx_now(htf_series, entry_ts)
 
-        kwargs = {"tf": "M5", "dt_bkk": now, "cfg": cfg, "htf_ctx": htf_ctx}
+        kwargs = {"tf": entry_tf, "dt_bkk": now, "cfg": cfg, "htf_ctx": htf_ctx}
         if extra_kind == "bar_dt_list":
             kwargs["bar_dt_list"] = _build_bar_dt_list(entry_bars[:-1])
         elif extra_kind == "prev_week_hl":
@@ -1131,17 +1496,72 @@ async def demo_scan(app, portfolio_name: str):
 
         state["last_signal_ts"][leg_id] = entry_ts
 
-        open_count = _count_open_positions(magic, leg_id, "M5")
-        if open_count >= config.DEMO_PORTFOLIO_MAX_POS_PER_LEG:
+        open_count = _count_open_positions(magic, leg_id, entry_tf)
+        max_pos_per_leg = config.demo_portfolio_max_pos_per_leg(leg_id)
+        if open_count >= max_pos_per_leg:
             log_event("DEMO_PORTFOLIO_SKIP",
                        f"{leg_id} {sig} skipped — {open_count} positions already open "
-                       f"(cap={config.DEMO_PORTFOLIO_MAX_POS_PER_LEG})")
+                       f"(cap={max_pos_per_leg})")
             continue
 
+        if res.get("sl") is None or res.get("tp") is None:
+            # ป้องกัน crash วน (เจอจริงกับ S427 ตอน USE_ATR_STOP=False คืน sl/tp=None
+            # ทุก signal — ดู comment บน _CFG_S427 ด้านบนไฟล์) ไม่ใช่ fallback ให้เทรด
+            # แบบไม่มี SL จริง เพราะ demo_scan ทั้งระบบ assume ว่ามี SL/TP เป็นตัวเลขเสมอ
+            log_error("DEMO_PORTFOLIO",
+                      f"{leg_id} {sig} skipped — sl/tp เป็น None (cfg ของ leg นี้ไม่ได้ตั้งค่าให้มี "
+                      f"SL/TP จริง เช็ค USE_ATR_STOP หรือ cfg ที่เทียบเท่า)")
+            continue
         sl, tp = float(res["sl"]), float(res["tp"])
         original_entry = float(res.get("entry", 0.0))
-        comment = _demo_comment(leg_id, "M5")
-        result = _place_market_order(sig, sl, tp, comment, magic, original_entry=original_entry)
+        comment = _demo_comment(leg_id, entry_tf)
+        volume = _balance_based_volume(portfolio_name)
+
+        if res.get("order_type") == "limit":
+            # วาง pending order จริงที่ราคา entry (เช่น fib_ew ของ S420/S421) —
+            # ไม่ fill ทันที รอ _process_pending_limit_order() รอบถัดไปยืนยัน
+            # (ยืนยันจาก backtest แล้วว่า limit ดีกว่า market ทุก TF/ช่วงเวลา)
+            limit_result = _place_limit_order(sig, original_entry, sl, tp, comment, magic, volume=volume)
+            if limit_result.get("success") and limit_result.get("ticket"):
+                state["pending_limit_orders"][leg_id] = {
+                    "ticket": limit_result["ticket"], "signal_bar_ts": entry_ts,
+                    "signal": sig, "level": limit_result.get("price", original_entry),
+                    "sl": limit_result.get("sl", sl), "tp": limit_result.get("tp", tp),
+                    "cancel_bars": int(res.get("cancel_bars") or 3),
+                    "label": label, "comment": comment,
+                }
+                _save_state(state)
+                log_event("DEMO_PORTFOLIO_PENDING_PLACED",
+                           f"{leg_id} {sig} pending limit @ {original_entry:.2f} "
+                           f"ticket={limit_result['ticket']}")
+                if app is not None:
+                    try:
+                        await app.bot.send_message(
+                            chat_id=config.MY_USER_ID,
+                            text=(f"⏳ *{PORTFOLIO_DISPLAY_NAME[portfolio_name]}*\n"
+                                  f"Leg: `{label}` (`{key}`)\n"
+                                  f"{'🟢 BUY LIMIT' if sig=='BUY' else '🔴 SELL LIMIT'} @ "
+                                  f"`{original_entry:.2f}` (pending)\n"
+                                  f"SL `{sl:.2f}` TP `{tp:.2f}`\n"
+                                  f"Ticket: `{limit_result['ticket']}`"),
+                            parse_mode="Markdown",
+                        )
+                    except Exception:
+                        pass
+            else:
+                log_event("DEMO_PORTFOLIO_SIGNAL",
+                           f"{leg_id} {sig} limit order failed err={limit_result.get('error')}")
+                if app is not None:
+                    try:
+                        await app.bot.send_message(
+                            chat_id=config.MY_USER_ID,
+                            text=f"⚠️ Demo Portfolio {leg_id} limit order failed: {limit_result.get('error')}",
+                        )
+                    except Exception:
+                        pass
+            continue
+
+        result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, original_entry=original_entry)
 
         sl = result.get("sl", sl)
         tp = result.get("tp", tp)
@@ -1503,7 +1923,7 @@ def get_status_text(portfolio_name: str) -> str:
             f"AF weighted sizing: {'ON' if sizing_on else 'OFF'} | scale {scale:.2f}",
             f"Leg weight range: x{min(weights):.3f}-x{max(weights):.3f}",
             f"Lot preview per leg: ~{lot_min:.2f}-{lot_max:.2f}",
-            f"AF max positions/leg: {getattr(config, 'DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG', 0) or 'no cap'}",
+            f"AF max positions/leg: {getattr(config, 'DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG', {}).get(portfolio_name, 0) or 'no cap'}",
         ])
 
     open_positions = mt5.positions_get(symbol=_demo_symbol())

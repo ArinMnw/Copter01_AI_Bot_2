@@ -22,7 +22,9 @@ START_EQUITY = 1000.0
 DEFAULT_SPREAD = 0.20
 
 
-def replay86(bars, spread, cfg):
+def replay86(bars, spread, cfg, include_open=False):
+    """include_open: ดู docstring ของ replay84 ใน sim_s84_backtest.py (แพทเทิร์นเดียวกันเป๊ะ) —
+    default False ไม่กระทบผู้เรียกเดิม, True เฉพาะ supervisor_lts_avengers.py"""
     min_gap_bars = int(cfg.get("MIN_GAP_BARS", 6))
     min_start = int(cfg["LOOKBACK"]) + 120
     all_dt = cfg.get("_DT_BKK") or [config.mt5_ts_to_bkk(int(b["time"])) for b in bars]
@@ -62,6 +64,23 @@ def replay86(bars, spread, cfg):
                 exit_idx = m
                 break
         if outcome == "OPEN":
+            if include_open:
+                risk_distance = abs(entry - sl)
+                trades.append({
+                    "signal": direction,
+                    "outcome": "OPEN",
+                    "signal_time_ts": int(bars[j]["time"]),
+                    "fill_time_ts": int(bars[fill_idx]["time"]),
+                    "exit_time_ts": None,
+                    "entry": round(entry, 2),
+                    "tp": round(tp, 2),
+                    "sl": round(sl, 2),
+                    "exit_price": None,
+                    "risk_distance": round(risk_distance, 4),
+                    "diff_usd_per_001lot": 0.0,
+                    "spread": spread,
+                    "reason": sig["reason"],
+                })
             continue
         risk_distance = abs(entry - sl)
         diff = (exit_price - entry) if direction == "BUY" else (entry - exit_price)
@@ -83,8 +102,8 @@ def replay86(bars, spread, cfg):
     return trades
 
 
-def run_single(entry_bars, cfg, days, spread):
-    return replay86(entry_bars, spread, cfg)
+def run_single(entry_bars, cfg, days, spread, include_open=False):
+    return replay86(entry_bars, spread, cfg, include_open=include_open)
 
 
 def run_backtest(cfg, days, spread, label, verbose=True):

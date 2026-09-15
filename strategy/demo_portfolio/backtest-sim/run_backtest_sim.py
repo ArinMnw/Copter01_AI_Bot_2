@@ -3,6 +3,7 @@ import sys
 import csv
 import json
 import re
+import time
 import argparse
 import subprocess
 import pandas as pd
@@ -72,6 +73,10 @@ def _cache_key_has_date_scope(k):
     """Return True for cache keys tied to a CLI --start/--end range."""
     if not isinstance(k, tuple):
         return False
+    if len(k) == 7:
+        # (fam, cfg_idx, tf, days, start_str, end_str, include_open_signals) — ดู
+        # run_lts_af_backtest 2026-08-31, ตำแหน่ง start_str/end_str เหมือน 6-tuple เดิม
+        return k[4] is not None or k[5] is not None
     if len(k) == 6:
         return k[4] is not None or k[5] is not None
     if len(k) == 5:
@@ -147,11 +152,28 @@ PORTFOLIO_BALANCES = {
     "LTS_AVENGERS_HIGH_RISK": 300000.0,
     "LTS_AVENGERS_ULTRA_SAFE": 5000.0,
     "LTS_AVENGERS_HIGH_FREQ": 8000.0,
+    "LTS_AUS2": 5000.0,
+    "LTS_AHR2": 300000.0,
+    "LTS_AUS3": 5000.0,
+    "LTS_AHR3": 300000.0,
+    "LTS_EVOLUTION9": 2000.0,
+    "LTS_SCREEN13": 2000.0,
     "S101": 2000.0,
     "S102": 2000.0,
     "S105": 2000.0,
     "S106": 2000.0,
     "S111": 2000.0,
+    "LTS_WINRATE5": 1000.0,
+    "LTS_ROLLOVER": 1000.0,
+    "LTS_ROLLOVER_SAFE": 1000.0,
+    "LTS_ROLLOVER_ORB": 1000.0,
+    "LTS_ROLLOVER_HTF": 1000.0,
+    "LTS_ROLLOVER_HTF_MAX": 1000.0,
+    "S420": 1000.0,
+    "S421": 1000.0,
+    "S422": 1000.0,
+    "S427": 1000.0,
+    "S429": 1000.0,
 }
 
 # Mapping aliases to canonical dp.PORTFOLIOS keys
@@ -168,6 +190,17 @@ def is_portfolio_match(p1, p2):
     c1 = ALIASES.get(p1, p1)
     c2 = ALIASES.get(p2, p2)
     return (p1 == p2) or (c1 == c2) or (p1 == c2) or (c1 == p2)
+
+# cache แท่งราคาแบบ incremental ต่อ (symbol, tf_str) — ใช้เฉพาะ process ที่รันยาวต่อเนื่อง
+# (เช่น supervisor_lts_avengers.py ที่เรียก fetch_bars_range ซ้ำทุก 15 นาทีด้วย start_str ที่
+# ขยับไปเรื่อยๆ) แต่ละครั้งเดิม fetch เต็ม extra_bars=700 ย้อนหลังใหม่ทุกรอบ (~15s/ครั้งจาก
+# MT5 round-trip ต่อ leg-TF) ทั้งที่แท่งเก่าที่เคย fetch ไปแล้วไม่มีทางเปลี่ยนค่า (แท่งที่ปิดแล้ว
+# นิ่งตลอดกาลใน history) — cache นี้เก็บแท่งเก่าไว้ใช้ซ้ำ fetch สดใหม่แค่ 2 แท่งท้ายสุด (เผื่อ
+# แท่งสุดท้ายตอน cache ไว้ยังไม่ปิดจริง) + ส่วนต่อท้ายใหม่ ผลลัพธ์ที่คืนต้องเหมือนกับ fetch
+# เต็มทุกครั้งเป๊ะ (ดู 2026-08-30 perf note ด้านล่าง) — ปิดได้ด้วย env LTS_BAR_CACHE_DISABLED=1
+_BAR_FETCH_CACHE = {}
+_BAR_CACHE_DISABLED = os.getenv("LTS_BAR_CACHE_DISABLED") == "1"
+
 
 def fetch_bars_range(symbol, tf_str, days, start_str=None, end_str=None, extra_bars=400):
     if start_str:
@@ -217,7 +250,49 @@ def fetch_bars_range(symbol, tf_str, days, start_str=None, end_str=None, extra_b
             "H1": mt5.TIMEFRAME_H1
         }
         mt5_tf = tf_map.get(tf_str, mt5.TIMEFRAME_M5)
+
+        start_fetch_ts = int(start_fetch.timestamp())
+        end_ts = int(end_dt.timestamp())
+        cache_key = (symbol, tf_str)
+        cached = None if _BAR_CACHE_DISABLED else _BAR_FETCH_CACHE.get(cache_key)
+
+        if (cached is not None and cached["start_ts"] <= start_fetch_ts
+                and cached["end_ts"] >= end_ts and len(cached["rates"]) >= 2):
+            # เจอ 2026-08-30: base config หลายตัวใน unique_bases ใช้ TF เดียวกัน (เช่น AUS3 มี
+            # 19 base config แต่แค่ 3 TF จริงๆ) วน fetch_bars_range ต่อ base config ทำให้ TF
+            # เดียวกันถูกเรียกซ้ำหลายครั้งในรอบเดียวกัน — ถ้า cache สดพอแล้ว (end_ts ครอบคลุม
+            # ที่ขอ) ไม่ต้องยิง MT5 เพิ่มเลยแม้แค่ 2 แท่งท้าย ตัด round-trip ที่ไม่จำเป็นออก
+            mask = (cached["rates"]["time"] >= start_fetch_ts) & (cached["rates"]["time"] <= end_ts)
+            return cached["rates"][mask]
+
+        if cached is not None and cached["start_ts"] <= start_fetch_ts and len(cached["rates"]) >= 2:
+            # ใช้ของเก่าที่ cache ไว้ได้ (ครอบคลุมจุดเริ่มที่ต้องการแล้ว) — fetch สดใหม่แค่
+            # ตั้งแต่แท่งท้ายสุดที่สอง (กันแท่งสุดท้ายที่ cache ไว้ยังไม่ปิดตอนนั้น) ถึง end_dt
+            refetch_from_ts = int(cached["rates"]["time"][-2])
+            refetch_from_dt = datetime.fromtimestamp(refetch_from_ts, tz=bkk)
+            new_rates = mt5.copy_rates_range(symbol, mt5_tf, refetch_from_dt, end_dt)
+            if new_rates is not None:
+                old_part = cached["rates"][cached["rates"]["time"] < refetch_from_ts]
+                combined = np.concatenate([old_part, new_rates]) if len(new_rates) > 0 else cached["rates"]
+                cached["rates"] = combined
+                cached["end_ts"] = end_ts
+
+                # trim ไม่ให้ cache บวมไม่จำกัดตอนรันยาวข้ามวัน — เก็บ buffer เผื่อ 2 เท่าของ
+                # warmup ที่ต้องใช้จริงไว้เสมอ (start_fetch ขยับไปข้างหน้าเรื่อยๆ ตาม current_start)
+                trim_floor_ts = start_fetch_ts - total_mins_needed * 60
+                if len(cached["rates"]) > 0 and cached["rates"]["time"][0] < trim_floor_ts:
+                    keep_mask = cached["rates"]["time"] >= trim_floor_ts
+                    cached["rates"] = cached["rates"][keep_mask]
+                cached["start_ts"] = int(cached["rates"]["time"][0]) if len(cached["rates"]) > 0 else start_fetch_ts
+
+                mask = (cached["rates"]["time"] >= start_fetch_ts) & (cached["rates"]["time"] <= end_ts)
+                return cached["rates"][mask]
+            # new_rates เป็น None = MT5 fetch ล้มเหลว — fallback ไป fetch เต็มแบบเดิม (ไม่ใช้
+            # ของเก่าเงียบๆ กันผลลัพธ์เพี้ยนจากข้อมูล stale)
+
         rates = mt5.copy_rates_range(symbol, mt5_tf, start_fetch, end_dt)
+        if rates is not None and not _BAR_CACHE_DISABLED:
+            _BAR_FETCH_CACHE[cache_key] = {"rates": rates, "start_ts": start_fetch_ts, "end_ts": end_ts}
         return rates
     else:
         return s30sim.fetch_bars(symbol, tf_str, days, extra_bars=extra_bars)
@@ -238,23 +313,28 @@ COMPARE_COLS = [
 ]
 
 def save_compare_and_splits(compare_rows, output_dir, portfolio_name):
-    """เซฟ 3 ไฟล์จาก compare_rows ชุดเดียว (ต้องคำนวณ SIM_Balance/MT5_Balance ตามลำดับเวลา
+    """เซฟ 4 ไฟล์จาก compare_rows ชุดเดียว (ต้องคำนวณ SIM_Balance/MT5_Balance ตามลำดับเวลา
     ของทุกแถวมาก่อนแล้ว):
     - {portfolio}_compare.csv          : เฉพาะ Matched=True เท่านั้น (order ที่ตรงกันจริง)
     - {portfolio}_mt5_not_match.csv     : MT5 มี order แต่ backtest ไม่มีคู่
-    - {portfolio}_backtest_not_match.csv: backtest มี trade แต่ MT5 ไม่มีคู่
+    - {portfolio}_backtest_not_match.csv: backtest มี trade แต่ MT5 ไม่มีคู่ (ปัญหาจริง ต้องดู)
+    - {portfolio}_stale_skip_explained.csv: backtest มี trade แต่ไม่มีคู่ MT5 เพราะ supervisor
+      เห็นตอนสัญญาณหมดอายุไปแล้วจริง (เกิน STALE_ENTRY_SEC ตั้งแต่แรกที่เห็น — ดู
+      _explain_stale_skip) ไม่ใช่ order หาย แยกออกมาไม่ให้ปนกับ not_match เพื่อให้ 100%
+      match วัดจาก backtest_not_match.csv ว่างเปล่าได้จริง โดยไม่ปิดบังอะไร (ยังเห็นในไฟล์นี้)
     แทน split_compare_mismatches.py แบบแยกสคริปต์ — เรียกครั้งเดียวจบในตัว run_backtest_sim.py"""
-    matched_rows, mt5_rows, bt_rows = [], [], []
+    matched_rows, mt5_rows, bt_rows, stale_rows = [], [], [], []
     for row in compare_rows:
         if row.get("Matched") is True:
             matched_rows.append(row)
             continue
         mt5_open = (row.get("MT5_Open_Time") or "")
         sim_open = (row.get("SIM_Open_Time") or "")
+        is_stale_explained = str(row.get("Match_Detail") or "").startswith("STALE_SKIP_EXPLAINED")
         if mt5_open and not sim_open:
             mt5_rows.append(row)
         elif sim_open and not mt5_open:
-            bt_rows.append(row)
+            (stale_rows if is_stale_explained else bt_rows).append(row)
 
     compare_path = os.path.join(output_dir, f"{portfolio_name}_compare.csv")
     pd.DataFrame(matched_rows, columns=COMPARE_COLS).to_csv(compare_path, index=False, encoding="utf-8")
@@ -267,6 +347,10 @@ def save_compare_and_splits(compare_rows, output_dir, portfolio_name):
     bt_path = os.path.join(output_dir, f"{portfolio_name}_backtest_not_match.csv")
     pd.DataFrame(bt_rows, columns=COMPARE_COLS).to_csv(bt_path, index=False, encoding="utf-8")
     print(f"Saved: {bt_path} ({len(bt_rows)} rows)")
+
+    stale_path = os.path.join(output_dir, f"{portfolio_name}_stale_skip_explained.csv")
+    pd.DataFrame(stale_rows, columns=COMPARE_COLS).to_csv(stale_path, index=False, encoding="utf-8")
+    print(f"Saved: {stale_path} ({len(stale_rows)} rows — เข้าใจแล้วว่าทำไมไม่มีคู่ MT5 ไม่ใช่ปัญหาจริง)")
 
 def save_reports(portfolio_name, trades, start_balance, output_dir):
     """คำนวณ Balance และสร้างไฟล์ trades, daily, monthly CSV"""
@@ -669,11 +753,35 @@ def run_single_strategy_backtest(portfolio_name, days, start_str=None, end_str=N
 LIVE_ARM_DELAY_SEC = 3
 
 
+# เจอจริง 2026-08-28: window_end_ts ที่ยังอยู่ในช่วง ~5 แท่งหลังสุดที่เพิ่งปิด (ใกล้ "ตอนนี้"
+# มากๆ) — mt5.copy_ticks_range ของช่วงนั้นยังไม่ settle เต็มที่ (terminal ยังรับ tick ใหม่เข้ามา
+# ต่อเนื่อง) ทำให้ backtest ของ leg S9x (S95/96/97) ได้ผลไม่เหมือนกันทุกครั้งที่รันถ้า start/end
+# ใกล้เวลาจริงเกินไป (leg LTS_AUS3_643 หายบ้างเจอบ้างสลับกันไปมา) — กัน tick query ไม่ให้แตะ
+# ขอบ live เลย ถ้า window_end_ts ใกล้ "ตอนนี้" เกิน buffer นี้ ให้ตัดสินใจว่าไม่มี tick ให้เช็ค
+# (คืน None) แล้วปล่อยให้ caller fallback ไป bar-based check แทน (deterministic เสมอ)
+TICK_SETTLE_BUFFER_SEC = 120
+
+# เจอจริง 2026-09-02: profile รอบ supervisor พบว่า mt5.copy_ticks_range กิน 15.3s จาก 22.2s
+# ของทั้ง cycle (69%!) เพราะ _tick_fill_check ถูกเรียกซ้ำทุกรอบ (ทุก 15 นาที) สำหรับสัญญาณ
+# S9x "ทุกจุด" ที่เจอในหน้าต่าง warmup 700 แท่งย้อนหลัง (308 ครั้ง/cycle) ทั้งที่สัญญาณเก่าส่วน
+# ใหญ่ resolve จบไปนานแล้ว (outcome ไม่มีทางเปลี่ยน) — bar-based fallback (มีอยู่แล้วเป็น
+# deterministic fallback เดิม) ให้ outcome เดียวกันสำหรับสัญญาณที่ไม่ "สดใหม่" ต่างกันแค่ fidx
+# อาจขยับ 1-2 แท่งซึ่งไม่กระทบ SL/TP/exit_time สุดท้าย — จำกัด tick-precision ไว้เฉพาะสัญญาณ
+# ในช่วงนี้เท่านั้น (ยังครอบคลุม S9X_PENDING_MAX_BARS ของ H1 ที่ยาวสุด 5×60=300 นาทีสบายๆ)
+# เปิดใช้เฉพาะตอน include_open=True (= เรียกจาก supervisor_lts_avengers.py เท่านั้น) ผู้เรียก
+# CLI/sweep ตัวอื่นที่ include_open=False (ค่าเดิม) ไม่ถูกกระทบเลย ยังใช้ tick-precision เต็มรูปแบบ
+S9X_TICK_CHECK_MAX_AGE_SEC = 24 * 3600
+
+
 def _tick_fill_check(symbol, direction, entry, spread, window_start_ts, window_end_ts):
     """เช็คจาก tick (bid) จริงว่าราคาแตะระดับ fill ไหม ในช่วงเวลาที่ live จะเห็นได้จริงเท่านั้น
     (เริ่มนับหลัง LIVE_ARM_DELAY_SEC ไปแล้ว) คืนค่า epoch ของ tick แรกที่ fill, False ถ้ามี tick
-    data ครบแต่ไม่แตะเลย, หรือ None ถ้าไม่มี tick history ให้เช็ค (ต้อง fallback เป็น bar-based)"""
+    data ครบแต่ไม่แตะเลย, หรือ None ถ้าไม่มี tick history ให้เช็ค (ต้อง fallback เป็น bar-based)
+    — คืน None ด้วยถ้า window_end_ts ใกล้เวลาจริงตอนนี้เกินไป (กัน non-determinism จาก tick
+    ที่ยังไม่ settle ดู TICK_SETTLE_BUFFER_SEC)"""
     try:
+        if int(window_end_ts) >= time.time() - TICK_SETTLE_BUFFER_SEC:
+            return None
         start_dt = datetime.fromtimestamp(int(window_start_ts), tz=timezone.utc)
         end_dt = datetime.fromtimestamp(int(window_end_ts), tz=timezone.utc)
         ticks = mt5.copy_ticks_range(symbol, start_dt, end_dt, mt5.COPY_TICKS_ALL)
@@ -692,7 +800,7 @@ def _tick_fill_check(symbol, direction, entry, spread, window_start_ts, window_e
         return None
 
 
-def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5):
+def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5, include_open=False):
     """Simulates standalone S95-S111 (และตระกูล S1xx/S2xx ที่ผ่าน is_s9x) bar-by-bar สำหรับ
     blend backtester — cooldown=5 (แท่ง) เป็น default เดิม ไม่ตรงกับ live (live ใช้
     af_raw_cooldown_active ซึ่ง fallback เป็น MIN_GAP_BARS=1 เพราะ cfg ของ S9x leg ที่สร้างใน
@@ -701,7 +809,13 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5):
     ติดกันเป๊ะ) ตรงกับราคา/เวลาที่ live ยิงจริงเป๊ะทุกจุด — cooldown=5 ของ backtest เลยตัดทิ้ง
     ~80% ของสัญญาณที่ live เก็บได้จริง พารามิเตอร์นี้เปิดให้ override เฉพาะจุดเรียกใน
     run_lts_af_backtest (LTS_AVENGERS_ULTRA_SAFE/HIGH_RISK เท่านั้น) ไม่กระทบพอร์ตอื่นที่ยังใช้
-    default 5 เดิม"""
+    default 5 เดิม
+
+    include_open=False (ค่าเดิมเสมอสำหรับผู้เรียกทั่วไป): ไม้ที่ fill แล้วแต่ยังไม่รู้ผล TP/SL
+    ถูกทิ้ง (_resolve คืน None) เหมือนเดิมทุกประการ
+    include_open=True (opt-in เฉพาะ supervisor_lts_avengers.py 2026-08-31): ไม้ที่ fill แล้วแต่
+    ยังไม่รู้ผล จะถูกคืนมาด้วย (outcome="OPEN", exit_time_ts/exit_price=None) — ดู docstring ของ
+    replay84 ใน sim_s84_backtest.py สำหรับเหตุผลเต็ม"""
     if symbol is None:
         symbol = config.SYMBOL
     trades = []
@@ -712,7 +826,15 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5):
 
     last_trade_idx = -100
 
-    for i in range(lookback, n - 2):
+    # เจอ 2026-08-31: เดิม "n - 2" (ต้องมีอีก 2 แท่งเต็มๆ หลังแท่งสัญญาณก่อนถึงจะเริ่ม
+    # พิจารณา) ทำให้ M30 signal มองไม่เห็นเลยจนผ่านไป 60 นาที ทั้งที่ detect_fn ใช้แค่ bars
+    # ถึง i เท่านั้น (rates_slice ด้านล่างไม่แตะบาร์หลัง i เลย) — ส่วน fill/outcome check ที่
+    # ต้องการบาร์ล่วงหน้าจริงๆ ก็ clamp ด้วย min(i+5,n-1)/min(i+6,n) อยู่แล้วปลอดภัยแม้ margin
+    # จะน้อยลง ลดเหลือ "n - 1" ให้เห็นสัญญาณได้เร็วขึ้น (จำเป็นสำหรับ include_open ที่ supervisor
+    # ใช้ — ดู _s9x_pending_should_fill ใน supervisor_lts_avengers.py ที่มาช่วยยืนยันราคาจริงต่อ
+    # ผลกระทบต่อผู้เรียกเดิม (include_open=False): แทบไม่มี เพราะ i ที่เพิ่มมาใหม่มี margin แคบ
+    # เกินกว่าจะ resolve TP/SL ได้จริงในทางปฏิบัติ ยังคงถูกทิ้งเป็น OPEN เหมือนเดิม
+    for i in range(lookback, n - 1):
         if i - last_trade_idx < cooldown:
             continue
             
@@ -752,7 +874,12 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5):
         window_end_ts = int(bars[min(i + 5, n - 1)]["time"])
 
         def _resolve(dirn, sl_v, tp_v):
-            tick_result = _tick_fill_check(symbol, dirn, entry, spread, window_start_ts, window_end_ts)
+            # ดู docstring ของ S9X_TICK_CHECK_MAX_AGE_SEC — ข้าม tick check (ไปใช้ bar-based
+            # fallback ทันที) สำหรับสัญญาณเก่าเกินไปเมื่อ include_open=True (เฉพาะ supervisor)
+            if include_open and window_end_ts < time.time() - S9X_TICK_CHECK_MAX_AGE_SEC:
+                tick_result = None
+            else:
+                tick_result = _tick_fill_check(symbol, dirn, entry, spread, window_start_ts, window_end_ts)
             fidx = None
             if tick_result is None:
                 for j in range(i + 1, min(i + 6, n)):
@@ -793,6 +920,22 @@ def run_s9x_generic(bars, detect_fn, tf, cfg, spread, symbol=None, cooldown=5):
                         outc, exit_p, exit_i = "TP", tp_v, j
                         break
             if outc is None or exit_i is None:
+                if include_open:
+                    return {
+                        "signal": dirn,
+                        "outcome": "OPEN",
+                        "signal_time_ts": int(bars[i]["time"]),
+                        "fill_time_ts": int(bars[fidx]["time"]),
+                        "exit_time_ts": None,
+                        "entry": round(entry, 2),
+                        "tp": round(tp_v, 2),
+                        "sl": round(sl_v, 2),
+                        "exit_price": None,
+                        "risk_distance": round(abs(entry - sl_v), 4),
+                        "diff_usd_per_001lot": 0.0,
+                        "spread": spread,
+                        "reason": "S9X",
+                    }
                 return None
 
             diff = (exit_p - entry) if dirn == "BUY" else (entry - exit_p)
@@ -934,19 +1077,25 @@ def _derive_latest_server_tz_from_log():
     2026-08-04: history file ของ IUX ยังค้างที่ 0 จากหลายวันก่อน ทั้งที่ log ล่าสุดยืนยัน server_tz
     จริงตอนนี้ = +1 ทำให้ trade ใกล้ขอบ --end โดนกรองผิดถ้าใช้ history file เฉยๆ)
     สูตร: naive_hour (สมมติ server_tz=0) - live_hour ที่บันทึกจริง = server_tz (ปรับ wraparound
-    ข้ามเที่ยงคืน ±24 ชม.)"""
+    ข้ามเที่ยงคืน ±24 ชม.)
+
+    เจอจริง 2026-08-08: entry ใน log/history บาง timestamp ผิดปกติ (เช่น -11 ทั้งที่ปกติอยู่ในช่วง
+    -2 ถึง +1) เดินย้อนหา entry ล่าสุดที่ "สมเหตุสมผล" แทนที่จะเชื่อ entry ล่าสุดตรงๆ เสมอ กัน
+    ค่า glitch ตัวเดียวทำให้ trade ใกล้ขอบ --end ทั้งชุดกรองผิด"""
     mapping = _load_lts_aus_ahr_log_hour_ground_truth()
     if not mapping:
         return None
-    latest_ts = max(mapping.keys())
-    live_hour = mapping[latest_ts]
-    naive_hour = (datetime.fromtimestamp(latest_ts, tz=timezone.utc) + timedelta(hours=config.TZ_OFFSET)).hour
-    diff = naive_hour - live_hour
-    if diff > 12:
-        diff -= 24
-    elif diff < -12:
-        diff += 24
-    return diff
+    for latest_ts in sorted(mapping.keys(), reverse=True):
+        live_hour = mapping[latest_ts]
+        naive_hour = (datetime.fromtimestamp(latest_ts, tz=timezone.utc) + timedelta(hours=config.TZ_OFFSET)).hour
+        diff = naive_hour - live_hour
+        if diff > 12:
+            diff -= 24
+        elif diff < -12:
+            diff += 24
+        if _PLAUSIBLE_SERVER_TZ_MIN <= diff <= _PLAUSIBLE_SERVER_TZ_MAX:
+            return diff
+    return None
 
 
 def _load_lts_aus_ahr_server_tz_history():
@@ -969,30 +1118,63 @@ def _load_lts_aus_ahr_server_tz_history():
     return history
 
 
+_PLAUSIBLE_SERVER_TZ_MIN = -4
+_PLAUSIBLE_SERVER_TZ_MAX = 4
+
+
+def _resolve_server_tz_for_ts(ts_int):
+    """คืน server_tz offset (int) ที่ถูกต้องจริงสำหรับ timestamp นี้ หรือ None ถ้าไม่มีข้อมูล
+    (ให้ caller fallback เป็น config.MT5_SERVER_TZ ปัจจุบันเอง) — ลำดับความแม่นยำ: (1) log
+    ground truth ต่อ timestamp ตรงๆ (ดู _load_lts_aus_ahr_log_hour_ground_truth) แม่นสุดเพราะ
+    ไม่ต้องเดา offset เลย (2) mt5_server_tz_history.json ต่อวันที่ (มี debounce ล่าช้าได้บ้าง)
+    ใช้ร่วมกันทั้ง _bkk_hour_server_tz_aware (leg hour filter) และ
+    config._backtest_server_tz_resolver (แก้ mt5_ts_to_bkk ตอน backtest ให้ตรงกับ live จริง
+    รวมถึง SESSION_FILTER ใน strategy84.py ที่ใช้ _DT_BKK)
+
+    เจอจริง 2026-08-08: mt5_server_tz_history.json ของ 3 โปรไฟล์ (AUS/AHR/433881786) มี entry
+    "2026-07-07": -11 ที่ผิดปกติชัดเจน (broker จริงไม่มีทางเพี้ยน 11 ชม. แค่วันเดียวแล้วกลับปกติ —
+    วันอื่นทั้งหมดอยู่ในช่วง -2 ถึง +1) น่าจะเป็น data glitch ตอนบันทึกไฟล์วันนั้น ทำให้ signal ทุกตัว
+    ของวันนั้นเพี้ยน hour ไปเต็มๆ 11 ชม. ถ้าไม่กรอง — เพิ่ม sanity bound กันค่าที่เป็นไปไม่ได้
+    (broker server clock ไม่มีทางต่างจาก UTC เกิน ~4 ชม.) ถ้าเจอค่านอกช่วงนี้ให้ข้ามไปเหมือนไม่มี
+    ข้อมูล (fallback ไปแหล่งถัดไป/None) แทนที่จะเชื่อค่าที่ผิดปกติ"""
+    ts_int = int(ts_int)
+    ground_truth = _load_lts_aus_ahr_log_hour_ground_truth()
+    if ts_int in ground_truth:
+        live_hour = ground_truth[ts_int]
+        naive_hour = (datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=config.TZ_OFFSET)).hour
+        diff = naive_hour - live_hour
+        if diff > 12:
+            diff -= 24
+        elif diff < -12:
+            diff += 24
+        if _PLAUSIBLE_SERVER_TZ_MIN <= diff <= _PLAUSIBLE_SERVER_TZ_MAX:
+            return diff
+        # ค่าจาก ground truth ผิดปกติ (เช่น log ผิดพลาด) — ตกไปลองทาง history file แทน
+
+    history = _load_lts_aus_ahr_server_tz_history()
+    utc_dt = datetime.fromtimestamp(ts_int, tz=timezone.utc)
+    date_key = utc_dt.strftime("%Y-%m-%d")
+    for k in sorted(history.keys(), reverse=True):
+        if k <= date_key:
+            v = history[k]
+            if _PLAUSIBLE_SERVER_TZ_MIN <= v <= _PLAUSIBLE_SERVER_TZ_MAX:
+                return v
+            continue  # entry นี้ผิดปกติ ข้ามไปหา entry ก่อนหน้าที่สมเหตุสมผลกว่าต่อ
+    return None
+
+
 def _bkk_hour_server_tz_aware(ts_int):
     """แปลง MT5 server timestamp -> ชั่วโมง Bangkok แบบเดียวกับที่ live คำนวณจริง
     (config.mt5_ts_to_bkk ตอน IN_BACKTEST=True จะข้ามการปรับ MT5_SERVER_TZ ไปเลย ใช้แค่
     +TZ_OFFSET ตรงๆ) ทำให้ backtest กับ live คำนวณชั่วโมงของแท่งเดียวกันต่างกันได้เต็มๆ 1 ชั่วโมง
     ทุกครั้งที่ broker server clock เพี้ยนไปจาก 0 (เจอจริง 2026-08-03: signal เดียวกันเป๊ะ sim
-    บอก hour 10 แต่ live บอก hour 11) — ลอง fix ด้วย offset เดียวทั้ง run มาสองรอบ (tick สด /
-    history file) แต่พบว่า MT5_SERVER_TZ ของโบรกเกอร์นี้ขยับได้แม้ภายในวันเดียวกัน ทำให้ offset
-    เดียวไม่พอสำหรับ window ที่ยาวหลายชั่วโมง จึงเปลี่ยนมาอ่าน hour ที่ live คำนวณจริงต่อสัญญาณ
-    ตรงๆ จาก bot.log (ดู _load_lts_aus_ahr_log_hour_ground_truth) แม่นที่สุดเพราะไม่ต้องเดา
-    offset เลย — ถ้าไม่มี log ของช่วงนั้น (ก่อน 2026-07-31) fallback ไปที่ server_tz history file
-    แล้วค่อย default สุดท้าย ขอบเขต: ใช้เฉพาะ LTS_AUS/LTS_AHR ผ่าน _post_filter_raw_signal_hour"""
+    บอก hour 10 แต่ live บอก hour 11) — ขอบเขต: ใช้ผ่าน _post_filter_raw_signal_hour สำหรับพอร์ต
+    ที่อยู่ใน _in_lts_scoped_fixes เท่านั้น"""
     ts_int = int(ts_int)
-    ground_truth = _load_lts_aus_ahr_log_hour_ground_truth()
-    if ts_int in ground_truth:
-        return ground_truth[ts_int]
-
-    history = _load_lts_aus_ahr_server_tz_history()
+    server_tz = _resolve_server_tz_for_ts(ts_int)
+    if server_tz is None:
+        server_tz = config.MT5_SERVER_TZ
     utc_dt = datetime.fromtimestamp(ts_int, tz=timezone.utc)
-    date_key = utc_dt.strftime("%Y-%m-%d")
-    server_tz = config.MT5_SERVER_TZ
-    for k in sorted(history.keys(), reverse=True):
-        if k <= date_key:
-            server_tz = history[k]
-            break
     return (utc_dt + timedelta(hours=config.TZ_OFFSET - server_tz)).hour
 
 
@@ -1159,7 +1341,38 @@ def _in_lts_scoped_fixes(name):
     return name.startswith("LTS")
 
 
-def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scale=1.0):
+# เจอ 2026-09-14: supervisor_lts_avengers.py hardcode apply_circuit_breaker=False สำหรับ
+# LTS_AUS3/LTS_AHR3 เสมอ (ตัดสินใจเข้า order จริงไม่เคยผ่าน CB จำลองเลย — ดู docstring หัวไฟล์
+# นั้น) แต่ CLI compare tool (__main__ ด้านล่าง) เรียก run_lts_af_backtest โดยไม่ส่ง
+# apply_circuit_breaker มาเลย ใช้ default=True เสมอ ไม่ว่าพอร์ตไหน — ทำให้ trades.csv ที่ใช้
+# เทียบ MT5 มีสัญญาณที่ CB จำลองตัดทิ้งเอง (ที่ live ไม่เคยตัดจริงเพราะ cb=off) กลายเป็น
+# MT5_ONLY_CB_DESYNC ใน compare report ของ AUS3/AHR3 ตลอด ทั้งที่ config จริงไม่ตรงกัน — พี่
+# ยืนยันให้แก้ 2026-09-14 (compare ต้องใช้ config เดียวกับที่ supervisor ใช้จริงเสมอ) รวมจุด
+# ตัดสินใจไว้ที่เดียวให้ทั้ง supervisor และ CLI compare tool อ้างอิงค่าเดียวกัน กันหลุด sync
+# กันอีกในอนาคต — พอร์ตอื่นนอกเหนือจากนี้ไม่กระทบเลย ยังใช้ default=True เหมือนเดิมทุกประการ
+LTS_SUPERVISOR_NO_CB_PORTFOLIOS = {"LTS_AUS3", "LTS_AHR3"}
+
+
+def apply_circuit_breaker_for_portfolio(portfolio_name):
+    """คืนค่า apply_circuit_breaker ที่ตรงกับพฤติกรรมจริงของ supervisor_lts_avengers.py เป๊ะ —
+    ใช้ทั้งใน supervisor เองและใน CLI compare tool ด้านล่าง เพื่อไม่ให้ config หลุด sync กัน"""
+    actual = ALIASES.get(portfolio_name, portfolio_name)
+    return actual not in LTS_SUPERVISOR_NO_CB_PORTFOLIOS
+
+
+def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scale=1.0, apply_circuit_breaker=True,
+                         include_open_signals=False):
+    """apply_circuit_breaker=False: ข้าม _simulate_leg(OVERLAY_CFG) — ใช้ filtered_raw ตรงๆ
+    เป็น _twp เลย (ไม่มี consecutive-loss gating จำลอง) — ใช้โดย supervisor ที่ต้องรัน
+    ช่วงเวลาสั้นๆ (ไม่เห็นประวัติเต็มของ leg) ซึ่งจะทำให้ CB state จำลองผิดถ้าเปิดไว้
+    (ดู supervisor_lts_avengers.py) — ค่า default True รักษาพฤติกรรมเดิมของ CLI backtest ทุกตัว
+
+    include_open_signals=False (default เดิมทุกที่): คืนเฉพาะไม้ที่ resolve แล้ว (TP/SL/SMART_EXIT)
+    เหมือนเดิมทุกประการ ไม่กระทบผู้เรียกเดิมเลย (CLI/optimize scripts ทั้งหมด)
+    include_open_signals=True (opt-in เฉพาะ supervisor_lts_avengers.py 2026-08-31): คืนไม้ที่
+    fill แล้วแต่ยังไม่รู้ผล TP/SL ด้วย (outcome="OPEN") — entry/sl/tp คำนวณเสร็จตั้งแต่แท่ง
+    สัญญาณปิด ไม่ต้องรอผลก่อนถึงจะเข้า order ได้ (เจอจริง 2026-08-31: การรอ resolve ก่อนทำให้
+    เข้า order ช้ากว่าที่ควรได้สูงสุดเกือบ 15 นาที) — ดู docstring ของ replay84 (sim_s84_backtest.py)"""
     """รัน backtest สำหรับ AF และ LTS portfolios โดยจำลอง S84/S86 แต่ละตัวและผสมตาม Weight"""
     actual_name = ALIASES.get(portfolio_name, portfolio_name)
     keys = dp.PORTFOLIOS[actual_name]
@@ -1174,7 +1387,24 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         return []
         
     print(f"Simulating {len(legs)} legs for {portfolio_name}...")
-    
+
+    # เจอ 2026-08-30: ถ้า end_str=None (เช่น supervisor_lts_avengers.py เรียกทุก 15 นาที) ตัว
+    # fetch_bars_range ด้านล่างจะ resolve datetime.now() เองใหม่ทุกครั้งที่ถูกเรียก — วน
+    # unique_bases 19 ตัวใน AUS3 (มีแค่ 3 TF จริง) จะได้ "now" คนละวินาทีกันทีละนิด ทำให้
+    # bar cache (เช็คจาก end_ts ตรงกันเป๊ะ) ไม่ short-circuit ให้ แม้ TF จะซ้ำกันก็ตาม —
+    # resolve "now" ครั้งเดียวตรงนี้แทน ให้ทุก base config ในรอบเดียวกันเห็นค่าเดียวกันเป๊ะ
+    # (ถูกต้องกว่าเดิมด้วย — backtest รอบเดียวกันควรมี "ตอนนี้" จุดเดียว ไม่ใช่คนละวินาที)
+    if end_str is None:
+        import pytz as _pytz
+        end_str = datetime.now(_pytz.timezone("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
+
+    # เจอจริง 2026-08-08: config.mt5_ts_to_bkk ตอน backtest สมมติ server_tz=0 เสมอ (ดู
+    # comment ใน config.py) ทำให้ _DT_BKK ที่ป้อนเข้า strategy84.py SESSION_FILTER ผิดไปด้วย
+    # ไม่ใช่แค่ leg hour filter ที่แก้ไปแล้ว — เปิด resolver เฉพาะพอร์ตที่ยืนยันแล้วว่ามี broker
+    # clock drift จริง (ผ่าน IUX) ตั้งค่าทุกครั้งที่เข้าฟังก์ชันนี้ (ทั้งเปิดและปิด) กัน state
+    # ค้างข้ามพอร์ตตอนรัน --portfolio all ในโปรเซสเดียว
+    config._backtest_server_tz_resolver = _resolve_server_tz_for_ts if _in_lts_scoped_fixes(actual_name) else None
+
     global GLOBAL_RAW_TRADES_CACHE
     unique_bases = set((leg["family"], leg["cfg_idx"], leg["cfg"]["ENTRY_TF"]) for leg in legs)
     
@@ -1183,7 +1413,7 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
 
     _ub_total = len(unique_bases)
     for _ub_i, (fam, cfg_idx, tf) in enumerate(sorted(unique_bases), 1):
-        cache_key = (fam, cfg_idx, tf, days, start_str, end_str)
+        cache_key = (fam, cfg_idx, tf, days, start_str, end_str, include_open_signals)
         if cache_key in GLOBAL_RAW_TRADES_CACHE:
             print(f"  [{_ub_i}/{_ub_total}] {fam}c{cfg_idx} {tf} (cached, skip)", flush=True)
             continue
@@ -1204,7 +1434,19 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
                 save_disk_cache()
                 continue
                 
-            raw = run_s9x_generic(bars, detect_fn, tf, cfg, DEFAULT_SPREAD)
+            # เจอจริง 2026-08-25: docstring ของ run_s9x_generic บอกว่ามี override cooldown=1
+            # ให้ตรงกับ live (LTS_AVENGERS_ULTRA_SAFE/HIGH_RISK) แต่จุดเรียกจริงไม่เคยส่ง
+            # cooldown มาเลย ใช้ default=5 เสมอ — เทียบ backtest 14 วันกับ live จริงของ
+            # LTS_AUS2/LTS_AHR2 ช่วงเดียวกันพบว่า live มีไม้มากกว่า backtest ~75-80%
+            # (AUS2: 258 vs 144, AHR2: 278 vs 153) ตรงกับที่ docstring อธิบายไว้เป๊ะ ("cooldown=5
+            # ของ backtest ตัดทิ้ง ~80% ของสัญญาณจริง") ใส่ override ตรงนี้จริงๆ เสียที
+            # scope เท่าที่ docstring ตั้งใจไว้เดิม (ULTRA_SAFE/HIGH_RISK) + AUS2/AHR2 ที่แตกออกมา
+            _s9x_cooldown = 1 if actual_name in (
+                "LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK", "LTS_AUS2", "LTS_AHR2",
+                "LTS_AUS3", "LTS_AHR3",
+            ) else 5
+            raw = run_s9x_generic(bars, detect_fn, tf, cfg, DEFAULT_SPREAD, cooldown=_s9x_cooldown,
+                                   include_open=include_open_signals)
             GLOBAL_RAW_TRADES_CACHE[cache_key] = raw
             save_disk_cache()
             continue
@@ -1228,15 +1470,15 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         run_cfg["_ATR14"] = _atr_series(bars, 14)
         run_cfg["_DT_BKK"] = [config.mt5_ts_to_bkk(int(b["time"])) for b in bars]
         
-        raw = runner(bars, run_cfg, days, DEFAULT_SPREAD)
+        raw = runner(bars, run_cfg, days, DEFAULT_SPREAD, include_open=include_open_signals)
         GLOBAL_RAW_TRADES_CACHE[cache_key] = raw
         save_disk_cache()
-        
+
     # 2. Filter, Invert, Scale and Combine trades
     all_portfolio_trades = []
     CB_SKIPPED_TRADES[portfolio_name] = []
     for leg in legs:
-        cache_key = (leg["family"], leg["cfg_idx"], leg["cfg"]["ENTRY_TF"], days, start_str, end_str)
+        cache_key = (leg["family"], leg["cfg_idx"], leg["cfg"]["ENTRY_TF"], days, start_str, end_str, include_open_signals)
         raw = GLOBAL_RAW_TRADES_CACHE.get(cache_key)
         if not raw:
             continue
@@ -1271,11 +1513,35 @@ def run_lts_af_backtest(portfolio_name, days, start_str=None, end_str=None, scal
         if _in_lts_scoped_fixes(actual_name):
             filtered_raw = _apply_lts_exit_overlay(filtered_raw, tf, actual_name, days, start_str, end_str)
 
-        _twp, _eq, by_day = _simulate_leg(filtered_raw, OVERLAY_CFG)
+        if apply_circuit_breaker:
+            # เจอจริง 2026-08-31: ไม้ OPEN (include_open_signals=True) ไม่มี exit_time_ts —
+            # _simulate_leg/daily_series_from_trades (optimize_s75_champion_formula.py /
+            # sim_s31_backtest.py) พัง (.strftime() บน None) เพราะออกแบบมาสำหรับไม้ resolve
+            # แล้วเท่านั้น (นับ P&L ต่อวัน/consecutive-loss จำลอง ต้องรู้ผลจบก่อนถึงจะประเมินได้
+            # อยู่แล้วโดยธรรมชาติ) — กันไม้ OPEN ออกก่อนเข้า circuit breaker แล้วต่อกลับเข้าไป
+            # ทีหลังโดยไม่ผ่านการกรอง (ไม้ OPEN ยังไม่รู้ผล จะให้ CB จำลองตัดสินใจแทนไม่ได้)
+            _resolved_for_cb = [t for t in filtered_raw if t.get("outcome") != "OPEN"]
+            _open_passthrough = [t for t in filtered_raw if t.get("outcome") == "OPEN"]
+            # เจอ 2026-09-14: portfolio ที่ supervisor ไม่เคย skip สัญญาณเพราะ CB เลยจริงๆ
+            # (LTS_AUS3/LTS_AHR3 — ดู apply_circuit_breaker_for_portfolio) ยังต้องผ่าน
+            # _simulate_leg ตามปกติ (ห้ามข้ามทั้งฟังก์ชันด้วย apply_circuit_breaker=False เดิม —
+            # เคยลองแล้วพัง: _simulate_leg เป็นจุดเดียวที่แปลง diff_usd_per_001lot ดิบเป็น
+            # $ จริงผ่าน dynamic lot sizing ข้ามไปเลย trades.csv/daily.csv จะได้ pnl_usd=0/
+            # lot=0.01 default ทุกไม้ทันที) แค่ปิด "cb skip" (DD_CONTROL="none") ให้ไม่มีไม้ไหน
+            # ถูกตัดทิ้งเลย ตรงกับพฤติกรรมจริงของ live แต่ lot sizing/equity compounding ยัง
+            # คำนวณปกติทุกอย่าง
+            _cb_cfg = OVERLAY_CFG
+            if not apply_circuit_breaker_for_portfolio(actual_name):
+                _cb_cfg = dict(OVERLAY_CFG)
+                _cb_cfg["DD_CONTROL"] = "none"
+            _twp, _eq, by_day = _simulate_leg(_resolved_for_cb, _cb_cfg)
+            _twp = _twp + _open_passthrough
+        else:
+            _twp = filtered_raw
 
         # เก็บ raw trade ที่ simulated circuit breaker (OVERLAY_CFG) ตัดทิ้งไป — ไม่กระทบ
         # _twp/all_portfolio_trades ที่ใช้คำนวณ P&L จริงเลย ใช้แค่ diagnose ใน compare report
-        if OVERLAY_CFG.get("DD_CONTROL") == "circuit_breaker":
+        if apply_circuit_breaker and _cb_cfg.get("DD_CONTROL") == "circuit_breaker":
             _twp_ts = {int(x["fill_time_ts"]) for x in _twp}
             for rt in filtered_raw:
                 if int(rt["fill_time_ts"]) not in _twp_ts:
@@ -1566,6 +1832,64 @@ def connect_to_actual_profile_for_portfolio(portfolio_name):
     print(f"   ❌ Connection failed to terminal {abs_path} for {portfolio_name}: {mt5.last_error()}")
     return False
 
+_CYCLE_LINE_RE = re.compile(r"^\[(\d{2}):(\d{2}):(\d{2})\] ─── รอบใหม่")
+_CYCLE_DATE_RE = re.compile(r"start=(\d{4})-(\d{2})-(\d{2})")
+
+
+def _load_supervisor_cycle_times(profile_dir, portfolio_name):
+    """อ่าน log ของ supervisor_lts_avengers.py (ตัวเดียวกับที่ live รันจริง) มาสร้าง list
+    เวลาที่ supervisor เคยตื่นมาสแกนจริง (BKK naive, เรียงเวลา) — ใช้เทียบว่าตอน backtest
+    trade ตัวไหนเกิดขึ้น supervisor "เคยมีโอกาสเห็นสด" (อายุ <= STALE_ENTRY_SEC) บ้างไหม หรือ
+    พลาดไปเพราะตอนนั้น supervisor ไม่ได้รันอยู่ (ไม่เคยเริ่ม/หยุดชั่วคราว/restart gap ฯลฯ)
+    บรรทัด "รอบใหม่" มีแค่ HH:MM:SS ไม่มีวันที่ — เอาวันที่จากบรรทัด
+    "run_lts_af_backtest(start=YYYY-MM-DD ...)" ที่ตามมาติดๆ ทุกรอบแทน (คลาดเคลื่อนได้แค่
+    ไม่กี่สิบนาทีตอนข้ามเที่ยงคืนพอดี ยอมรับได้สำหรับ diagnostic นี้)"""
+    log_path = os.path.join(profile_dir, "logs", f"lts_{portfolio_name}_supervisor.log")
+    if not os.path.exists(log_path):
+        return []
+    cycles = []
+    cur_date = None
+    try:
+        with open(log_path, encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                m = _CYCLE_DATE_RE.search(line)
+                if m:
+                    cur_date = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                    continue
+                m = _CYCLE_LINE_RE.match(line)
+                if m and cur_date:
+                    h, mi, s = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                    cycles.append(datetime(cur_date[0], cur_date[1], cur_date[2], h, mi, s))
+    except Exception:
+        return []
+    cycles.sort()
+    return cycles
+
+
+def _explain_stale_skip(cycle_times, bt_open_dt, stale_sec=20 * 60):
+    """คืน note อธิบายถ้า backtest trade นี้ "หมดอายุไปแล้วจริง" ก่อน supervisor จะมีโอกาสเห็นสด
+    เลย (ตรงกับ STALE_ENTRY_SEC ใน supervisor_lts_avengers.py เป๊ะ) — ไม่ใช่ order หาย/บั๊ก แค่
+    ไม่มีรอบไหนของ supervisor ที่เห็นสัญญาณนี้ตอนอายุยังไม่เกิน limit เลย คืน None ถ้าอธิบายไม่ได้
+    (แปลว่าน่าจะเป็นปัญหาจริง ต้องดูต่อ)"""
+    if not cycle_times:
+        return None
+    import bisect
+    idx = bisect.bisect_left(cycle_times, bt_open_dt)
+    if idx >= len(cycle_times):
+        # ไม่มีรอบไหนหลังจากนี้เลย (trade เก่ากว่า cycle ล่าสุดที่ log มี แต่ไม่มีรอบตามมา
+        # อธิบายไม่ได้ด้วยกลไกนี้ ปล่อยให้ mismatch reason เดิมแสดงต่อ)
+        return None
+    first_seen = cycle_times[idx]
+    age_at_first_seen = (first_seen - bt_open_dt).total_seconds()
+    if age_at_first_seen > stale_sec:
+        return (
+            f"STALE_SKIP_EXPLAINED: supervisor เห็นสัญญาณนี้ครั้งแรกตอน {first_seen.strftime('%Y-%m-%d %H:%M:%S')} "
+            f"อายุ {age_at_first_seen:.0f}s > STALE_ENTRY_SEC={stale_sec}s เกินไม่เข้าจริง (mark processed เฉยๆ) "
+            f"— ไม่ใช่ order หาย"
+        )
+    return None
+
+
 def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str, end_str, days, output_dir):
     # 1. Calculate date_from and date_to
     if start_str:
@@ -1682,7 +2006,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                 t = row["SIM_Open_Time"] or row["MT5_Open_Time"]
                 return datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
             compare_rows.sort(key=sort_key)
-            start_balance = PORTFOLIO_BALANCES.get(portfolio_name, 1000.0)
+            start_balance = PORTFOLIO_BALANCES.get(ALIASES.get(portfolio_name, portfolio_name), 1000.0)
             sim_running_balance = start_balance
             for r in compare_rows:
                 if r["SIM_P&L"] != "":
@@ -1818,13 +2142,30 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
     strict_time_tolerance_sec = 30
     strict_price_tolerance = 0.05
 
+    # ดู docstring ของ _explain_stale_skip — โหลด cycle time จริงของ supervisor (ถ้าเป็น
+    # portfolio ที่มันดูแลอยู่) มาแยกแยะ "backtest trade ที่ supervisor เห็นตอนหมดอายุไปแล้ว
+    # จริง (STALE_ENTRY_SEC) จึงไม่มีคู่ MT5" ออกจาก "หายจริง/ปัญหาจริง" ก่อนจะสรุปว่า not_match
+    _supervisor_cycle_times = (
+        _load_supervisor_cycle_times(LAST_MATCHED_PROFILE_DIR, portfolio_name)
+        if strict_backtest_match and LAST_MATCHED_PROFILE_DIR else []
+    )
+
     def _get_time_diff(bt, mt):
         bt_leg = extract_leg_idx(bt["leg_name"])
-        is_s9x_leg = bt_leg >= 900 if bt_leg is not None else False
+        # เจอ 2026-09-08: เดิมเช็คแค่ bt_leg>=900 (leg S9x ของ LTS_AVENGERS_*) แต่ leg S9x ของ
+        # LTS_AUS3/LTS_AHR3 คือ 643-652/666-675 (เลขต่ำกว่า 900) เลยไม่เคยเข้าเงื่อนไขนี้เลย
+        # ทำให้ order ที่เข้าผ่าน pending limit order (S9x limit-order feature 2026-09-01) โดน
+        # เทียบด้วย strict_time_tolerance_sec=30 เดิม (คิดว่าเป็น market order เข้าทันที) — ราคา
+        # จริงจะไปถึง entry level เมื่อไหร่ไม่มีทางรู้ล่วงหน้า (เคยวัดจริงได้ถึง 542 วินาที) ต้อง
+        # ขยายช่วงให้ครอบคลุม S9X_PENDING_MAX_BARS=5 แท่งของ TF นั้นๆ ไม่ใช่ 30 วินาทีตายตัว
+        is_s9x_leg = bt_leg is not None and (bt_leg >= 900 or 643 <= bt_leg <= 652 or 666 <= bt_leg <= 675)
         if is_s9x_leg:
             bt_tf_mins = {"M15": 15, "M30": 30, "H1": 60}.get(bt["tf"], 15)
-            mt_dt_aligned = mt["dt"] - timedelta(minutes=mt["dt"].minute % bt_tf_mins, seconds=mt["dt"].second)
-            return abs((mt_dt_aligned - bt["open_dt"]).total_seconds())
+            delta_sec = (mt["dt"] - bt["open_dt"]).total_seconds()
+            max_wait_sec = 5 * bt_tf_mins * 60  # S9X_PENDING_MAX_BARS=5 (demo_portfolio.py)
+            if 0 <= delta_sec <= max_wait_sec:
+                return 0.0
+            return abs(delta_sec)
         return abs((mt["dt"] - bt["open_dt"]).total_seconds())
 
     def _strict_mismatch_reason(bt, mt):
@@ -1838,11 +2179,17 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             reasons.append(f"type {bt['type']}!={mt['type']}")
         if mt["sl"] and abs(float(mt["sl"]) - float(bt["sl"])) > strict_price_tolerance:
             reasons.append(f"sl_diff={abs(float(mt['sl']) - float(bt['sl'])):.2f}")
-        elif not mt["sl"]:
+        elif not mt["sl"] and not strict_backtest_match:
+            # เจอ 2026-09-08: history_orders_get() ของ pending order ที่ fill แล้วคืน sl=0/tp=0/
+            # magic=0/comment='' เสมอ (broker เก็บ archive ของ "order ตอนวาง" ไม่ใช่ตอน fill จริง
+            # — ยืนยันแล้วว่า live position จริงมี sl/tp ถูกต้องผ่าน positions_get ตอนยังเปิดอยู่)
+            # ไม่มี MT5 API ไหนดึงค่าย้อนหลังได้ถูกต้องอีกแล้วหลัง position ปิดไปแล้ว — สำหรับ
+            # portfolio ที่ strict_backtest_match (anchor_sl_tp=True เสมอ, ดู _place_market_order/
+            # _place_limit_order) เชื่อค่า backtest เป็นความจริงแทนเมื่อ MT5 ดึงไม่ได้ ไม่ถือว่า mismatch
             reasons.append("mt5_sl_missing")
         if mt["tp"] and abs(float(mt["tp"]) - float(bt["tp"])) > strict_price_tolerance:
             reasons.append(f"tp_diff={abs(float(mt['tp']) - float(bt['tp'])):.2f}")
-        elif not mt["tp"]:
+        elif not mt["tp"] and not strict_backtest_match:
             reasons.append("mt5_tp_missing")
         return "; ".join(reasons)
 
@@ -1856,19 +2203,52 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
         
         # Pass 1: Strict match by Leg Index + Timeframe + Direction
         if bt_leg is not None:
-            for mt in mismatch_mt5:
-                mt_leg = extract_leg_idx(mt["comment"])
-                if mt_leg is not None and mt_leg == bt_leg and mt["type"] == bt["type"] and mt["tf"] == bt["tf"]:
+            if strict_backtest_match:
+                # เจอ 2026-09-10: เดิม first-found ตัวแรกที่ time_diff<=30s+sl/tp ok ก็จับคู่เลย —
+                # แต่ S9x time window ถูกขยายเป็น 0-150min (2026-09-08) และ missing-sl/tp (จาก
+                # pending order ที่ fill แล้ว) ถูกทำให้ auto-ok (2026-09-08 อีกจุด) พร้อมกัน ทำให้
+                # เมื่อ leg เดียวกันยิง 2 สัญญาณใกล้กันในหน้าต่างเดียวกัน (เช่น 01:00 กับ 01:30) แล้ว
+                # อันหนึ่งเป็น pending limit order ที่ fill แล้ว (sl/tp หายจาก MT5 history) โค้ดเดิมจะ
+                # จับคู่กับตัวแรกที่เจอในลิสต์โดยไม่สนว่า sl/tp จริงตรงกันไหม — ทำให้จับผิดคู่ (SIM ตัวที่
+                # sl/tp ตรงกับ MT5 อีกตัวเป๊ะ กลับไปจับคู่กับ MT5 ตัวที่ไม่มี sl/tp ให้เช็คแทน) ต้องให้
+                # คะแนนทุกตัวที่ผ่านเกณฑ์แล้วเลือกตัวที่ดีที่สุด (มี sl/tp จริงและตรงที่สุดมาก่อนเสมอ
+                # ตัวที่ sl/tp หายไว้เป็นทางเลือกสำรองเท่านั้น) — ไม่กระทบผล backtest ใดๆ เพราะฟังก์ชันนี้
+                # รันหลัง trades.csv ถูกบันทึกแล้ว ใช้แค่จับคู่รายงานเทียบ MT5 เท่านั้น
+                best = None
+                best_score = None
+                for mt in mismatch_mt5:
+                    mt_leg = extract_leg_idx(mt["comment"])
+                    if mt_leg is None or mt_leg != bt_leg or mt["type"] != bt["type"] or mt["tf"] != bt["tf"]:
+                        continue
                     time_diff = _get_time_diff(bt, mt)
-                    if strict_backtest_match:
-                        sl_ok = mt["sl"] and abs(float(mt["sl"]) - float(bt["sl"])) <= strict_price_tolerance
-                        tp_ok = mt["tp"] and abs(float(mt["tp"]) - float(bt["tp"])) <= strict_price_tolerance
-                        if time_diff <= strict_time_tolerance_sec and sl_ok and tp_ok:
+                    sl_diff = abs(float(mt["sl"]) - float(bt["sl"])) if mt["sl"] else None
+                    tp_diff = abs(float(mt["tp"]) - float(bt["tp"])) if mt["tp"] else None
+                    sl_ok = sl_diff is None or sl_diff <= strict_price_tolerance
+                    tp_ok = tp_diff is None or tp_diff <= strict_price_tolerance
+                    if time_diff > strict_time_tolerance_sec or not sl_ok or not tp_ok:
+                        continue
+                    # เจอ 2026-09-10 (รอบสอง): leg เดียวกันยิง 3 สัญญาณขึ้นไปในหน้าต่างเดียวกัน แล้ว
+                    # มากกว่า 1 ตัวเป็น pending limit order ที่ fill แล้ว (sl/tp หายทั้งคู่) — ตอนนั้น
+                    # time_diff จาก _get_time_diff จะเป็น 0.0 เท่ากันหมดทุกตัว (S9x window 0-150min
+                    # ถูก clip เป็น 0 เพื่อผ่านเกณฑ์ eligibility) ทำให้ score ไปเสมอกันพอดี เลือกผิดตัว
+                    # ได้อีก (ตัวแรกที่เจอในลิสต์ชนะไปเฉยๆ) ต้องใช้ raw time diff ที่ไม่ clip สำหรับ
+                    # ให้คะแนนเท่านั้น (เกณฑ์ eligibility ยังคงใช้ time_diff ที่ clip แล้วเหมือนเดิม
+                    # เพื่อให้ S9x fill ช้าแค่ไหนก็ยังผ่านเกณฑ์ได้) เพื่อเลือกตัวที่เวลาใกล้ที่สุดจริงๆ
+                    raw_time_diff = abs((mt["dt"] - bt["open_dt"]).total_seconds())
+                    score = (0 if sl_diff is not None else 1) + (0 if tp_diff is not None else 1)
+                    score += (sl_diff or 0) + (tp_diff or 0) + raw_time_diff / 3600.0
+                    if best is None or score < best_score:
+                        best = mt
+                        best_score = score
+                matched = best
+            else:
+                for mt in mismatch_mt5:
+                    mt_leg = extract_leg_idx(mt["comment"])
+                    if mt_leg is not None and mt_leg == bt_leg and mt["type"] == bt["type"] and mt["tf"] == bt["tf"]:
+                        time_diff = _get_time_diff(bt, mt)
+                        if time_diff <= 21600: # Within 6 hours
                             matched = mt
                             break
-                    elif time_diff <= 21600: # Within 6 hours
-                        matched = mt
-                        break
                         
         # Pass 2: Fallback match by Timeframe + Type + Proximity (time <= 3 hours, price <= 15 USD)
         if not matched and not strict_backtest_match:
@@ -1950,7 +2330,10 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
                         nearest_score = score
                 if nearest is not None:
                     near_reason = _strict_mismatch_reason(bt, nearest)
-            
+                stale_note = _explain_stale_skip(_supervisor_cycle_times, bt["open_dt"])
+                if stale_note:
+                    near_reason = stale_note
+
             # Sim point calculation
             # SMART_EXIT (Smart Cut-loss/Momentum Stall overlay ของ LTS_AUS/LTS_AHR) ปิดที่ราคา
             # จริงไม่ใช่ SL/TP เดิม — ใช้ exit_price ที่เก็บไว้แทน (ดู _apply_lts_exit_overlay)
@@ -2077,7 +2460,7 @@ def generate_mt5_and_compare_reports(portfolio_name, backtest_trades, start_str,
             return datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
         compare_rows.sort(key=sort_key)
 
-        start_balance = PORTFOLIO_BALANCES.get(portfolio_name, 1000.0)
+        start_balance = PORTFOLIO_BALANCES.get(ALIASES.get(portfolio_name, portfolio_name), 1000.0)
         sim_running_balance = start_balance
         mt5_running_balance = start_balance
 
@@ -2177,6 +2560,10 @@ def main():
     parser.add_argument("--out-dir", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "excel")), help="Output directory for CSV files")
     parser.add_argument("--compare-only", type=str, default=None, help="Internal use: run compare report in separate process")
     parser.add_argument("--no-cache", action="store_true", help="Do not load or save raw trades disk cache")
+    parser.add_argument("--include-open", action="store_true",
+                         help="รวมไม้ที่ fill แล้วแต่ยังไม่รู้ผล TP/SL ด้วย (outcome=OPEN) — ใช้ทดสอบ "
+                              "จังหวะที่ signal ควรจะเข้า order ได้จริง (ก่อนรู้ผลจบ) เหมือนที่ "
+                              "supervisor_lts_avengers.py ใช้ — ค่า default (ไม่ใส่) พฤติกรรมเดิมทุกประการ")
     args = parser.parse_args()
     
     if args.compare_only:
@@ -2236,7 +2623,7 @@ def main():
                 print(f"🏁 RUNNING BACKTEST FOR: {pf} ({days} days | scale={args.scale})")
                 print(f"==================================================")
             
-            balance = args.balance if args.balance is not None else PORTFOLIO_BALANCES.get(pf, 1000.0)
+            balance = args.balance if args.balance is not None else PORTFOLIO_BALANCES.get(ALIASES.get(pf, pf), 1000.0)
             
             trades = []
             if pf in ["P13", "P16", "P18", "18-Way"]:
@@ -2244,7 +2631,13 @@ def main():
             elif pf in ["S101", "S102", "S105", "S106", "S111"]:
                 trades = run_single_strategy_backtest(pf, days, args.start, args.end, args.scale)
             elif actual_pf.startswith("LTS") or actual_pf.startswith("AF"):
-                trades = run_lts_af_backtest(pf, days, args.start, args.end, args.scale)
+                # apply_circuit_breaker=True เสมอ (default) — _simulate_leg ต้องรันเสมอเพื่อแปลง
+                # diff_usd_per_001lot ดิบเป็น $ จริงผ่าน dynamic lot sizing (ไม่งั้น trades.csv
+                # จะได้ pnl_usd=0 ทุกไม้) ส่วนพอร์ตที่ supervisor ไม่ skip สัญญาณเพราะ CB จริง
+                # (LTS_AUS3/LTS_AHR3) run_lts_af_backtest ข้างในจะปิด "cb skip" เองผ่าน
+                # apply_circuit_breaker_for_portfolio() ให้ตรงกับ live โดยไม่กระทบการคำนวณ $
+                trades = run_lts_af_backtest(pf, days, args.start, args.end, args.scale,
+                                              include_open_signals=args.include_open)
             else:
                 print(f"⚠️ Unknown portfolio type for: {pf}")
                 continue

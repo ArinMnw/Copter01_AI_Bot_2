@@ -293,6 +293,14 @@ async def _show_strategy_detail(query, sid: int, answer_text: str = ""):
             f"- สถานะ: *{c_status}*\n"
             f"- Risk per Trade: *{getattr(config, 'S20_8_RISK_PCT', 2.0)}%*\n\n"
         )
+    if sid == 20.304:
+        sym_dict = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
+        text += "📊 *สถานะสัญลักษณ์ของ S20.304 (Symbols)*:\n"
+        for sym_name, is_on_sym in sym_dict.items():
+            sym_clean = sym_name.replace(".iux", "")
+            icon = "🟢 เปิด" if is_on_sym else "🔴 ปิด"
+            text += f"- {sym_clean}: *{icon}*\n"
+        text += "\n"
     text += "เลือกตัวเลือกด้านล่าง:"
     try:
         await query.edit_message_text(text, parse_mode="Markdown",
@@ -347,7 +355,7 @@ async def handle_callback(update, ctx):
 
     elif (
         data in (
-            "demo_refresh", "demo_weight_toggle", "demo_scale_toggle",
+            "demo_refresh", "demo_weight_toggle", "demo_scale_toggle", "demo_maxlot_toggle",
             "demo_view_xauusd", "demo_view_btcusd", "demo_manage_back", "demo_group_back"
         )
         or data.startswith("demo_manage_")
@@ -356,7 +364,7 @@ async def handle_callback(update, ctx):
     ):
         from handlers.btn_demo_portfolio import _build_demo_portfolio_view
         import demo_portfolio
-        is_toggle = data.startswith("demo_") and data.endswith("_toggle") and data not in ("demo_weight_toggle", "demo_scale_toggle")
+        is_toggle = data.startswith("demo_") and data.endswith("_toggle") and data not in ("demo_weight_toggle", "demo_scale_toggle", "demo_maxlot_toggle")
         answer_text = "รีเฟรชแล้ว"
         if data == "demo_view_xauusd":
             config.DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"
@@ -397,6 +405,20 @@ async def handle_callback(update, ctx):
                 new_scale = choices[(idx + 1) % len(choices)]
                 config.DEMO_PORTFOLIO_WEIGHT_SCALE[portfolio] = new_scale
                 answer_text = f"Scale {portfolio} = {new_scale}x"
+        elif data == "demo_maxlot_toggle":
+            # cap ต่อไม้ — clamp lot สุดท้ายเสมอไม่ว่า Weight ON/OFF (ดู _af_order_volume)
+            # กัน weight สูงมากบาง leg (AF47 ถึง 888.78) ยิง lot ไม่มีเพดาน
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio:
+                choices = list(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT_CHOICES", [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 0.0]))
+                cur = float(getattr(config, "DEMO_PORTFOLIO_AF_MAX_LOT", {}).get(portfolio, 0.0))
+                try:
+                    idx = choices.index(cur)
+                except ValueError:
+                    idx = -1
+                new_cap = choices[(idx + 1) % len(choices)]
+                config.DEMO_PORTFOLIO_AF_MAX_LOT[portfolio] = new_cap
+                answer_text = f"Max Lot {portfolio} = {new_cap if new_cap > 0 else 'ไม่จำกัด'}"
         elif data == "demo_p3_dyn_lot_toggle":
             portfolio = ctx.user_data.get("demo_manage_portfolio")
             if portfolio:
@@ -417,10 +439,16 @@ async def handle_callback(update, ctx):
                 answer_text = f"{'เปิด' if not cur else 'ปิด'} Momentum Stall Exit สำหรับ {portfolio}"
         elif data == "demo_also_backtest_toggle":
             portfolio = ctx.user_data.get("demo_manage_portfolio")
-            if portfolio in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK"):
+            if portfolio in ("LTS_AVENGERS_ULTRA_SAFE", "LTS_AVENGERS_HIGH_RISK", "LTS_AUS2", "LTS_AHR2", "LTS_AUS3", "LTS_AHR3"):
                 cur = config.DEMO_PORTFOLIO_CB_ENABLED.get(portfolio, False)
                 config.DEMO_PORTFOLIO_CB_ENABLED[portfolio] = not cur
                 answer_text = f"{'เปิด' if not cur else 'ปิด'} Circuit Breaker (Also Backtest) สำหรับ {portfolio}"
+        elif data == "demo_lts_supervisor_toggle":
+            portfolio = ctx.user_data.get("demo_manage_portfolio")
+            if portfolio in ("LTS_AUS3", "LTS_AHR3"):
+                cur = config.LTS_SUPERVISOR_ACTIVE.get(portfolio, False)
+                config.LTS_SUPERVISOR_ACTIVE[portfolio] = not cur
+                answer_text = f"{'เปิด' if not cur else 'ปิด'} LTS Supervisor สำหรับ {portfolio}"
         elif is_toggle and not data.startswith("demo_p3_") and not data.startswith("demo_p4_"):
             portfolio = data[len("demo_"):-len("_toggle")].upper()
             if portfolio not in getattr(demo_portfolio, "PORTFOLIO_ORDER", ("P13", "P16", "AF22", "AF34", "AF47", "LTS44", "LTS890", "LTS999")):
@@ -432,6 +460,11 @@ async def handle_callback(update, ctx):
         
         try:
             text, kb = _build_demo_portfolio_view(ctx)
+            if len(text) > 4000:
+                # edit_message_text ส่งได้แค่ข้อความเดียว (ไม่เหมือน reply_text ที่แตกหลาย
+                # ข้อความได้) — ถ้ายาวเกิน limit ของ Telegram ให้ตัดพร้อมแจ้งเตือน แทนที่จะ
+                # ปล่อยให้ BadRequest("Message is too long") ทำให้หน้าจอไม่อัปเดตเงียบๆ
+                text = text[:3850] + "\n\n_…ข้อความถูกตัด เพราะยาวเกิน limit ของ Telegram — ดูฉบับเต็มได้ที่ปุ่ม 🧪 Demo Portfolio_"
             await query.edit_message_text(text, parse_mode="Markdown", reply_markup=kb)
         except Exception as e:
             emsg = str(e).lower()
@@ -1562,6 +1595,59 @@ async def handle_callback(update, ctx):
         status_th = "เปิด ✅" if config.S20_12_ENABLED else "ปิด ❌"
         await _show_strategy_detail(query, 20.12, f"S20.12: {status_th}")
 
+    elif data == "toggle_s20_14_all":
+        is_on = any(config.active_strategies.get(sub, False) for sub in getattr(config, "_s20_14_variants", set()))
+        turn_on = not is_on
+        for sub in getattr(config, "_s20_14_variants", set()):
+            active_strategies[sub] = turn_on
+            config.active_strategies[sub] = turn_on
+        save_runtime_state()
+        status_th = "เปิดทั้งหมด ✅" if turn_on else "ปิดทั้งหมด ❌"
+        await _show_strategy_detail(query, 20.14, f"S20.14 ML Groups: {status_th}")
+
+    elif data.startswith("toggle_s20_14_group_"):
+        sub_sid = float(data.replace("toggle_s20_14_group_", ""))
+        active_strategies[sub_sid] = not config.active_strategies.get(sub_sid, False)
+        config.active_strategies[sub_sid] = active_strategies[sub_sid]
+        save_runtime_state()
+        status_th = "เปิด ✅" if active_strategies[sub_sid] else "ปิด ❌"
+        group_name = str(sub_sid).replace('20.14', '')
+        await _show_strategy_detail(query, 20.14, f"Group {group_name}: {status_th}")
+
+    elif data.startswith("toggle_s20_sym_"):
+        # callback format: toggle_s20_sym_{sid}_{sym_name}
+        try:
+            parts = data.split("_", 4)
+            if len(parts) >= 5:
+                sid_val = float(parts[3])
+                sym = parts[4]
+                sym_dict = getattr(config, "S20_SYMBOLS", getattr(config, "S20_304_SYMBOLS", {}))
+                if sym in sym_dict:
+                    sym_dict[sym] = not sym_dict[sym]
+                    if hasattr(config, "S20_304_SYMBOLS") and sym in config.S20_304_SYMBOLS:
+                        config.S20_304_SYMBOLS[sym] = sym_dict[sym]
+                    save_runtime_state()
+                    status_th = "เปิด 🟢" if sym_dict[sym] else "ปิด 🔴"
+                    clean_sym = sym.replace(".iux", "")
+                    await _show_strategy_detail(query, sid_val, f"S{sid_val} {clean_sym}: {status_th}")
+        except Exception as e:
+            _log_cb_error("toggle_s20_sym", e)
+            await _qanswer(query, "เกิดข้อผิดพลาดในการสลับ Symbol")
+
+    elif data.startswith("toggle_s20_304_sym_"):
+        sym = data.replace("toggle_s20_304_sym_", "")
+        sym_dict = getattr(config, "S20_SYMBOLS", getattr(config, "S20_304_SYMBOLS", {}))
+        if sym in sym_dict:
+            sym_dict[sym] = not sym_dict[sym]
+            if hasattr(config, "S20_304_SYMBOLS") and sym in config.S20_304_SYMBOLS:
+                config.S20_304_SYMBOLS[sym] = sym_dict[sym]
+            save_runtime_state()
+            status_th = "เปิด 🟢" if sym_dict[sym] else "ปิด 🔴"
+            clean_sym = sym.replace(".iux", "")
+            await _show_strategy_detail(query, 20.304, f"S20.304 {clean_sym}: {status_th}")
+
+    elif data == "noop":
+        await _qanswer(query)
 
     elif data in ("strategy_all_on", "strategy_all_off"):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
@@ -2133,6 +2219,7 @@ async def handle_callback(update, ctx):
     elif data == 'open_s20_settings_menu':
         from handlers.keyboard import show_s20_settings_menu
         await show_s20_settings_menu(query, is_query=True)
+        await _qanswer(query)
 
     elif data.startswith('set_s20_trigger_'):
         trigger_id = data.replace("set_s20_trigger_", "")
@@ -2150,6 +2237,7 @@ async def handle_callback(update, ctx):
             config.save_runtime_state()
             from handlers.keyboard import show_s20_settings_menu
             await show_s20_settings_menu(query, is_query=True)
+        await _qanswer(query)
 
     elif data.startswith('set_s20_mod_'):
         mod_id = data.replace("set_s20_mod_", "")
@@ -2165,6 +2253,7 @@ async def handle_callback(update, ctx):
             config.save_runtime_state()
             from handlers.keyboard import show_s20_settings_menu
             await show_s20_settings_menu(query, is_query=True)
+        await _qanswer(query)
 
     elif data == 'prompt_s20_entry_buffer':
         from config import tg
@@ -2448,8 +2537,8 @@ async def handle_callback(update, ctx):
                 pass
             await _qanswer(query, "Error")
 
+
     elif data == 'noop':
-        # ปุ่มข้อความล้วน (เช่น คำเตือน) ไม่มี action ใดๆ — แค่ปิด spinner เฉยๆ
         await _qanswer(query)
 
     else:

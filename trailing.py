@@ -1069,7 +1069,7 @@ def _parse_bot_comment(comment: str):
         parts = str(comment).split("-")
         tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
         return tf, 21
-    m_demo = re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR|LTS_AUS|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+)-", str(comment))
+    m_demo = re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR\d*|LTS_AUS\d*|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+|LTS_EVOLUTION9|LTS_SCREEN13|LTS_WINRATE5|LTS_ROLLOVER[A-Z_]*|S4\d\d)-", str(comment))
     if m_demo:
         return m_demo.group(1), 21
     m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S([A-Za-z0-9]+(?:\.\d+)?))?", comment)
@@ -1951,7 +1951,7 @@ async def _close_linked_s11_for_tf(app, tf_name: str, trigger_reason: str) -> No
         if str(position_tf.get(ticket, "")) != str(tf_name):
             continue
         pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
-        ok_close, close_price = _close_position(pos, pos_type, f"s11 linked close [{tf_name}]")
+        ok_close, close_price = _close_position(pos, pos_type, f"S11 linked close [{tf_name}]")
         if ok_close:
             position_tf.pop(ticket, None)
             position_sid.pop(ticket, None)
@@ -2454,7 +2454,7 @@ async def check_s1_zone_rules(app):
             else:
                 continue
 
-        ok_close, close_price = _close_position(pos, pos_type, f"s1 {_mode} exit [{tf}]")
+        ok_close, close_price = _close_position(pos, pos_type, f"S1 {_mode} exit [{tf}]")
         if ok_close:
             sig_e = "🟢" if pos_type == "BUY" else "🔴"
             await tg(app, (
@@ -2537,7 +2537,7 @@ async def check_s1_rejection_entry(app):
             f"S1 Rejection Entry [{tf}]: body={body_pct*100:.1f}% "
             f"upper_wick={upper_wick:.2f} lower_wick={lower_wick:.2f}"
         )
-        ok_close, close_price = _close_position(pos, pos_type, f"s1 rejection entry [{tf}]")
+        ok_close, close_price = _close_position(pos, pos_type, f"S1 rejection entry [{tf}]")
         if ok_close:
             sig_e = "🟢" if pos_type == "BUY" else "🔴"
             await tg(app, (
@@ -2664,7 +2664,7 @@ async def check_s1_forward_confirm_rules(app):
             continue
 
         reason = f"S1 Forward Exit [{tf}]: ไม่เจอ S2/S3 ฝั่งเดียวกันใน {forward_bars} แท่งข้างหน้า"
-        ok_close, close_price = _close_position(pos, pos_type, f"s1 forward exit [{tf}]")
+        ok_close, close_price = _close_position(pos, pos_type, f"S1 forward exit [{tf}]")
         if ok_close:
             position_forward_meta.pop(ticket, None)
             side_icon = "🟢" if pos_type == "BUY" else "🔴"
@@ -3263,7 +3263,7 @@ def _resolve_pos_sid(ticket, comment: str = ""):
     if isinstance(_info, dict) and _info.get("sid") is not None:
         return _info.get("sid")
     comment_text = str(comment or "")
-    if comment_text.startswith("DEMO-") or re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR|LTS_AUS|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+)-", comment_text):
+    if comment_text.startswith("DEMO-") or re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR\d*|LTS_AUS\d*|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+|LTS_EVOLUTION9|LTS_SCREEN13|LTS_WINRATE5|LTS_ROLLOVER[A-Z_]*|S4\d\d)-", comment_text):
         return 21
     m = _SID_COMMENT_RE.search(comment_text)
     if m:
@@ -6619,6 +6619,91 @@ async def check_s20_13_breakeven(app):
             ))
 
 
+_s20_inst_trail_state: dict = {}  # {ticket: {"risk": float, "stage_idx": int, "locked_r": float}}
+
+async def check_s20_institutional_trail(app):
+    """
+    Multi-stage ratchet trailing for S20.301, S20.302, S20.303, S20.304
+    Monitors live price across all traded symbols and locks SL progressively at each R-multiple.
+    """
+    positions = mt5.positions_get()
+    if not positions:
+        return
+    for pos in positions:
+        ticket = pos.ticket
+        sid = position_sid.get(ticket)
+        if sid is None:
+            _, sid, _ = _infer_position_meta_from_comment(pos)
+            if sid is not None:
+                position_sid[ticket] = sid
+        if sid not in (20.301, 20.302, 20.303, 20.304):
+            continue
+
+        sym = pos.symbol
+        tick = mt5.symbol_info_tick(sym)
+        if not tick:
+            continue
+
+        st = _s20_inst_trail_state.get(ticket)
+        if st is None:
+            pend = pending_order_tf.get(ticket) or {}
+            risk = float(pend.get("risk", 0.0) or 0.0)
+            if risk <= 0:
+                init_sl = float(pend.get("sl", 0.0) or 0.0)
+                if init_sl > 0:
+                    risk = abs(pos.price_open - init_sl)
+                elif pos.sl > 0:
+                    risk = abs(pos.price_open - pos.sl)
+                else:
+                    risk = 1.0
+            st = {"risk": risk, "stage_idx": -1, "locked_r": 0.0}
+            _s20_inst_trail_state[ticket] = st
+
+        risk = st.get("risk", 1.0)
+        if risk <= 0:
+            continue
+
+        entry = pos.price_open
+        pos_type = "BUY" if pos.type == mt5.ORDER_TYPE_BUY else "SELL"
+        cur_price = tick.bid if pos_type == "BUY" else tick.ask
+        profit_dist = (cur_price - entry) if pos_type == "BUY" else (entry - cur_price)
+        cur_r = profit_dist / risk
+
+        try:
+            from strategy.run_master_s20_marathon_201_to_300 import make_stages
+            stages = make_stages(56 if sid == 20.303 else 55)
+        except Exception:
+            stages = [(1.5, 1.0), (2.4, 2.0), (3.0, 2.8)]
+
+        best_idx = -1
+        best_trig = 0.0
+        best_lock = 0.0
+        for idx, (trig_r, lock_r) in enumerate(stages):
+            if cur_r >= trig_r:
+                best_idx = idx
+                best_trig = trig_r
+                best_lock = lock_r
+            else:
+                break
+
+        if best_idx > st.get("stage_idx", -1):
+            digits = 3 if ("JPY" in sym or "XAG" in sym) else (5 if any(x in sym for x in ("EUR", "GBP", "AUD", "NZD", "CAD", "CHF")) else 2)
+            target_sl = round(entry + (best_lock * risk), digits) if pos_type == "BUY" else round(entry - (best_lock * risk), digits)
+            
+            should_move = (target_sl > pos.sl) if pos_type == "BUY" else (pos.sl <= 0 or target_sl < pos.sl)
+            if should_move:
+                if _modify_sl(pos, target_sl):
+                    st["stage_idx"] = best_idx
+                    st["locked_r"] = best_lock
+                    sig_e = "🟢" if pos_type == "BUY" else "🔴"
+                    clean_sym = sym.replace(".iux", "")
+                    await tg(app, (
+                        f"🛡️ *S{sid} Ratchet Lock (+{best_lock:.2f}R)*\n"
+                        f"{sig_e} [{clean_sym}] Ticket:`{ticket}`\n"
+                        f"Trigger: `{best_trig:.2f}R` | SL: `{pos.sl}` -> `{target_sl}`"
+                    ))
+
+
 async def check_breakeven_tp(app):
     """
     Breakeven TP logic for every strategy.
@@ -8451,7 +8536,11 @@ async def check_cancel_pending_orders(app):
             _is_combined = _triple_check_all_enabled()
             pd_status, pd_msgs = _pdfiboplus_process(ticket, order, info, combined=_is_combined)
             for _msg in pd_msgs:
-                await tg(app, _msg)
+                # Suppress interim "รอบ 1/2" messages เมื่อ status=wait
+                # (ยังไม่ตัดสิน — ส่ง TG เฉพาะตอน fail/pass รอบ 2 หรือ fallback wait)
+                _is_interim_wait = (pd_status == "wait") and ("รอบ 1/2" in _msg or "Fallback" not in _msg and "รอบ 1" in _msg)
+                if not _is_interim_wait:
+                    await tg(app, _msg)
             if _is_combined:
                 # แบบรวม: ครบ 2 รอบ (pd_status != "wait") → นับเป็น 1 โหวต
                 if pd_status != "wait":

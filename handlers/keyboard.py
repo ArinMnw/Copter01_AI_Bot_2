@@ -957,11 +957,15 @@ def build_strategy_keyboard():
             return getattr(config, "S20_11_ENABLED", False)
         if sid == 20.12:
             return getattr(config, "S20_12_ENABLED", False)
+        if sid == 20.14:
+            return any(active_strategies.get(sub, False) for sub in getattr(config, "_s20_14_variants", set()))
         return active_strategies.get(sid, False)
 
     rows = []
     row = []
     for sid, name in STRATEGY_NAMES.items():
+        if sid in getattr(config, "_s20_14_variants", set()):
+            continue
         is_on = _strat_on(sid)
         label = f"{'✅' if is_on else '⬜'} {name}"
         row.append(InlineKeyboardButton(label, callback_data=f"open_strategy_detail_{sid}"))
@@ -1008,10 +1012,18 @@ def build_strategy_detail_keyboard(sid: int):
     elif sid == 20.12:
         is_on = getattr(config, "S20_12_ENABLED", False)
         toggle_cb = "toggle_s20_12_enabled"
+    elif sid == 20.14:
+        is_on = any(config.active_strategies.get(sub, False) for sub in getattr(config, "_s20_14_variants", set()))
+        toggle_cb = "toggle_s20_14_all"
     else:
         is_on = active_strategies.get(sid, False)
         toggle_cb = f"toggle_strategy_{sid}"
-    toggle_label = f"🟢 เปิดใช้งาน {name}" if is_on else f"🔴 ปิดใช้งาน {name}"
+    
+    if sid == 20.14:
+        toggle_label = "🟢 ปิด ML Groups ทั้งหมด" if is_on else "🔴 เปิด ML Groups ทั้งหมด"
+    else:
+        toggle_label = f"🟢 เปิดใช้งาน {name}" if is_on else f"🔴 ปิดใช้งาน {name}"
+        
     rows = [[InlineKeyboardButton(toggle_label, callback_data=toggle_cb)]]
 
     if sid == 1:
@@ -1602,19 +1614,6 @@ def build_strategy_detail_keyboard(sid: int):
             InlineKeyboardButton(sess_on, callback_data="toggle_s20_12_session")
         ])
 
-    elif sid == 20.14:
-        tf_buttons = []
-        for tf in config.S20_ALLOWED_TFS:
-            is_on = getattr(config, "S20_14_TF_ENABLED", {}).get(tf, True)
-            btn = InlineKeyboardButton(f"{'🟢' if is_on else '🔴'} {tf}", callback_data=f"cb_toggle_s20_14_tf_{tf}")
-            tf_buttons.append(btn)
-        for i in range(0, len(tf_buttons), 4):
-            rows.append(tf_buttons[i:i+4])
-
-        a_mode = getattr(config, "S20_14_ACTIVE_MODE", 2.0)
-        rows.append([
-            InlineKeyboardButton(f"⚙️ S20.14 Active Mode: {a_mode} (คลิกเปลี่ยน)", callback_data="prompt_s20_14_active_mode")
-        ])
     elif sid == 20.13:
         a_mode = getattr(config, "S20_13_ACTIVE_MODE", 2.6)
         rows.append([
@@ -1661,6 +1660,33 @@ def build_strategy_detail_keyboard(sid: int):
         rows.append([
             InlineKeyboardButton(f"⚙️ S20.13.24 Compound: {s2024_compound} (คลิกเปลี่ยน)", callback_data="prompt_s20_13_24_compound")
         ])
+
+    elif sid == 20.14:
+        group_rows = []
+        group_row = []
+        for sub_sid in sorted(list(getattr(config, "_s20_14_variants", set()))):
+            is_sub_on = config.active_strategies.get(sub_sid, False)
+            btn_text = f"{'✅' if is_sub_on else '⬜'} Group {str(sub_sid).replace('20.14', '')}"
+            group_row.append(InlineKeyboardButton(btn_text, callback_data=f"toggle_s20_14_group_{sub_sid}"))
+            if len(group_row) == 2:
+                rows.append(group_row)
+                group_row = []
+        if group_row:
+            rows.append(group_row)
+
+    elif sid == 20.304:
+        rows.append([InlineKeyboardButton("📊 เลือกเปิด-ปิด Symbol สำหรับ S20.304:", callback_data="noop")])
+        sym_dict = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
+        sym_row = []
+        for sym_name, is_active in sym_dict.items():
+            clean = sym_name.replace(".iux", "")
+            btn_txt = f"{'🟢' if is_active else '🔴'} {clean}"
+            sym_row.append(InlineKeyboardButton(btn_txt, callback_data=f"toggle_s20_304_sym_{sym_name}"))
+            if len(sym_row) == 2:
+                rows.append(sym_row)
+                sym_row = []
+        if sym_row:
+            rows.append(sym_row)
 
     rows.append([InlineKeyboardButton("🔙 กลับ", callback_data="open_strategy_menu")])
     return InlineKeyboardMarkup(rows)

@@ -20,7 +20,7 @@ from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
                       check_fill_trend_recheck, check_pending_trend_approach, check_fill_pdfiboplus,
                       check_s14_engulf_exits, check_s20_escape, check_s2_s3_chain_groups,
                       check_s1_rejection_entry, check_s20_13_23_breakeven, check_s20_13_breakeven,
-                      check_s20_13_24_breakeven)
+                      check_s20_13_24_breakeven, check_s20_institutional_trail)
 from notifications import check_sl_tp_hits
 from handlers.text_handler import start, handle_text
 from handlers.callback_handler import handle_callback
@@ -549,6 +549,7 @@ def main():
             await check_s20_13_23_breakeven(app); _lap("s20_13_23_breakeven")
             await check_s20_13_breakeven(app); _lap("s20_13_breakeven")
             await check_s20_13_24_breakeven(app); _lap("s20_13_24_breakeven")
+            await check_s20_institutional_trail(app); _lap("s20_institutional_trail")
             await check_opposite_order_tp(app); _lap("opposite_order_tp")
             await check_limit_sweep(app); _lap("limit_sweep")
             await check_scale_out_partial(app); _lap("scale_out_partial")
@@ -638,11 +639,19 @@ def main():
                 config._watchdog_scan_ok = False
                 gap = int(_time.time() - config.last_scan_ts)
                 log_event("WATCHDOG_SCAN_STALL", f"no scan for {gap}s")
-                await tg(app, f"🚨 *Watchdog: Scan ค้าง*\nไม่มี scan สำเร็จมา `{gap}` วินาที — ตรวจสอบ MT5/บอท")
+                _now = _time.time()
+                _cooldown = getattr(config, "WATCHDOG_NOTIFY_COOLDOWN_SEC", 600)
+                if _now - config._watchdog_scan_stall_ts >= _cooldown:
+                    config._watchdog_scan_stall_ts = _now
+                    await tg(app, f"🚨 *Watchdog: Scan ค้าง*\nไม่มี scan สำเร็จมา `{gap}` วินาที — ตรวจสอบ MT5/บอท")
             elif not stale and not config._watchdog_scan_ok:
                 config._watchdog_scan_ok = True
                 log_event("WATCHDOG_SCAN_OK", "scan resumed")
-                await tg(app, "✅ *Watchdog: Scan กลับมาทำงานปกติ*")
+                _now = _time.time()
+                _cooldown = getattr(config, "WATCHDOG_NOTIFY_COOLDOWN_SEC", 600)
+                if _now - config._watchdog_scan_ok_ts >= _cooldown:
+                    config._watchdog_scan_ok_ts = _now
+                    await tg(app, "✅ *Watchdog: Scan กลับมาทำงานปกติ*")
 
     async def write_heartbeat_job():
         """เขียน heartbeat ถี่ (ทุก 15s) ให้ external supervisor detect loop hang ได้ไว
@@ -721,6 +730,11 @@ def main():
         misfire_grace_time=5,
         next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(5))
     )
+
+    # หมายเหตุ: LTS_AUS3/LTS_AHR3 เคยมี cron scan anchor ตามแท่งปิดตรงนี้ (2026-08-28)
+    # แต่ถูกแทนที่ด้วย supervisor_lts_avengers.py (process แยก, backtest-driven, ดู
+    # strategy/demo_portfolio/backtest-sim/supervisor_lts_avengers.py) ทั้งเข้า order
+    # เองและอิงเวลาจาก backtest ตรงๆ — เอา cron job เดิมออกกันเข้า order ซ้ำ 2 ทาง
 
     # Trail SL ทุก 5 วินาที — max_instances=1 กันแก้ SL ของ position เดียวซ้อนกัน
     from datetime import timezone as _tz

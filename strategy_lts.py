@@ -180,6 +180,20 @@ _load_lts_weights(os.path.join(weights_dir, "lts_avengers_p34_weights.txt"), "LT
 _load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_risk_weights.txt"), "LTS_AVENGERS_HIGH_RISK")
 _load_lts_weights(os.path.join(weights_dir, "lts_avengers_ultra_safe_weights.txt"), "LTS_AVENGERS_ULTRA_SAFE")
 _load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_freq_weights.txt"), "LTS_AVENGERS_HIGH_FREQ")
+# LTS_AUS2/LTS_AHR2 (2026-08-09): เวอร์ชันทดลองของ LTS_AUS/LTS_AHR ตัดเฉพาะ leg ที่
+# net P&L ต่อ 0.01 lot ติดลบจริง (ไม่ใช่แค่ SL% สูง — ยืนยันด้วย backtest 550 วัน ผ่าน
+# _invert_raw_s9x/_clean_s9x_direct ที่ถูกต้องสำหรับตระกูล S9x) ไฟล์ต้นฉบับ
+# lts_avengers_ultra_safe/high_risk_weights.txt ไม่ถูกแตะเลย พอร์ตนี้แยกเป็นชื่อใหม่ทั้งหมด
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_ultra_safe_weights_aus2.txt"), "LTS_AUS2")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_risk_weights_ahr2.txt"), "LTS_AHR2")
+# LTS_AUS3/LTS_AHR3 (2026-08-26): ตัดเฉพาะ 2 leg ที่แย่สุดจาก AUS2/AHR2 ตามผล live จริง
+# (ไม่ใช่ backtest — เจอว่า backtest ของ AHR2 ผิดทิศทางกับ live เลย ใช้คัด leg ไม่ได้)
+# AUS3 ตัด DIRECT_S96_M15(-$4,599.79)/DIRECT_S97_M30(-$5,011.24) ออกจาก AUS2
+# AHR3 ตัด DIRECT_S96_M15(-$184,578)/INVERSE_S96_M30(-$722,140) ออกจาก AHR2 — สองตัวนี้รวมกัน
+# ขาดทุนมากกว่าทั้งพอร์ต AHR2 สุทธิเสียอีก (ดู memory lts_ladder_duplicate_leg_bug.md)
+# ⚠️ ไม่มี backtest ยืนยันล่วงหน้ารอบนี้ (เชื่อถือไม่ได้) ต้องรอผล live จริงเท่านั้น
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_ultra_safe_weights_aus3.txt"), "LTS_AUS3")
+_load_lts_weights(os.path.join(weights_dir, "lts_avengers_high_risk_weights_ahr3.txt"), "LTS_AHR3")
 # LTS_ROLLOVER (2026-07-19): S206 rollover drive + S202 kurt-VR — paper-forward
 # เท่านั้น จนกว่าจะกดเปิดใน Telegram (DEMO_PORTFOLIO_ACTIVE เริ่ม False เสมอ)
 _load_lts_weights(os.path.join(weights_dir, "lts_rollover_weights.txt"), "LTS_ROLLOVER")

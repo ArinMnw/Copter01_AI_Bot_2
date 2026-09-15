@@ -1,0 +1,41 @@
+
+===== simulate leg M1 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=822.23 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 14:02:25  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 13:02:25
+  [M1] คำนวณสัญญาณขนานเสร็จใน 6845s (351986 แท่ง)
+M1: 630 ไม้ปิด, ใช้เวลา 6845s
+
+===== simulate leg M5 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=887.61 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 15:56:29  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 14:56:29
+  [M5] คำนวณสัญญาณขนานเสร็จใน 206s (70573 แท่ง)
+M5: 221 ไม้ปิด, ใช้เวลา 206s
+
+===== simulate leg M15 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=887.61 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 15:59:55  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 14:59:55
+  [M15] คำนวณสัญญาณขนานเสร็จใน 26s (23574 แท่ง)
+M15: 176 ไม้ปิด, ใช้เวลา 26s
+
+===== simulate leg M30 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=887.61 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 16:00:22  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 15:00:22
+  [M30] คำนวณสัญญาณขนานเสร็จใน 9s (11790 แท่ง)
+M30: 168 ไม้ปิด, ใช้เวลา 9s
+
+===== simulate leg H1 =====
+MT5 account: login=2101114448 server=IUXMarkets-Demo name=Arin Meetaem balance=887.61 USD
+เวลาปัจจุบันของ broker (raw MT5): 2026-08-17 16:00:31  |  เวลาจริง BKK (แก้ตาม MT5 Timezone Rule): 2026-08-17 15:00:31
+หมายเหตุ: ประวัติก่อน --start มีแค่ 345 แท่ง (น้อยกว่า LOOKBACK_BARS[H1]=350 ที่ตั้งใจไว้ให้ตรง live) — ใช้เท่าที่มีแทน ⚠️ ผลอาจเปลี่ยนได้จริง (lookback สั้นไปพลาด pattern บางแบบไปเลย)
+  [H1] คำนวณสัญญาณขนานเสร็จใน 6s (5897 แท่ง)
+H1: 174 ไม้ปิด, ใช้เวลา 6s
+
+
+===== สรุปพอร์ต S421 ทั้ง 5 TF พร้อมกัน (MAX_POS_PER_LEG=1, lot=0.01 ต่อไม้) =====
+ช่วง: 2025-08-17 13:02:25 - 2026-08-17 13:02:25
+ไม้ปิดทั้งหมด: 1369
+Net P&L: 15770.46 USD | Max Drawdown: 3081.79 USD
+จำนวนไม้เปิดพร้อมกันสูงสุด (รวมทุก TF/leg): 5 ไม้ (ตอน 2025-08-19 12:00:00+07:00)
+จำนวนไม้ทิศเดียวกันที่เปิดพร้อมกันสูงสุด: 5 ไม้ (ตอน 2025-08-19 12:00:00+07:00)
+
+เขียน 1369 ไม้ลง D:\Project\Copter01_AI_Bot_2\strategy\s421\s421_portfolio_trades.csv

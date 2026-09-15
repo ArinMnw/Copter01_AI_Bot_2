@@ -214,6 +214,20 @@ def now_bkk() -> datetime:
     return datetime.now(timezone.utc) + timedelta(hours=TZ_OFFSET)
 
 
+
+# เจอจริง 2026-08-08: ตอน IN_BACKTEST=True ฟังก์ชันนี้ข้าม MT5_SERVER_TZ ไปเลย สมมติ broker
+# server clock offset = 0 เสมอ ทั้งที่จริงแล้ว IUX/Exness ไม่เท่ากัน (วัดสด ณ ขณะหนึ่ง: IUX
+# server_tz=1, Exness=0) และแม้ broker เดียวกันก็เลื่อนไปมาได้คนละวัน (เจอ +1/+1/-2/0 ของบัญชี
+# เดียวกัน) — Exness บังเอิญใกล้ 0 เลยไม่ค่อยกระทบ แต่ IUX ผิดไปเต็มๆ ~1 ชม. ทำให้ session filter
+# (SESSION_FILTER ใน strategy84.py ที่เช็ค dt_bkk.time()) และ hour-target filter ของ leg คลาด
+# เคลื่อนอย่างเป็นระบบสำหรับพอร์ตที่ดึงข้อมูลผ่าน IUX (LTS890/999/P34/HIGH_FREQ ที่ fallback ไปใช้
+# terminal ของ AHR) — เพิ่ม resolver hook แบบ opt-in ตรงนี้ (ไม่ตั้งค่า = พฤติกรรมเดิมทุกอย่าง
+# ไม่กระทบสคริปต์อื่นที่ import config.py ไปใช้ตอน backtest อีก 70+ ไฟล์) run_backtest_sim.py
+# จะเซ็ต resolver นี้เฉพาะตอนรันพอร์ตสาย LTS ที่ยืนยันแล้วว่ามีปัญหานี้จริง (ดู
+# _in_lts_scoped_fixes/_config_backtest_server_tz_resolver)
+_backtest_server_tz_resolver = None  # callable(ts_int:int) -> int(server_tz offset) | None
+
+
 def mt5_ts_to_bkk(ts: int | float | None) -> datetime | None:
     """แปลง MT5 server timestamp (bar/sweep/deal/tick time) เป็นเวลา Bangkok จริง
     (UTC+7, ตรงกับหน้าจอ MT5 terminal) ตามส่วนต่าง server -> BKK"""
@@ -222,8 +236,16 @@ def mt5_ts_to_bkk(ts: int | float | None) -> datetime | None:
             return None
         ts_int = int(ts)
         if globals().get("IN_BACKTEST", False):
+            resolver = globals().get("_backtest_server_tz_resolver")
+            if resolver is not None:
+                try:
+                    real_server_tz = resolver(ts_int)
+                except Exception:
+                    real_server_tz = None
+                if real_server_tz is not None:
+                    return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET - real_server_tz)
             return datetime.fromtimestamp(ts_int, tz=timezone.utc) + timedelta(hours=TZ_OFFSET)
-        
+
         now_utc = datetime.now(timezone.utc).timestamp()
         expected_server_ts = now_utc + MT5_SERVER_TZ * 3600
         if MT5_SERVER_TZ == 1 or abs(ts_int - expected_server_ts) < 60:
@@ -544,23 +566,42 @@ TRADE_DEBUG = False
 
 # ── Standalone Strategy / Filter Skip Configs ──────────────
 # การตั้งค่าให้ Strategy ที่เจาะจงข้ามระบบป้องกันส่วนกลาง
-PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.1323, 20.1324}  # S20.13/S20.13.23: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
+PENDING_LIMIT_GUARD_SKIP_SIDS = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+NEWS_FILTER_SKIP_SIDS         = {20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+SL_GUARD_SKIP_SIDS            = {1, 10, 14, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.1323, 20.1324, 20.16, 20.17}  # S20.13/S20.13.23/S20.16/S20.17: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
 # เดิม hardcode tuple แยกอยู่ตรงจุดใช้งานใน trailing.py/scanner.py แต่ละจุด แล้ว drift ไม่ตรงกัน
 # (ขาด sid บางตัวไปทีละจุด เช่น 20.12 หายไปจากหลายจุดพร้อมกัน) — ย้ายมารวมไว้ที่นี่ที่เดียว
-RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
-TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 21, 95, 96}
+RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+FILL_TREND_RECHECK_SKIP_SIDS  = {1, 2, 3, 4, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+PENDING_TREND_RECHECK_SKIP_SIDS = {1, 2, 3, 4, 9, 10, 11, 14, 15, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
+SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 21, 95, 96}
+TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 21, 95, 96}
+
+# --- Dynamic Expansion for s20.14 Variants ---
+# Ensure any set that skips 20.14 also automatically skips all its sub-groups
+_skip_sets = [
+    PENDING_LIMIT_GUARD_SKIP_SIDS, NEWS_FILTER_SKIP_SIDS, SL_GUARD_SKIP_SIDS, SL_GUARD_GROUP_SKIP_SIDS,
+    OPPOSITE_ORDER_SKIP_SIDS, PDFIBOPLUS_SKIP_SIDS, SHARED_TP_SKIP_SIDS, LIMIT_SWEEP_SKIP_SIDS,
+    RSI_RECHECK_SKIP_SIDS, FILL_TREND_RECHECK_SKIP_SIDS, PENDING_TREND_RECHECK_SKIP_SIDS,
+    ENTRY_CANDLE_QUALITY_SKIP_SIDS, TRAIL_SL_SKIP_SIDS, SWEEP_FILTER_SKIP_SIDS, TREND_FILTER_SKIP_SIDS
+]
+_s20_14_variants = {20.141, 20.142, 20.145, 20.149, 20.1412, 20.1413, 20.1414, 20.1416, 20.1418, 20.1419, 20.1421, 20.1422, 20.1423, 20.1424}
+for s in _skip_sets:
+    if 20.14 in s:
+        s.update(_s20_14_variants)
+
+# --- Dynamic Expansion for S20 Institutional Suite (Standalone 20.18 - 20.304) ---
+_s20_institutional_variants = {20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304}
+for s in _skip_sets:
+    s.update(_s20_institutional_variants)
+
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
 
@@ -693,7 +734,7 @@ async def tg(app, text: str, parse_mode: str = "Markdown"):
 
 class _TgWrapper:
     """Wrap app.bot.send_message ให้ส่งผ่าน queue/retry โดยไม่บล็อก logic หลัก"""
-    _MIN_INTERVAL = 0.7   # วินาที — เร็วขึ้น แต่ยังเผื่อ flood control ไว้
+    _MIN_INTERVAL = 3.5   # วินาที — ~17 msg/min ต่ำกว่า Telegram flood limit (20/min) กัน flood 307 นาที
 
     def __init__(self, bot):
         self._bot = bot
@@ -916,6 +957,33 @@ active_strategies = {
     20.13: True,  # ท่าที่ 20.13: Quant Fuel (AllIn4s)
     20.1323: True,  # S20.13.23: Quant Fuel v23 (Live Market Order) — default ON ตามคำขอ (บัญชี demo หลัก, run_supervised.bat นอก profiles/)
     20.1324: True,  # S20.13.24: Quant Fuel v24 (Live Market Order) — เปิดตามคำขอพี่ (2026-08-02) แม้ split-half walk-forward เจอ overfitting ชัดเจน (WR 58%→100% ระหว่าง 2 ครึ่งข้อมูล) — พี่รับความเสี่ยงแล้ว
+    20.141: True, # S20.14 Group 1
+    20.142: True, # S20.14 Group 2
+    20.145: True, # S20.14 Group 5
+    20.149: True, # S20.14 Group 9
+    20.1412: True, # S20.14 Group 12
+    20.1413: True, # S20.14 Group 13
+    20.1414: True, # S20.14 Group 14
+    20.1416: True, # S20.14 Group 16
+    20.1418: True, # S20.14 Group 18
+    20.1419: True, # S20.14 Group 19
+    20.1421: True, # S20.14 Group 21
+    20.1422: True, # S20.14 Group 22
+    20.1423: True, # S20.14 Group 23 (H1 LiqSweep -> LTF Respect Low MTF BUY)
+    20.1424: True, # S20.14 Group 24
+    20.16: True,   # S20.16 YiawDam Combinator
+    20.17: False,  # S20.17 YiawDam Reversal (3 Reds 1 Green)
+    20.18: False,  # S20.18: Order Flow Delta & Passive Absorption
+    20.19: False,  # S20.19: Micro-Liquidity Pinbar Scalper
+    20.20: False,  # S20.20: Asian Judas Swing Reversal
+    20.21: False,  # S20.21: Intermarket SMT Divergence
+    20.22: False,  # S20.22: Session Anchored VWAP Reversion
+    20.24: False,  # S20.24: Wyckoff Stopping Volume & London Fix
+    20.28: False,  # S20.28: Macro Session Pool Sweeps
+    20.301: False, # S20.301: Structural Trend HTF Extension & Sniper
+    20.302: False, # S20.302: Non-Conflicting Multi-Session Architecture
+    20.303: False, # S20.303: Dynamic Volatility-Scaled Engine (Gold Solo)
+    20.304: True,  # S20.304: The Sovereign Dual-Asset Citadel Matrix (Cross-Asset)
     95: False, # ท่าที่ 95: Liquidity Sweep (SMC)
     96: False, # ท่าที่ 96: Volume Profile POC Pullback
 }
@@ -983,15 +1051,77 @@ STRATEGY_NAMES = {
     20.13: "S20.13: Quant Fuel",
     20.1323: "S20.13.23: Quant Fuel v23",
     20.1324: "S20.13.24: Quant Fuel v24",
+    20.14: "S20.14: ML Groups",
+    20.141: "S20.14.1: Group 1",
+    20.142: "S20.14.2: Group 2",
+    20.145: "S20.14.5: Group 5",
+    20.149: "S20.14.9: Group 9",
+    20.1412: "S20.14.12: Group 12",
+    20.1413: "S20.14.13: Group 13",
+    20.1414: "S20.14.14: Group 14",
+    20.1416: "S20.14.16: Group 16",
+    20.1418: "S20.14.18: Group 18",
+    20.1419: "S20.14.19: Group 19",
+    20.1421: "S20.14.21: Group 21",
+    20.1422: "S20.14.22: Group 22",
+    20.1423: "S20.14.23: Group 23",
+    20.1424: "S20.14.24: Group 24",
+    20.16: "S20.16: YiawDam",
+    20.18: "S20.18: Order Flow Delta",
+    20.19: "S20.19: Pinbar Scalper",
+    20.20: "S20.20: Asian Judas Swing",
+    20.21: "S20.21: SMT Divergence",
+    20.22: "S20.22: VWAP Reversion",
+    20.24: "S20.24: Wyckoff London Fix",
+    20.28: "S20.28: Session Pool Sweeps",
+    20.301: "S20.301: HTF Trend Sniper",
+    20.302: "S20.302: Multi-Session Engine",
+    20.303: "S20.303: Dynamic Volatility Gold",
+    20.304: "S20.304: Dual-Asset Citadel Matrix",
     95: "S95: LiqSweep",
     96: "S96: PoC Pullback",
 }
+
+# ── S20 Universal Symbol Switchboard (เปิด-ปิด Symbol อิสระสำหรับทั้ง 11 กลยุทธ์) ──
+S20_SYMBOLS = {
+    "XAUUSD.iux": True,   # Gold
+    "XAGUSD.iux": True,   # Silver
+    "EURUSD.iux": True,   # EURUSD
+    "GBPUSD.iux": True,   # GBPUSD
+    "USDJPY.iux": True,   # USDJPY
+}
+S20_304_SYMBOLS = S20_SYMBOLS  # Backward compatibility
+
+# ── S20 Symbol Lot Weights (สำหรับ Equal Profit Parity เทียบกับ 0.01 Gold) ──
+S20_SYMBOL_WEIGHTS = {
+    "XAUUSD.iux": 1.0,   # Gold (0.01 lot)
+    "XAGUSD.iux": 1.0,   # Silver (0.01 lot -> contract 5,000 oz ให้กำไรสมดุลกับ Gold)
+    "GBPUSD.iux": 11.0,  # GBPUSD (0.11 lot -> 11x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
+    "EURUSD.iux": 14.0,  # EURUSD (0.14 lot -> 14x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
+    "USDJPY.iux": 14.0,  # USDJPY (0.14 lot -> 14x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
+}
+S20_304_SYMBOL_WEIGHTS = S20_SYMBOL_WEIGHTS  # Backward compatibility
+
+def get_s20_volume(sid: float, symbol: str, base_volume: float = None) -> float:
+    """คำนวณขนาด lot สำหรับกลยุทธ์ตระกูล S20 ทั้ง 11 กลยุทธ์ตาม weight ของแต่ละคู่เงินเพื่อ Equal Profit Parity"""
+    base = base_volume if base_volume is not None else AUTO_VOLUME
+    w = S20_SYMBOL_WEIGHTS.get(symbol, 1.0)
+    return round(base * w, 2)
+
+def get_s20_304_volume(symbol: str, base_volume: float = None) -> float:
+    return get_s20_volume(20.304, symbol, base_volume)
+
 
 # ── Strategy 20: All in 4s (Reversal & Retracement) ─────────
 # "เนื้อคลุมเนื้อ" reversal + 50% retracement entry (หรือปลายไส้)
 # Cancel limit ถ้ารอเกิน S20_CANCEL_BARS, TP อัตโนมัติที่ Fibo 161.8%
 S20_ENABLED           = False
 S20_7_ENABLED         = False
+
+# ── Strategy 20.16 (YiawDam) ─────────
+S20_16_TPSL_MODE      = "DYNAMIC" # "DYNAMIC" (M1/M5=14.23, Others=13.23) or specific mode
+S20_16_TF_ENABLED     = {"M1": True, "M5": True, "M15": True, "M30": True, "H1": True, "H4": True, "H12": False, "D1": False}
+
 S20_8_ENABLED         = False
 S20_5_COMPOUNDING_ENABLED = False
 S20_5_RISK_PCT        = 2.0
@@ -1531,6 +1661,9 @@ WATCHDOG_STALE_SEC = 120          # ไม่มี scan สำเร็จเ�
 last_scan_ts       = 0.0          # epoch ของ scan สำเร็จล่าสุด (set โดย main.run_scan)
 _watchdog_mt5_ok   = True         # สถานะ MT5 ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
 _watchdog_scan_ok  = True         # สถานะ scan ล่าสุดที่ watchdog เห็น (กันแจ้งซ้ำ)
+_watchdog_scan_stall_ts: float = 0.0   # epoch ของครั้งล่าสุดที่ส่ง "scan ค้าง" (cooldown)
+_watchdog_scan_ok_ts: float    = 0.0   # epoch ของครั้งล่าสุดที่ส่ง "scan กลับมา" (cooldown)
+WATCHDOG_NOTIFY_COOLDOWN_SEC  = 600   # ส่งซ้ำได้เร็วสุดทุก 10 นาทีต่อ event type
 
 # ── STALL diagnostic watchdog ────────────────────────────────
 # ถ้า event loop แข็ง (MT5 call ค้าง) นานเกินนี้ → faulthandler dump stack ทุก
@@ -1859,11 +1992,44 @@ DEMO_PORTFOLIO_ACTIVE = {
     "S105": False,
     "S106": False,
     "S111": False,
+    "S420": False,
+    "S421": False,
+    "S422": False,
+    "S427": False,
+    "S429": False,
+    "S432": False,
+    "S433": False,
+    "S434": False,
     "LTS_EVOLUTION9": False,
     "LTS_WINRATE5": False,
     "LTS_SCREEN13": False,
+    "LTS_AUS2": False,
+    "LTS_AHR2": False,
+    "LTS_AUS3": False,
+    "LTS_AHR3": False,
 }
+
+# ── LTS Supervisor (backtest-driven live order, strategy/demo_portfolio/backtest-sim/
+# supervisor_lts_avengers.py) — เปิด/ปิด "แยก" จาก DEMO_PORTFOLIO_ACTIVE ตัวบน เพราะปุ่มเดิม
+# คุม regular scan (_demo_scan_af_ladder ผ่าน main.py) ถ้าใช้ flag เดียวกัน เปิดกลับจะทำให้
+# regular scan (มี hour-skip bug ที่ supervisor ตัวใหม่แก้แล้ว) กลับมาทำงานคู่ขนานกับ
+# supervisor พร้อมกัน เข้า order ซ้ำซ้อนกันได้ — เจอจริง 2026-08-31 ตอนคุยกับพี่ก่อนแก้
+# supervisor_lts_avengers.py อ่านค่านี้จาก bot_state.json ตรงๆ สดใหม่ทุกรอบ (ไม่ใช่ dict
+# นี้ในหน่วยความจำ เพราะรันคนละ process) — ดู _is_portfolio_active_via_telegram() ในไฟล์นั้น
+LTS_SUPERVISOR_ACTIVE = {
+    "LTS_AUS3": False,
+    "LTS_AHR3": False,
+}
+
 _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
+# เจอจริง 2026-08-10: load_state() (ด้านล่าง) โหลด bot_state.json เก่ามา .update() ทับ
+# DEMO_PORTFOLIO_ACTIVE อีกทีตอน bot start — ถ้า profile.env เคยเปิดพอร์ต A ไว้ก่อน (state
+# บันทึก A=True) แล้วพี่แก้ profile.env เปลี่ยนเป็นพอร์ต B ใหม่ ตัว A จะ "ฟื้น" กลับมา True
+# อีกครั้งตอน restart (เพราะ A ยังอยู่ใน state เก่า) ทำให้พอร์ตเก่า+ใหม่รันซ้อนกันโดยไม่ตั้งใจ —
+# ธงนี้บอก load_state() ว่า profile.env ประกาศ DEMO_PORTFOLIO_ACTIVE ไว้ชัดเจนแล้ว ให้ถือเป็น
+# ค่าที่ตั้งใจจริงเสมอ ไม่ต้องเอา state เก่ามาทับ (แต่ถ้า profile.env ไม่ได้ตั้งค่านี้ไว้เลย ยังคง
+# ให้ Telegram toggle ที่เคยกดค้างไว้มีผลข้ามการ restart เหมือนเดิม)
+DEMO_PORTFOLIO_ACTIVE_ENV_OVERRIDE = _demo_portfolio_active_env is not None
 if _demo_portfolio_active_env is not None:
     _items = [s.strip().upper() for s in _demo_portfolio_active_env.split(",") if s.strip()]
     if _items and _items != ["ALL"]:
@@ -1871,7 +2037,17 @@ if _demo_portfolio_active_env is not None:
             DEMO_PORTFOLIO_ACTIVE[_name] = False
         if _items != ["NONE"]:
             for _name in _items:
-                if _name in DEMO_PORTFOLIO_ACTIVE:
+                # เจอจริง 2026-08-31: LTS_AUS3/LTS_AHR3 ต้องมี DEMO_PORTFOLIO_ACTIVE=... ใน
+                # profile.env ไว้เสมอ (setup_mt5_for_portfolio() ใน run_backtest_sim.py อ่านค่า
+                # นี้จากไฟล์ profile.env ตรงๆ เพื่อหาว่าบัญชีไหนเป็นเจ้าของพอร์ตนี้ — ไม่เกี่ยวกับ
+                # dict นี้เลย) แต่ถ้าปล่อยให้ force = True ตรงนี้ตามปกติ จะทำให้ regular scan
+                # (_demo_scan_af_ladder ผ่าน main.py) เปิดใหม่ทุกครั้งที่ restart ทับปุ่ม
+                # Telegram ที่พี่ปิดไว้ (ต้องการให้ supervisor_lts_avengers.py คุมแทนเพียงตัวเดียว
+                # ผ่าน LTS_SUPERVISOR_ACTIVE) — ลองแก้ profile.env=NONE ตรงๆ ก่อนแล้วพัง เพราะ
+                # setup_mt5_for_portfolio() หาบัญชีไม่เจอไปเลย จึงต้องแยก 2 เรื่องออกจากกัน:
+                # เก็บ DEMO_PORTFOLIO_ACTIVE=LTS_AUS3/LTS_AHR3 ไว้ในไฟล์เหมือนเดิม (ให้หาบัญชี
+                # เจอ) แต่ข้ามการ force True ตรงนี้เฉพาะ 2 พอร์ตนี้ (ปล่อยเป็น False ค่า default)
+                if _name in DEMO_PORTFOLIO_ACTIVE and _name not in ("LTS_AUS3", "LTS_AHR3"):
                     DEMO_PORTFOLIO_ACTIVE[_name] = True
 DEMO_PORTFOLIO_SYMBOL = "XAUUSD"                       # P13/P16/AF trade XAU only; ignore runtime BTC switch
 DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"                # Telegram detail tab: XAUUSD or BTCUSD
@@ -1881,17 +2057,71 @@ DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg 
                                                         # ยิงไม้ใหม่ทุกแท่งช่วงเทรนด์แรง จนออเดอร์อื่น
                                                         # โดน 10019 No money) — backtest ไม่ cap ไว้
                                                         # เพราะไม่ได้ simulate margin ของบัญชีจริง
+# override cap ต่อ leg-prefix — S420/S421 บังคับ 1 (ไม่ให้ซ้อนเลย) เพราะสแกน
+# 5 TF พร้อมกัน คูณกับ cap=3 เดิม ทำให้ทิศเดียวกันซ้อนได้สูงสุด 15 ไม้ (จำลอง
+# จริงด้วย portfolio_sim_s420.py เจอ 12 ไม้ทิศเดียวกันซ้อนกันใน 5 วัน — เกิด
+# ก่อนหน้านี้จริงจนบัญชี 3586 stop-out เป็น $0 เมื่อ 2026-08-14) backtest ของ
+# S420/S421 (backtest_s420.py/backtest_s421.py) รองรับจำลองไม้ซ้อนต่อ leg ได้
+# แล้วผ่าน --cap ของ backtest — 2026-08-18 สวีป cap=1/2/3/5/999 (30 วัน,
+# ทุก TF) พบว่า cap=2 คือจุดคุ้มที่สุด (กำไรเกือบ 2 เท่าของ cap=1 โดย
+# return/DD ratio แทบไม่ตก เช่น M1 25.41->24.79) ส่วน cap=3 ขึ้นไป ratio ร่วง
+# แรงชัดเจนโดยกำไรแทบไม่เพิ่ม (บาง TF กำไรลดลงด้วยซ้ำ) และ cap=999 (ไม่มี cap)
+# พังหนักสุด M1 ขาดทุนสุทธิ -143,361 พร้อม MaxDD 537,839 — ห้ามปลด cap ทิ้ง
+# เด็ดขาด รายละเอียดดู [[project-s420-zigzagpa-status]] ในความจำ
+# S427/S429 ยังคง cap=1 ไว้ตามเดิม (ยังไม่ได้สวีปหา cap ที่เหมาะสม)
+#
+# 2026-08-20: เพิ่ม --no-duplicate-tp-sl ใน backtest_s420.py เพื่อแยก "กำไรจาก
+# ไม้ยิงซ้ำที่ TP/SL เดิม" ออกจาก "กำไรจาก setup ไม่ซ้ำจริง" — สวีป 30 วัน
+# cap=1/2 ทุก TF พบว่า M1/M30 พลิกเป็นขาดทุนทันทีที่ตัดไม้ซ้ำ (PF 0.77-0.93)
+# ขณะที่ M5/M15/H1 ยังบวกทั้งสองแบบ (dedupe PF 1.00-1.53) — ไม้ซ้ำที่ TP/SL
+# เดิมไม่ใช่การกระจายความเสี่ยง (correlated bet ที่จุดเดิม ไม่ใช่ diversify)
+# เลยลด cap ของ M1/M30 กลับเหลือ 1 เฉพาะ 2 TF นี้ (ตัด correlated-risk ทิ้ง)
+# คง cap=2 ไว้ที่ M5/M15/H1 ที่ยังมี edge จริงหลังตัดซ้ำ — รายละเอียดตัวเลข
+# เต็มดู [[project-s420-zigzagpa-status]] ในความจำ ⚠️ ต้อง list leg เจาะจง
+# TF (เช่น "S420-J_M1") ไว้ก่อน entry ทั่วไป "S420"/"S421" เพราะ
+# demo_portfolio_max_pos_per_leg() คืนค่า cap ของ prefix แรกที่ match เจอ
+DEMO_PORTFOLIO_MAX_POS_PER_LEG_OVERRIDE = {
+    "S420-J_M1": 1, "S420-J_M30": 1, "S421-O_M1": 1, "S421-O_M30": 1,
+    "S420": 2, "S421": 2, "S427": 1, "S429": 1,
+}
+# 2026-08-18: บัญชี demo-iux-2101183587 (login=2101183587) แตกจาก $2,600 กว่า
+# เหลือ $0.42 ในคืนเดียว — ต้นตอ: S427 ตั้ง BALANCE_LOT_ENABLED=true (lot ผูกกับ
+# balance/10000) + ไม่มี cap นี้มาก่อน (fallback ไป DEMO_PORTFOLIO_MAX_POS_PER_LEG=3
+# ปกติ) ทำให้ leg M30 กับ H1 ของ S427 ต่างซ้อนไม้ตัวเองได้อิสระ รวม 5-6 ไม้ 1.0 lot
+# พร้อมกัน โดนราคาขยับสวน ~15-20 จุดใน 9 วินาที ทริกเกอร์ stop-out cascade
+# -9,976 USD รวดเดียว — ความเสี่ยงแบบเดียวกับที่เคยฆ่า 3586/S420 มาก่อน (ดู
+# comment เหนือบรรทัดก่อนหน้า) เลยเพิ่ม S427/S429 เข้า cap=1 ให้เหมือนกัน
+
+
+def demo_portfolio_max_pos_per_leg(leg_id: str) -> int:
+    """คืน cap ที่ถูกต้องสำหรับ leg_id นี้ (เช่น 'S420-J_M1') — match ด้วย
+    prefix + boundary check ("-"/"_" หรือจบพอดี) ไม่ใช่ startswith() เฉยๆ
+    เพราะ "S420-J_M1" เป็น string-prefix ของ "S420-J_M15" ตรงๆ (ตัวอักษร "M1"
+    ซ้อนอยู่ใน "M15") plain startswith() จะจับ M15 ผิดเป็น cap ของ M1 ทันที
+    — boundary check กันปัญหานี้ทั้งของ leg เจาะจง TF และ prefix กว้างแบบ
+    "S420" (คุมทุก TF ที่ไม่มี override เจาะจงกว่า) fallback สุดท้ายเป็น
+    DEMO_PORTFOLIO_MAX_POS_PER_LEG ปกติ"""
+    for prefix, cap in DEMO_PORTFOLIO_MAX_POS_PER_LEG_OVERRIDE.items():
+        if leg_id == prefix or (leg_id.startswith(prefix) and leg_id[len(prefix):len(prefix) + 1] in ("-", "_")):
+            return cap
+    return DEMO_PORTFOLIO_MAX_POS_PER_LEG
 DEMO_PORTFOLIO_WEIGHT_ENABLED = {
     "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False, "LTS999": False,
     "LTS_AVENGERS_BASE": False, "LTS_AVENGERS_P34": False, "LTS_AVENGERS_HIGH_RISK": False,
     "LTS_AVENGERS_ULTRA_SAFE": False, "LTS_AVENGERS_HIGH_FREQ": False,
+    "LTS_AUS2": False, "LTS_AHR2": False, "LTS_AUS3": False, "LTS_AHR3": False,
+    "LTS_EVOLUTION9": False, "LTS_WINRATE5": False, "LTS_SCREEN13": False,
     "P18": False, "S101": False, "S102": False, "S105": False, "S106": False, "S111": False,
+    "S420": False, "S421": False, "S422": False, "S427": False, "S429": False,
 }
 DEMO_PORTFOLIO_WEIGHT_SCALE = {
     "P13": 1.0, "P16": 1.0, "AF22": 1.0, "AF34": 1.0, "AF47": 1.0, "LTS44": 1.0, "LTS890": 1.0, "LTS999": 1.0,
     "LTS_AVENGERS_BASE": 1.0, "LTS_AVENGERS_P34": 1.0, "LTS_AVENGERS_HIGH_RISK": 1.0,
     "LTS_AVENGERS_ULTRA_SAFE": 1.0, "LTS_AVENGERS_HIGH_FREQ": 1.0,
+    "LTS_AUS2": 1.0, "LTS_AHR2": 1.0, "LTS_AUS3": 1.0, "LTS_AHR3": 1.0,
+    "LTS_EVOLUTION9": 1.0, "LTS_WINRATE5": 1.0, "LTS_SCREEN13": 1.0,
     "P18": 1.0, "S101": 1.0, "S102": 1.0, "S105": 1.0, "S106": 1.0, "S111": 1.0,
+    "S420": 1.0, "S421": 1.0, "S422": 1.0, "S427": 1.0, "S429": 1.0,
 }
 # ต่อพอร์ต (เดิมเป็นสเกลาร์ตัวเดียวใช้ร่วมกันทุกพอร์ต) — 0 = ไม่ cap ภายใน (broker volume_max
 # ยังกันอยู่ที่ระดับ single order เสมอ) เจอจริง 2026-08-03: LTS_AVENGERS_HIGH_RISK (IUX) มี leg
@@ -1904,7 +2134,22 @@ DEMO_PORTFOLIO_AF_MAX_LOT = {
     "P13": 0.0, "P16": 0.0, "AF22": 0.0, "AF34": 0.0, "AF47": 0.0, "LTS44": 0.0, "LTS890": 0.0, "LTS999": 0.0,
     "LTS_AVENGERS_BASE": 0.0, "LTS_AVENGERS_P34": 0.0, "LTS_AVENGERS_HIGH_RISK": 0.0,
     "LTS_AVENGERS_ULTRA_SAFE": 0.0, "LTS_AVENGERS_HIGH_FREQ": 0.0,
+    "LTS_AUS2": 0.0, "LTS_AHR2": 0.0, "LTS_AUS3": 0.0, "LTS_AHR3": 0.0,
+    "LTS_EVOLUTION9": 0.0, "LTS_WINRATE5": 0.0, "LTS_SCREEN13": 0.0,
     "P18": 0.0, "S101": 0.0, "S102": 0.0, "S105": 0.0, "S106": 0.0, "S111": 0.0,
+    "S420": 0.0, "S421": 0.0, "S422": 0.0, "S427": 0.0, "S429": 0.0,
+}
+# lot = balance/10000 (100->0.01, 1000->0.10, 10000->1.00) ตาม convention เดียวกับ
+# --balance ของ backtest_s420.py/backtest_s421.py — คนละระบบกับ DYNAMIC_LOT_ENABLED
+# (ที่ปรับตาม market regime ADX/trend ไม่ใช่ balance) เปิดผ่าน profile.env รายพอร์ต
+DEMO_PORTFOLIO_BALANCE_LOT_ENABLED = {
+    "P13": False, "P16": False, "AF22": False, "AF34": False, "AF47": False, "LTS44": False, "LTS890": False, "LTS999": False,
+    "LTS_AVENGERS_BASE": False, "LTS_AVENGERS_P34": False, "LTS_AVENGERS_HIGH_RISK": False,
+    "LTS_AVENGERS_ULTRA_SAFE": False, "LTS_AVENGERS_HIGH_FREQ": False,
+    "LTS_AUS2": False, "LTS_AHR2": False, "LTS_AUS3": False, "LTS_AHR3": False,
+    "LTS_EVOLUTION9": False, "LTS_WINRATE5": False, "LTS_SCREEN13": False,
+    "P18": False, "S101": False, "S102": False, "S105": False, "S106": False, "S111": False,
+    "S420": False, "S421": False, "S422": False, "S427": False, "S429": False,
 }
 for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _env_w = os.getenv(f"DEMO_PORTFOLIO_WEIGHT_ENABLED_{_name}")
@@ -1922,6 +2167,9 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
             DEMO_PORTFOLIO_AF_MAX_LOT[_name] = float(_env_ml)
         except ValueError:
             pass
+    _env_bl = os.getenv(f"DEMO_PORTFOLIO_BALANCE_LOT_ENABLED_{_name}")
+    if _env_bl is not None:
+        DEMO_PORTFOLIO_BALANCE_LOT_ENABLED[_name] = str(_env_bl).strip().lower() == "true"
     _default_phase3 = True if _name.startswith("LTS") else False
     DYNAMIC_LOT_ENABLED[_name] = _env_bool(f"DYNAMIC_LOT_ENABLED_{_name}", _default_phase3)
     _default_phase4 = True if (_name.startswith("LTS") or _name in ("P15", "P16")) else False
@@ -1930,7 +2178,21 @@ for _name in DEMO_PORTFOLIO_WEIGHT_ENABLED:
     _default_cb = True if _name == "LTS_AVENGERS_ULTRA_SAFE" else False
     DEMO_PORTFOLIO_CB_ENABLED[_name] = _env_bool(f"DEMO_PORTFOLIO_CB_ENABLED_{_name}", _default_cb)
 DEMO_PORTFOLIO_AF_WEIGHT_SCALE_CHOICES = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.10, 0.25, 0.50, 1.0]
-DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = 0                   # 0 = no cap, matches AF backtest structure more closely
+# เจอจริง 2026-08-25: ตัวนี้เดิมเป็น int เดียวใช้ร่วมกันทุกพอร์ตตระกูล LTS (0 = ไม่ cap
+# ทั้งหมด "ให้ตรงกับ backtest ที่ไม่ได้ cap ไว้") — ทำให้ LTS_AHR2_670 (INVERSE_S96_M30)
+# ซ้อน SELL ได้ไม่จำกัดตัวช่วงตลาดเทรนด์ขึ้นแรงต่อเนื่อง 17-18 ส.ค. ขาดทุนสะสม -$722,140
+# จากไม้เดียวกันซ้อนกันเกิน 10 ไม้พร้อมกัน — เปลี่ยนเป็น dict ต่อพอร์ต ทดสอบ cap=2 (จุดคุ้ม
+# ที่ sweep เจอกับ S420 ก่อนหน้า) เฉพาะ LTS_AUS2/LTS_AHR2 ก่อนตามที่พี่ขอ พอร์ต LTS อื่น
+# (LTS890/999/AVENGERS ฯลฯ) ที่ไม่มีใน dict นี้ fallback เป็น 0 (ไม่ cap) เหมือนเดิมทุกอย่าง
+DEMO_PORTFOLIO_AF_MAX_POS_PER_LEG = {
+    "LTS_AUS2": 0,
+    "LTS_AHR2": 0,
+    "LTS_AUS3": 0,
+    "LTS_AHR3": 0,
+}
+# ปุ่ม "🧢 Max Lot" ใน Telegram (Demo Portfolio > จัดการพอร์ต) วนตัวเลือกชุดนี้ — 0.0 = ปิด cap
+# (ไม่แนะนำเมื่อ Weight ON เพราะ weight บาง leg สูงถึง 800+ ทำให้ lot ไม่มีเพดานเลย)
+DEMO_PORTFOLIO_AF_MAX_LOT_CHOICES = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 0.0]
 
 # ── Triple Scale-Out (TSO) — Config ───────────────────────────
 # เปิด/ปิด ผ่านปุ่ม Telegram (📈 Scale-Out 4X)
@@ -2500,6 +2762,7 @@ def save_runtime_state():
             "symbol": SYMBOL,
             "auto_volume": AUTO_VOLUME,
             "active_strategies": active_strategies,
+            "s20_304_symbols": copy.deepcopy(S20_304_SYMBOLS),
             "scan_interval": SCAN_INTERVAL,
             "entry_candle_mode": ENTRY_CANDLE_MODE,
             "entry_close_reverse_market": ENTRY_CLOSE_REVERSE_MARKET,
@@ -2593,8 +2856,10 @@ def save_runtime_state():
             "trend_filter_trail_sl_override_enabled": TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED,
             "trend_filter_sideway_hhll": TREND_FILTER_SIDEWAY_HHLL,
             "demo_portfolio_active": DEMO_PORTFOLIO_ACTIVE,
+            "lts_supervisor_active": LTS_SUPERVISOR_ACTIVE,
             "demo_portfolio_weight_enabled": DEMO_PORTFOLIO_WEIGHT_ENABLED,
             "demo_portfolio_weight_scale": DEMO_PORTFOLIO_WEIGHT_SCALE,
+            "demo_portfolio_af_max_lot": DEMO_PORTFOLIO_AF_MAX_LOT,
             "dynamic_lot_enabled": DYNAMIC_LOT_ENABLED,
             "smart_cutloss_enabled": SMART_CUTLOSS_ENABLED,
             "momentum_stall_exit_enabled": MOMENTUM_STALL_EXIT_ENABLED,
@@ -2876,6 +3141,12 @@ def restore_runtime_state():
                 if sid in saved_active_strategies or str(sid) in saved_active_strategies:
                     active_strategies[sid] = bool(saved_active_strategies.get(sid, saved_active_strategies.get(str(sid))))
 
+        saved_s20_304_syms = state.get("s20_304_symbols", {})
+        if isinstance(saved_s20_304_syms, dict):
+            global S20_304_SYMBOLS
+            for sym, val in saved_s20_304_syms.items():
+                S20_304_SYMBOLS[sym] = bool(val)
+
         global TG_QUEUE_DEBUG, SLTP_AUDIT_DEBUG, TRADE_DEBUG, OPPOSITE_ORDER_MODE
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
         global LIMIT_GUARD, LIMIT_GUARD_POINTS, LIMIT_GUARD_TF_MODE, ENGULF_MIN_POINTS
@@ -2897,7 +3168,7 @@ def restore_runtime_state():
         global ENTRY_CANDLE_FOCUS_NEW_ENABLED, ENTRY_CANDLE_FOCUS_NEW_POINTS, ENTRY_CANDLE_FOCUS_NEW_TF_MODE
         global TREND_FILTER_HIGHER_TF_ENABLED, TREND_FILTER_HIGHER_TF, TREND_FILTER_TRAIL_SL_OVERRIDE_ENABLED
         global TREND_FILTER_SIDEWAY_HHLL
-        global DEMO_PORTFOLIO_ACTIVE, DEMO_PORTFOLIO_WEIGHT_ENABLED, DEMO_PORTFOLIO_WEIGHT_SCALE
+        global DEMO_PORTFOLIO_ACTIVE, LTS_SUPERVISOR_ACTIVE, DEMO_PORTFOLIO_WEIGHT_ENABLED, DEMO_PORTFOLIO_WEIGHT_SCALE
         global DYNAMIC_LOT_ENABLED, SMART_CUTLOSS_ENABLED, MOMENTUM_STALL_EXIT_ENABLED
         global SWEEP_FILTER_ENABLED, SWEEP_FILTER_RSI_DIV_ENABLED
         global TREND_FILTER_MODE
@@ -3112,30 +3383,59 @@ def restore_runtime_state():
             state.get("trend_filter_sideway_hhll", TREND_FILTER_SIDEWAY_HHLL)
         )
         saved_demo_active = state.get("demo_portfolio_active")
-        if isinstance(saved_demo_active, dict):
+        if isinstance(saved_demo_active, dict) and not DEMO_PORTFOLIO_ACTIVE_ENV_OVERRIDE:
             DEMO_PORTFOLIO_ACTIVE.update(saved_demo_active)
+        saved_lts_supervisor_active = state.get("lts_supervisor_active")
+        if isinstance(saved_lts_supervisor_active, dict):
+            LTS_SUPERVISOR_ACTIVE.update(saved_lts_supervisor_active)
         saved_weight_enabled = state.get("demo_portfolio_weight_enabled")
         if isinstance(saved_weight_enabled, dict):
-            DEMO_PORTFOLIO_WEIGHT_ENABLED.update(saved_weight_enabled)
+            for name, value in saved_weight_enabled.items():
+                if os.getenv(f"DEMO_PORTFOLIO_WEIGHT_ENABLED_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ
+                DEMO_PORTFOLIO_WEIGHT_ENABLED[name] = bool(value)
         saved_weight_scale = state.get("demo_portfolio_weight_scale")
         if isinstance(saved_weight_scale, dict):
             for name, value in saved_weight_scale.items():
+                if os.getenv(f"DEMO_PORTFOLIO_WEIGHT_SCALE_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ
                 try:
                     DEMO_PORTFOLIO_WEIGHT_SCALE[name] = float(value)
                 except (TypeError, ValueError):
                     continue
+        saved_af_max_lot = state.get("demo_portfolio_af_max_lot")
+        if isinstance(saved_af_max_lot, dict):
+            for name, value in saved_af_max_lot.items():
+                if os.getenv(f"DEMO_PORTFOLIO_AF_MAX_LOT_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ cap ด้านความปลอดภัย
+                try:
+                    DEMO_PORTFOLIO_AF_MAX_LOT[name] = float(value)
+                except (TypeError, ValueError):
+                    continue
         saved_dyn_lot = state.get("dynamic_lot_enabled")
         if isinstance(saved_dyn_lot, dict):
-            DYNAMIC_LOT_ENABLED.update(saved_dyn_lot)
+            for name, value in saved_dyn_lot.items():
+                if os.getenv(f"DYNAMIC_LOT_ENABLED_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ
+                DYNAMIC_LOT_ENABLED[name] = bool(value)
         saved_smart_cut = state.get("smart_cutloss_enabled")
         if isinstance(saved_smart_cut, dict):
-            SMART_CUTLOSS_ENABLED.update(saved_smart_cut)
+            for name, value in saved_smart_cut.items():
+                if os.getenv(f"SMART_CUTLOSS_ENABLED_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ
+                SMART_CUTLOSS_ENABLED[name] = bool(value)
         saved_mom_stall = state.get("momentum_stall_exit_enabled")
         if isinstance(saved_mom_stall, dict):
-            MOMENTUM_STALL_EXIT_ENABLED.update(saved_mom_stall)
+            for name, value in saved_mom_stall.items():
+                if os.getenv(f"MOMENTUM_STALL_EXIT_ENABLED_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ
+                MOMENTUM_STALL_EXIT_ENABLED[name] = bool(value)
         saved_cb = state.get("demo_portfolio_cb_enabled")
         if isinstance(saved_cb, dict):
-            DEMO_PORTFOLIO_CB_ENABLED.update(saved_cb)
+            for name, value in saved_cb.items():
+                if os.getenv(f"DEMO_PORTFOLIO_CB_ENABLED_{name}") is not None:
+                    continue  # profile.env override ชนะเสมอ ไม่ให้ state เก่าทับ
+                DEMO_PORTFOLIO_CB_ENABLED[name] = bool(value)
         SWEEP_FILTER_ENABLED = bool(
             state.get("sweep_filter_enabled", state.get("trend_filter_sweep_enabled", SWEEP_FILTER_ENABLED))
         )

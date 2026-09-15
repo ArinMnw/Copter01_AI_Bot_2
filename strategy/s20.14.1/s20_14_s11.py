@@ -46,8 +46,8 @@ FIBO_SL = -0.31         # XXL
 FIBO_RECOVERY = -0.95   # Liquidity m5 (ใช้ตอน SL hit phase 2)
 
 # Pattern 4: reverse trade เมื่อราคาแตะ 7.044 (Run Engulfing) — terminal
-FIBO_P4_TRIGGER = 7.044
-FIBO_P4_ENTRY   = 7.044
+FIBO_P4_TRIGGER = 7.4677
+FIBO_P4_ENTRY   = 7.4677
 FIBO_P4_TP      = 1.617   # KRH1
 FIBO_P4_SL      = 8.237   # X Divergence
 
@@ -133,7 +133,7 @@ def record_s1_pattern(tf_name: str, signal: str, candles, last_close_time: int, 
         return
     target_color = "green" if signal == "BUY" else "red"
     anchor = None
-    for c in candles:
+    for c in reversed(candles[-3:]):
         try:
             o = float(c["open"])
             cl = float(c["close"])
@@ -249,7 +249,12 @@ def strategy_11(rates, tf_name: str):
     tp_label = FIBO_LEVELS.get(fibo_tp, str(fibo_tp))
     
     if use_fvg_tp:
-        fvg_target = find_unmitigated_fvg_tp(rates, direction)
+        if "fvg_target" not in state:
+            fvg_target = find_unmitigated_fvg_tp(rates, direction)
+            state["fvg_target"] = fvg_target
+        else:
+            fvg_target = state["fvg_target"]
+            
         if fvg_target is not None:
             tp_price = fvg_target
             tp_label = f"FVG of previous {'HH' if direction == 'BUY' else 'LL'}"
@@ -262,6 +267,64 @@ def strategy_11(rates, tf_name: str):
         if last_low < anchor_low or last_high >= tp_price:
             reset_state(tf_name)
             return {"signal": "WAIT", "reason": "S11 old anchor broken or reached TP"}
+
+    # ── Pattern 5: Liquidity Sweep Trap (1.617 -> 0.5 -> 1.617 + close low -> LIMIT -0.95) ──
+    # State tracking
+    p5_state = state.get("p5_state", 0)
+    
+    krh1_p = _level_to_price(1.617, anchor_high, anchor_low, direction)
+    fibo50_p = _level_to_price(0.5, anchor_high, anchor_low, direction)
+    
+    # Check touches for current bar
+    hit_krh1 = (last_high >= krh1_p) if direction == "BUY" else (last_low <= krh1_p)
+    hit_50 = (last_low <= fibo50_p) if direction == "BUY" else (last_high >= fibo50_p)
+    
+    # State progression
+    if p5_state == 0 and hit_krh1:
+        p5_state = 1
+        state["p5_state"] = p5_state
+    
+    if p5_state == 1 and hit_50:
+        p5_state = 2
+        state["p5_state"] = p5_state
+        
+    if p5_state == 2 and hit_krh1:
+        # Check if closes low
+        closed_low = (float(last_bar["close"]) <= krh1_p) if direction == "SELL" else (float(last_bar["close"]) >= krh1_p)
+        if closed_low:
+            p5_state = 3
+            state["p5_state"] = p5_state
+            
+    if p5_state == 3:
+        # Trigger P5 entry at -0.95
+        p5_entry = _level_to_price(-0.95, anchor_high, anchor_low, direction)
+        p5_sl = _level_to_price(-1.31, anchor_high, anchor_low, direction)
+        p5_tp = _level_to_price(5.165, anchor_high, anchor_low, direction)
+        
+        valid = (p5_sl < p5_entry < p5_tp) if direction == "BUY" else (p5_tp < p5_entry < p5_sl)
+        if valid:
+            state["phase"] = "triggered"
+            state["triggered_level"] = 1.617
+            sig_e = "🟢" if direction == "BUY" else "🔴"
+            return {
+                "signal": direction,
+                "entry": round(p5_entry, 2),
+                "sl": round(p5_sl, 2),
+                "tp": round(p5_tp, 2),
+                "pattern": f"ท่าที่ 11 Fibo S1 {sig_e} {direction} — Pattern 5 (Liquidity Sweep Trap)",
+                "reason": (
+                    f"Pattern 5: 1.617 -> 0.5 -> 1.617 (Close Trap) → LIMIT {direction} @ -0.95\n"
+                    f"Anchor [H:{anchor_high:.2f} L:{anchor_low:.2f}]\n"
+                    f"แตะ Fibo 1.617 กลับไป 0.5 แล้วทะลุหลอก\n"
+                    f"LIMIT @ Fibo -0.95 = {p5_entry:.2f}\n"
+                    f"SL: Fibo -1.31 = {p5_sl:.2f} | TP: KRH3 (5.165) = {p5_tp:.2f}"
+                ),
+                "order_mode": "limit",
+                "candles": [
+                    {"open": anchor_low, "high": anchor_high, "low": anchor_low, "close": anchor_high},
+                    {"open": float(last_bar["open"]), "high": last_high, "low": last_low, "close": float(last_bar["close"])},
+                ],
+            }
 
     for pattern_idx, (trigger_level, default_entry_level) in enumerate(FIBO_TRIGGER_LEVELS, start=1):
         # cascade: ข้ามระดับที่ยิงไปแล้ว อนุญาตเฉพาะระดับที่สูงกว่า
@@ -610,6 +673,34 @@ def strategy_11(rates, tf_name: str):
         p4_entry = p4_trigger_price
         p4_tp    = _level_to_price(FIBO_P4_TP, anchor_high, anchor_low, direction)
         p4_sl    = _level_to_price(FIBO_P4_SL, anchor_high, anchor_low, direction)
+        
+        tp_override_note = ""
+        if tf_name == "M30" and rev_dir == "SELL":
+            import sys
+            import pandas as pd
+            from datetime import timedelta
+            try:
+                # Avoid direct import to prevent multiprocessing deadlock
+                if 'v38_engine' in sys.modules:
+                    v38_engine = sys.modules['v38_engine']
+                    if hasattr(v38_engine, 'get_d1_fvg_state'):
+                        if type(candles[-1]) == dict and 'time_dt' in candles[-1]:
+                            curr_t = candles[-1]['time_dt']
+                        elif type(candles[-1]) == dict and 'time' in candles[-1]:
+                            curr_t = pd.to_datetime(candles[-1]['time'], unit='s') + timedelta(hours=1)
+                        else:
+                            curr_t = pd.to_datetime(candles[-1][0], unit='s') + timedelta(hours=1)
+                            
+                        d1_state = v38_engine.get_d1_fvg_state(curr_t)
+                        if d1_state and d1_state.get("active_bearish_fvg"):
+                            fvg_top, fvg_bot = d1_state["active_bearish_fvg"]
+                            if fvg_bot <= p4_entry <= fvg_top:
+                                if d1_state.get("recent_ll"):
+                                    p4_tp = d1_state["recent_ll"]
+                                    tp_override_note = " [FVG D1 TP -> D1 LL]"
+            except Exception as e:
+                pass
+                
         valid    = (p4_tp < p4_entry < p4_sl) if rev_dir == "SELL" else (p4_sl < p4_entry < p4_tp)
         if valid:
             state["phase"]           = "triggered"
@@ -620,9 +711,9 @@ def strategy_11(rates, tf_name: str):
                 "entry": round(p4_entry, 2),
                 "sl":    round(p4_sl, 2),
                 "tp":    round(p4_tp, 2),
-                "pattern": f"ท่าที่ 11 Fibo S1 {sig_e} {rev_dir} — Pattern 4 (Run Engulfing)",
+                "pattern": f"ท่าที่ 11 Fibo S1 {sig_e} {rev_dir} — Pattern 4 (Run Engulfing){tp_override_note}",
                 "reason": (
-                    f"Pattern 4: แตะ Run Engulfing → LIMIT {rev_dir} @ {p4_entry:.2f}\n"
+                    f"Pattern 4: แตะ Run Engulfing → LIMIT {rev_dir} @ {p4_entry:.2f}{tp_override_note}\n"
                     f"Anchor [H:{anchor_high:.2f} L:{anchor_low:.2f}]\n"
                     f"แตะ Fibo 7.044 (Run Engulfing) @ {p4_trigger_price:.2f}\n"
                     f"TP: KRH1 (1.617) = {p4_tp:.2f} | SL: X Divergence (8.237) = {p4_sl:.2f}"
