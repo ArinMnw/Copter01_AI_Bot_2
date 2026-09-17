@@ -48,6 +48,20 @@ ALL_SYMBOLS = [
     "USDJPY.iux",
 ]
 
+# Timeframe duration in seconds for causal bar completion alignment
+TF_SECONDS = {
+    "M1": 60,
+    "M5": 300,
+    "M12": 720,
+    "M15": 900,
+    "M20": 1200,
+    "M30": 1800,
+    "H1": 3600,
+    "H2": 7200,
+    "H3": 10800,
+    "H4": 14400,
+}
+
 def format_ts_to_bkk(ts):
     if not ts or ts == "-":
         return "-"
@@ -92,10 +106,11 @@ def extract_setups_for_symbol(symbol, dfs, digits, point):
         min_sl_buf = 2.0 * point
 
     for tf, df_tf in dfs.items():
-        if df_tf is None or len(df_tf) == 0:
+        # Institutional SMC operates on robust higher timeframes (M15, M30, H1, H4)
+        if tf in ("M1", "M5", "M12") or df_tf is None or len(df_tf) == 0:
             continue
         for cur in df_tf.to_dict('records'):
-            if pd.isna(cur['atr']) or cur['atr'] <= min_atr or cur['range'] < 0.45 * cur['atr'] or cur['vol_ratio'] < 1.11:
+            if pd.isna(cur['atr']) or cur['atr'] <= min_atr or cur['range'] < 0.40 * cur['atr'] or cur['vol_ratio'] < 1.20:
                 continue
 
             swept_low = (cur['low'] <= cur['swing_low_12']) or (cur['low'] <= cur['asian_low']) or \
@@ -112,8 +127,8 @@ def extract_setups_for_symbol(symbol, dfs, digits, point):
                          (not pd.isna(cur.get('pdh')) and cur['high'] >= cur['pdh']) or \
                          cur['swept_htf_high'] or cur['is_utad']
 
-            bull_ob = cur['bull_ob_zone']
-            bear_ob = cur['bear_ob_zone']
+            bull_ob = cur.get('bull_ob_zone', np.nan)
+            bear_ob = cur.get('bear_ob_zone', np.nan)
             ob_mitigated_bull = (not pd.isna(bull_ob) and cur['low'] <= bull_ob)
             ob_mitigated_bear = (not pd.isna(bear_ob) and cur['high'] >= bear_ob)
             bpr_tap_bull = (cur['has_bpr'] and cur['low'] <= cur['bpr_high'] and cur['high'] >= cur['bpr_low'])
@@ -126,53 +141,67 @@ def extract_setups_for_symbol(symbol, dfs, digits, point):
             bb_sell = (not pd.isna(cur.get('breaker_bear_zone')) and cur['high'] >= cur['breaker_bear_zone'])
             is_overlap = cur['is_ldn_ny_overlap']
 
-            has_wick_buy = (cur['lower_wick_pct'] >= 0.14) or (cur['lower_wick'] >= 1.1 * cur['body'])
-            has_wick_sell = (cur['upper_wick_pct'] >= 0.14) or (cur['upper_wick'] >= 1.1 * cur['body'])
+            has_wick_buy = (cur['lower_wick_pct'] >= 0.35) or (cur['lower_wick'] >= 1.0 * cur['body'])
+            has_wick_sell = (cur['upper_wick_pct'] >= 0.35) or (cur['upper_wick'] >= 1.0 * cur['body'])
             closed_high = cur['close'] >= (cur['low'] + 0.45 * cur['range'])
             closed_low = cur['close'] <= (cur['high'] - 0.45 * cur['range'])
-            is_comp = cur['compression_ratio'] <= 0.70
 
             sig = "BUY" if ((swept_low or ob_mitigated_bull or bpr_tap_bull or is_abs_buy or ifvg_buy or bb_buy) and has_wick_buy and closed_high) else \
                   ("SELL" if ((swept_high or ob_mitigated_bear or bpr_tap_bear or is_abs_sell or ifvg_sell or bb_sell) and has_wick_sell and closed_low) else None)
 
             if sig:
-                is_hc = (ob_mitigated_bull if sig == "BUY" else ob_mitigated_bear) or \
-                        (bpr_tap_bull if sig == "BUY" else bpr_tap_bear) or \
-                        (is_abs_buy if sig == "BUY" else is_abs_sell) or \
-                        (ifvg_buy if sig == "BUY" else ifvg_sell) or \
-                        (bb_buy if sig == "BUY" else bb_sell)
-
-                sl_mult = (0.188 - 0.002 if is_overlap else 0.188) if is_hc else (0.190 if is_comp else 0.195)
-                sl_buf = max(sl_mult * cur['atr'], min_sl_buf)
-                active_depth = 0.121 if is_hc else (0.124 if is_comp else 0.125)
+                sl_mult = 0.30
+                sl_buf = max(sl_mult * cur['atr'], max(min_sl_buf, 0.40 if "XAU" in sym_upper else min_sl_buf))
+                active_depth = 0.35
 
                 entry = round(cur['low'] + (active_depth * cur['lower_wick']), digits) if sig == "BUY" else round(cur['high'] - (active_depth * cur['upper_wick']), digits)
                 sl = round(cur['low'] - sl_buf, digits) if sig == "BUY" else round(cur['high'] + sl_buf, digits)
                 risk = entry - sl if sig == "BUY" else sl - entry
 
-                if risk > 0:
+                _min_risk = 30 * (10 ** -digits)  # 30 pips equivalent: XAU(d=2)=0.30, JPY(d=3)=0.030, EUR(d=5)=0.0003
+                if risk > _min_risk:
+                    bar_dur = TF_SECONDS.get(tf, 300)
+                    setup_time = int(cur['time'])  # Causal bar armed
                     setups.append({
-                        "time": int(cur['time']),
+                        "time": setup_time,
                         "signal": sig,
                         "entry": entry,
                         "sl": sl,
                         "risk": risk,
                         "atr": cur['atr'],
-                        "tf": tf
+                        "tf": tf,
+                        "bar_duration": bar_dur
                     })
 
     return sorted(setups, key=lambda x: x['time'])
 
+def _sl_exit_reason(signal, curr_sl, fill_price):
+    """จัดป้าย exit reason จากตำแหน่ง curr_sl เทียบ fill_price (ไม่อ้างอิง PnL sign — กันบั๊ก
+    ป้าย TP/SL ผิดที่เจอมาก่อน)"""
+    if signal == 'BUY':
+        if curr_sl > fill_price:
+            return "TRAIL_TP"
+        elif curr_sl == fill_price:
+            return "BE"
+        return "SL"
+    else:
+        if curr_sl < fill_price:
+            return "TRAIL_TP"
+        elif curr_sl == fill_price:
+            return "BE"
+        return "SL"
+
+
 def run_asset_sim(symbol, m5_bars, m5_times, setups, tp_r=13.43, stages=None,
                    lot=0.01, contract_size=100.0, digits=2, start_ts=None, end_ts=None):
     """Simulates S20.304 execution on sequential M5 bars with dynamic lot and contract point value."""
-    if stages is None:
-        stages = make_stages(55)
     m5_len = len(m5_bars)
     be_trigger = 0.8
     busy_until = 0
     trades_list = []
     is_jpy = "JPY" in symbol.upper()
+    penetration_pt = 0.10 if ("XAU" in symbol.upper() or "GOLD" in symbol.upper()) else (0.01 if "XAG" in symbol.upper() else 0.0001)
+    sl_slip = 0.10 if ("XAU" in symbol.upper() or "GOLD" in symbol.upper()) else (0.01 if "XAG" in symbol.upper() else 0.0001)
 
     for s in setups:
         s_time = s['time']
@@ -185,14 +214,16 @@ def run_asset_sim(symbol, m5_bars, m5_times, setups, tp_r=13.43, stages=None,
         filled = False
         fill_idx = -1
         fill_price = 0.0
-        for i in range(m5_start, min(m5_start + 12, m5_len)):
+        bar_dur = s.get('bar_duration', 300)
+        max_wait_bars = max(12, int(bar_dur / 300))
+        for i in range(m5_start, min(m5_start + max_wait_bars, m5_len)):
             b = m5_bars[i]
-            if s['signal'] == 'BUY' and b['low'] <= s['entry']:
+            if s['signal'] == 'BUY' and b['low'] <= (s['entry'] - penetration_pt):
                 filled = True
                 fill_idx = i
                 fill_price = s['entry']
                 break
-            elif s['signal'] == 'SELL' and b['high'] >= s['entry']:
+            elif s['signal'] == 'SELL' and b['high'] >= (s['entry'] + penetration_pt):
                 filled = True
                 fill_idx = i
                 fill_price = s['entry']
@@ -212,90 +243,100 @@ def run_asset_sim(symbol, m5_bars, m5_times, setups, tp_r=13.43, stages=None,
         active_r = 0.0
         exit_price = None
         exit_time = 0
-        rem_volume = 1.0
-        trade_pnl = 0.0
         tp_target = round(fill_price + (tp_r * risk), digits) if s['signal'] == 'BUY' else round(fill_price - (tp_r * risk), digits)
+        exit_reason = "SL"
 
         for i in range(fill_idx, m5_len):
             b = m5_bars[i]
+            is_fill_bar = (i == fill_idx)
+
             if s['signal'] == 'BUY':
+                # Rule #4 & Rule #9: Pessimistic SL check with slippage
                 if b['low'] <= curr_sl:
-                    exit_price = curr_sl
-                    pnl_pt = (exit_price - fill_price)
-                    if is_jpy:
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / exit_price
-                    else:
-                        trade_pnl += pnl_pt * rem_volume * lot * contract_size
+                    exit_price = round(curr_sl - sl_slip, digits) if curr_sl <= fill_price else curr_sl
                     exit_time = b['time']
+                    exit_reason = _sl_exit_reason('BUY', curr_sl, fill_price)
                     break
+
+                # Rule #5: In the fill bar, DO NOT trail SL using high of the bar!
+                if is_fill_bar:
+                    if b['close'] >= tp_target:
+                        exit_price = tp_target
+                        exit_time = b['time']
+                        exit_reason = "TP"
+                        break
+                    continue
+
                 max_fav = b['high'] - fill_price
                 fav_r = max_fav / risk
                 if fav_r >= be_trigger and curr_sl < fill_price:
                     curr_sl = fill_price
-                for r_target, close_pct in stages:
+                for r_target, lock_r in stages:
                     if fav_r >= r_target and active_r < r_target:
                         active_r = r_target
-                        pnl_pt = (r_target * risk)
-                        step_price = fill_price + (r_target * risk)
-                        if is_jpy:
-                            trade_pnl += (pnl_pt * close_pct * lot * contract_size) / step_price
-                        else:
-                            trade_pnl += pnl_pt * close_pct * lot * contract_size
-                        rem_volume -= close_pct
-                        new_sl = fill_price + (r_target * 0.70 * risk)
+                        new_sl = round(fill_price + (lock_r * risk), digits)
                         if new_sl > curr_sl:
                             curr_sl = new_sl
+                # Same-bar re-check: SL อาจถูกขยับเข้มขึ้นจาก high ของแท่งนี้เอง
+                if b['low'] <= curr_sl:
+                    exit_price = curr_sl
+                    exit_time = b['time']
+                    exit_reason = _sl_exit_reason('BUY', curr_sl, fill_price)
+                    break
                 if fav_r >= tp_r:
                     exit_price = tp_target
-                    pnl_pt = (exit_price - fill_price)
-                    if is_jpy:
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / exit_price
-                    else:
-                        trade_pnl += pnl_pt * rem_volume * lot * contract_size
                     exit_time = b['time']
+                    exit_reason = "TP"
                     break
             else:  # SELL
+                # Rule #4 & Rule #9: Pessimistic SL check with slippage
                 if b['high'] >= curr_sl:
-                    exit_price = curr_sl
-                    pnl_pt = (fill_price - exit_price)
-                    if is_jpy:
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / exit_price
-                    else:
-                        trade_pnl += pnl_pt * rem_volume * lot * contract_size
+                    exit_price = round(curr_sl + sl_slip, digits) if curr_sl >= fill_price else curr_sl
                     exit_time = b['time']
+                    exit_reason = _sl_exit_reason('SELL', curr_sl, fill_price)
                     break
+
+                # Rule #5: In the fill bar, DO NOT trail SL using low of the bar!
+                if is_fill_bar:
+                    if b['close'] <= tp_target:
+                        exit_price = tp_target
+                        exit_time = b['time']
+                        exit_reason = "TP"
+                        break
+                    continue
+
                 max_fav = fill_price - b['low']
                 fav_r = max_fav / risk
                 if fav_r >= be_trigger and curr_sl > fill_price:
                     curr_sl = fill_price
-                for r_target, close_pct in stages:
+                for r_target, lock_r in stages:
                     if fav_r >= r_target and active_r < r_target:
                         active_r = r_target
-                        pnl_pt = (r_target * risk)
-                        step_price = fill_price - (r_target * risk)
-                        if is_jpy:
-                            trade_pnl += (pnl_pt * close_pct * lot * contract_size) / step_price
-                        else:
-                            trade_pnl += pnl_pt * close_pct * lot * contract_size
-                        rem_volume -= close_pct
-                        new_sl = fill_price - (r_target * 0.70 * risk)
+                        new_sl = round(fill_price - (lock_r * risk), digits)
                         if new_sl < curr_sl:
                             curr_sl = new_sl
+                if b['high'] >= curr_sl:
+                    exit_price = curr_sl
+                    exit_time = b['time']
+                    exit_reason = _sl_exit_reason('SELL', curr_sl, fill_price)
+                    break
                 if fav_r >= tp_r:
                     exit_price = tp_target
-                    pnl_pt = (fill_price - exit_price)
-                    if is_jpy:
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / exit_price
-                    else:
-                        trade_pnl += pnl_pt * rem_volume * lot * contract_size
                     exit_time = b['time']
+                    exit_reason = "TP"
                     break
 
         if exit_price is None:
             continue
 
+        pnl_pt = (exit_price - fill_price) if s['signal'] == 'BUY' else (fill_price - exit_price)
+        if is_jpy:
+            trade_pnl = (pnl_pt * lot * contract_size) / exit_price
+        else:
+            trade_pnl = pnl_pt * lot * contract_size
+
         busy_until = exit_time
-        outcome = "TP" if trade_pnl > 0.01 else ("SL" if trade_pnl < -0.01 else "BE")
+        outcome = exit_reason
 
         clean_sym = symbol.split('.')[0]
         trades_list.append({
@@ -306,7 +347,7 @@ def run_asset_sim(symbol, m5_bars, m5_times, setups, tp_r=13.43, stages=None,
             "tf": s['tf'],
             "signal": s['signal'],
             "entry": round(fill_price, digits),
-            "sl": round(s['sl'], digits),
+            "sl": round(curr_sl, digits),
             "tp": round(tp_target, digits),
             "lot": round(lot, 2),
             "pnl_usd": round(trade_pnl, 2),
@@ -360,8 +401,9 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
 
         running_daily_balance = start_balance
         for d, grp in df.groupby('date', sort=False):
-            tp = (grp['Outcome'] == 'TP').sum()
+            tp = grp['Outcome'].isin(['TP', 'TRAIL_TP']).sum()
             sl = (grp['Outcome'] == 'SL').sum()
+            be = (grp['Outcome'] == 'BE').sum()
             net = grp['P&L'].sum()
             running_daily_balance += net
             wr = tp / (tp + sl) * 100 if tp + sl > 0 else 0.0
@@ -370,6 +412,7 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
                 "Trades": len(grp),
                 "Win": tp,
                 "Loss": sl,
+                "BE": be,
                 "Net Profit": round(net, 2),
                 "Win Rate (%)": round(wr, 2),
                 "Balance": round(running_daily_balance, 2)
@@ -381,7 +424,7 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
         print(f"Saved: {daily_path}")
     else:
         with open(daily_path, "w", newline="", encoding="utf-8") as f:
-            f.write("Date,Trades,Win,Loss,Net Profit,Win Rate (%),Balance\n")
+            f.write("Date,Trades,Win,Loss,BE,Net Profit,Win Rate (%),Balance\n")
         print(f"Saved empty placeholder: {daily_path}")
 
     # 3. Monthly CSV
@@ -393,8 +436,9 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
 
         running_monthly_balance = start_balance
         for m, grp in df.groupby('month', sort=False):
-            tp = (grp['Outcome'] == 'TP').sum()
+            tp = grp['Outcome'].isin(['TP', 'TRAIL_TP']).sum()
             sl = (grp['Outcome'] == 'SL').sum()
+            be = (grp['Outcome'] == 'BE').sum()
             net = grp['P&L'].sum()
             running_monthly_balance += net
             wr = tp / (tp + sl) * 100 if tp + sl > 0 else 0.0
@@ -403,6 +447,7 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
                 "Trades": len(grp),
                 "Win": tp,
                 "Loss": sl,
+                "BE": be,
                 "Net Profit": round(net, 2),
                 "Win Rate (%)": round(wr, 2),
                 "Balance": round(running_monthly_balance, 2)
@@ -418,6 +463,14 @@ def save_reports(portfolio_name, trades, start_balance, output_dir):
         print(f"Saved empty placeholder: {monthly_path}")
 
 def main():
+    import sys
+    unified_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if unified_dir not in sys.path:
+        sys.path.insert(0, unified_dir)
+    import backtest_s20_unified
+    return backtest_s20_unified.main(default_strategy="S20_304")
+
+def _legacy_main():
     parser = argparse.ArgumentParser(description="Institutional S20.304 Verified Multi-Asset Backtest Simulation")
     parser.add_argument("--portfolio", default="S20_304", help="Portfolio name (default: S20_304)")
     parser.add_argument("--days", type=int, default=365, help="Number of days to backtest (default: 365)")
@@ -432,6 +485,8 @@ def main():
     parser.add_argument("--symbols", type=str, default=None,
                         help="Comma-separated symbols to trade (default: all 5 symbols)")
     parser.add_argument("--no-cache", action="store_true", help="Do not load or save cached data")
+    parser.add_argument("--compare", action="store_true", help="Run comparison against real MT5 closed trades from profile")
+    parser.add_argument("--compare-profile", default="demo-iux-2101183586", help="Profile to fetch MT5 deals from (default: demo-iux-2101183586)")
     args = parser.parse_args()
 
     portfolio_name = args.portfolio
@@ -445,15 +500,18 @@ def main():
     else:
         symbols_to_run = list(ALL_SYMBOLS)
 
-    # Resolve date range
+    # Resolve date range (Interpret naive input as Bangkok UTC+7)
+    bkk_tz = timezone(timedelta(hours=7))
     now_utc = datetime.now(timezone.utc)
     if args.end:
-        end_dt = parse_date(args.end).replace(tzinfo=timezone.utc)
+        dt = parse_date(args.end)
+        end_dt = dt.replace(tzinfo=bkk_tz).astimezone(timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
     else:
         end_dt = now_utc
 
     if args.start:
-        start_dt = parse_date(args.start).replace(tzinfo=timezone.utc)
+        dt = parse_date(args.start)
+        start_dt = dt.replace(tzinfo=bkk_tz).astimezone(timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
     else:
         start_dt = end_dt - timedelta(days=args.days)
 
@@ -471,9 +529,11 @@ def main():
     print(f"   Output Directory: {args.out_dir}", flush=True)
     print("=" * 115, flush=True)
 
-    if not init_mt5():
-        print("❌ MT5 Initialization Failed")
-        return
+    from s20_compare_engine import connect_profile_mt5
+    if not connect_profile_mt5(args.compare_profile, root_dir=root_dir):
+        if not init_mt5():
+            print("❌ MT5 Initialization Failed")
+            return
 
     stages_55 = make_stages(55)
     all_trades = []
@@ -497,17 +557,22 @@ def main():
 
             print(f"\n📊 Processing {sym} (Weight: {weight}x -> Lot: {sym_lot}, Digits: {digits}, Contract: {contract_size:,.0f})...", flush=True)
 
-            tfs = ['H4', 'H3', 'H2', 'H1', 'M30', 'M20', 'M15', 'M12']
+            tfs = ['H4', 'H3', 'H2', 'H1', 'M30', 'M20', 'M15', 'M12', 'M5', 'M1']
             rates = {}
             for tf in tfs:
                 tf_const = getattr(mt5, f"TIMEFRAME_{tf}", None)
                 if tf_const is not None:
                     r = mt5.copy_rates_range(sym, tf_const, fetch_start, end_dt)
+                    if r is None or len(r) == 0:
+                        count = 65000 if tf == "M1" else 75000
+                        r = mt5.copy_rates_from_pos(sym, tf_const, 0, count)
                     if r is not None and len(r) > 0:
                         rates[tf] = r
 
             # Fetch M5 execution bars
             m5_bars = mt5.copy_rates_range(sym, mt5.TIMEFRAME_M5, fetch_start, end_dt)
+            if m5_bars is None or len(m5_bars) == 0:
+                m5_bars = mt5.copy_rates_from_pos(sym, mt5.TIMEFRAME_M5, 0, 75000)
             if m5_bars is None or len(m5_bars) == 0:
                 print(f"   ⚠️ No M5 bars found for {sym}, skipping...")
                 continue
@@ -536,7 +601,7 @@ def main():
             )
 
             pnl = sum(t['pnl_usd'] for t in sym_trades)
-            wins = sum(1 for t in sym_trades if t['outcome'] == 'TP')
+            wins = sum(1 for t in sym_trades if t['outcome'] in ['TP', 'TRAIL_TP'])
             losses = sum(1 for t in sym_trades if t['outcome'] == 'SL')
             wr = wins / (wins + losses) * 100 if (wins + losses) > 0 else 0.0
 
@@ -563,9 +628,27 @@ def main():
     print(f"\nProcessing reports for {portfolio_name} (found {len(all_trades)} trades)...")
     save_reports(portfolio_name, all_trades, start_balance, args.out_dir)
 
+    # Optional Compare against real MT5 trades
+    if args.compare:
+        from s20_compare_engine import run_s20_compare
+        run_s20_compare(
+            portfolio_name=portfolio_name,
+            backtest_trades=all_trades,
+            start_balance=start_balance,
+            output_dir=args.out_dir,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            target_sids=["20.304"],
+            symbols_to_run=symbols_to_run,
+            profile_name=args.compare_profile,
+            root_dir=root_dir
+        )
+
     # Compute overall performance metrics
     total_trades = len(all_trades)
-    wins = sum(1 for t in all_trades if t['outcome'] == 'TP')
+    wins = sum(1 for t in all_trades if t['outcome'] in ['TP', 'TRAIL_TP'])
+    tp_hits = sum(1 for t in all_trades if t['outcome'] == 'TP')
+    trail_tps = sum(1 for t in all_trades if t['outcome'] == 'TRAIL_TP')
     losses = sum(1 for t in all_trades if t['outcome'] == 'SL')
     bes = sum(1 for t in all_trades if t['outcome'] == 'BE')
     total_pnl = sum(t['pnl_usd'] for t in all_trades)
@@ -585,21 +668,79 @@ def main():
 
     final_balance = start_balance + total_pnl
 
-    print("\n" + "=" * 115)
+    print("\n" + "=" * 125)
     print(f" 🏆 S20.304 MULTI-ASSET VERIFIED PERFORMANCE SUMMARY ({portfolio_name})")
-    print("=" * 115)
+    print("=" * 125)
     print(f" Initial Balance:          ${start_balance:,.2f}")
     print(f" Final Balance:            ${final_balance:,.2f}")
     print(f" Net Profit:               ${total_pnl:,.2f} ({(total_pnl / start_balance * 100):+.1f}%)")
     print(f" Max Drawdown:             ${max_dd:,.2f} ({(max_dd / start_balance * 100):.1f}%)")
-    print(f" Total Trades Executed:    {total_trades:,} (W: {wins} | L: {losses} | BE: {bes})")
+    print(f" Total Trades Executed:    {total_trades:,} (Wins: {wins} [Full TP: {tp_hits} | Trail: {trail_tps}] | Losses: {losses} | BE: {bes})")
     print(f" Overall Win Rate:         {wr:.1f}%")
-    print("-" * 115)
+    print("-" * 125)
     print(f" {'Symbol':<15} {'Lot':<8} {'Trades':<10} {'Wins':<8} {'Losses':<8} {'Win Rate':<12} {'Net P&L ($)':<15}")
-    print("-" * 115)
+    print("-" * 125)
     for sym, st in symbol_summaries.items():
         print(f" {sym:<15} {st['lot']:<8.2f} {st['trades']:<10} {st['wins']:<8} {st['losses']:<8} {st['wr']:<12.1f}% ${st['pnl']:<14,.2f}")
-    print("=" * 115)
+    print("=" * 125)
+
+    # Timeframe performance breakdown
+    tf_order = ['H4', 'H3', 'H2', 'H1', 'M30', 'M20', 'M15', 'M12', 'M5', 'M1']
+    tf_summaries = {}
+    for t in all_trades:
+        tf = t.get('tf', 'Other')
+        if tf not in tf_summaries:
+            tf_summaries[tf] = {'trades': 0, 'wins': 0, 'tp': 0, 'trail': 0, 'losses': 0, 'be': 0, 'pnl': 0.0}
+        tf_summaries[tf]['trades'] += 1
+        if t['outcome'] in ['TP', 'TRAIL_TP']:
+            tf_summaries[tf]['wins'] += 1
+            if t['outcome'] == 'TP':
+                tf_summaries[tf]['tp'] += 1
+            else:
+                tf_summaries[tf]['trail'] += 1
+        elif t['outcome'] == 'SL':
+            tf_summaries[tf]['losses'] += 1
+        else:
+            tf_summaries[tf]['be'] += 1
+        tf_summaries[tf]['pnl'] += t['pnl_usd']
+
+    for tf, st in tf_summaries.items():
+        w = st['wins']
+        l = st['losses']
+        st['wr'] = (w / (w + l) * 100) if (w + l) > 0 else 0.0
+        st['share'] = (st['pnl'] / total_pnl * 100) if total_pnl != 0 else 0.0
+
+    print("\n" + "=" * 125)
+    print(f" 🕒 TIMEFRAME PERFORMANCE BREAKDOWN ({portfolio_name} - {args.days} DAYS)")
+    print("=" * 125)
+    print(f" {'Timeframe':<12} {'Trades':<10} {'Wins':<8} {'(TP/Trail)':<12} {'Losses':<8} {'BE':<8} {'Win Rate':<12} {'Net P&L ($)':<16} {'Profit Share'}")
+    print("-" * 125)
+    sorted_tfs = sorted(tf_summaries.keys(), key=lambda x: tf_order.index(x) if x in tf_order else 99)
+    for tf in sorted_tfs:
+        st = tf_summaries[tf]
+        tp_str = f"{st['tp']}/{st['trail']}"
+        print(f" {tf:<12} {st['trades']:<10} {st['wins']:<8} {tp_str:<12} {st['losses']:<8} {st['be']:<8} {st['wr']:<12.1f}% ${st['pnl']:<15,.2f} {st['share']:+.1f}%")
+    print("=" * 125)
+
+    # Save TF summary CSV
+    tf_records = []
+    for tf in sorted_tfs:
+        st = tf_summaries[tf]
+        tf_records.append({
+            "Timeframe": tf,
+            "Trades": st['trades'],
+            "Wins": st['wins'],
+            "FullTP": st['tp'],
+            "TrailTP": st['trail'],
+            "Losses": st['losses'],
+            "BE": st['be'],
+            "WinRate": round(st['wr'], 2),
+            "NetProfit": round(st['pnl'], 2),
+            "ProfitSharePct": round(st['share'], 2)
+        })
+    tf_csv_path = os.path.join(args.out_dir, f"{portfolio_name}_tf_summary.csv")
+    pd.DataFrame(tf_records).to_csv(tf_csv_path, index=False, encoding="utf-8")
+    print(f"Saved Timeframe Breakdown: {tf_csv_path}")
 
 if __name__ == "__main__":
     main()

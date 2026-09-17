@@ -57,10 +57,8 @@ def compute_indicators_df(rates):
     return df
 
 
-def evaluate_asymmetric_rr(df, idx, tf="M5", min_rr=7.0):
-    """Engine A: Asymmetric R:R (1:7+).
-    Takes trades where LTF risk is small ($2.5 - $3.5) and HTF Target offers >= 7x reward.
-    """
+def evaluate_asymmetric_rr(df, idx, tf="M15", min_rr=1.8, entry_mode="RETEST"):
+    """Engine A: Asymmetric R:R (Trend Alignment + Liquidity Sweep)."""
     if idx < 65 or idx >= len(df):
         return None
 
@@ -69,89 +67,68 @@ def evaluate_asymmetric_rr(df, idx, tf="M5", min_rr=7.0):
         return None
 
     atr = cur['atr']
-    if atr <= 0.05:
+    if atr <= 0.05 or cur['hour'] in (23, 0):
         return None
 
-    # Rollover filter
-    if cur['hour'] in (23, 0):
-        return None
-
-    # Trend Alignment with EMA 200
     is_uptrend = cur['close'] > cur['ema_200']
     is_downtrend = cur['close'] < cur['ema_200']
 
-    # 1. BUY SETUP (Trend Following Dip + HTF Expansion)
-    # Swept micro swing low during pullback
+    # 1. BUY SETUP
     swept_ltf_low = cur['low'] < cur['ltf_low_10']
-    has_lower_rejection = cur['lower_wick_pct'] >= 0.40 or cur['lower_wick'] >= cur['body']
+    has_lower_rejection = cur['lower_wick_pct'] >= 0.35 or cur['lower_wick'] >= cur['body']
     closed_up = cur['close'] >= (cur['low'] + 0.45 * cur['range'])
-    vol_surge = cur['vol_ratio'] >= 1.25
+    vol_surge = cur['vol_ratio'] >= 1.20
 
     if is_uptrend and swept_ltf_low and has_lower_rejection and closed_up and vol_surge:
-        entry = round(cur['close'], 2)
-        sl_buffer = max(0.20 * atr, 0.25)
-        sl = round(cur['low'] - sl_buffer, 2)
+        if entry_mode == "RETEST":
+            entry = round(cur['low'] + (0.50 * cur['lower_wick']), 2)
+            sl = round(cur['low'] - max(0.25 * atr, 0.35), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl = round(cur['low'] - max(0.20 * atr, 0.25), 2)
         risk = entry - sl
-        
-        # Micro risk only ($2.00 - $4.00)
-        if 2.0 <= risk <= 4.5:
-            htf_target = cur['htf_target_high']
-            reward = htf_target - entry
-            rr_ratio = reward / risk
-            
-            if rr_ratio >= min_rr:
-                tp = round(htf_target, 2)
-                return {
-                    "signal": "BUY",
-                    "engine": "Asymmetric_RR",
-                    "entry": entry,
-                    "sl": sl,
-                    "tp": tp,
-                    "risk": risk,
-                    "reward": reward,
-                    "rr_ratio": round(rr_ratio, 1),
-                    "be_trigger": round(entry + (risk * 2.0), 2)  # Move to BE at 2R profit
-                }
+        if risk >= 0.30:
+            tp = round(entry + (risk * min_rr), 2)
+            return {
+                "signal": "BUY",
+                "engine": "Asymmetric_RR",
+                "entry": entry,
+                "sl": sl,
+                "tp": tp,
+                "risk": risk,
+                "rr_ratio": min_rr
+            }
 
-    # 2. SELL SETUP (Trend Following Rally + HTF Expansion)
+    # 2. SELL SETUP
     swept_ltf_high = cur['high'] > cur['ltf_high_10']
-    has_upper_rejection = cur['upper_wick_pct'] >= 0.40 or cur['upper_wick'] >= cur['body']
+    has_upper_rejection = cur['upper_wick_pct'] >= 0.35 or cur['upper_wick'] >= cur['body']
     closed_down = cur['close'] <= (cur['high'] - 0.45 * cur['range'])
 
     if is_downtrend and swept_ltf_high and has_upper_rejection and closed_down and vol_surge:
-        entry = round(cur['close'], 2)
-        sl_buffer = max(0.20 * atr, 0.25)
-        sl = round(cur['high'] + sl_buffer, 2)
+        if entry_mode == "RETEST":
+            entry = round(cur['high'] - (0.50 * cur['upper_wick']), 2)
+            sl = round(cur['high'] + max(0.25 * atr, 0.35), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl = round(cur['high'] + max(0.20 * atr, 0.25), 2)
         risk = sl - entry
-
-        if 2.0 <= risk <= 4.5:
-            htf_target = cur['htf_target_low']
-            reward = entry - htf_target
-            rr_ratio = reward / risk
-
-            if rr_ratio >= min_rr:
-                tp = round(htf_target, 2)
-                return {
-                    "signal": "SELL",
-                    "engine": "Asymmetric_RR",
-                    "entry": entry,
-                    "sl": sl,
-                    "tp": tp,
-                    "risk": risk,
-                    "reward": reward,
-                    "rr_ratio": round(rr_ratio, 1),
-                    "be_trigger": round(entry - (risk * 2.0), 2)  # Move to BE at 2R profit
-                }
+        if risk >= 0.30:
+            tp = round(entry - (risk * min_rr), 2)
+            return {
+                "signal": "SELL",
+                "engine": "Asymmetric_RR",
+                "entry": entry,
+                "sl": sl,
+                "tp": tp,
+                "risk": risk,
+                "rr_ratio": min_rr
+            }
 
     return None
 
 
-def evaluate_asian_mean_reversion(df, idx, tf="M5"):
-    """Engine B: High Winrate Asian Range Sweep & Mean Reversion.
-    Asian Session: 06:00 - 12:00 server time.
-    London/NY Sweep: 13:00 - 19:00 server time.
-    Target: Asian Equilibrium (Midpoint).
-    """
+def evaluate_asian_mean_reversion(df, idx, tf="M15", min_rr=1.8, entry_mode="RETEST"):
+    """Engine B: Asian Session Liquidity Sweep & Mean Reversion."""
     if idx < 60 or idx >= len(df):
         return None
 
@@ -162,36 +139,41 @@ def evaluate_asian_mean_reversion(df, idx, tf="M5"):
     if not (12 <= hour <= 19):
         return None
 
-    # Find today's Asian range (hours 5 to 11 server time)
-    # Look back up to 40 bars to find bars in Asian hours
-    lookback = df.iloc[max(0, idx - 60):idx]
-    asian_bars = lookback[(lookback['hour'] >= 5) & (lookback['hour'] <= 11)]
-    if len(asian_bars) < 15:
-        return None
+    # Check if pre-calculated asian range exists in df
+    if 'asian_high' in df.columns and not pd.isna(cur.get('asian_high')):
+        asian_high = cur['asian_high']
+        asian_low = cur['asian_low']
+        asian_range = cur.get('asian_range', asian_high - asian_low)
+    else:
+        lookback = df.iloc[max(0, idx - 60):idx]
+        asian_bars = lookback[(lookback['hour'] >= 5) & (lookback['hour'] <= 11)]
+        if len(asian_bars) < 10:
+            return None
+        asian_high = asian_bars['high'].max()
+        asian_low = asian_bars['low'].min()
+        asian_range = asian_high - asian_low
 
-    asian_high = asian_bars['high'].max()
-    asian_low = asian_bars['low'].min()
-    asian_mid = (asian_high + asian_low) / 2.0
-    asian_range = asian_high - asian_low
-
-    # Asian range must be reasonable (not crazy news day)
-    if asian_range < 4.0 or asian_range > 25.0:
+    if asian_range < 4.0 or asian_range > 35.0:
         return None
 
     atr = cur['atr']
     if pd.isna(atr) or atr <= 0.05:
         return None
 
-    # 1. BEARISH SWEEP OF ASIAN HIGH (SELL to Asian Midpoint)
+    # 1. BEARISH SWEEP OF ASIAN HIGH
     swept_asian_high = (cur['high'] > asian_high) and (cur['close'] < asian_high)
     has_upper_wick = cur['upper_wick_pct'] >= 0.35
-    if swept_asian_high and has_upper_wick and cur['vol_ratio'] >= 1.20:
-        entry = round(cur['close'], 2)
-        sl = round(cur['high'] + max(0.20 * atr, 0.30), 2)
-        tp = round(asian_mid, 2)
+    if swept_asian_high and has_upper_wick and cur['vol_ratio'] >= 1.15:
+        if entry_mode == "RETEST":
+            entry = round(cur['high'] - (0.50 * cur['upper_wick']), 2)
+            sl = round(cur['high'] + max(0.25 * atr, 0.35), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl = round(cur['high'] + max(0.20 * atr, 0.30), 2)
         risk = sl - entry
-        reward = entry - tp
-        if risk > 0 and reward > risk * 1.1:
+        _min_risk_20 = 30 * (10 ** 2)  # S20.20 is M15 Gold-only, digits always=2 → 0.30
+        if risk > 0.30:
+            tp = round(entry - (risk * min_rr), 2)
             return {
                 "signal": "SELL",
                 "engine": "Asian_Mean_Reversion",
@@ -199,21 +181,22 @@ def evaluate_asian_mean_reversion(df, idx, tf="M5"):
                 "sl": sl,
                 "tp": tp,
                 "risk": risk,
-                "reward": reward,
-                "rr_ratio": round(reward / risk, 1),
-                "be_trigger": round(entry - (risk * 1.0), 2)
+                "rr_ratio": min_rr
             }
 
-    # 2. BULLISH SWEEP OF ASIAN LOW (BUY to Asian Midpoint)
+    # 2. BULLISH SWEEP OF ASIAN LOW
     swept_asian_low = (cur['low'] < asian_low) and (cur['close'] > asian_low)
     has_lower_wick = cur['lower_wick_pct'] >= 0.35
-    if swept_asian_low and has_lower_wick and cur['vol_ratio'] >= 1.20:
-        entry = round(cur['close'], 2)
-        sl = round(cur['low'] - max(0.20 * atr, 0.30), 2)
-        tp = round(asian_mid, 2)
+    if swept_asian_low and has_lower_wick and cur['vol_ratio'] >= 1.15:
+        if entry_mode == "RETEST":
+            entry = round(cur['low'] + (0.50 * cur['lower_wick']), 2)
+            sl = round(cur['low'] - max(0.25 * atr, 0.35), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl = round(cur['low'] - max(0.20 * atr, 0.30), 2)
         risk = entry - sl
-        reward = tp - entry
-        if risk > 0 and reward > risk * 1.1:
+        if risk > 0.30:
+            tp = round(entry + (risk * min_rr), 2)
             return {
                 "signal": "BUY",
                 "engine": "Asian_Mean_Reversion",
@@ -221,9 +204,7 @@ def evaluate_asian_mean_reversion(df, idx, tf="M5"):
                 "sl": sl,
                 "tp": tp,
                 "risk": risk,
-                "reward": reward,
-                "rr_ratio": round(reward / risk, 1),
-                "be_trigger": round(entry + (risk * 1.0), 2)
+                "rr_ratio": min_rr
             }
 
     return None

@@ -23,6 +23,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 def init_mt5():
     paths = [
+        r'd:\Project\Copter01_AI_Bot_2\profiles\demo\demo-iux-2101183586\mt5\terminal64.exe',
         r'd:\Project\Copter01_AI_Bot_2\profiles\demo\demo-iux-2101114448\mt5\terminal64.exe',
         r'C:\Program Files\MetaTrader 5\terminal64.exe'
     ]

@@ -61,7 +61,7 @@ def compute_indicators_df(rates):
 # -----------------------------------------------------------------------------
 # ENGINE A: WYCKOFF VSA (STOPPING VOLUME + NO SUPPLY/DEMAND TEST)
 # -----------------------------------------------------------------------------
-def evaluate_wyckoff_vsa(df, idx, tf="M15", rr=2.0):
+def evaluate_wyckoff_vsa(df, idx, tf="M15", rr=1.8, entry_mode="RETEST", **kwargs):
     """Engine A: Wyckoff Volume Spread Analysis (2-Step Confirmation).
     Step 1 (Bar i-1 or i-2): Ultra-high volume stopping bar.
     Step 2 (Bar i): Low-volume narrow-spread test bar (No Supply / No Demand).
@@ -94,10 +94,14 @@ def evaluate_wyckoff_vsa(df, idx, tf="M15", rr=2.0):
         holds_low = cur['low'] >= (climax_bar['low'] - 0.20 * atr)
 
         if is_narrow_spread and is_low_volume and holds_low and cur['close'] > cur['open']:
-            entry = round(cur['close'], 2)
-            sl = round(min(climax_bar['low'], cur['low']) - max(0.20 * atr, 0.30), 2)
+            if entry_mode == "RETEST":
+                entry = round(cur['low'] + (0.50 * cur['lower_wick']), 2)
+                sl = round(min(climax_bar['low'], cur['low']) - max(0.25 * atr, 0.35), 2)
+            else:
+                entry = round(cur['close'], 2)
+                sl = round(min(climax_bar['low'], cur['low']) - max(0.20 * atr, 0.30), 2)
             risk = entry - sl
-            if 1.5 <= risk <= 6.0:
+            if 1.0 <= risk <= 6.0:
                 tp = round(entry + (risk * rr), 2)
                 return {
                     "signal": "BUY",
@@ -124,10 +128,14 @@ def evaluate_wyckoff_vsa(df, idx, tf="M15", rr=2.0):
         holds_high = cur['high'] <= (climax_sell['high'] + 0.20 * atr)
 
         if is_narrow_spread and is_low_volume and holds_high and cur['close'] < cur['open']:
-            entry = round(cur['close'], 2)
-            sl = round(max(climax_sell['high'], cur['high']) + max(0.20 * atr, 0.30), 2)
+            if entry_mode == "RETEST":
+                entry = round(cur['high'] - (0.50 * cur['upper_wick']), 2)
+                sl = round(max(climax_sell['high'], cur['high']) + max(0.25 * atr, 0.35), 2)
+            else:
+                entry = round(cur['close'], 2)
+                sl = round(max(climax_sell['high'], cur['high']) + max(0.20 * atr, 0.30), 2)
             risk = sl - entry
-            if 1.5 <= risk <= 6.0:
+            if 1.0 <= risk <= 6.0:
                 tp = round(entry - (risk * rr), 2)
                 return {
                     "signal": "SELL",
@@ -146,7 +154,7 @@ def evaluate_wyckoff_vsa(df, idx, tf="M15", rr=2.0):
 # -----------------------------------------------------------------------------
 # ENGINE B: LONDON CLOSE REVERSAL (16:00 LONDON FIXING / 22:00 BKK)
 # -----------------------------------------------------------------------------
-def evaluate_london_close_reversal(df, idx, tf="M15", retrace_pct=0.35):
+def evaluate_london_close_reversal(df, idx, tf="M15", retrace_pct=0.25, entry_mode="RETEST"):
     """Engine B: London Close Reversal (Fixing Window).
     Hours 16 to 18 server time (UTC+6, corresponding to 15:00-17:00 UTC / 22:00-00:00 BKK).
     Occurs when market had a strong directional expansion and European desks square books.
@@ -173,15 +181,17 @@ def evaluate_london_close_reversal(df, idx, tf="M15", retrace_pct=0.35):
     day_low = cur['day_low']
 
     # 1. BEARISH REVERSAL FROM DAY HIGH (Selling the London Top)
-    # Price is within 20% of Day High, shows upper wick rejection
     dist_from_high = day_high - cur['close']
     at_day_high = dist_from_high <= (0.25 * day_range)
     has_upper_wick = cur['upper_wick_pct'] >= 0.35 and cur['close'] < cur['open']
 
     if at_day_high and has_upper_wick and cur['vol_ratio'] >= 1.15:
-        entry = round(cur['close'], 2)
-        sl = round(cur['high'] + max(0.20 * atr, 0.30), 2)
-        # Target: 35% retracement of the entire daily range
+        if entry_mode == "RETEST":
+            entry = round(cur['high'] - (0.50 * cur['upper_wick']), 2)
+            sl = round(cur['high'] + max(0.25 * atr, 0.35), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl = round(cur['high'] + max(0.20 * atr, 0.30), 2)
         tp = round(day_high - (day_range * retrace_pct), 2)
         risk = sl - entry
         reward = entry - tp
@@ -203,8 +213,12 @@ def evaluate_london_close_reversal(df, idx, tf="M15", retrace_pct=0.35):
     has_lower_wick = cur['lower_wick_pct'] >= 0.35 and cur['close'] > cur['open']
 
     if at_day_low and has_lower_wick and cur['vol_ratio'] >= 1.15:
-        entry = round(cur['close'], 2)
-        sl = round(cur['low'] - max(0.20 * atr, 0.30), 2)
+        if entry_mode == "RETEST":
+            entry = round(cur['low'] + (0.50 * cur['lower_wick']), 2)
+            sl = round(cur['low'] - max(0.25 * atr, 0.35), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl = round(cur['low'] - max(0.20 * atr, 0.30), 2)
         tp = round(day_low + (day_range * retrace_pct), 2)
         risk = entry - sl
         reward = tp - entry

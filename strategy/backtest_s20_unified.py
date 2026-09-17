@@ -25,8 +25,11 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 # Path setup
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+s20_304_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 's20.304'))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
+if s20_304_dir not in sys.path:
+    sys.path.insert(0, s20_304_dir)
 
 import config
 import s20_institutional_hub as hub
@@ -82,6 +85,7 @@ def parse_date(date_str):
             continue
     raise ValueError(f"Cannot parse date string: {date_str}")
 
+
 def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
     """Extracts trade setups for a specific strategy and symbol."""
     setups = []
@@ -93,13 +97,14 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
         raw = extract_setups_for_symbol(symbol, dfs, digits, point)
         for s in raw:
             s["sid"] = sid
+            # Realistic institutional target 1.8R
+            s["tp"] = round(s["entry"] + 1.8 * s["risk"], digits) if s["signal"] == "BUY" else round(s["entry"] - 1.8 * s["risk"], digits)
             setups.append(s)
         return setups
 
     # ── Non-SMC Family (20.18 - 20.28) ──
+    # All non-SMC strategies operate on M15 institutional timeframe
     tf_primary = "M15"
-    if sid == 20.19:
-        tf_primary = "M5"
 
     rates = rates_by_tf.get(tf_primary)
     if rates is None or len(rates) < 35:
@@ -134,25 +139,31 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
             if sid == 20.18:
                 res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="RETEST", rr_ratio=1.8)
             elif sid == 20.19:
-                res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="MARKET", target_profit_usd=10.0)
+                res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="RETEST", rr_ratio=1.8)
             elif sid == 20.20:
-                res = mod.evaluate_asian_mean_reversion(df, idx, tf=tf_primary)
-                if res.get("signal") == "WAIT":
-                    res = mod.evaluate_asymmetric_rr(df, idx, tf=tf_primary)
+                res = getattr(mod, "evaluate_asian_mean_reversion", lambda *a, **kw: None)(df, idx, tf=tf_primary, min_rr=1.8, entry_mode="RETEST")
+                if not res or res.get("signal") in ("WAIT", None):
+                    res = getattr(mod, "evaluate_asymmetric_rr", lambda *a, **kw: None)(df, idx, tf=tf_primary, min_rr=1.8, entry_mode="RETEST")
             elif sid == 20.21:
-                res = mod.evaluate_breaker_block(df, idx, tf=tf_primary)
-                if res.get("signal") == "WAIT":
-                    res = mod.evaluate_judas_swing(df, idx, tf=tf_primary)
+                res = getattr(mod, "evaluate_smt_divergence", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8)
+                if not res or res.get("signal") in ("WAIT", None):
+                    res = getattr(mod, "evaluate_breaker_block", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8)
+                if not res or res.get("signal") in ("WAIT", None):
+                    res = getattr(mod, "evaluate_judas_swing", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8)
             elif sid == 20.22:
-                res = mod.evaluate_vwap_reversion(df, idx, tf=tf_primary)
-                if res.get("signal") == "WAIT":
-                    res = mod.evaluate_institutional_orb(df, idx, tf=tf_primary)
+                res = getattr(mod, "evaluate_vwap_reversion", lambda *a, **kw: None)(df, idx, tf=tf_primary)
+                if not res or res.get("signal") in ("WAIT", None):
+                    res = getattr(mod, "evaluate_asian_expansion", lambda *a, **kw: None)(df, idx, tf=tf_primary)
+                if not res or res.get("signal") in ("WAIT", None):
+                    res = getattr(mod, "evaluate_institutional_orb", lambda *a, **kw: None)(df, idx, tf=tf_primary)
             elif sid == 20.24:
-                res = mod.evaluate_wyckoff_vsa(df, idx, tf=tf_primary)
-                if res.get("signal") == "WAIT":
-                    res = mod.evaluate_london_close_reversal(df, idx, tf=tf_primary)
+                res = getattr(mod, "evaluate_wyckoff_vsa", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8, entry_mode="RETEST")
+                if not res or res.get("signal") in ("WAIT", None):
+                    res = getattr(mod, "evaluate_london_close_reversal", lambda *a, **kw: None)(df, idx, tf=tf_primary, retrace_pct=0.25, entry_mode="RETEST")
             elif sid == 20.28:
-                res = mod.evaluate_s20_28_bar(df, idx, tf=tf_primary)
+                res = getattr(mod, "evaluate_s20_28_bar", lambda *a, **kw: None)(df, idx, tf=tf_primary)
+                if res and "tp" not in res and "tp_scalp" in res:
+                    res["tp"] = res["tp_scalp"]
 
             if res and res.get("signal") in ("BUY", "SELL"):
                 entry = res["entry"] / scale if scale != 1.0 else res["entry"]
@@ -174,46 +185,83 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
 
     return sorted(setups, key=lambda x: x['time'])
 
-def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contract_size, digits, start_ts=None, end_ts=None):
-    """Executes setups chronologically on sequential M5 bars."""
+def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contract_size, digits, start_ts=None, end_ts=None, concurrent=False, m1_bars=None, m1_times=None):
+    """Executes setups chronologically on sequential bars (M1 for M1 setups, M5 for others)."""
     m5_len = len(m5_bars)
+    m1_len = len(m1_bars) if m1_bars is not None else 0
     trades_list = []
     busy_until = 0
     is_jpy = "JPY" in symbol.upper()
     is_smc = sid in (20.301, 20.302, 20.303, 20.304)
     stages = make_stages(56 if sid == 20.303 else 55) if is_smc else None
     tp_r = 13.45 if sid == 20.303 else 13.43
+    active_orders = []  # list of (active_until_time, tf, signal, entry) to prevent duplicate stacked orders per TF
+    price_tol = 0.30 if "XAU" in symbol.upper() else (0.05 if "XAG" in symbol.upper() else 0.0020)
+    is_limit_strategy = sid in (20.18, 20.28, 20.301, 20.302, 20.303, 20.304)
+    # Rule #7: Limit Penetration (Touch is not a fill)
+    penetration_pt = (0.10 if "XAU" in symbol.upper() else (0.01 if "XAG" in symbol.upper() else 0.0001)) if is_limit_strategy else 0.0
+    # Rule #9: Negative Slippage on SL
+    sl_slip = 0.10 if "XAU" in symbol.upper() else (0.01 if "XAG" in symbol.upper() else 0.0001)
 
     for s in setups:
         s_time = s['time']
-        if s_time < busy_until:
+        if not concurrent and s_time < busy_until:
             continue
-        m5_start = bisect.bisect_right(m5_times, s_time)
-        if m5_start >= m5_len:
+
+        s_tf = s.get('tf', 'M5')
+
+        # Clean expired orders
+        active_orders = [o for o in active_orders if o[0] > s_time]
+
+        # Duplicate pending / position check per-TF (matching Live MT5 _find_duplicate_pending_setup)
+        if any(o[1] == s_tf and o[2] == s['signal'] and abs(o[3] - s['entry']) <= price_tol for o in active_orders):
+            continue
+
+        is_m1_setup = (s_tf == 'M1') and (m1_len > 0)
+        sim_bars = m1_bars if is_m1_setup else m5_bars
+        sim_times = m1_times if is_m1_setup else m5_times
+        sim_len = m1_len if is_m1_setup else m5_len
+        max_wait_bars = 60 if is_m1_setup else 12  # 1 hour fill window
+
+        start_idx = bisect.bisect_right(sim_times, s_time)
+        if start_idx >= sim_len:
             continue
 
         filled = False
         fill_idx = -1
         fill_price = s['entry']
 
-        # Fill window: 12 bars (1 hour)
-        for i in range(m5_start, min(m5_start + 12, m5_len)):
-            b = m5_bars[i]
-            if s['signal'] == 'BUY' and b['low'] <= s['entry']:
-                filled = True
-                fill_idx = i
-                fill_price = s['entry']
-                break
-            elif s['signal'] == 'SELL' and b['high'] >= s['entry']:
-                filled = True
-                fill_idx = i
-                fill_price = s['entry']
-                break
+        # Fill window (Rule #6 & Rule #7 Penetration)
+        for i in range(start_idx, min(start_idx + max_wait_bars, sim_len)):
+            b = sim_bars[i]
+            if s['signal'] == 'BUY':
+                if not is_limit_strategy:
+                    filled = True
+                    fill_idx = i
+                    fill_price = s['entry']
+                    break
+                elif b['low'] <= (s['entry'] - penetration_pt):
+                    filled = True
+                    fill_idx = i
+                    fill_price = s['entry']
+                    break
+            elif s['signal'] == 'SELL':
+                if not is_limit_strategy:
+                    filled = True
+                    fill_idx = i
+                    fill_price = s['entry']
+                    break
+                elif b['high'] >= (s['entry'] + penetration_pt):
+                    filled = True
+                    fill_idx = i
+                    fill_price = s['entry']
+                    break
 
         if not filled:
+            active_orders.append((s_time + 3600, s_tf, s['signal'], s['entry']))
             continue
 
-        fill_time = int(m5_bars[fill_idx]['time'])
+        fill_time = int(sim_bars[fill_idx]['time'])
         if start_ts and fill_time < start_ts:
             continue
         if end_ts and fill_time > end_ts:
@@ -223,92 +271,104 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
         curr_sl = s['sl']
         active_r = 0.0
         exit_price = None
+        tp_target = s.get('tp') or (round(fill_price + (tp_r * risk), digits) if s['signal'] == 'BUY' else round(fill_price - (tp_r * risk), digits))
+        use_smc_stages = is_smc and (stages is not None) and ('tp' not in s or s.get('use_stages', False))
         exit_time = 0
-        rem_volume = 1.0
-        trade_pnl = 0.0
-        tp_target = s['tp'] if not is_smc else (round(fill_price + (tp_r * risk), digits) if s['signal'] == 'BUY' else round(fill_price - (tp_r * risk), digits))
 
-        for i in range(fill_idx, m5_len):
-            b = m5_bars[i]
+        for i in range(fill_idx, sim_len):
+            b = sim_bars[i]
+            is_fill_bar = (i == fill_idx)
+
             if s['signal'] == 'BUY':
+                # Rule #4 & Rule #9: Pessimistic SL check with slippage
                 if b['low'] <= curr_sl:
-                    exit_price = curr_sl
-                    pnl_pt = (exit_price - fill_price)
-                    val = (pnl_pt * rem_volume * lot * contract_size) / (exit_price if is_jpy else 1.0)
-                    trade_pnl += val
+                    exit_price = round(curr_sl - sl_slip, digits) if curr_sl <= fill_price else curr_sl
                     exit_time = b['time']
                     break
 
-                if is_smc:
+                # Rule #5: In the fill bar, DO NOT trail SL using high of the bar!
+                # High of the bar occurred before fill. Only conservative close can exit TP.
+                if is_fill_bar:
+                    if b['close'] >= tp_target:
+                        exit_price = tp_target
+                        exit_time = b['time']
+                        break
+                    continue
+
+                if use_smc_stages:
                     max_fav = b['high'] - fill_price
                     fav_r = max_fav / risk
                     if fav_r >= 0.8 and curr_sl < fill_price:
                         curr_sl = fill_price
-                    for r_target, close_pct in stages:
+                    for r_target, lock_r in stages:
                         if fav_r >= r_target and active_r < r_target:
                             active_r = r_target
-                            pnl_pt = (r_target * risk)
-                            step_price = fill_price + (r_target * risk)
-                            trade_pnl += (pnl_pt * close_pct * lot * contract_size) / (step_price if is_jpy else 1.0)
-                            rem_volume -= close_pct
-                            new_sl = fill_price + (r_target * 0.70 * risk)
+                            new_sl = round(fill_price + (lock_r * risk), digits)
                             if new_sl > curr_sl:
                                 curr_sl = new_sl
                     if fav_r >= tp_r:
                         exit_price = tp_target
-                        pnl_pt = (exit_price - fill_price)
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / (exit_price if is_jpy else 1.0)
+                        exit_time = b['time']
+                        break
+                    # Same-bar recheck: Did price retrace to newly tightened SL in the same bar?
+                    if b['low'] <= curr_sl:
+                        exit_price = curr_sl
                         exit_time = b['time']
                         break
                 else:
                     if b['high'] >= tp_target:
                         exit_price = tp_target
-                        pnl_pt = (exit_price - fill_price)
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / (exit_price if is_jpy else 1.0)
                         exit_time = b['time']
                         break
             else:  # SELL
+                # Rule #4 & Rule #9: Pessimistic SL check with slippage
                 if b['high'] >= curr_sl:
-                    exit_price = curr_sl
-                    pnl_pt = (fill_price - exit_price)
-                    val = (pnl_pt * rem_volume * lot * contract_size) / (exit_price if is_jpy else 1.0)
-                    trade_pnl += val
+                    exit_price = round(curr_sl + sl_slip, digits) if curr_sl >= fill_price else curr_sl
                     exit_time = b['time']
                     break
 
-                if is_smc:
+                # Rule #5: In the fill bar, DO NOT trail SL using low of the bar!
+                if is_fill_bar:
+                    if b['close'] <= tp_target:
+                        exit_price = tp_target
+                        exit_time = b['time']
+                        break
+                    continue
+
+                if use_smc_stages:
                     max_fav = fill_price - b['low']
                     fav_r = max_fav / risk
                     if fav_r >= 0.8 and curr_sl > fill_price:
                         curr_sl = fill_price
-                    for r_target, close_pct in stages:
+                    for r_target, lock_r in stages:
                         if fav_r >= r_target and active_r < r_target:
                             active_r = r_target
-                            pnl_pt = (r_target * risk)
-                            step_price = fill_price - (r_target * risk)
-                            trade_pnl += (pnl_pt * close_pct * lot * contract_size) / (step_price if is_jpy else 1.0)
-                            rem_volume -= close_pct
-                            new_sl = fill_price - (r_target * 0.70 * risk)
+                            new_sl = round(fill_price - (lock_r * risk), digits)
                             if new_sl < curr_sl:
                                 curr_sl = new_sl
                     if fav_r >= tp_r:
                         exit_price = tp_target
-                        pnl_pt = (fill_price - exit_price)
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / (exit_price if is_jpy else 1.0)
+                        exit_time = b['time']
+                        break
+                    # Same-bar recheck: Did price retrace to newly tightened SL in the same bar?
+                    if b['high'] >= curr_sl:
+                        exit_price = curr_sl
                         exit_time = b['time']
                         break
                 else:
                     if b['low'] <= tp_target:
                         exit_price = tp_target
-                        pnl_pt = (fill_price - exit_price)
-                        trade_pnl += (pnl_pt * rem_volume * lot * contract_size) / (exit_price if is_jpy else 1.0)
                         exit_time = b['time']
                         break
 
         if exit_price is None:
             continue
 
+        pnl_pt = (exit_price - fill_price) if s['signal'] == 'BUY' else (fill_price - exit_price)
+        trade_pnl = (pnl_pt * lot * contract_size) / (exit_price if is_jpy else 1.0)
+
         busy_until = exit_time
+        active_orders.append((int(exit_time), s_tf, s['signal'], s['entry']))
         outcome = "TP" if trade_pnl > 0.01 else ("SL" if trade_pnl < -0.01 else "BE")
         clean_sym = symbol.split('.')[0]
 
@@ -447,6 +507,10 @@ def main(default_strategy=None):
     parser.add_argument("--out-dir", default=None, help="Output directory for CSV files (default: reports/{portfolio})")
     parser.add_argument("--symbols", type=str, default=None, help="Comma-separated symbols to trade (default: all 5 symbols)")
     parser.add_argument("--no-cache", action="store_true", help="Do not load or save cached data")
+    parser.add_argument("--compare", action="store_true", help="Run comparison against real MT5 closed trades from profile")
+    parser.add_argument("--compare-profile", default="demo-exness-434237129", help="Profile to fetch MT5 deals from (default: demo-exness-434237129)")
+    parser.add_argument("--concurrent", action="store_true", help="Allow unlimited concurrent positions (matching MT5 live execution)")
+    parser.add_argument("--tfs", type=str, default=None, help="Comma-separated timeframes (e.g. M1,M5,M15,M30,H1,H4)")
     args = parser.parse_args()
 
     # Determine target strategy
@@ -462,23 +526,57 @@ def main(default_strategy=None):
             print(f"❌ Unknown Strategy '{target_name}'. Available: {list(STRATEGY_MAP.keys())} or 'all'")
             return
         sids_to_run = [sid]
-        portfolio_name = f"S{str(sid).replace('.', '_')}"
+        # Preserve clean strategy name (e.g. S20_20 instead of float str S20_2)
+        portfolio_name = target_clean if target_clean.startswith("S20_") else f"S{str(sid).replace('.', '_')}"
 
     out_dir = args.out_dir if args.out_dir else os.path.abspath(os.path.join(root_dir, "reports", portfolio_name.lower()))
     start_balance = args.balance
     base_lot = args.lot
     scale = args.scale
 
+    from s20_compare_engine import connect_profile_mt5
+    if not connect_profile_mt5(args.compare_profile, root_dir=root_dir):
+        if not init_mt5():
+            print("❌ MT5 Initialization Failed")
+            return
+
+    # Auto-resolve symbols from MT5 terminal according to broker conventions
+    all_broker_syms = [s.name for s in (mt5.symbols_get() or [])]
+
+    def resolve_broker_symbol(base):
+        clean_base = base.split('.')[0].rstrip('m').rstrip('M')
+        if base in all_broker_syms:
+            return base
+        if f"{clean_base}m" in all_broker_syms:
+            return f"{clean_base}m"
+        for s in all_broker_syms:
+            if s.startswith(clean_base) and (s.endswith("m") or s.endswith(".iux") or s == clean_base):
+                return s
+        return base
+
     # Target symbols
     if args.symbols:
-        symbols_to_run = [s.strip() for s in args.symbols.split(",") if s.strip()]
+        symbols_to_run = [resolve_broker_symbol(s.strip()) for s in args.symbols.split(",") if s.strip()]
+    elif 20.304 in sids_to_run:
+        symbols_to_run = [resolve_broker_symbol(b) for b in ["XAUUSD", "XAGUSD", "EURUSD", "GBPUSD", "USDJPY"]]
     else:
-        symbols_to_run = list(DEFAULT_SYMBOLS)
+        symbols_to_run = [resolve_broker_symbol("XAUUSD")]
 
-    # Date range
+    # Date range (Interpret naive input as Bangkok UTC+7)
+    bkk_tz = timezone(timedelta(hours=7))
     now_utc = datetime.now(timezone.utc)
-    end_dt = parse_date(args.end).replace(tzinfo=timezone.utc) if args.end else now_utc
-    start_dt = parse_date(args.start).replace(tzinfo=timezone.utc) if args.start else end_dt - timedelta(days=args.days)
+    if args.end:
+        dt = parse_date(args.end)
+        end_dt = dt.replace(tzinfo=bkk_tz).astimezone(timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    else:
+        end_dt = now_utc
+
+    if args.start:
+        dt = parse_date(args.start)
+        start_dt = dt.replace(tzinfo=bkk_tz).astimezone(timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    else:
+        start_dt = end_dt - timedelta(days=args.days)
+
     start_ts = int(start_dt.timestamp())
     end_ts = int(end_dt.timestamp())
 
@@ -492,10 +590,6 @@ def main(default_strategy=None):
     print(f"   Active Symbols ({len(symbols_to_run)}): {', '.join(symbols_to_run)}", flush=True)
     print(f"   Output Directory: {out_dir}", flush=True)
     print("=" * 115, flush=True)
-
-    if not init_mt5():
-        print("❌ MT5 Initialization Failed")
-        return
 
     all_trades = []
     symbol_summaries = {}
@@ -511,17 +605,38 @@ def main(default_strategy=None):
             digits = sinfo.digits
             point = sinfo.point
             contract_size = sinfo.trade_contract_size
-            weight = config.S20_SYMBOL_WEIGHTS.get(sym, 1.0)
+            sym_u = sym.upper()
+            if "XAU" in sym_u or "GOLD" in sym_u:
+                weight = 1.0
+            elif "XAG" in sym_u or "SILVER" in sym_u:
+                weight = 1.0
+            elif "GBP" in sym_u:
+                weight = 11.0
+            elif "EUR" in sym_u:
+                weight = 14.0
+            elif "JPY" in sym_u:
+                weight = 14.0
+            else:
+                weight = config.S20_SYMBOL_WEIGHTS.get(sym, 1.0)
             sym_lot = round(base_lot * weight * scale, 2)
 
             print(f"\n📊 Fetching data for {sym} (Weight: {weight}x -> Lot: {sym_lot}, Digits: {digits})...", flush=True)
 
-            tfs = ['H4', 'H3', 'H2', 'H1', 'M30', 'M20', 'M15', 'M12', 'M5']
+            if args.tfs:
+                tfs = [t.strip().upper() for t in args.tfs.split(",") if t.strip()]
+            elif args.compare:
+                # MT5 Live terminal active timeframes (M12, M20 are custom and not scanned by MT5 bot)
+                tfs = ['H4', 'H1', 'M30', 'M15', 'M5', 'M1']
+            else:
+                tfs = ['H4', 'H3', 'H2', 'H1', 'M30', 'M20', 'M15', 'M12', 'M5', 'M1']
             rates_by_tf = {}
             for tf in tfs:
                 tf_const = getattr(mt5, f"TIMEFRAME_{tf}", None)
                 if tf_const is not None:
                     r = mt5.copy_rates_range(sym, tf_const, fetch_start, end_dt)
+                    if r is None or len(r) == 0:
+                        count = 65000 if tf == "M1" else 75000
+                        r = mt5.copy_rates_from_pos(sym, tf_const, 0, count)
                     if r is not None and len(r) > 0:
                         rates_by_tf[tf] = r
 
@@ -531,8 +646,14 @@ def main(default_strategy=None):
                 continue
             m5_times = [int(r['time']) for r in m5_bars]
 
+            m1_bars = rates_by_tf.get("M1")
+            m1_times = [int(r['time']) for r in m1_bars] if m1_bars is not None and len(m1_bars) > 0 else None
+
             sym_trades_total = []
             for s_id in sids_to_run:
+                # S20.18 through S20.303 only trade Gold (XAUUSD); only S20.304 trades other symbols
+                if s_id != 20.304 and "XAU" not in sym.upper():
+                    continue
                 setups = extract_setups_for_strategy(s_id, sym, rates_by_tf, digits, point)
                 if setups:
                     t_list = simulate_strategy_trades(
@@ -545,7 +666,10 @@ def main(default_strategy=None):
                         contract_size=contract_size,
                         digits=digits,
                         start_ts=start_ts,
-                        end_ts=end_ts
+                        end_ts=end_ts,
+                        concurrent=args.concurrent or args.compare,
+                        m1_bars=m1_bars,
+                        m1_times=m1_times,
                     )
                     sym_trades_total.extend(t_list)
 
@@ -573,6 +697,22 @@ def main(default_strategy=None):
 
     print(f"\nProcessing reports for {portfolio_name} (found {len(all_trades)} trades)...")
     save_reports(portfolio_name, all_trades, start_balance, out_dir)
+
+    # Optional Compare against real MT5 trades
+    if args.compare:
+        from s20_compare_engine import run_s20_compare
+        run_s20_compare(
+            portfolio_name=portfolio_name,
+            backtest_trades=all_trades,
+            start_balance=start_balance,
+            output_dir=out_dir,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            target_sids=[str(s) for s in sids_to_run],
+            symbols_to_run=symbols_to_run,
+            profile_name=args.compare_profile,
+            root_dir=root_dir
+        )
 
     total_trades = len(all_trades)
     wins = sum(1 for t in all_trades if t['outcome'] == 'TP')

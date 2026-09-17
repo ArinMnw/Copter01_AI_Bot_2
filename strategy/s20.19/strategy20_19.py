@@ -63,17 +63,12 @@ def compute_indicators_df(rates):
     return df
 
 
-def evaluate_bar(df, idx, tf="M5", lot=0.03, target_dollar=10.0, contract_size=100.0, max_allowed_risk=6.50):
-    """Evaluate bar for S20.19 $10-per-trade Sniper Scalp setup.
-    
-    Args:
-        df: DataFrame with indicators
-        idx: Index of bar to evaluate
-        tf: Timeframe ('M1', 'M5')
-        lot: Lot size used (e.g. 0.02, 0.03, 0.04)
-        target_dollar: Fixed target in USD (default 10.0)
-        contract_size: 100.0 for Gold
-    """
+def evaluate_bar(df, idx, tf="M15", lot=0.01, target_dollar=10.0, contract_size=100.0, max_allowed_risk=15.0, entry_mode="RETEST", rr_ratio=1.8, **kwargs):
+    """Evaluate bar for S20.19 Sniper Scalp setup with Retest & RR Target support."""
+    if "target_profit_usd" in kwargs:
+        target_dollar = float(kwargs["target_profit_usd"])
+    if "rr" in kwargs:
+        rr_ratio = float(kwargs["rr"])
     if idx < 20 or idx >= len(df):
         return {"signal": "WAIT", "reason": "Not enough data"}
 
@@ -89,73 +84,78 @@ def evaluate_bar(df, idx, tf="M5", lot=0.03, target_dollar=10.0, contract_size=1
     if cur['hour'] in (23, 0):
         return {"signal": "WAIT", "reason": "Rollover hours"}
 
-    # Target price distance needed to reach exactly $target_dollar
-    # Profit = price_move * contract_size * lot
-    # price_move = target_dollar / (contract_size * lot)
+    # Target price distance needed if using fixed dollar mode
     target_dist = round(target_dollar / (contract_size * lot), 2)
 
-    # Volume spike check (>= 1.30x normal volume)
-    is_vol_surge = cur['vol_ratio'] >= 1.30
+    # Volume surge check (>= 1.20x normal volume)
+    is_vol_surge = cur['vol_ratio'] >= 1.20
 
     # -------------------------------------------------------------
     # 1. SNIPER BUY SETUP (Liquidity Sweep at Bottom + Rejection)
     # -------------------------------------------------------------
-    # Price pierced below the 15-bar low (stop hunt) but closed back up
     swept_low = cur['low'] < cur['swing_low_15']
-    rejection_wick_buy = (cur['lower_wick_pct'] >= 0.42) or (cur['lower_wick'] >= 1.1 * cur['body'])
+    rejection_wick_buy = (cur['lower_wick_pct'] >= 0.38) or (cur['lower_wick'] >= 1.1 * cur['body'])
     closed_in_upper_half = cur['close'] >= (cur['low'] + 0.45 * cur['range'])
     rsi_not_overbought = cur['rsi_fast'] <= 70.0
 
     if swept_low and rejection_wick_buy and closed_in_upper_half and is_vol_surge and rsi_not_overbought:
-        entry = round(cur['close'], 2)
-        # Tight SL just below the sweep low + micro buffer (15-20 points)
-        sl_buffer = max(0.18 * atr, 0.20)
-        sl = round(cur['low'] - sl_buffer, 2)
-        risk_dist = entry - sl
-
-        max_allowed_risk_dollar = max_allowed_risk
-        risk_dollar = risk_dist * contract_size * lot
-        if 0 < risk_dollar <= max_allowed_risk_dollar:
+        if entry_mode == "RETEST":
+            entry = round(cur['low'] + (0.50 * cur['lower_wick']), 2)
+            sl_buffer = max(0.25 * atr, 0.35)
+            sl = round(cur['low'] - sl_buffer, 2)
+            risk_dist = entry - sl
+            tp = round(entry + (risk_dist * rr_ratio), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl_buffer = max(0.18 * atr, 0.20)
+            sl = round(cur['low'] - sl_buffer, 2)
+            risk_dist = entry - sl
             tp = round(entry + target_dist, 2)
+
+        if risk_dist > 0.25:
             return {
                 "signal": "BUY",
                 "entry": entry,
                 "sl": sl,
                 "tp": tp,
-                "risk_dollar": round(risk_dollar, 2),
-                "target_dollar": target_dollar,
-                "pattern": f"S20.19 Sniper BUY (Vol: {cur['vol_ratio']:.1f}x | Risk: ${risk_dollar:.2f})",
-                "reason": f"Swept 15-bar Low -> Target +${target_dollar:.0f} (TP: {tp})"
+                "risk": risk_dist,
+                "risk_dollar": round(risk_dist * contract_size * lot, 2),
+                "pattern": f"S20.19 Sniper BUY (Vol: {cur['vol_ratio']:.1f}x | RR: {rr_ratio}R)",
+                "reason": f"Swept 15-bar Low -> Target {tp}"
             }
 
     # -------------------------------------------------------------
     # 2. SNIPER SELL SETUP (Liquidity Sweep at Top + Rejection)
     # -------------------------------------------------------------
     swept_high = cur['high'] > cur['swing_high_15']
-    rejection_wick_sell = (cur['upper_wick_pct'] >= 0.42) or (cur['upper_wick'] >= 1.1 * cur['body'])
+    rejection_wick_sell = (cur['upper_wick_pct'] >= 0.38) or (cur['upper_wick'] >= 1.1 * cur['body'])
     closed_in_lower_half = cur['close'] <= (cur['high'] - 0.45 * cur['range'])
     rsi_not_oversold = cur['rsi_fast'] >= 30.0
 
     if swept_high and rejection_wick_sell and closed_in_lower_half and is_vol_surge and rsi_not_oversold:
-        entry = round(cur['close'], 2)
-        # Tight SL just above the sweep high + micro buffer
-        sl_buffer = max(0.18 * atr, 0.20)
-        sl = round(cur['high'] + sl_buffer, 2)
-        risk_dist = sl - entry
-
-        max_allowed_risk_dollar = max_allowed_risk
-        risk_dollar = risk_dist * contract_size * lot
-        if 0 < risk_dollar <= max_allowed_risk_dollar:
+        if entry_mode == "RETEST":
+            entry = round(cur['high'] - (0.50 * cur['upper_wick']), 2)
+            sl_buffer = max(0.25 * atr, 0.35)
+            sl = round(cur['high'] + sl_buffer, 2)
+            risk_dist = sl - entry
+            tp = round(entry - (risk_dist * rr_ratio), 2)
+        else:
+            entry = round(cur['close'], 2)
+            sl_buffer = max(0.18 * atr, 0.20)
+            sl = round(cur['high'] + sl_buffer, 2)
+            risk_dist = sl - entry
             tp = round(entry - target_dist, 2)
+
+        if risk_dist > 0.25:
             return {
                 "signal": "SELL",
                 "entry": entry,
                 "sl": sl,
                 "tp": tp,
-                "risk_dollar": round(risk_dollar, 2),
-                "target_dollar": target_dollar,
-                "pattern": f"S20.19 Sniper SELL (Vol: {cur['vol_ratio']:.1f}x | Risk: ${risk_dollar:.2f})",
-                "reason": f"Swept 15-bar High -> Target +${target_dollar:.0f} (TP: {tp})"
+                "risk": risk_dist,
+                "risk_dollar": round(risk_dist * contract_size * lot, 2),
+                "pattern": f"S20.19 Sniper SELL (Vol: {cur['vol_ratio']:.1f}x | RR: {rr_ratio}R)",
+                "reason": f"Swept 15-bar High -> Target {tp}"
             }
 
     return {"signal": "WAIT", "reason": "No Sniper Setup"}
