@@ -3,7 +3,7 @@ import pandas as pd
 import MetaTrader5 as mt5
 from datetime import datetime, timedelta, timezone
 
-def generate_mt5_reports(df_trades, group_id, out_dir, symbol="XAUUSD.iux"):
+def generate_mt5_reports(df_trades, group_id, out_dir, symbol="XAUUSD.iux", profile=None):
     if df_trades.empty:
         return
         
@@ -27,7 +27,33 @@ def generate_mt5_reports(df_trades, group_id, out_dir, symbol="XAUUSD.iux"):
         return
 
     # 2. Fetch MT5 Orders and Deals to find our group
-    if not mt5.initialize():
+    # password มาจาก profile.env ของ profile นั้นๆ เท่านั้น (ห้าม hardcode ในโค้ด —
+    # เดิมมี MT5 password จริงฝังตรงๆ เกือบหลุดเข้า git history)
+    if not profile:
+        profile = 'demo-exness-434238722'
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    profile_path = os.path.join(base_dir, '..', '..', '..', 'profiles', 'demo', profile)
+    if not os.path.exists(profile_path):
+        profile_path = os.path.join(base_dir, '..', '..', '..', 'profiles', 'real', profile)
+    mt5_path = os.path.join(profile_path, 'mt5', 'terminal64.exe')
+    login = int(profile.split('-')[-1]) if '-' in profile else 0
+    server = 'Exness-MT5Trial7' if 'exness' in profile.lower() else 'IUXMarkets-Live'
+
+    password = os.getenv("MT5_PASSWORD", "")
+    profile_env_path = os.path.join(profile_path, 'profile.env')
+    if os.path.exists(profile_env_path):
+        with open(profile_env_path, 'r', encoding='utf-8') as pf:
+            for raw in pf:
+                line = raw.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                if key.strip() == 'MT5_PASSWORD':
+                    password = value.strip().strip('"').strip("'")
+                    break
+
+    if not mt5.initialize(path=mt5_path, login=login, password=password, server=server, portable=True):
         print("MT5 initialization failed in matcher")
         return
         
