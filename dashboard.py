@@ -2140,6 +2140,19 @@ def reorder_tf_columns(pivot_df, margins_name='รวมทั้งหมด'):
     return pivot_df[ordered + rest + tail]
 
 
+def _style_pnl_cell(v):
+    """ไล่สีตัวเลข P/L ใน st.dataframe: บวก=เขียว, ลบ=แดง, ศูนย์=เทา (ใช้กับ Styler.map)"""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return ""
+    if v > 0:
+        return "color: #34d399"
+    if v < 0:
+        return "color: #fb7185"
+    return "color: #94a3b8"
+
+
 # ─────────────────────────────────────────────────────────────
 #  MT5 DATA PIPELINE (LIVE TERMINAL & HISTORICAL TRADES)
 # ─────────────────────────────────────────────────────────────
@@ -4558,6 +4571,20 @@ if view_mode.startswith("🏦"):
                         unsafe_allow_html=True
                     )
 
+                    if 'tf' in dd.columns:
+                        with st.expander(f"📐 แยกตาม Strategy × Timeframe Matrix — {_sel_day_label}", expanded=False):
+                            try:
+                                dd_clean_tf = dd.copy()
+                                dd_clean_tf['tf'] = dd_clean_tf['tf'].fillna('Unknown').astype(str)
+                                daily_pnl_pivot = pd.pivot_table(
+                                    dd_clean_tf, index='strategy', columns='tf', values='net', aggfunc='sum',
+                                    fill_value=0, margins=True, margins_name='รวมทั้งหมด',
+                                ).round(2)
+                                daily_pnl_pivot = reorder_tf_columns(daily_pnl_pivot)
+                                st.dataframe(daily_pnl_pivot.style.map(_style_pnl_cell).format("{:.2f}"), use_container_width=True)
+                            except Exception as e:
+                                st.warning(f"ไม่สามารถแสดงตาราง Strategy × Timeframe Matrix ได้: {e}")
+
             if not df_month.empty:
                 st.markdown("---")
                 st.markdown(f"#### 🏆 Monthly Strategy Performance — {pycal.month_name[cal_month]} {cal_year}")
@@ -4577,7 +4604,25 @@ if view_mode.startswith("🏦"):
                         "Profit Factor": ("∞" if pf == float('inf') else f"{pf:.2f}"),
                     })
                 strat_month_df = pd.DataFrame(strat_rows).sort_values("Net P/L", ascending=False)
-                st.dataframe(strat_month_df, use_container_width=True)
+                st.dataframe(
+                    strat_month_df.style.map(_style_pnl_cell, subset=["Net P/L", "Avg Win", "Avg Loss"])
+                    .format("{:.2f}", subset=["Win%", "Net P/L", "Avg Win", "Avg Loss"]),
+                    use_container_width=True,
+                )
+
+                if 'tf' in dm.columns:
+                    with st.expander(f"📐 แยกตาม Strategy × Timeframe Matrix — {pycal.month_name[cal_month]} {cal_year}", expanded=False):
+                        try:
+                            dm_clean_tf = dm.copy()
+                            dm_clean_tf['tf'] = dm_clean_tf['tf'].fillna('Unknown').astype(str)
+                            monthly_pnl_pivot = pd.pivot_table(
+                                dm_clean_tf, index='strategy', columns='tf', values='net', aggfunc='sum',
+                                fill_value=0, margins=True, margins_name='รวมทั้งหมด',
+                            ).round(2)
+                            monthly_pnl_pivot = reorder_tf_columns(monthly_pnl_pivot)
+                            st.dataframe(monthly_pnl_pivot.style.map(_style_pnl_cell).format("{:.2f}"), use_container_width=True)
+                        except Exception as e:
+                            st.warning(f"ไม่สามารถแสดงตาราง Strategy × Timeframe Matrix ได้: {e}")
 
 
     # =============================================================
@@ -4696,7 +4741,11 @@ if view_mode.startswith("🏦"):
                     ).properties(height=280)
                     st.altair_chart(strat_chart, use_container_width=True)
 
-                    st.dataframe(strat_df, use_container_width=True)
+                    st.dataframe(
+                        strat_df.style.map(_style_pnl_cell, subset=["Net P/L", "Avg Win", "Avg Loss"])
+                        .format("{:.2f}", subset=["Win%", "Net P/L", "Avg Win", "Avg Loss"]),
+                        use_container_width=True,
+                    )
 
                     if 'tf' in d.columns:
                         with st.expander("📐 แยกตาม Strategy × Timeframe Matrix", expanded=False):
@@ -4708,7 +4757,7 @@ if view_mode.startswith("🏦"):
                                     fill_value=0, margins=True, margins_name='รวมทั้งหมด',
                                 ).round(2)
                                 pnl_pivot = reorder_tf_columns(pnl_pivot)
-                                st.dataframe(pnl_pivot, use_container_width=True)
+                                st.dataframe(pnl_pivot.style.map(_style_pnl_cell).format("{:.2f}"), use_container_width=True)
                             except Exception as e:
                                 st.warning(f"ไม่สามารถแสดงตาราง Strategy × Timeframe Matrix ได้: {e}")
 
