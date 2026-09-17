@@ -877,11 +877,15 @@ def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
                                   entry: float, sl: float, tp: float,
                                   setup_sig: str = "",
                                   tol: float = 0.05):
-    """หา pending setup เดิมที่ยังค้างอยู่ เพื่อลดการเปิดซ้ำบริเวณเดิม"""
+    """หา pending setup เดิมที่ยังค้างอยู่ พร้อมรองรับระบบเบิ้ลไม้ (Max Grid)"""
+    import config
+    max_grid = getattr(config, "MAX_GRID_LIMITS", {}).get(sid, 1)
+    found_tickets = set()
+
     if setup_sig:
         recent_ticket = _last_strategy9_setup_by_key.get(setup_sig)
         if recent_ticket:
-            return recent_ticket, "recent_setup"
+            found_tickets.add(recent_ticket)
 
     for ticket, info in list(pending_order_tf.items()):
         if not isinstance(info, dict):
@@ -892,15 +896,17 @@ def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
             continue
         if info.get("signal") != signal:
             continue
+        
+        is_match = False
         if setup_sig and info.get("setup_sig") == setup_sig:
-            return ticket, "setup_sig"
-        if not _same_price(info.get("entry"), entry, tol):
-            continue
-        if not _same_price(info.get("sl"), sl, tol):
-            continue
-        if not _same_price(info.get("tp"), tp, tol):
-            continue
-        return ticket, "runtime_state"
+            is_match = True
+        elif (_same_price(info.get("entry"), entry, tol) and 
+              _same_price(info.get("sl"), sl, tol) and 
+              _same_price(info.get("tp"), tp, tol)):
+            is_match = True
+            
+        if is_match:
+            found_tickets.add(ticket)
 
     orders = mt5.orders_get(symbol=SYMBOL) or []
     want_types = (
@@ -909,6 +915,7 @@ def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
         else {mt5.ORDER_TYPE_SELL_LIMIT, mt5.ORDER_TYPE_SELL_STOP}
     )
     comment_sid_token = f"_S{sid}"
+    
     for order in orders:
         if order.type not in want_types:
             continue
@@ -921,7 +928,11 @@ def _find_duplicate_pending_setup(tf_name: str, sid: int, signal: str,
             continue
         if not _same_price(getattr(order, "tp", 0.0), tp, tol):
             continue
-        return order.ticket, "mt5_pending"
+        
+        found_tickets.add(order.ticket)
+
+    if len(found_tickets) >= max_grid:
+        return list(found_tickets)[-1], f"max_grid_reached_{len(found_tickets)}/{max_grid}"
 
     return None, ""
 
@@ -3063,6 +3074,12 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     r20_14_9 = strategy20_14_groups.strategy_20_14_9(rates, tf=tf_name) if active_strategies.get(20.149, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.9 ปิด'}
     r20_14_12 = strategy20_14_groups.strategy_20_14_12(rates, tf=tf_name) if active_strategies.get(20.1412, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.12 ปิด'}
     r20_14_13 = strategy20_14_groups.strategy_20_14_13(rates, tf=tf_name) if active_strategies.get(20.1413, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.13 ปิด'}
+    r20_14_7 = strategy20_14_groups.strategy_20_14_7(rates, tf=tf_name) if active_strategies.get(20.147, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_8 = strategy20_14_groups.strategy_20_14_8(rates, tf=tf_name) if active_strategies.get(20.148, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_10 = strategy20_14_groups.strategy_20_14_10(rates, tf=tf_name) if active_strategies.get(20.1410, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_11 = strategy20_14_groups.strategy_20_14_11(rates, tf=tf_name) if active_strategies.get(20.1411, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_15 = strategy20_14_groups.strategy_20_14_15(rates, tf=tf_name) if active_strategies.get(20.1415, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_17 = strategy20_14_groups.strategy_20_14_17(rates, tf=tf_name) if active_strategies.get(20.1417, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
     r20_14_14 = strategy20_14_groups.strategy_20_14_14(rates, tf=tf_name) if active_strategies.get(20.1414, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
     r20_14_16 = strategy20_14_groups.strategy_20_14_16(rates, tf=tf_name) if active_strategies.get(20.1416, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
     r20_14_18 = strategy20_14_groups.strategy_20_14_18(rates, tf=tf_name) if active_strategies.get(20.1418, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
@@ -3177,13 +3194,14 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         else:
             r_s20_inst[_s_inst] = {"signal": "WAIT", "reason": f"S{_s_inst} ปิด"}
 
-    # S20 Multi-Asset Switchboard (ONLY S20.304 scans other symbols; other strategies use single primary symbol)
+    # S20 Multi-Asset Switchboard: S20.304 scans all enabled symbols across all active timeframes matching backtest
     s20_multi_results = []
-    if tf_name == "M5" and active_strategies.get(20.304, False):
+    if active_strategies.get(20.304, False):
         enabled_s20_syms = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
         for _other_sym, _is_on in enabled_s20_syms.items():
             if _is_on and _other_sym != SYMBOL:
                 try:
+                    mt5.symbol_select(_other_sym, True)
                     _other_bar = mt5.copy_rates_from_pos(_other_sym, tf_val, 1, _normal_rate_count)
                     if _other_bar is not None and len(_other_bar) >= lookback:
                         _r_inst = s20_institutional_hub.evaluate_s20_institutional(20.304, _other_bar, tf_name=tf_name, symbol=_other_sym)
@@ -3191,7 +3209,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                             _r_inst["symbol"] = _other_sym
                             s20_multi_results.append((20.304, _r_inst))
                 except Exception as _e_inst:
-                    log_error("S20.304_MULTI", f"Error scanning {_other_sym}: {_e_inst}")
+                    log_error("S20.304_MULTI", f"Error scanning {_other_sym} [{tf_name}]: {_e_inst}")
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":
@@ -3610,7 +3628,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
     _all_evaluated = [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
-                      (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (20.17, r20_17), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
+                      (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.147, r20_14_7), (20.148, r20_14_8), (20.1410, r20_14_10), (20.1411, r20_14_11), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1415, r20_14_15), (20.1417, r20_14_17), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (20.17, r20_17), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
 
     for sid, r in _all_evaluated:
         if not active_strategies.get(sid, False):
@@ -3653,7 +3671,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     first_entry_part = None
 
     _all_parts = [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
-                  (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
+                  (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.147, r20_14_7), (20.148, r20_14_8), (20.1410, r20_14_10), (20.1411, r20_14_11), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1415, r20_14_15), (20.1417, r20_14_17), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
 
     for sid, r in _all_parts:
         if not active_strategies.get(sid, False):
@@ -4630,15 +4648,18 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             any_success = True
             ot_name = order.get("order_type", "LIMIT")
             if order.get("ticket"):
+                _order_sym = result.get("symbol", SYMBOL)
+                _s_info = mt5.symbol_info(_order_sym)
+                _d = int(getattr(_s_info, "digits", 2)) if _s_info else 2
                 _pend_info = {
                     "tf":              tf_name,
-                    "symbol":          result.get("symbol", SYMBOL),
+                    "symbol":          _order_sym,
                     "risk":            result.get("risk", abs(entry - sl)),
-                    "entry":           round(entry, 2),
-                    "sl":              round(sl, 2),
-                    "tp":              round(tp, 2),
-                    "gap_bot":         round(entry - abs(entry - sl), 2),
-                    "gap_top":         round(entry + abs(entry - sl), 2),
+                    "entry":           round(entry, _d),
+                    "sl":              round(sl, _d),
+                    "tp":              round(tp, _d),
+                    "gap_bot":         round(entry - abs(entry - sl), _d),
+                    "gap_top":         round(entry + abs(entry - sl), _d),
                     "detect_bar_time": last_candle_time,
                     "signal":          signal,
                     "sid":             sid,

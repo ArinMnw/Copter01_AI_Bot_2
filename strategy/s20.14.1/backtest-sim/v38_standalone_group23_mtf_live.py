@@ -63,19 +63,24 @@ if __name__ == '__main__':
     parser.add_argument('--start', type=str, default=None, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, default=None, help='End date (YYYY-MM-DD)')
     parser.add_argument('--compare', action='store_true', help='Run MT5 history matching')
+    parser.add_argument('--compare-profile', type=str, default=None, help='MT5 profile directory name to use')
     args = parser.parse_args()
 
     days = args.day
     
     start_dt = None
     end_dt = None
-    if args.start and args.end:
+    if args.start:
         import pandas as pd
         from datetime import timedelta
         import pytz
         bkk_tz = pytz.timezone('Asia/Bangkok')
         start_dt = pd.to_datetime(args.start).tz_localize(bkk_tz)
-        end_dt = pd.to_datetime(args.end).tz_localize(bkk_tz)
+        # ใส่ --start เดี่ยวๆ ไม่ใส่ --end ได้ — default end = ตอนนี้ (BKK)
+        # เดิมต้องใส่คู่กันเสมอ (if args.start and args.end) ไม่งั้น start_dt/
+        # end_dt ค้างเป็น None ทั้งคู่แล้ว fallback ไปใช้ days=365 จาก 'now'
+        # เหมือนกันหมดไม่ว่า --start จะใส่ปีอะไร (เจอบั๊กจริง 2026-09-17)
+        end_dt = pd.to_datetime(args.end).tz_localize(bkk_tz) if args.end else pd.Timestamp.now(tz=bkk_tz)
         
         # Override days for internal logic
         days_diff = (end_dt - start_dt).days
@@ -85,8 +90,22 @@ if __name__ == '__main__':
     group_id = 23
     target_orders = [31]
     target_tfs = {"Naiya": [], "Inst_Gap": [], "Fibo": [], "FVG": [], "Naiya": ["H1"], "Doji": [], "MA12": [], "Div": [], "ATR": []}
-    mt5.initialize(r'D:\Project\Copter01_AI_Bot_2\profiles\demo\demo-iux-2101114448\mt5\terminal64.exe')
+    
+    mt5_path = r'D:\Project\Copter01_AI_Bot_2\profiles\demo\demo-iux-2101114448\mt5\terminal64.exe'
     symbol = "XAUUSD.iux"
+    if args.compare_profile:
+        # Check profile base folder
+        profile_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'profiles', 'demo', args.compare_profile)
+        if not os.path.exists(profile_path):
+            profile_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'profiles', 'real', args.compare_profile)
+        mt5_path = os.path.join(profile_path, 'mt5', 'terminal64.exe')
+        
+        # Override symbol if exness
+        if 'exness' in args.compare_profile.lower():
+            symbol = "XAUUSDm"
+    
+    mt5.initialize(mt5_path)
+
     info = mt5.symbol_info(symbol)
     if info is None:
         symbol = "XAUUSD"
@@ -678,7 +697,7 @@ if __name__ == '__main__':
     if args.compare:
         try:
             import mt5_matcher
-            mt5_matcher.generate_mt5_reports(df_trades, group_id, out_dir, symbol)
+            mt5_matcher.generate_mt5_reports(df_trades, group_id, out_dir, symbol, profile=args.compare_profile)
         except Exception as e:
             print(f"Error generating MT5 match reports: {e}")
 

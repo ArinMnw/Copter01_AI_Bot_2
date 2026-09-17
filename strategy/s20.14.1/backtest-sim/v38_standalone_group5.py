@@ -63,19 +63,24 @@ if __name__ == '__main__':
     parser.add_argument('--start', type=str, default=None, help='Start date (YYYY-MM-DD)')
     parser.add_argument('--end', type=str, default=None, help='End date (YYYY-MM-DD)')
     parser.add_argument('--compare', action='store_true', help='Run MT5 history matching')
+    parser.add_argument('--compare-profile', type=str, default=None, help='MT5 profile directory name to use')
     args = parser.parse_args()
 
     days = args.day
     
     start_dt = None
     end_dt = None
-    if args.start and args.end:
+    if args.start:
         import pandas as pd
         from datetime import timedelta
         import pytz
         bkk_tz = pytz.timezone('Asia/Bangkok')
         start_dt = pd.to_datetime(args.start).tz_localize(bkk_tz)
-        end_dt = pd.to_datetime(args.end).tz_localize(bkk_tz)
+        # ใส่ --start เดี่ยวๆ ไม่ใส่ --end ได้ — default end = ตอนนี้ (BKK)
+        # เดิมต้องใส่คู่กันเสมอ (if args.start and args.end) ไม่งั้น start_dt/
+        # end_dt ค้างเป็น None ทั้งคู่แล้ว fallback ไปใช้ days=365 จาก 'now'
+        # เหมือนกันหมดไม่ว่า --start จะใส่ปีอะไร (เจอบั๊กจริง 2026-09-17)
+        end_dt = pd.to_datetime(args.end).tz_localize(bkk_tz) if args.end else pd.Timestamp.now(tz=bkk_tz)
         
         # Override days for internal logic
         days_diff = (end_dt - start_dt).days
@@ -415,8 +420,27 @@ if __name__ == '__main__':
                         
             # -- GapSweep Trigger Logic (Enter immediately at Limit Price) --
             if row.gap_sweep_sell and tf_str in target_tfs.get("GapSweep", []):
-                sl = (limit_price + (row.atr * 2.0))
+                sl = (row.weekly_open + (row.atr * 1.5))
                 tp = row.weekly_open - (sl - row.weekly_open) * 1.618
+
+                # --- INJECTED TPSL OVERRIDE ---
+                _tpsl_mode = os.getenv("TPSL_EXP_MODE", "")
+                _tpsl_target = os.getenv("TPSL_EXP_TARGET", "")
+                if _tpsl_mode and _tpsl_target:
+                    import sys
+                    if 'tpsl_engine' not in sys.modules:
+                        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+                    import tpsl_engine
+                    _recent_3 = df.iloc[max(0, i-3):i]
+                    # Guess entry
+                    _entry_p = limit_price if 'limit_price' in locals() else (limit_p if 'limit_p' in locals() else row.close)
+                    if 'weekly_open' in str('round(row.weekly_open'): _entry_p = row.weekly_open
+                    _tpsl_res = tpsl_engine.get_tpsl(mode=_tpsl_mode, signal="SELL", entry_price=_entry_p, current_bar=row, recent_3=_recent_3, df=df, idx=i, tf=tf_str)
+                    if _tpsl_target in ["SL_ONLY", "BOTH"] and _tpsl_res["sl"] != 0:
+                        sl = _tpsl_res["sl"]
+                    if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
+                        tp = _tpsl_res["tp"]
+                # ------------------------------
                 open_trades.append({
                     "Pattern": "GapSweep", "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
                     "Type": "SELL", "Limit_Price": round(row.weekly_open, 2), "Entry": round(row.weekly_open, 2), "SL": round(sl, 2), "TP": round(tp, 2),
@@ -428,8 +452,27 @@ if __name__ == '__main__':
                 })
             
             if row.gap_sweep_buy and tf_str in target_tfs.get("GapSweep", []):
-                sl = (limit_price - (row.atr * 2.0))
+                sl = (row.weekly_open - (row.atr * 1.5))
                 tp = row.weekly_open + (row.weekly_open - sl) * 1.618
+
+                # --- INJECTED TPSL OVERRIDE ---
+                _tpsl_mode = os.getenv("TPSL_EXP_MODE", "")
+                _tpsl_target = os.getenv("TPSL_EXP_TARGET", "")
+                if _tpsl_mode and _tpsl_target:
+                    import sys
+                    if 'tpsl_engine' not in sys.modules:
+                        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+                    import tpsl_engine
+                    _recent_3 = df.iloc[max(0, i-3):i]
+                    # Guess entry
+                    _entry_p = limit_price if 'limit_price' in locals() else (limit_p if 'limit_p' in locals() else row.close)
+                    if 'weekly_open' in str('round(row.weekly_open'): _entry_p = row.weekly_open
+                    _tpsl_res = tpsl_engine.get_tpsl(mode=_tpsl_mode, signal="BUY", entry_price=_entry_p, current_bar=row, recent_3=_recent_3, df=df, idx=i, tf=tf_str)
+                    if _tpsl_target in ["SL_ONLY", "BOTH"] and _tpsl_res["sl"] != 0:
+                        sl = _tpsl_res["sl"]
+                    if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
+                        tp = _tpsl_res["tp"]
+                # ------------------------------
                 open_trades.append({
                     "Pattern": "GapSweep", "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
                     "Type": "BUY", "Limit_Price": round(row.weekly_open, 2), "Entry": round(row.weekly_open, 2), "SL": round(sl, 2), "TP": round(tp, 2),
@@ -582,7 +625,7 @@ if __name__ == '__main__':
                 
                 # 🎯 Deep Sniper Limit Order
                 limit_price = fibo_buy_krh3 if "Fibo" in patterns_buy else row.recent_low 
-                sl = s11_sl_buy if ("Fibo" in patterns_buy and s11_sl_buy) else (limit_price - (row.atr * 2.0))
+                sl = s11_sl_buy if ("Fibo" in patterns_buy and s11_sl_buy) else (limit_price - (row.atr * 1.5))
                 swing_size = row.recent_high - row.recent_low
                 tp = s11_tp_buy if ("Fibo" in patterns_buy and s11_tp_buy) else limit_price + (swing_size * 1.618) # fallback
                 
@@ -595,6 +638,25 @@ if __name__ == '__main__':
                     
                 be_trig = limit_price + (tp - limit_price) * 0.4
 
+
+                # --- INJECTED TPSL OVERRIDE ---
+                _tpsl_mode = os.getenv("TPSL_EXP_MODE", "")
+                _tpsl_target = os.getenv("TPSL_EXP_TARGET", "")
+                if _tpsl_mode and _tpsl_target:
+                    import sys
+                    if 'tpsl_engine' not in sys.modules:
+                        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+                    import tpsl_engine
+                    _recent_3 = df.iloc[max(0, i-3):i]
+                    # Guess entry
+                    _entry_p = limit_price if 'limit_price' in locals() else (limit_p if 'limit_p' in locals() else row.close)
+                    if 'weekly_open' in str('round(limit_price'): _entry_p = row.weekly_open
+                    _tpsl_res = tpsl_engine.get_tpsl(mode=_tpsl_mode, signal="BUY", entry_price=_entry_p, current_bar=row, recent_3=_recent_3, df=df, idx=i, tf=tf_str)
+                    if _tpsl_target in ["SL_ONLY", "BOTH"] and _tpsl_res["sl"] != 0:
+                        sl = _tpsl_res["sl"]
+                    if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
+                        tp = _tpsl_res["tp"]
+                # ------------------------------
                 pending_orders.append({
                     "Pattern": combined_pat, "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
                     "Type": "BUY", "Limit_Price": round(limit_price, 2), "Entry": 0.0, "SL": round(sl, 2), "TP": round(tp, 2),
@@ -690,7 +752,7 @@ if __name__ == '__main__':
                 
                 # 🎯 Deep Sniper Limit Order
                 limit_price = fibo_sell_krh3 if "Fibo" in patterns_sell else row.recent_high 
-                sl = s11_sl_sell if ("Fibo" in patterns_sell and s11_sl_sell) else (limit_price + (row.atr * 2.0))
+                sl = s11_sl_sell if ("Fibo" in patterns_sell and s11_sl_sell) else (limit_price + (row.atr * 1.5))
                 swing_size = row.recent_high - row.recent_low
                 tp = s11_tp_sell if ("Fibo" in patterns_sell and s11_tp_sell) else limit_price - (swing_size * 1.618) # fallback
                 
@@ -703,6 +765,25 @@ if __name__ == '__main__':
                     
                 be_trig = limit_price - (limit_price - tp) * 0.4 
 
+
+                # --- INJECTED TPSL OVERRIDE ---
+                _tpsl_mode = os.getenv("TPSL_EXP_MODE", "")
+                _tpsl_target = os.getenv("TPSL_EXP_TARGET", "")
+                if _tpsl_mode and _tpsl_target:
+                    import sys
+                    if 'tpsl_engine' not in sys.modules:
+                        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+                    import tpsl_engine
+                    _recent_3 = df.iloc[max(0, i-3):i]
+                    # Guess entry
+                    _entry_p = limit_price if 'limit_price' in locals() else (limit_p if 'limit_p' in locals() else row.close)
+                    if 'weekly_open' in str('round(limit_price'): _entry_p = row.weekly_open
+                    _tpsl_res = tpsl_engine.get_tpsl(mode=_tpsl_mode, signal="SELL", entry_price=_entry_p, current_bar=row, recent_3=_recent_3, df=df, idx=i, tf=tf_str)
+                    if _tpsl_target in ["SL_ONLY", "BOTH"] and _tpsl_res["sl"] != 0:
+                        sl = _tpsl_res["sl"]
+                    if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
+                        tp = _tpsl_res["tp"]
+                # ------------------------------
                 pending_orders.append({
                     "Pattern": combined_pat, "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
                     "Type": "SELL", "Limit_Price": round(limit_price, 2), "Entry": 0.0, "SL": round(sl, 2), "TP": round(tp, 2),
@@ -827,7 +908,7 @@ if __name__ == '__main__':
     if args.compare:
         try:
             import mt5_matcher
-            mt5_matcher.generate_mt5_reports(df_trades, group_id, out_dir, symbol)
+            mt5_matcher.generate_mt5_reports(df_trades, group_id, out_dir, symbol, profile=args.compare_profile)
         except Exception as e:
             print(f"Error generating MT5 match reports: {e}")
 

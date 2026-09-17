@@ -584,3 +584,112 @@ def strategy_20_14_16(rates, tf="H1"):
 def strategy_20_14_18(rates, tf="H1"):
     # Group 18: Naiya
     return strategy_20_14_16(rates, tf) # Shares same core logic as 16 for now
+
+
+# ------------- GROUP 7 -------------
+def strategy_20_14_7(rates, tf="H1"):
+    if rates is None or len(rates) < 55: return {"signal": "WAIT"}
+    df = prepare_indicators(rates, tf)
+    current_bar = df.iloc[-1]
+    s11_res = strategy11.strategy_11(rates, tf)
+    if s11_res and s11_res.get("signal") == "BUY":
+        return {"signal": "BUY", "entry": s11_res.get("entry", current_bar['close']), "sl": s11_res.get("sl"), "tp": s11_res.get("tp"), "pattern": "Fibo", "reason": "Group 7 Fibo BUY"}
+    if s11_res and s11_res.get("signal") == "SELL":
+        return {"signal": "SELL", "entry": s11_res.get("entry", current_bar['close']), "sl": s11_res.get("sl"), "tp": s11_res.get("tp"), "pattern": "Fibo", "reason": "Group 7 Fibo SELL"}
+    return {"signal": "WAIT", "reason": "No Setup"}
+
+# ------------- GROUP 8 -------------
+def strategy_20_14_8(rates, tf="H1"):
+    if rates is None or len(rates) < 55: return {"signal": "WAIT"}
+    load_models()
+    df = prepare_indicators(rates, tf)
+    current_bar = df.iloc[-1]
+    if pd.isna(current_bar['atr']): return {"signal": "WAIT"}
+    
+    if getattr(current_bar, 'gap_sweep_buy', False):
+        entry = current_bar['weekly_open']
+        sl = current_bar['low']
+        tp = entry + (entry - sl) * 1.618
+        return {"signal": "BUY", "entry": entry, "sl": sl, "tp": tp, "pattern": "GapSweep", "reason": "Group 8 GapSweep BUY"}
+    if getattr(current_bar, 'gap_sweep_sell', False):
+        entry = current_bar['weekly_open']
+        sl = current_bar['high']
+        tp = entry - (sl - entry) * 1.618
+        return {"signal": "SELL", "entry": entry, "sl": sl, "tp": tp, "pattern": "GapSweep", "reason": "Group 8 GapSweep SELL"}
+
+    if current_bar['naiya_doji_buy_base']:
+        entry = current_bar['recent_low']
+        sl = entry - (2.5 * current_bar['atr'])
+        tp = entry + ((current_bar['recent_high'] - entry) * 1.618)
+        return {"signal": "BUY", "entry": entry, "sl": sl, "tp": tp, "pattern": "Naiya", "reason": "Group 8 Naiya BUY"}
+    if current_bar['naiya_doji_sell_base']:
+        entry = current_bar['recent_high']
+        sl = entry + (2.5 * current_bar['atr'])
+        tp = entry - ((entry - current_bar['recent_low']) * 1.618)
+        return {"signal": "SELL", "entry": entry, "sl": sl, "tp": tp, "pattern": "Naiya", "reason": "Group 8 Naiya SELL"}
+
+    if current_bar['range'] > 0 and current_bar['body'] < 0.4 * current_bar['range'] and (current_bar['close'] - current_bar['low']) > 0.5 * current_bar['range'] and current_bar['low'] <= current_bar['recent_low'] + current_bar['atr']*0.5 and 0 <= current_bar['rsi'] <= 2:
+        entry = current_bar['recent_low']
+        sl = entry - (2.5 * current_bar['atr'])
+        tp = entry + ((current_bar['recent_high'] - entry) * 1.618)
+        return {"signal": "BUY", "entry": entry, "sl": sl, "tp": tp, "pattern": "Doji", "reason": "Group 8 Doji BUY"}
+    if current_bar['range'] > 0 and current_bar['body'] < 0.4 * current_bar['range'] and (current_bar['high'] - current_bar['close']) > 0.5 * current_bar['range'] and current_bar['high'] >= current_bar['recent_high'] - current_bar['atr']*0.5 and 74 <= current_bar['rsi'] <= 78 and current_bar['close'] < current_bar['sma50'] and current_bar['close'] < current_bar['sma200']:
+        entry = current_bar['recent_high']
+        sl = entry + (2.5 * current_bar['atr'])
+        tp = entry - ((entry - current_bar['recent_low']) * 1.618)
+        return {"signal": "SELL", "entry": entry, "sl": sl, "tp": tp, "pattern": "Doji", "reason": "Group 8 Doji SELL"}
+
+    return {"signal": "WAIT", "reason": "No Setup"}
+
+# ------------- GROUP 10 -------------
+def strategy_20_14_10(rates, tf="M15"):
+    return strategy_20_14_7(rates, tf)
+
+# ------------- GROUP 11 -------------
+def strategy_20_14_11(rates, tf="M15"):
+    if rates is None or len(rates) < 55: return {"signal": "WAIT"}
+    df = prepare_indicators(rates, tf)
+    current_bar = df.iloc[-1]
+    
+    s11_res = strategy11.strategy_11(rates, tf)
+    if s11_res and s11_res.get("signal") == "BUY":
+        return {"signal": "BUY", "entry": s11_res.get("entry", current_bar['close']), "sl": s11_res.get("sl"), "tp": s11_res.get("tp"), "pattern": "Fibo", "reason": "Group 11 Fibo BUY"}
+    if s11_res and s11_res.get("signal") == "SELL":
+        return {"signal": "SELL", "entry": s11_res.get("entry", current_bar['close']), "sl": s11_res.get("sl"), "tp": s11_res.get("tp"), "pattern": "Fibo", "reason": "Group 11 Fibo SELL"}
+        
+    if current_bar['range'] > 0 and current_bar['body'] < 0.4 * current_bar['range'] and (current_bar['close'] - current_bar['low']) > 0.5 * current_bar['range'] and current_bar['low'] <= current_bar['recent_low'] + current_bar['atr']*0.5 and 0 <= current_bar['rsi'] <= 2:
+        entry = current_bar['recent_low']
+        sl = entry - (2.5 * current_bar['atr'])
+        tp = entry + ((current_bar['recent_high'] - entry) * 1.618)
+        return {"signal": "BUY", "entry": entry, "sl": sl, "tp": tp, "pattern": "Doji", "reason": "Group 11 Doji BUY"}
+    if current_bar['range'] > 0 and current_bar['body'] < 0.4 * current_bar['range'] and (current_bar['high'] - current_bar['close']) > 0.5 * current_bar['range'] and current_bar['high'] >= current_bar['recent_high'] - current_bar['atr']*0.5 and 74 <= current_bar['rsi'] <= 78 and current_bar['close'] < current_bar['sma50'] and current_bar['close'] < current_bar['sma200']:
+        entry = current_bar['recent_high']
+        sl = entry + (2.5 * current_bar['atr'])
+        tp = entry - ((entry - current_bar['recent_low']) * 1.618)
+        return {"signal": "SELL", "entry": entry, "sl": sl, "tp": tp, "pattern": "Doji", "reason": "Group 11 Doji SELL"}
+
+    return {"signal": "WAIT", "reason": "No Setup"}
+
+# ------------- GROUP 15 -------------
+def strategy_20_14_15(rates, tf="H1"):
+    return strategy_20_14_7(rates, tf)
+
+# ------------- GROUP 17 -------------
+def strategy_20_14_17(rates, tf="D1"):
+    if rates is None or len(rates) < 55: return {"signal": "WAIT"}
+    df = prepare_indicators(rates, tf)
+    current_bar = df.iloc[-1]
+    
+    if current_bar['bull_fvg_10']:
+        entry = current_bar['recent_low']
+        sl = entry - (2.5 * current_bar['atr'])
+        tp = entry + ((current_bar['recent_high'] - entry) * 1.618)
+        return {"signal": "BUY", "entry": entry, "sl": sl, "tp": tp, "pattern": "FVG_D1", "reason": "Group 17 FVG BUY"}
+        
+    if current_bar['bear_fvg_10']:
+        entry = current_bar['recent_high']
+        sl = entry + (2.5 * current_bar['atr'])
+        tp = entry - ((entry - current_bar['recent_low']) * 1.618)
+        return {"signal": "SELL", "entry": entry, "sl": sl, "tp": tp, "pattern": "FVG_D1", "reason": "Group 17 FVG SELL"}
+
+    return {"signal": "WAIT", "reason": "No Setup"}
