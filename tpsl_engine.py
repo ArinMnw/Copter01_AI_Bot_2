@@ -11,14 +11,17 @@ def get_fuel_multiplier(current_tf, target_tf):
         return 1.0
     return (tgt_m / cur_m) ** 0.5
 
-def calculate_tpsl_s20_13_23(signal, current_bar, recent_3, tf, target_tf_buy="H12", target_tf_sell="D1", active_mode=2.6):
+def calculate_tpsl_s20_13_23(signal, current_bar, recent_3, tf, target_tf_buy="H12", target_tf_sell="D1", active_mode=2.6, entry_price=None):
     """
     S20.13.23 / S20.13.24 TPSL Mode:
     SL: Sweep Bottom/Top + Buffer
     TP: Sweep Bottom/Top +/- (ATR * Active_Mode * FuelMultiplier)
     """
     if signal == "BUY":
-        sweep_bottom = min(recent_3['low'].min(), current_bar['low'])
+        if entry_price is not None and abs(entry_price - current_bar['close']) > (current_bar['atr'] * 0.1):
+            sweep_bottom = entry_price
+        else:
+            sweep_bottom = min(recent_3['low'].min(), current_bar['low'])
         sl = round(sweep_bottom - config.SL_BUFFER(current_bar['atr']), 2)
         fuel_multiplier = get_fuel_multiplier(tf, target_tf_buy)
         fuel = current_bar['atr'] * active_mode * fuel_multiplier
@@ -26,7 +29,10 @@ def calculate_tpsl_s20_13_23(signal, current_bar, recent_3, tf, target_tf_buy="H
         return {"sl": sl, "tp": tp}
         
     elif signal == "SELL":
-        sweep_top = max(recent_3['high'].max(), current_bar['high'])
+        if entry_price is not None and abs(entry_price - current_bar['close']) > (current_bar['atr'] * 0.1):
+            sweep_top = entry_price
+        else:
+            sweep_top = max(recent_3['high'].max(), current_bar['high'])
         sl = round(sweep_top + config.SL_BUFFER(current_bar['atr']), 2)
         fuel_multiplier = get_fuel_multiplier(tf, target_tf_sell)
         fuel = current_bar['atr'] * active_mode * fuel_multiplier
@@ -107,4 +113,4 @@ def get_tpsl(mode, signal, entry_price, current_bar, recent_3, df, idx, tf, targ
         return calculate_tpsl_s20_14_23(signal, entry_price, current_bar, df, idx)
     else:
         # Default to S20.13.23 (Quant Fuel)
-        return calculate_tpsl_s20_13_23(signal, current_bar, recent_3, tf, target_tf_buy, target_tf_sell, active_mode)
+        return calculate_tpsl_s20_13_23(signal, current_bar, recent_3, tf, target_tf_buy, target_tf_sell, active_mode, entry_price=entry_price)

@@ -3463,7 +3463,7 @@ async def check_limit_fill_notify(app):
     First-run guard: suppress positions ที่อายุเกิน _FILL_INIT_SUPPRESS_SEC (กัน re-notify หลัง restart)
     """
     global _fill_initialized
-    positions = mt5.positions_get(symbol=SYMBOL)
+    positions = mt5.positions_get() or []
     if not positions:
         return
 
@@ -6669,6 +6669,25 @@ async def check_s20_institutional_trail(app):
         profit_dist = (cur_price - entry) if pos_type == "BUY" else (entry - cur_price)
         cur_r = profit_dist / risk
 
+        digits = 3 if ("JPY" in sym or "XAG" in sym) else (5 if any(x in sym for x in ("EUR", "GBP", "AUD", "NZD", "CAD", "CHF")) else 2)
+
+        # Breakeven lock @0.8R — ให้ตรงกับ backtest (run_s20_304_m5_verified.py::run_asset_sim,
+        # be_trigger=0.8) ที่ล็อก SL=entry ก่อนเข้า ratchet stages เสมอ — เดิม live ไม่มีขั้นนี้
+        # เลย เริ่มป้องกันจาก stage แรกที่ 1.5R อย่างเดียว ทำให้ไม้ที่ย่อกลับระหว่าง 0.8-1.5R
+        # ไม่ได้ breakeven ต่างจาก backtest — เช็คทุกรอบ idempotent เหมือน backtest (ไม่ต้องมี
+        # state flag แยก เพราะเงื่อนไข pos.sl ฝั่งตรงข้าม entry การันตีไม่ยิงซ้ำเมื่อ lock แล้ว)
+        be_target = round(entry, digits)
+        be_locked = (pos.sl >= be_target) if pos_type == "BUY" else (0 < pos.sl <= be_target)
+        if cur_r >= 0.8 and not be_locked:
+            if _modify_sl(pos, be_target):
+                sig_e = "🟢" if pos_type == "BUY" else "🔴"
+                clean_sym = sym.replace(".iux", "")
+                await tg(app, (
+                    f"🛡️ *S{sid} Breakeven Lock (+0.8R)*\n"
+                    f"{sig_e} [{clean_sym}] Ticket:`{ticket}`\n"
+                    f"SL: `{pos.sl}` -> `{be_target}` (entry)"
+                ))
+
         try:
             from strategy.run_master_s20_marathon_201_to_300 import make_stages
             stages = make_stages(56 if sid == 20.303 else 55)
@@ -6687,9 +6706,8 @@ async def check_s20_institutional_trail(app):
                 break
 
         if best_idx > st.get("stage_idx", -1):
-            digits = 3 if ("JPY" in sym or "XAG" in sym) else (5 if any(x in sym for x in ("EUR", "GBP", "AUD", "NZD", "CAD", "CHF")) else 2)
             target_sl = round(entry + (best_lock * risk), digits) if pos_type == "BUY" else round(entry - (best_lock * risk), digits)
-            
+
             should_move = (target_sl > pos.sl) if pos_type == "BUY" else (pos.sl <= 0 or target_sl < pos.sl)
             if should_move:
                 if _modify_sl(pos, target_sl):
@@ -7799,14 +7817,14 @@ async def check_cancel_pending_orders(app):
 
     Main swing high/low means max/min from the TF lookback window.
     """
-    orders = mt5.orders_get(symbol=SYMBOL) or []
+    orders = mt5.orders_get() or []
     now = now_bkk().strftime("%H:%M:%S")
     open_tickets = {o.ticket for o in orders}
     # tickets ที่กลายเป็น position แล้ว (filled) → ไม่ pop position_tf ออก
     # หมายเหตุ: ห้าม clear pending_order_tf ทั้งหมดแค่เพราะ orders ว่าง — ticket ที่ fill
     # กลายเป็น position (เช่น market order ของ S14) ก็ไม่อยู่ใน orders_get() เหมือนกัน
     # แต่ยังต้องการ info (flow_id, s14_ref_bar_time, intended_sl ฯลฯ) ไปใช้ตอนประมวลผล fill
-    _open_pos_tickets = {p.ticket for p in (mt5.positions_get(symbol=SYMBOL) or [])}
+    _open_pos_tickets = {p.ticket for p in (mt5.positions_get() or [])}
     if not orders and not _open_pos_tickets:
         pending_order_tf.clear()
         _pdfiboplus_state.clear()
@@ -7896,7 +7914,8 @@ async def check_cancel_pending_orders(app):
 
         tf_val   = TF_OPTIONS.get(tf, mt5.TIMEFRAME_M1)
         lookback = TF_LOOKBACK.get(tf, SWING_LOOKBACK)
-        rates    = mt5.copy_rates_from_pos(SYMBOL, tf_val, 1, lookback + 6)
+        order_sym = getattr(order, "symbol", "") or (info.get("symbol") if isinstance(info, dict) else "") or SYMBOL
+        rates    = mt5.copy_rates_from_pos(order_sym, tf_val, 1, lookback + 6)
         if rates is None or len(rates) < 5:
             continue
 
@@ -7908,8 +7927,9 @@ async def check_cancel_pending_orders(app):
 
         # Candle quality uses check_tf (the smaller TF)
         check_tf_val   = TF_OPTIONS.get(check_tf, mt5.TIMEFRAME_M1)
-        check_lookback = min(TF_LOOKBACK.get(check_tf, SWING_LOOKBACK) + 6, 50)
-        candle_rates   = mt5.copy_rates_from_pos(SYMBOL, check_tf_val, 1, check_lookback)
+        needed_cb      = (int(info.get("cancel_bars", 0)) + 6) if isinstance(info, dict) else 0
+        check_lookback = max(min(TF_LOOKBACK.get(check_tf, SWING_LOOKBACK) + 6, 50), needed_cb)
+        candle_rates   = mt5.copy_rates_from_pos(order_sym, check_tf_val, 1, check_lookback)
         if candle_rates is None:
             candle_rates = rates
 
@@ -8177,7 +8197,7 @@ async def check_cancel_pending_orders(app):
         # Limit Guard: cancel limits whose entry is too far from an existing open position
         # S15 (VP) วาง limit ที่ POC/VAL/VAH ซึ่งอาจไกลจาก position โดยตั้งใจ (รอราคาย้อนมา) → skip
         # S1 skip เหมือน SL_GUARD_SKIP_SIDS/SL_GUARD_GROUP_SKIP_SIDS (ยิงแท่งติดกันได้ตามที่ตั้งใจ)
-        if not should_cancel and config.LIMIT_GUARD and _order_sid not in (1, 10, 12, 13, 15, 16, 17, 18, 19):
+        if not should_cancel and config.LIMIT_GUARD and _order_sid not in set(getattr(config, "LIMIT_GUARD_SKIP_SIDS", (1, 10, 12, 13, 15, 16, 17, 18, 19))):
             limit_tf = info.get("tf") if isinstance(info, dict) else info
             positions = mt5.positions_get(symbol=SYMBOL)
             tf_separate = config.LIMIT_GUARD_TF_MODE == "separate"
@@ -8229,7 +8249,7 @@ async def check_cancel_pending_orders(app):
                             break
 
         # Near Approach Cancel: cancel limit when price gets near entry then pulls away
-        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED and _order_sid not in (10, 16):
+        if not should_cancel and config.NEAR_APPROACH_CANCEL_ENABLED and _order_sid not in set(getattr(config, "NEAR_APPROACH_CANCEL_SKIP_SIDS", (10, 16))):
             _nac_sym = mt5.symbol_info(SYMBOL)
             if _nac_sym:
                 _pt = _nac_sym.point or 0.01
@@ -8482,14 +8502,18 @@ async def check_cancel_pending_orders(app):
         if not should_cancel and isinstance(info, dict) and info.get("cancel_bars"):
             detect_time = int(info.get("detect_bar_time", 0) or 0)
             if detect_time:
-                bars_after = [r for r in candle_rates if int(r["time"]) > detect_time]
-                if len(bars_after) >= info["cancel_bars"]:
+                _cb_tf_secs = _TF_SECONDS.get(str(check_tf).upper(), 60)
+                latest_ts = int(candle_rates[-1]["time"]) if candle_rates is not None and len(candle_rates) > 0 else (int(rates[-1]["time"]) if len(rates) > 0 else 0)
+                elapsed_candles = (latest_ts - detect_time) // _cb_tf_secs if _cb_tf_secs > 0 else 0
+                bars_after = [r for r in candle_rates if int(r["time"]) > detect_time] if candle_rates is not None else []
+                if elapsed_candles >= info["cancel_bars"] or len(bars_after) >= info["cancel_bars"]:
                     should_cancel = True
-                    reason = f"Expired after {info['cancel_bars']} candles ({check_tf})"
+                    reason = f"Expired after {info['cancel_bars']} candles ({check_tf}) [elapsed={elapsed_candles} candles]"
 
+        _is_s20_inst = _order_sid in (20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304)
         if order.type == mt5.ORDER_TYPE_BUY_LIMIT:
             # BUY LIMIT: cancel when price closes above the main swing high
-            if not should_cancel and last_close > swing_high:
+            if not _is_s20_inst and not should_cancel and last_close > swing_high:
                 should_cancel = True
                 reason = f"Close:{last_close:.2f} > Swing High:{swing_high:.2f}"
             # BUY LIMIT: next candle after detect closes red with body>=35% -> setup fails
@@ -8511,7 +8535,7 @@ async def check_cancel_pending_orders(app):
 
         elif order.type == mt5.ORDER_TYPE_SELL_LIMIT:
             # SELL LIMIT: ลบเมื่อราคาปิดต่ำกว่า Swing Low หลัก
-            if not should_cancel and last_close < swing_low:
+            if not _is_s20_inst and not should_cancel and last_close < swing_low:
                 should_cancel = True
                 reason = f"Close:{last_close:.2f} < Swing Low:{swing_low:.2f}"
             # SELL LIMIT: แท่งถัดจาก detect ปิดเขียว body>=35% -> setup ล้มเหลว
