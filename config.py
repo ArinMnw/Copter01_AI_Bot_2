@@ -573,7 +573,7 @@ SL_GUARD_GROUP_SKIP_SIDS      = {1, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 
 OPPOSITE_ORDER_SKIP_SIDS      = {10, 12, 13, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
 PDFIBOPLUS_SKIP_SIDS          = {1, 4, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
 SHARED_TP_SKIP_SIDS           = {1, 10, 11 ,20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
-LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.1323, 20.1324, 20.16, 20.17}  # S20.13/S20.13.23/S20.16/S20.17: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
+LIMIT_SWEEP_SKIP_SIDS         = {20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17}  # S20.13/S20.13.23/S20.16/S20.17: การจัดการปิด position เป็น custom (BE+guard) ตาม backtest เท่านั้น
 # เดิม hardcode tuple แยกอยู่ตรงจุดใช้งานใน trailing.py/scanner.py แต่ละจุด แล้ว drift ไม่ตรงกัน
 # (ขาด sid บางตัวไปทีละจุด เช่น 20.12 หายไปจากหลายจุดพร้อมกัน) — ย้ายมารวมไว้ที่นี่ที่เดียว
 RSI_RECHECK_SKIP_SIDS         = {1, 4, 9, 11, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
@@ -583,6 +583,8 @@ ENTRY_CANDLE_QUALITY_SKIP_SIDS = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6
 TRAIL_SL_SKIP_SIDS            = {10, 12, 13, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 20.17, 21, 95, 96}
 SWEEP_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 21, 95, 96}
 TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 20.13, 20.14, 20.1323, 20.1324, 20.16, 21, 95, 96}
+LIMIT_GUARD_SKIP_SIDS       = {1, 10, 12, 13, 15, 16, 17, 18, 19, 20.14, 20.13, 20.1323, 20.1324, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
+NEAR_APPROACH_CANCEL_SKIP_SIDS = {10, 16, 20.14, 20.13, 20.1323, 20.1324, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
 
 # --- Dynamic Expansion for s20.14 Variants ---
 # Ensure any set that skips 20.14 also automatically skips all its sub-groups
@@ -590,12 +592,12 @@ _skip_sets = [
     PENDING_LIMIT_GUARD_SKIP_SIDS, NEWS_FILTER_SKIP_SIDS, SL_GUARD_SKIP_SIDS, SL_GUARD_GROUP_SKIP_SIDS,
     OPPOSITE_ORDER_SKIP_SIDS, PDFIBOPLUS_SKIP_SIDS, SHARED_TP_SKIP_SIDS, LIMIT_SWEEP_SKIP_SIDS,
     RSI_RECHECK_SKIP_SIDS, FILL_TREND_RECHECK_SKIP_SIDS, PENDING_TREND_RECHECK_SKIP_SIDS,
-    ENTRY_CANDLE_QUALITY_SKIP_SIDS, TRAIL_SL_SKIP_SIDS, SWEEP_FILTER_SKIP_SIDS, TREND_FILTER_SKIP_SIDS
+    ENTRY_CANDLE_QUALITY_SKIP_SIDS, TRAIL_SL_SKIP_SIDS, SWEEP_FILTER_SKIP_SIDS, TREND_FILTER_SKIP_SIDS,
+    LIMIT_GUARD_SKIP_SIDS, NEAR_APPROACH_CANCEL_SKIP_SIDS
 ]
-_s20_14_variants = {20.141, 20.142, 20.145, 20.149, 20.1412, 20.1413, 20.1414, 20.1416, 20.1418, 20.1419, 20.1421, 20.1422, 20.1423, 20.1424}
+_s20_14_variants = {20.141, 20.142, 20.145, 20.147, 20.148, 20.1410, 20.1411, 20.1412, 20.1413, 20.1415, 20.1417, 20.1418, 20.1422, 20.1423, 20.1424}
 for s in _skip_sets:
-    if 20.14 in s:
-        s.update(_s20_14_variants)
+    s.update(_s20_14_variants)
 
 # --- Dynamic Expansion for S20 Institutional Suite (Standalone 20.18 - 20.304) ---
 _s20_institutional_variants = {20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304}
@@ -646,6 +648,23 @@ SL_ATR_MULT    = 2      # ตัวคูณ: 1=×1, 2=×2, ..., 5=×5  (default
 # Guard: pre-check orders_total ก่อนยิง — ถ้าใกล้เต็ม → skip เงียบ (ไม่ยิง broker
 # + caller เข้า branch skipped ที่ dedup แล้ว) และเมื่อโดน 10033 → cooldown สั้นๆ
 PENDING_LIMIT_GUARD_ENABLED = True   # เปิด/ปิด guard
+MAX_GRID_LIMITS = {
+    20.141: 99999,
+    20.142: 99999,
+    20.145: 99999,
+    20.147: 99999,
+    20.148: 99999,
+    20.1410: 99999,
+    20.1411: 99999,
+    20.1412: 99999,
+    20.1413: 99999,
+    20.1415: 99999,
+    20.1417: 99999,
+    20.1418: 99999,
+    20.1422: 99999,
+    20.1423: 99999,
+    20.1424: 99999,
+}
 PENDING_LIMIT_BUFFER        = 2      # เว้นช่อง pending ว่างกี่ตัวก่อนถึง broker cap
 ORDERS_LIMIT_COOLDOWN_SEC   = 60     # หลังโดน 10033 → งดยิง order ใหม่กี่วินาที
 
@@ -957,20 +976,26 @@ active_strategies = {
     20.13: True,  # ท่าที่ 20.13: Quant Fuel (AllIn4s)
     20.1323: True,  # S20.13.23: Quant Fuel v23 (Live Market Order) — default ON ตามคำขอ (บัญชี demo หลัก, run_supervised.bat นอก profiles/)
     20.1324: True,  # S20.13.24: Quant Fuel v24 (Live Market Order) — เปิดตามคำขอพี่ (2026-08-02) แม้ split-half walk-forward เจอ overfitting ชัดเจน (WR 58%→100% ระหว่าง 2 ครึ่งข้อมูล) — พี่รับความเสี่ยงแล้ว
-    20.141: True, # S20.14 Group 1
-    20.142: True, # S20.14 Group 2
-    20.145: True, # S20.14 Group 5
-    20.149: True, # S20.14 Group 9
-    20.1412: True, # S20.14 Group 12
-    20.1413: True, # S20.14 Group 13
-    20.1414: True, # S20.14 Group 14
-    20.1416: True, # S20.14 Group 16
-    20.1418: True, # S20.14 Group 18
-    20.1419: True, # S20.14 Group 19
-    20.1421: True, # S20.14 Group 21
-    20.1422: True, # S20.14 Group 22
-    20.1423: True, # S20.14 Group 23 (H1 LiqSweep -> LTF Respect Low MTF BUY)
-    20.1424: True, # S20.14 Group 24
+    20.141: False, # S20.14 Group 1
+    20.142: False, # S20.14 Group 2
+    20.145: False, # S20.14 Group 5
+    20.147: False, # S20.14 Group 7
+    20.148: False, # S20.14 Group 8
+    20.1410: False, # S20.14 Group 10
+    20.1411: False, # S20.14 Group 11
+    20.149: False, # S20.14 Group 9
+    20.1412: False, # S20.14 Group 12
+    20.1413: False, # S20.14 Group 13
+    20.1414: False, # S20.14 Group 14
+    20.1415: False, # S20.14 Group 15
+    20.1417: False, # S20.14 Group 17
+    20.1416: False, # S20.14 Group 16
+    20.1418: False, # S20.14 Group 18
+    20.1419: False, # S20.14 Group 19
+    20.1421: False, # S20.14 Group 21
+    20.1422: False, # S20.14 Group 22
+    20.1423: False, # S20.14 Group 23 (H1 LiqSweep -> LTF Respect Low MTF BUY)
+    20.1424: False, # S20.14 Group 24
     20.16: True,   # S20.16 YiawDam Combinator
     20.17: False,  # S20.17 YiawDam Reversal (3 Reds 1 Green)
     20.18: False,  # S20.18: Order Flow Delta & Passive Absorption
@@ -983,7 +1008,7 @@ active_strategies = {
     20.301: False, # S20.301: Structural Trend HTF Extension & Sniper
     20.302: False, # S20.302: Non-Conflicting Multi-Session Architecture
     20.303: False, # S20.303: Dynamic Volatility-Scaled Engine (Gold Solo)
-    20.304: True,  # S20.304: The Sovereign Dual-Asset Citadel Matrix (Cross-Asset)
+    20.304: False, # S20.304: The Sovereign Dual-Asset Citadel Matrix (Cross-Asset)
     95: False, # ท่าที่ 95: Liquidity Sweep (SMC)
     96: False, # ท่าที่ 96: Volume Profile POC Pullback
 }
@@ -1055,10 +1080,16 @@ STRATEGY_NAMES = {
     20.141: "S20.14.1: Group 1",
     20.142: "S20.14.2: Group 2",
     20.145: "S20.14.5: Group 5",
+    20.147: "S20.14.7: Group 7",
+    20.148: "S20.14.8: Group 8",
+    20.1410: "S20.14.10: Group 10",
+    20.1411: "S20.14.11: Group 11",
     20.149: "S20.14.9: Group 9",
     20.1412: "S20.14.12: Group 12",
     20.1413: "S20.14.13: Group 13",
     20.1414: "S20.14.14: Group 14",
+    20.1415: "S20.14.15: Group 15",
+    20.1417: "S20.14.17: Group 17",
     20.1416: "S20.14.16: Group 16",
     20.1418: "S20.14.18: Group 18",
     20.1419: "S20.14.19: Group 19",
@@ -1105,7 +1136,19 @@ S20_304_SYMBOL_WEIGHTS = S20_SYMBOL_WEIGHTS  # Backward compatibility
 def get_s20_volume(sid: float, symbol: str, base_volume: float = None) -> float:
     """คำนวณขนาด lot สำหรับกลยุทธ์ตระกูล S20 ทั้ง 11 กลยุทธ์ตาม weight ของแต่ละคู่เงินเพื่อ Equal Profit Parity"""
     base = base_volume if base_volume is not None else AUTO_VOLUME
-    w = S20_SYMBOL_WEIGHTS.get(symbol, 1.0)
+    sym_u = symbol.upper()
+    if "XAU" in sym_u or "GOLD" in sym_u:
+        w = 1.0
+    elif "XAG" in sym_u or "SILVER" in sym_u:
+        w = 1.0
+    elif "GBP" in sym_u:
+        w = 11.0
+    elif "EUR" in sym_u:
+        w = 14.0
+    elif "JPY" in sym_u:
+        w = 14.0
+    else:
+        w = S20_SYMBOL_WEIGHTS.get(symbol, 1.0)
     return round(base * w, 2)
 
 def get_s20_304_volume(symbol: str, base_volume: float = None) -> float:
