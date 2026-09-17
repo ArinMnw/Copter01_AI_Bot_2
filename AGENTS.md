@@ -164,6 +164,7 @@ Keep the answer short and make the fix directly.
 - `docs/runtime-state.md`
 - `docs/telegram-ui.md`
 - `docs/logging.md`
+- `docs/quant_strategy_verification_checklist.md`
 
 ## Config ที่ควรรู้
 

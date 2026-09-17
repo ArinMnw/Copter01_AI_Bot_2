@@ -41,11 +41,15 @@ def cleanup_mt5_folder(mt5_path, profile_name, profile_dir):
     active_server = env_data.get("MT5_SERVER", "")
     
     # Identify which symbols to keep
-    # AF (2461) and Main (2459) check/trade BTCUSD, others only trade XAUUSD.
+    # AF (2461) and Main (2459) check/trade BTCUSD
+    # S20 Multi-Asset (434237129 and 3586) check/trade XAUUSD, XAGUSD, EURUSD, GBPUSD, USDJPY
     is_btc_needed = (profile_name in ["demo-iux-2101182461", "demo-iux-2101182459"])
+    is_multi_needed = (profile_name in ["demo-exness-434237129", "demo-iux-2101183586"])
     keep_symbols = ["xauusd"]
     if is_btc_needed:
         keep_symbols.append("btcusd")
+    if is_multi_needed:
+        keep_symbols.extend(["xagusd", "eurusd", "gbpusd", "usdjpy"])
         
     print(f"  [Config] Login={active_login}, Server={active_server}, KeepSymbols={keep_symbols}")
     
