@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-09-17 17:52:41",
+  "saved_at": "2026-09-18 10:36:02",
   "symbol": "XAUUSD.iux",
   "auto_volume": 0.01,
   "active_strategies": {
@@ -515,40 +515,11 @@
   "s14_engulf_breakeven": true,
   "s14_rsi_div_enabled": false,
   "s10_armed_states": {
-    "D1": {
-      "direction": "BUY",
-      "sl_target": 4291.21,
-      "tp_target": 4434.49,
-      "armed_at": 1789516800,
-      "htf_tf": "D1",
-      "ltf_tf": "M15",
-      "candles": [
-        {
-          "open": 4399.63,
-          "high": 4434.49,
-          "low": 4313.73,
-          "close": 4318.63,
-          "time": 1788998400
-        },
-        {
-          "open": 4318.54,
-          "high": 4402.51,
-          "low": 4291.71,
-          "close": 4348.87,
-          "time": 1789084800
-        }
-      ],
-      "pattern_base": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
-      "pre_arm": false,
-      "fired_tickets": [],
-      "awaiting_choch": false,
-      "fire_count": 0
-    },
     "H4": {
       "direction": "BUY",
       "sl_target": 4234.47,
       "tp_target": 4367.18,
-      "armed_at": 1789617600,
+      "armed_at": 1789689600,
       "htf_tf": "H4",
       "ltf_tf": "M5",
       "candles": [
@@ -572,6 +543,67 @@
       "fired_tickets": [],
       "awaiting_choch": false,
       "fire_count": 0
+    },
+    "D1": {
+      "direction": "BUY",
+      "sl_target": 4291.21,
+      "tp_target": 4434.49,
+      "armed_at": 1789603200,
+      "htf_tf": "D1",
+      "ltf_tf": "M15",
+      "candles": [
+        {
+          "open": 4399.63,
+          "high": 4434.49,
+          "low": 4313.73,
+          "close": 4318.63,
+          "time": 1788998400
+        },
+        {
+          "open": 4318.54,
+          "high": 4402.51,
+          "low": 4291.71,
+          "close": 4348.87,
+          "time": 1789084800
+        }
+      ],
+      "pattern_base": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
+      "pre_arm": false,
+      "fired_tickets": [
+        587428487,
+        587428488
+      ],
+      "awaiting_choch": false,
+      "fire_count": 1
+    },
+    "M15": {
+      "direction": "BUY",
+      "sl_target": 4343.47,
+      "tp_target": 4360.03,
+      "armed_at": 1789704900,
+      "htf_tf": "M15",
+      "ltf_tf": "M1",
+      "candles": [
+        {
+          "open": 4359.89,
+          "high": 4360.03,
+          "low": 4347.3,
+          "close": 4347.37,
+          "time": 1789698600
+        },
+        {
+          "open": 4347.34,
+          "high": 4350.36,
+          "low": 4343.97,
+          "close": 4348.42,
+          "time": 1789699500
+        }
+      ],
+      "pattern_base": "ท่าที่ 10 CRT TBS 🟢 BUY — Sweep Low (2bar)",
+      "pre_arm": false,
+      "fired_tickets": [],
+      "awaiting_choch": false,
+      "fire_count": 0
     }
   },
   "rsi9_plot_bullish": true,
@@ -584,13 +616,13 @@
   "daily_loss_limit_enabled": false,
   "daily_loss_limit_usd": 50.0,
   "daily_stats": {
-    "date": "2026-09-17",
-    "realized": -882.79,
-    "wins": 164,
-    "losses": 214,
-    "count": 378,
-    "gross_win": 2293.66,
-    "gross_loss": -3176.45
+    "date": "2026-09-18",
+    "realized": -305.98,
+    "wins": 56,
+    "losses": 91,
+    "count": 147,
+    "gross_win": 224.93,
+    "gross_loss": -530.91
   },
   "daily_loss_tripped": false,
   "daily_summary_enabled": true,
@@ -641,16 +673,105 @@
     "XAUUSD.IUX": {
       "BUY": {
         "M1+M5+M15": {
-          "count": 0,
-          "active": false,
-          "tf_blocked": {},
-          "tf_since": {},
-          "tf_swing_ref": {},
-          "tf_swing_bar_time": {},
-          "tf_blocked_signals": {},
+          "count": 11,
+          "active": true,
+          "tf_blocked": {
+            "M1": false,
+            "M5": false,
+            "M15": true
+          },
+          "tf_since": {
+            "M1": 1789687556,
+            "M5": 1789687556,
+            "M15": 1789687556
+          },
+          "tf_swing_ref": {
+            "M1": 4346.23,
+            "M5": 4344.47,
+            "M15": 4339.9
+          },
+          "tf_swing_bar_time": {
+            "M5": 1789693200,
+            "M15": 1789704900
+          },
+          "tf_blocked_signals": {
+            "M1": [],
+            "M5": [],
+            "M15": [
+              {
+                "sid": 14,
+                "signal": "BUY",
+                "entry": 4346.39,
+                "sl": 4328.56,
+                "tp": 4372.55,
+                "pattern": "ท่าที่ 14 Sweep RSI 🟢 BUY — Sweep Swing",
+                "candle_time": 1789692300,
+                "order_mode": "market",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 4,
+                "signal": "BUY",
+                "entry": 4349.61,
+                "sl": 4329.77,
+                "tp": 4372.55,
+                "pattern": "ท่าที่ 4 นัยยะสำคัญ FVG 🟢 BUY",
+                "candle_time": 1789694100,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 3,
+                "signal": "BUY",
+                "entry": 4354.27,
+                "sl": 4338.33,
+                "tp": 4372.55,
+                "pattern": "ท่าที่ 3 DM SP 🟢 BUY [C1:R]",
+                "candle_time": 1789695000,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              }
+            ]
+          },
           "tf_retry_signals": {}
         },
         "M1+M5": {
+          "count": 9,
+          "active": true,
+          "tf_blocked": {
+            "M1": false,
+            "M5": true
+          },
+          "tf_since": {
+            "M1": 1789700106,
+            "M5": 1789700106
+          },
+          "tf_swing_ref": {
+            "M1": 4348.86,
+            "M5": 4348.86
+          },
+          "tf_swing_bar_time": {
+            "M5": 1789705500
+          },
+          "tf_blocked_signals": {
+            "M1": [],
+            "M5": [
+              {
+                "sid": 11,
+                "signal": "BUY",
+                "entry": 4337.78,
+                "sl": 4332.3,
+                "tp": 4382.02,
+                "pattern": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 1 (KRH1)",
+                "candle_time": 1789705800,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              }
+            ]
+          },
+          "tf_retry_signals": {}
+        },
+        "H1+H4+H12": {
           "count": 0,
           "active": false,
           "tf_blocked": {},
@@ -658,34 +779,6 @@
           "tf_swing_ref": {},
           "tf_swing_bar_time": {},
           "tf_blocked_signals": {},
-          "tf_retry_signals": {}
-        },
-        "H1+H4+H12": {
-          "count": 3,
-          "active": true,
-          "tf_blocked": {
-            "H1": false,
-            "H4": true,
-            "H12": false
-          },
-          "tf_since": {
-            "H1": 1789581695,
-            "H4": 1789581695,
-            "H12": 1789581695
-          },
-          "tf_swing_ref": {
-            "H1": 4341.7,
-            "H4": 4324.11,
-            "H12": 4275.51
-          },
-          "tf_swing_bar_time": {
-            "H4": 1789588800
-          },
-          "tf_blocked_signals": {
-            "H1": [],
-            "H4": [],
-            "H12": []
-          },
           "tf_retry_signals": {}
         },
         "M30+H1+H4": {
@@ -699,32 +792,13 @@
           "tf_retry_signals": {}
         },
         "M15+M30+H1": {
-          "count": 2,
-          "active": true,
-          "tf_blocked": {
-            "M15": true,
-            "M30": true,
-            "H1": true
-          },
-          "tf_since": {
-            "M15": 1789637406,
-            "M30": 1789637406,
-            "H1": 1789637406
-          },
-          "tf_swing_ref": {
-            "M15": 4305.9,
-            "M30": 4305.9,
-            "H1": 4310.23
-          },
-          "tf_swing_bar_time": {
-            "M15": 1789642800,
-            "M30": 1789642800
-          },
-          "tf_blocked_signals": {
-            "M15": [],
-            "M30": [],
-            "H1": []
-          },
+          "count": 1,
+          "active": false,
+          "tf_blocked": {},
+          "tf_since": {},
+          "tf_swing_ref": {},
+          "tf_swing_bar_time": {},
+          "tf_blocked_signals": {},
           "tf_retry_signals": {}
         },
         "H4+H12+D1": {
@@ -759,25 +833,39 @@
           "count": 5,
           "active": true,
           "tf_blocked": {
-            "M5": false,
-            "M15": false,
+            "M5": true,
+            "M15": true,
             "M30": true
           },
           "tf_since": {
-            "M5": 1789634706,
-            "M15": 1789634706,
-            "M30": 1789634706
+            "M5": 1789700103,
+            "M15": 1789700103,
+            "M30": 1789700103
           },
           "tf_swing_ref": {
-            "M5": 4313.48,
-            "M15": 4311.97,
-            "M30": 4314.6
+            "M5": 4348.86,
+            "M15": 4350.35,
+            "M30": 4345.88
           },
           "tf_swing_bar_time": {
-            "M30": 1789641000
+            "M5": 1789705500,
+            "M15": 1789704900,
+            "M30": 1789704000
           },
           "tf_blocked_signals": {
-            "M5": [],
+            "M5": [
+              {
+                "sid": 11,
+                "signal": "BUY",
+                "entry": 4337.78,
+                "sl": 4332.3,
+                "tp": 4382.02,
+                "pattern": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 1 (KRH1)",
+                "candle_time": 1789705800,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              }
+            ],
             "M15": [],
             "M30": []
           },
@@ -786,7 +874,7 @@
       },
       "SELL": {
         "M5+M15+M30": {
-          "count": 1,
+          "count": 0,
           "active": false,
           "tf_blocked": {},
           "tf_since": {},
@@ -796,60 +884,111 @@
           "tf_retry_signals": {}
         },
         "M1+M5+M15": {
-          "count": 7,
+          "count": 36,
           "active": true,
           "tf_blocked": {
             "M1": false,
-            "M5": true,
+            "M5": false,
             "M15": true
           },
           "tf_since": {
-            "M1": 1789639901,
-            "M5": 1789639901,
-            "M15": 1789639901
+            "M1": 1789655106,
+            "M5": 1789655106,
+            "M15": 1789655106
           },
           "tf_swing_ref": {
-            "M1": 4310.55,
-            "M5": 4311.45,
-            "M15": 4311.27
+            "M1": 4370.49,
+            "M5": 4370.51,
+            "M15": 4379.96
           },
-          "tf_swing_bar_time": {
-            "M5": 1789645500,
-            "M15": 1789644600
-          },
+          "tf_swing_bar_time": {},
           "tf_blocked_signals": {
             "M1": [],
             "M5": [],
-            "M15": []
+            "M15": [
+              {
+                "sid": 11,
+                "signal": "SELL",
+                "entry": 4369.22,
+                "sl": 4375.17,
+                "tp": 4321.12,
+                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
+                "candle_time": 1789659000,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 14,
+                "signal": "SELL",
+                "entry": 4361.02,
+                "sl": 4397.63,
+                "tp": 4305.09,
+                "pattern": "S14 SELL - Engulf Swing In TF",
+                "candle_time": 1789659000,
+                "order_mode": "market",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 14,
+                "signal": "SELL",
+                "entry": 4354.0,
+                "sl": 4392.62,
+                "tp": 4305.09,
+                "pattern": "S14 SELL - Engulf Swing In TF",
+                "candle_time": 1789659900,
+                "order_mode": "market",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 3,
+                "signal": "SELL",
+                "entry": 4368.09,
+                "sl": 4390.3,
+                "tp": 4323.35,
+                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R_DOJI]",
+                "candle_time": 1789666200,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 14,
+                "signal": "SELL",
+                "entry": 4360.03,
+                "sl": 4390.28,
+                "tp": 4305.09,
+                "pattern": "S14 SELL - Engulf Swing In TF",
+                "candle_time": 1789666200,
+                "order_mode": "market",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 11,
+                "signal": "SELL",
+                "entry": 4360.77,
+                "sl": 4368.64,
+                "tp": 4297.23,
+                "pattern": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
+                "candle_time": 1789673400,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              },
+              {
+                "sid": 3,
+                "signal": "SELL",
+                "entry": 4346.81,
+                "sl": 4367.02,
+                "tp": 4326.6,
+                "pattern": "ท่าที่ 3 DM SP 🔴 SELL [C1:R]",
+                "candle_time": 1789704900,
+                "order_mode": "limit",
+                "use_delay_sl": false
+              }
+            ]
           },
           "tf_retry_signals": {}
         },
         "M1+M5": {
-          "count": 7,
-          "active": true,
-          "tf_blocked": {
-            "M1": false,
-            "M5": true
-          },
-          "tf_since": {
-            "M1": 1789639901,
-            "M5": 1789639901
-          },
-          "tf_swing_ref": {
-            "M1": 4310.55,
-            "M5": 4311.45
-          },
-          "tf_swing_bar_time": {
-            "M5": 1789645500
-          },
-          "tf_blocked_signals": {
-            "M1": [],
-            "M5": []
-          },
-          "tf_retry_signals": {}
-        },
-        "H4+H12+D1": {
-          "count": 1,
+          "count": 0,
           "active": false,
           "tf_blocked": {},
           "tf_since": {},
@@ -858,12 +997,40 @@
           "tf_blocked_signals": {},
           "tf_retry_signals": {}
         },
+        "H4+H12+D1": {
+          "count": 4,
+          "active": true,
+          "tf_blocked": {
+            "H4": true,
+            "H12": true,
+            "D1": true
+          },
+          "tf_since": {
+            "H4": 1789642806,
+            "H12": 1789642806,
+            "D1": 1789642806
+          },
+          "tf_swing_ref": {
+            "H4": 4335.36,
+            "H12": 4335.36,
+            "D1": 4367.18
+          },
+          "tf_swing_bar_time": {
+            "H4": 1789660800
+          },
+          "tf_blocked_signals": {
+            "H4": [],
+            "H12": [],
+            "D1": []
+          },
+          "tf_retry_signals": {}
+        },
         "H1+H4+H12": {
-          "count": 6,
+          "count": 11,
           "active": true,
           "tf_blocked": {
             "H1": false,
-            "H4": true,
+            "H4": false,
             "H12": true
           },
           "tf_since": {
@@ -877,8 +1044,7 @@
             "H12": 4317.37
           },
           "tf_swing_bar_time": {
-            "H4": 1789574400,
-            "H12": 1789560000
+            "H12": 1789646400
           },
           "tf_blocked_signals": {
             "H1": [],
@@ -888,7 +1054,7 @@
           "tf_retry_signals": {}
         },
         "M30+H1+H4": {
-          "count": 13,
+          "count": 3,
           "active": true,
           "tf_blocked": {
             "M30": false,
@@ -896,17 +1062,17 @@
             "H4": true
           },
           "tf_since": {
-            "M30": 1789477201,
-            "H1": 1789477201,
-            "H4": 1789477201
+            "M30": 1789648056,
+            "H1": 1789648056,
+            "H4": 1789648056
           },
           "tf_swing_ref": {
-            "M30": 4295.78,
-            "H1": 4295.78,
-            "H4": 4295.58
+            "M30": 4353.09,
+            "H1": 4353.09,
+            "H4": 4335.36
           },
           "tf_swing_bar_time": {
-            "H4": 1789574400
+            "H4": 1789660800
           },
           "tf_blocked_signals": {
             "M30": [],
@@ -1202,27 +1368,28 @@
   "s10_last_fired_armed_at": {
     "H12": 1789516800,
     "H4": 1789588800,
-    "M30": 1789632000
+    "H1": 1789664400,
+    "D1": 1789603200
   },
   "last_traded_per_tf": {
-    "H4": 1789588800,
-    "H12": 1789560000,
+    "H4": 1789660800,
+    "H12": 1789646400,
     "D1": 1789516800,
-    "H1": 1789632000,
-    "M30": 1789642800,
-    "M15": 1789641000,
-    "M5": 1789644900,
-    "M1": 1789645200
+    "H1": 1789678800,
+    "M15": 1789700400,
+    "M30": 1789704000,
+    "M1": 1789706100,
+    "M5": 1789705800
   },
   "last_traded_sid_tf": {
     "M5": {
-      "2": 1789643400,
-      "1": 1789643100,
-      "11": 1789639800,
-      "3": 1789641900,
-      "15": 1789122000,
-      "14": 1789642200,
-      "4": 1789626000,
+      "2": 1789705200,
+      "1": 1789704600,
+      "11": 1789704900,
+      "3": 1789701600,
+      "15": 1789704300,
+      "14": 1789690200,
+      "4": 1789705200,
       "16": 1789636200,
       "10": 1789602900,
       "19": 1789140300,
@@ -1236,17 +1403,18 @@
       "20.1412": 1789619100,
       "20.1421": 1788530100,
       "20.1423": 1789619100,
-      "20.16": 1789626900,
+      "20.16": 1789704000,
       "20.304": 1789467900,
-      "2": 1789644300,
-      "3": 1789644900
+      "1": 1789705800,
+      "20.16": 1789705800,
+      "2": 1789706100
     },
     "M30": {
-      "1": 1789628400,
-      "11": 1789632000,
-      "2": 1789637400,
+      "1": 1789698600,
+      "11": 1789673400,
+      "2": 1789703700,
       "4": 1789633800,
-      "14": 1789635600,
+      "14": 1789659000,
       "3": 1789610400,
       "15": 1787632200,
       "16": 1789637400,
@@ -1259,10 +1427,11 @@
       "20.142": 1789599600,
       "20.1421": 1788460200,
       "20.1423": 1789617600,
-      "20.16": 1789639200,
+      "20.16": 1789698600,
       "20.149": 1789398000,
       "20.304": 1789462800,
-      "1": 1789642800
+      "1": 1789704000,
+      "11": 1789704000
     },
     "D1": {
       "2": 1789588800,
@@ -1279,35 +1448,35 @@
     },
     "M1": {
       "16": 1789460160,
-      "17": 1789634040,
-      "18": 1789057860,
-      "19": 1789577220,
-      "2": 1789644300,
-      "3": 1789643760,
-      "1": 1789643280,
-      "11": 1789644300,
-      "10": 1789635600,
-      "15": 1789643700,
-      "14": 1789637640,
-      "4": 1789635300,
+      "17": 1789651440,
+      "18": 1789655520,
+      "19": 1789663080,
+      "2": 1789705380,
+      "3": 1789705260,
+      "1": 1789705320,
+      "11": 1789705380,
+      "10": 1789668120,
+      "15": 1789704360,
+      "14": 1789700700,
+      "4": 1789705020,
       "20.1412": 1789619760,
       "20.142": 1789599720,
       "20.145": 1789619400,
       "20.149": 1789607580,
       "20.1423": 1789620960,
       "20.1413": 1789353780,
-      "20.16": 1789643340,
+      "20.16": 1789703160,
       "20.1421": 1789134480,
       "20.304": 1789468020,
       "20.141": 1789619400,
-      "1": 1789644540,
-      "20.16": 1789645200,
-      "14": 1789645200
+      "2": 1789706100,
+      "14": 1789705740,
+      "11": 1789705980
     },
     "H4": {
       "1": 1789574400,
       "11": 1789459200,
-      "2": 1789588800,
+      "2": 1789660800,
       "3": 1788436800,
       "4": 1788264000,
       "14": 1789315200,
@@ -1320,10 +1489,10 @@
       "20.16": 1789574400
     },
     "M15": {
-      "1": 1789639200,
-      "2": 1789641000,
-      "10": 1789559100,
-      "3": 1789640100,
+      "1": 1789698600,
+      "2": 1789700400,
+      "10": 1789688700,
+      "3": 1789696800,
       "11": 1789628400,
       "14": 1789638300,
       "4": 1789632900,
@@ -1337,15 +1506,15 @@
       "20.149": 1789590600,
       "20.1412": 1789560000,
       "20.1423": 1789617600,
-      "20.16": 1789614000,
+      "20.16": 1789698600,
       "20.1421": 1789385400,
       "20.304": 1789467300
     },
     "H1": {
-      "1": 1789624800,
+      "1": 1789671600,
       "20.13": 1789470000,
-      "2": 1789632000,
-      "11": 1789628400,
+      "2": 1789678800,
+      "11": 1789675200,
       "14": 1789606800,
       "3": 1789498800,
       "20.1323": 1788969600,
@@ -1365,7 +1534,7 @@
       "20.16": 1789585200
     },
     "H12": {
-      "1": 1789560000,
+      "1": 1789646400,
       "15": 1785456000,
       "2": 1789588800,
       "11": 1787270400,
@@ -1380,181 +1549,270 @@
     }
   },
   "pending_order_tf": {
-    "586726520": {
-      "tf": "M1",
+    "587428482": {
+      "tf": "H12",
       "symbol": "XAUUSD.iux",
-      "risk": 7.527826889801872,
-      "entry": 4351.09,
-      "sl": 4358.62,
-      "tp": 4344.18,
-      "gap_bot": 4343.56,
-      "gap_top": 4358.62,
-      "detect_bar_time": 1789585200,
-      "signal": "SELL",
-      "sid": 20.16,
-      "pattern": "S20.16 YiawDam SELL (Prob 92%)",
-      "trend_filter": "bull_weak",
-      "flow_id": "M1|S20.16|SELL|T1789585200|E4351.09|SL4358.62|TP4344.18"
-    },
-    "586822642": {
-      "tf": "M1",
-      "symbol": "XAUUSD.iux",
-      "risk": 10.746557408243461,
-      "entry": 4247.77,
-      "sl": 4237.02,
-      "tp": 4257.62,
-      "gap_bot": 4237.02,
-      "gap_top": 4258.51,
-      "detect_bar_time": 1789590540,
-      "signal": "BUY",
-      "sid": 20.16,
-      "pattern": "S20.16 YiawDam BUY (Prob 91%)",
-      "trend_filter": "sideway",
-      "flow_id": "M1|S20.16|BUY|T1789590540|E4247.77|SL4237.02|TP4257.62"
-    },
-    "587109809": {
-      "tf": "M30",
-      "symbol": "XAUUSD.iux",
-      "risk": 33.25,
-      "entry": 4310.37,
-      "sl": 4277.12,
-      "tp": 4361.15,
-      "gap_bot": 4277.12,
-      "gap_top": 4343.62,
-      "detect_bar_time": 1789642800,
+      "risk": 197.61000000000058,
+      "entry": 4297.14,
+      "sl": 4099.53,
+      "tp": 4510.76,
+      "gap_bot": 4099.53,
+      "gap_top": 4494.75,
+      "detect_bar_time": 1789646400,
       "signal": "BUY",
       "sid": 1,
-      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง",
+      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ย้อนโครงสร้าง",
       "trend_filter": "bear_weak",
       "s1_zone_meta": {
         "enabled": true,
         "signal": "BUY",
-        "zone_price": 4305.09,
-        "swing_price": 4234.97,
+        "zone_price": 4234.97,
+        "swing_price": 4282.59,
+        "zone_ok_initial": true,
+        "deadline_bars": 2
+      },
+      "s1_forward_meta": {
+        "enabled": true,
+        "signal": "BUY",
+        "detect_bar_time": 1789646400,
+        "forward_bars": 5,
+        "confirmed": false,
+        "confirmed_sid": 0,
+        "confirmed_bar_time": 0
+      },
+      "flow_id": "H12|S1|BUY|T1789646400|E4297.14|SL4099.53|TP4510.76"
+    },
+    "587515188": {
+      "tf": "M1",
+      "symbol": "XAUUSD.iux",
+      "risk": 2.2100000000000364,
+      "entry": 4352.75,
+      "sl": 4354.96,
+      "tp": 4347.16,
+      "gap_bot": 4350.54,
+      "gap_top": 4354.96,
+      "detect_bar_time": 1789704360,
+      "signal": "SELL",
+      "sid": 15,
+      "pattern": "ท่าที่ 15 VP VAH 🔴 SELL — Absorption",
+      "trend_filter": "bear_weak",
+      "flow_id": "M1|S15|SELL|T1789704360|E4352.75|SL4354.96|TP4347.16"
+    },
+    "587516900": {
+      "tf": "M5",
+      "symbol": "XAUUSD.iux",
+      "risk": 6.119999999999891,
+      "entry": 4355.32,
+      "sl": 4361.44,
+      "tp": 4347.26,
+      "gap_bot": 4349.2,
+      "gap_top": 4361.44,
+      "detect_bar_time": 1789704300,
+      "signal": "SELL",
+      "sid": 15,
+      "pattern": "ท่าที่ 15 VP VAH 🔴 SELL — Absorption",
+      "trend_filter": "sideway",
+      "flow_id": "M5|S15|SELL|T1789704300|E4355.32|SL4361.44|TP4347.26"
+    },
+    "587526576": {
+      "tf": "M1",
+      "gap_bot": 4339.34,
+      "gap_top": 4340.18,
+      "final_gap_bot": 4339.34,
+      "final_gap_top": 4340.18,
+      "detect_bar_time": 1789705740,
+      "signal": "BUY",
+      "sid": 2,
+      "pattern": "ท่าที่ 2 FVG 🟢 BUY — เขียวกลืนกิน",
+      "c3_type": "เขียวกลืนกิน",
+      "trend_filter": "bear_weak"
+    },
+    "587529081": {
+      "tf": "M1",
+      "symbol": "XAUUSD.iux",
+      "risk": 6.880000000000109,
+      "entry": 4340.17,
+      "sl": 4333.29,
+      "tp": 4359.55,
+      "gap_bot": 4333.29,
+      "gap_top": 4347.05,
+      "detect_bar_time": 1789705980,
+      "signal": "BUY",
+      "sid": 11,
+      "pattern": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 2 (KRH2) [Frame→KRH1]",
+      "trend_filter": "bear_strong",
+      "flow_id": "M1|S11|BUY|T1789705980|E4340.17|SL4333.29|TP4359.55"
+    },
+    "587530899": {
+      "tf": "M1",
+      "gap_bot": 4345.51,
+      "gap_top": 4349.75,
+      "final_gap_bot": 4345.51,
+      "final_gap_top": 4349.75,
+      "detect_bar_time": 1789706100,
+      "signal": "BUY",
+      "sid": 2,
+      "pattern": "ท่าที่ 2 FVG 🟢 BUY — เขียวกลืนกิน",
+      "c3_type": "เขียวกลืนกิน",
+      "trend_filter": "bear_strong"
+    },
+    "587530901": {
+      "tf": "M5",
+      "symbol": "XAUUSD.iux",
+      "risk": 14.300000000000182,
+      "entry": 4337.78,
+      "sl": 4323.48,
+      "tp": 4356.6,
+      "gap_bot": 4323.48,
+      "gap_top": 4352.08,
+      "detect_bar_time": 1789705800,
+      "signal": "BUY",
+      "sid": 1,
+      "pattern": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ตำหนิ",
+      "trend_filter": "sideway",
+      "s1_zone_meta": {
+        "enabled": true,
+        "signal": "BUY",
+        "zone_price": 4334.4,
+        "swing_price": 4343.97,
         "zone_ok_initial": true,
         "deadline_bars": 3
       },
       "s1_forward_meta": {
         "enabled": true,
         "signal": "BUY",
-        "detect_bar_time": 1789642800,
+        "detect_bar_time": 1789705800,
         "forward_bars": 5,
         "confirmed": false,
         "confirmed_sid": 0,
         "confirmed_bar_time": 0
       },
-      "flow_id": "M30|S1|BUY|T1789642800|E4310.37|SL4277.12|TP4361.15"
+      "flow_id": "M5|S1|BUY|T1789705800|E4337.78|SL4323.48|TP4356.60"
+    },
+    "587530902": {
+      "tf": "M5",
+      "symbol": "XAUUSD.iux",
+      "risk": 8.509763822674358,
+      "entry": 4349.66,
+      "sl": 4341.15,
+      "tp": 4364.69,
+      "gap_bot": 4341.15,
+      "gap_top": 4358.17,
+      "detect_bar_time": 1789705800,
+      "signal": "BUY",
+      "sid": 20.16,
+      "pattern": "S20.16 YiawDam BUY (Prob 91%)",
+      "trend_filter": "sideway",
+      "flow_id": "M5|S20.16|BUY|T1789705800|E4349.66|SL4341.15|TP4364.69"
     }
   },
   "position_tf": {
     "585130647": "D1",
     "586246186": "D1",
-    "586432360": "H1",
-    "586448960": "H1",
     "586499023": "H4",
-    "586726520": "M1",
-    "586802148": "M1",
-    "586822642": "M1",
-    "586830889": "H4",
-    "586843284": "M5",
-    "586843285": "M5",
-    "586875751": "H12",
-    "586903042": "H12",
-    "587075959": "M1",
-    "587076514": "M1",
-    "587103313": "M1",
-    "587109793": "M1",
-    "587109803": "M5",
-    "587109809": "M30",
-    "587114731": "M5",
-    "587115051": "M1",
-    "587115053": "M1"
+    "587428482": "H12",
+    "587515188": "M1",
+    "587516900": "M5",
+    "587520644": "M5",
+    "587524174": "M5",
+    "587526576": "M1",
+    "587526580": "M1",
+    "587526581": "M30",
+    "587526582": "M30",
+    "587527828": "M1",
+    "587529081": "M1",
+    "587530058": "M5",
+    "587530234": "M5",
+    "587530236": "M5",
+    "587530899": "M1",
+    "587530901": "M5",
+    "587530902": "M5"
   },
   "position_sid": {
     "585130647": 20.142,
     "586246186": 20.142,
-    "586432360": 20.145,
-    "586448960": 20.145,
     "586499023": 20.145,
-    "586726520": 20.16,
-    "586802148": 20.145,
-    "586822642": 20.16,
-    "586830889": 20.16,
-    "586843284": 10,
-    "586843285": 10,
-    "586875751": 1,
-    "586903042": 1,
-    "587075959": 20.16,
-    "587076514": 20.16,
-    "587103313": 3,
-    "587109793": 1,
-    "587109803": 2,
-    "587109809": 1,
-    "587114731": 3,
-    "587115051": 20.16,
-    "587115053": 14
+    "587428482": 1,
+    "587515188": 15,
+    "587516900": 15,
+    "587520644": 1,
+    "587524174": 4,
+    "587526576": 2,
+    "587526580": 14,
+    "587526581": 1,
+    "587526582": 11,
+    "587527828": 2,
+    "587529081": 11,
+    "587530058": 20.16,
+    "587530234": 1,
+    "587530236": 20.16,
+    "587530899": 2,
+    "587530901": 1,
+    "587530902": 20.16
   },
   "position_pattern": {
     "585130647": "Inst_Gap",
     "586246186": "Inst_Gap",
-    "586432360": "FVG",
-    "586448960": "FVG",
     "586499023": "FVG",
-    "586726520": "S20.16 YiawDam SELL (Prob 92%)",
-    "586802148": "FVG",
-    "586822642": "S20.16 YiawDam BUY (Prob 91%)",
-    "586830889": "S20.16 YiawDam SELL (Prob 92%)",
-    "586843284": "ท่าที่ 10 CRT TBS 🟢 BUY — MTF TBS [H4→M5] Model1",
-    "586843285": "ท่าที่ 10 CRT TBS 🟢 BUY — MTF TBS [H4→M5] Model2",
-    "586875751": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว",
-    "586903042": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว",
-    "587075959": "S20.16 YiawDam SELL (Prob 88%)",
-    "587076514": "S20.16 YiawDam SELL (Prob 88%)",
-    "587109793": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern กลืนกิน 2 เขียว",
-    "587109803": "ท่าที่ 2 FVG BUY [M5]",
-    "587109809": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern กลืนกิน 2 แดง",
-    "587114731": "ท่าที่ 3 DM SP 🟢 BUY [C1:G]",
-    "587115051": "S20.16 YiawDam SELL (Prob 88%)",
-    "587115053": "S14 SELL - Engulf Swing In TF"
+    "587428482": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ย้อนโครงสร้าง",
+    "587515188": "ท่าที่ 15 VP VAH 🔴 SELL — Absorption",
+    "587516900": "ท่าที่ 15 VP VAH 🔴 SELL — Absorption",
+    "587520644": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
+    "587524174": "ท่าที่ 4 นัยยะสำคัญ FVG 🔴 SELL",
+    "587526576": "ท่าที่ 2 FVG BUY [M1]",
+    "587526580": "S14 BUY - Engulf Swing In TF",
+    "587526581": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🔴 SELL — Pattern ตำหนิ",
+    "587526582": "ท่าที่ 11 Fibo S1 🔴 SELL — Pattern 1 (KRH1)",
+    "587527828": "ท่าที่ 2 FVG BUY [M1]",
+    "587529081": "ท่าที่ 11 Fibo S1 🟢 BUY — Pattern 2 (KRH2) [Frame→KRH1]",
+    "587530058": "S20.16 YiawDam BUY (Prob 90%)",
+    "587530234": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ตำหนิ",
+    "587530236": "S20.16 YiawDam BUY (Prob 91%)",
+    "587530899": "ท่าที่ 2 FVG BUY [M1+M5]",
+    "587530901": "ท่าที่ 1 กลืนกิน/ตำหนิ/ย้อนโครงสร้าง 🟢 BUY — Pattern ตำหนิ",
+    "587530902": "S20.16 YiawDam BUY (Prob 91%)"
   },
   "position_trend_filter": {
     "585130647": "bull_weak",
     "586246186": "bull_weak",
-    "586432360": "bull_weak",
-    "586448960": "bull_weak",
     "586499023": "bear_strong",
-    "586726520": "bull_weak",
-    "586802148": "bear_strong",
     "586822642": "sideway",
-    "586830889": "bear_strong",
-    "586843284": "bull_weak",
-    "586843285": "bull_weak",
-    "586875751": "bear_weak",
-    "586903042": "bear_weak",
-    "587075959": "sideway",
-    "587076514": "sideway",
-    "587109793": "bull_weak",
-    "587109803": "bear_weak",
-    "587109809": "bear_weak",
-    "587114731": "bear_weak",
-    "587115051": "bull_strong",
-    "587115053": "bull_strong"
+    "587290446": "sideway",
+    "587428482": "bear_weak",
+    "587515188": "bear_weak",
+    "587516900": "sideway",
+    "587520092": "bear_weak",
+    "587520644": "sideway",
+    "587524173": "sideway",
+    "587524174": "sideway",
+    "587526576": "bear_weak",
+    "587526580": "bear_weak",
+    "587526581": "sideway",
+    "587526582": "sideway",
+    "587527828": "bear_strong",
+    "587529081": "bear_strong",
+    "587530058": "sideway",
+    "587530234": "sideway",
+    "587530236": "sideway",
+    "587530899": "bear_strong",
+    "587530901": "sideway",
+    "587530902": "sideway"
   },
   "position_zone_meta": {
-    "586875751": {
+    "587526581": {
       "enabled": true,
       "signal": "SELL",
-      "zone_price": 4367.18,
-      "swing_price": 4510.76,
+      "zone_price": 4356.6,
+      "swing_price": 4365.66,
       "zone_ok_initial": true,
-      "deadline_bars": 4
+      "deadline_bars": 3
     }
   },
   "position_forward_meta": {
-    "586875751": {
+    "587526581": {
       "enabled": true,
       "signal": "SELL",
-      "detect_bar_time": 1789560000,
+      "detect_bar_time": 1789704000,
       "forward_bars": 5,
       "confirmed": false,
       "confirmed_sid": 0,
@@ -1562,21 +1820,37 @@
     }
   },
   "entry_state": {
-    "587103313": "done"
+    "587522567": "done",
+    "587524173": "done",
+    "587520092": "done"
   },
   "trail_state": {
-    "586875751": {
+    "587524174": {
       "phase": 0,
-      "order_tf": "H12"
+      "order_tf": "M5"
     },
-    "586903042": {
+    "587526581": {
       "phase": 0,
-      "order_tf": "H12"
+      "order_tf": "M30"
+    },
+    "587526582": {
+      "phase": 0,
+      "order_tf": "M30"
     }
   },
   "fvg_order_tickets": {
-    "587109803": {
-      "tf": "M5",
+    "587526576": {
+      "tf": "M1",
+      "signal": "BUY",
+      "checked": false
+    },
+    "587527828": {
+      "tf": "M1",
+      "signal": "BUY",
+      "checked": false
+    },
+    "587530899": {
+      "tf": "M1",
       "signal": "BUY",
       "checked": false
     }
@@ -1588,43 +1862,9 @@
   "entry_candle_focus_suppress_until_flat": false,
   "scale_out_enabled": true,
   "scale_out_state": {
-    "586843284": {
+    "587428482": {
       "direction": "BUY",
-      "entry": 4259.83,
-      "original_volume": 0.04,
-      "base_volume": 0.01,
-      "per_tp_volume": 0.01,
-      "tp_distances": [
-        2.0,
-        3.0,
-        53.51999999999998,
-        107.03999999999996
-      ],
-      "step": 3,
-      "is_pending": false,
-      "sid": "10",
-      "tp_original": 4367.18
-    },
-    "586843285": {
-      "direction": "BUY",
-      "entry": 4261.0,
-      "original_volume": 0.04,
-      "base_volume": 0.01,
-      "per_tp_volume": 0.01,
-      "tp_distances": [
-        2.0,
-        3.0,
-        53.090000000000146,
-        106.18000000000029
-      ],
-      "step": 3,
-      "is_pending": false,
-      "sid": "10",
-      "tp_original": 4367.18
-    },
-    "586875751": {
-      "direction": "SELL",
-      "entry": 4301.2,
+      "entry": 4297.14,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -1632,16 +1872,33 @@
         2.0,
         3.0,
         6.0,
-        201.8099999999995
+        213.6199999999999
       ],
-      "step": 3,
-      "is_pending": false,
+      "step": 0,
+      "is_pending": true,
       "sid": "1",
-      "tp_original": 4099.27
+      "tp_original": 4510.76
     },
-    "586903042": {
+    "587515188": {
       "direction": "SELL",
-      "entry": 4301.1,
+      "entry": 4352.75,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        5.5900000000001455,
+        5.5900000000001455
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "15",
+      "tp_original": 4347.16
+    },
+    "587516900": {
+      "direction": "SELL",
+      "entry": 4355.32,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -1649,16 +1906,67 @@
         2.0,
         3.0,
         6.0,
-        201.8099999999995
+        8.05999999999949
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "15",
+      "tp_original": 4347.26
+    },
+    "587524174": {
+      "direction": "SELL",
+      "entry": 4344.0,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        10.88000000000011
+      ],
+      "step": 0,
+      "is_pending": false,
+      "sid": "4",
+      "tp_original": 4333.09
+    },
+    "587526576": {
+      "direction": "BUY",
+      "entry": 4340.16,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        11.789999999999964
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "2",
+      "tp_original": 4351.95
+    },
+    "587526581": {
+      "direction": "SELL",
+      "entry": 4349.98,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        44.86999999999989
       ],
       "step": 0,
       "is_pending": false,
       "sid": "1",
-      "tp_original": 4099.27
+      "tp_original": 4305.09
     },
-    "587106882": {
-      "direction": "BUY",
-      "entry": 4306.94,
+    "587526582": {
+      "direction": "SELL",
+      "entry": 4349.98,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -1666,16 +1974,33 @@
         2.0,
         3.0,
         6.0,
-        23.950000000000728
+        86.89999999999964
+      ],
+      "step": 0,
+      "is_pending": false,
+      "sid": "11",
+      "tp_original": 4263.06
+    },
+    "587529081": {
+      "direction": "BUY",
+      "entry": 4340.17,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        19.38000000000011
       ],
       "step": 0,
       "is_pending": true,
       "sid": "11",
-      "tp_original": 4330.89
+      "tp_original": 4359.55
     },
-    "587109809": {
+    "587530234": {
       "direction": "BUY",
-      "entry": 4310.37,
+      "entry": 4337.78,
       "original_volume": 0.04,
       "base_volume": 0.01,
       "per_tp_volume": 0.01,
@@ -1683,12 +2008,46 @@
         2.0,
         3.0,
         6.0,
-        50.779999999999745
+        18.82000000000062
       ],
       "step": 0,
       "is_pending": true,
       "sid": "1",
-      "tp_original": 4361.15
+      "tp_original": 4356.6
+    },
+    "587530899": {
+      "direction": "BUY",
+      "entry": 4349.67,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        8.479999999999563
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "2",
+      "tp_original": 4358.15
+    },
+    "587530901": {
+      "direction": "BUY",
+      "entry": 4337.78,
+      "original_volume": 0.04,
+      "base_volume": 0.01,
+      "per_tp_volume": 0.01,
+      "tp_distances": [
+        2.0,
+        3.0,
+        6.0,
+        18.82000000000062
+      ],
+      "step": 0,
+      "is_pending": true,
+      "sid": "1",
+      "tp_original": 4356.6
     }
   },
   "s15_use_val_vah": true,
@@ -1699,14 +2058,12 @@
   "s15_level_cooldown_bars": 15,
   "s15_rsi_filter": true,
   "s16_state": {
-    "asian_high": 4318.29,
-    "asian_low": 4274.02,
-    "range_date": "2026-09-17",
-    "swept_high": true,
+    "asian_high": 0.0,
+    "asian_low": 0.0,
+    "range_date": "2026-09-18",
+    "swept_high": false,
     "swept_low": false,
     "fired": {
-      "M1|BUY|1789459200": 1789459200,
-      "M5|BUY|1789459200": 1789459200,
       "M1|BUY|1789477200": 1789477200,
       "M5|BUY|1789477200": 1789477200,
       "M15|BUY|1789477200": 1789477200,
@@ -1716,7 +2073,9 @@
       "M1|SELL|1789632000": 1789632000,
       "M5|SELL|1789632000": 1789632000,
       "M15|SELL|1789632000": 1789632000,
-      "M30|SELL|1789632000": 1789632000
+      "M30|SELL|1789632000": 1789632000,
+      "M1|SELL|1789650000": 1789650000,
+      "M5|SELL|1789650000": 1789650000
     }
   },
   "s20_trigger_defect": true,
@@ -1738,14 +2097,9 @@
   "fill_notified": [
     585130647,
     586246186,
-    586432360,
-    586448960,
-    586802148,
     586499023,
-    586843285,
-    586843284,
-    586830889,
-    586875751,
-    586903042
+    587524174,
+    587526581,
+    587526582
   ]
 }
