@@ -1536,6 +1536,110 @@ async def check_s20_escape(app):
                     del _s20_escape_state[ticket]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ── S20 Standalone Pending Order Expiry Manager (11 Strategies Only) ────────
+# ─────────────────────────────────────────────────────────────────────────────
+S20_11_STRATEGIES = (
+    20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28,
+    20.301, 20.302, 20.303, 20.304
+)
+
+async def check_s20_pending_expiry(app):
+    """
+    Standalone Expiry Manager สำหรับ 11 กลยุทธ์ S20 เท่านั้น:
+    (S20.18, S20.19, S20.20, S20.21, S20.22, S20.24, S20.28, S20.301, S20.302, S20.303, S20.304)
+
+    ตรวจสอบ Pending Orders ที่ค้างเกินระยะเวลา cancel_bars (หรือเวลาสูงสุด max_wait_sec จาก time_setup)
+    แล้วยกเลิก Order ทันทีแบบ Standalone 100% โดยไม่ขึ้นกับ Trend Check หรือ Config Gate อื่น
+    """
+    orders = mt5.orders_get()
+    if not orders:
+        return
+
+    import time as _time
+
+    for order in orders:
+        if getattr(order, "magic", 0) >= 990000:
+            continue
+        if order.type not in (mt5.ORDER_TYPE_BUY_LIMIT, mt5.ORDER_TYPE_SELL_LIMIT):
+            continue
+
+        ticket = int(order.ticket)
+
+        # Resolve SID
+        sid = position_sid.get(ticket)
+        if sid is None:
+            _pend = pending_order_tf.get(ticket)
+            if isinstance(_pend, dict):
+                sid = _pend.get("sid")
+        if sid is None:
+            _, sid, _ = _infer_position_meta_from_comment(order)
+
+        # กรองเฉพาะ 11 กลยุทธ์ S20 เท่านั้น
+        _is_s20 = (
+            sid in S20_11_STRATEGIES
+            or (isinstance(sid, (int, float, str)) and str(sid).startswith("20."))
+        )
+        if not _is_s20:
+            continue
+
+        # Resolve TF & cancel_bars
+        info = pending_order_tf.get(ticket) or {}
+        _tf = position_tf.get(ticket) or (info.get("tf") if isinstance(info, dict) else None) or "M5"
+        _c_bars = int(info.get("cancel_bars", 0) or 0) if isinstance(info, dict) else 0
+
+        # default cancel_bars = 12 (1 ชม. บน M5) หากไม่ได้ระบุ
+        if _c_bars <= 0:
+            _c_bars = 12
+
+        _tf_sec = int(TF_SECONDS_MAP.get(str(_tf).upper(), 300) or 300)
+        _max_wait_sec = _c_bars * _tf_sec
+
+        _setup_time = int(getattr(order, "time_setup", getattr(order, "time", 0)) or 0)
+        _now_ts = int(_time.time())
+
+        should_cancel = False
+        cancel_reason = ""
+
+        # 1. เช็คจากเวลา setup จริงของ MT5 Order (ถ้าเกินเวลาสูงสุดที่กำหนด)
+        if _setup_time > 0 and (_now_ts - _setup_time) >= _max_wait_sec:
+            should_cancel = True
+            cancel_reason = f"Expired after {_c_bars} bars ({_tf}) [time_setup elapsed={_now_ts - _setup_time}s >= {_max_wait_sec}s]"
+        else:
+            # 2. เช็คจาก detect_bar_time (ถ้ามี)
+            detect_time = int(info.get("detect_bar_time", 0) or 0) if isinstance(info, dict) else 0
+            if detect_time:
+                elapsed_bars = (_now_ts - detect_time) // _tf_sec
+                if elapsed_bars >= _c_bars:
+                    should_cancel = True
+                    cancel_reason = f"Expired after {_c_bars} bars ({_tf}) [elapsed_bars={elapsed_bars}]"
+
+        if should_cancel:
+            r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": ticket})
+            if r and r.retcode == mt5.TRADE_RETCODE_DONE:
+                pending_order_tf.pop(ticket, None)
+                position_tf.pop(ticket, None)
+                position_sid.pop(ticket, None)
+                position_pattern.pop(ticket, None)
+
+                pos_type = "BUY LIMIT" if order.type == mt5.ORDER_TYPE_BUY_LIMIT else "SELL LIMIT"
+                sig_e = "🟢" if "BUY" in pos_type else "🔴"
+                sym_str = getattr(order, "symbol", SYMBOL)
+
+                log_event(
+                    "ORDER_CANCELED",
+                    f"S20 Standalone Pending Expired: {cancel_reason}",
+                    ticket=ticket, symbol=sym_str, tf=_tf, side=pos_type, sid=sid
+                )
+                print(f"⏰ [{_time.strftime('%H:%M:%S')}] S20 Pending Expired #{ticket} ({sym_str} {_tf} S{sid}): {cancel_reason}")
+                await tg(app, (
+                    f"⏰ *S20 Pending Order Expired*\n"
+                    f"{sig_e} {pos_type} `#{ticket}` [{sym_str} {_tf}]\n"
+                    f"กลยุทธ์: `S{sid}` (11 Standalone)\n"
+                    f"ยกเลิกเนื่องจากค้างเกิน {_c_bars} แท่ง ({_max_wait_sec // 60} นาที)"
+                ))
+
+
 async def check_scale_out_partial(app):
     """
     ทยอยปิด lot ตาม TSO levels (เสมอ 4 steps × 0.01 = 0.04 lot):

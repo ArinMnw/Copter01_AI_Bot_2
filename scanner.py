@@ -3194,22 +3194,24 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         else:
             r_s20_inst[_s_inst] = {"signal": "WAIT", "reason": f"S{_s_inst} ปิด"}
 
-    # S20 Multi-Asset Switchboard: S20.304 scans all enabled symbols across all active timeframes matching backtest
+    # S20 Multi-Asset Switchboard: scans all enabled symbols (Gold, Silver, EURUSD, GBPUSD, USDJPY) matching backtest
     s20_multi_results = []
-    if active_strategies.get(20.304, False):
-        enabled_s20_syms = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
-        for _other_sym, _is_on in enabled_s20_syms.items():
-            if _is_on and _other_sym != SYMBOL:
-                try:
-                    mt5.symbol_select(_other_sym, True)
-                    _other_bar = mt5.copy_rates_from_pos(_other_sym, tf_val, 1, _normal_rate_count)
-                    if _other_bar is not None and len(_other_bar) >= lookback:
-                        _r_inst = s20_institutional_hub.evaluate_s20_institutional(20.304, _other_bar, tf_name=tf_name, symbol=_other_sym)
-                        if _r_inst.get("signal") in ("BUY", "SELL"):
-                            _r_inst["symbol"] = _other_sym
-                            s20_multi_results.append((20.304, _r_inst))
-                except Exception as _e_inst:
-                    log_error("S20.304_MULTI", f"Error scanning {_other_sym} [{tf_name}]: {_e_inst}")
+    enabled_s20_syms = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
+    for _other_sym, _is_on in enabled_s20_syms.items():
+        if _is_on and _other_sym != SYMBOL:
+            try:
+                mt5.symbol_select(_other_sym, True)
+                _fetch_count = max(500, lookback)
+                _other_bar = mt5.copy_rates_from_pos(_other_sym, tf_val, 0, _fetch_count)
+                if _other_bar is not None and len(_other_bar) >= 50:
+                    for _s_inst in S20_INSTITUTIONAL_SIDS:
+                        if active_strategies.get(_s_inst, False):
+                            _r_inst = s20_institutional_hub.evaluate_s20_institutional(_s_inst, _other_bar, tf_name=tf_name, symbol=_other_sym)
+                            if _r_inst.get("signal") in ("BUY", "SELL"):
+                                _r_inst["symbol"] = _other_sym
+                                s20_multi_results.append((_s_inst, _r_inst))
+            except Exception as _e_inst:
+                log_error("S20_MULTI_SCAN", f"Error scanning {_other_sym} [{tf_name}]: {_e_inst}")
 
     # ── S2 FVG — ตั้ง Limit ทันที ────────────────────────────────
     if r2.get("signal") == "FVG_DETECTED":

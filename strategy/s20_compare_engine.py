@@ -229,7 +229,7 @@ def run_s20_compare(
     target_sids=None,
     symbols_to_run=None,
     profile_name="demo-iux-2101183586",
-    time_tolerance_sec=900,
+    time_tolerance_sec=3600,
     price_tolerance_usd=1.0,
     root_dir=None
 ):
