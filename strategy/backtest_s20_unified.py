@@ -185,7 +185,7 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
 
     return sorted(setups, key=lambda x: x['time'])
 
-def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contract_size, digits, start_ts=None, end_ts=None, concurrent=False, m1_bars=None, m1_times=None):
+def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contract_size, digits, start_ts=None, end_ts=None, concurrent=False, m1_bars=None, m1_times=None, sym_spread=0.20):
     """Executes setups chronologically on sequential bars (M1 for M1 setups, M5 for others)."""
     m5_len = len(m5_bars)
     m1_len = len(m1_bars) if m1_bars is not None else 0
@@ -231,7 +231,7 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
         fill_idx = -1
         fill_price = s['entry']
 
-        # Fill window (Rule #6 & Rule #7 Penetration)
+        # Fill window (Rule #6 & Rule #7 Penetration + Live Symbol Spread)
         for i in range(start_idx, min(start_idx + max_wait_bars, sim_len)):
             b = sim_bars[i]
             if s['signal'] == 'BUY':
@@ -240,7 +240,8 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
                     fill_idx = i
                     fill_price = s['entry']
                     break
-                elif b['low'] <= (s['entry'] - penetration_pt):
+                # Live BUY Limit fills when Ask <= entry -> Bid (b['low']) <= entry - sym_spread
+                elif b['low'] <= (s['entry'] - sym_spread - penetration_pt):
                     filled = True
                     fill_idx = i
                     fill_price = s['entry']
@@ -321,22 +322,22 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
                         exit_time = b['time']
                         break
             else:  # SELL
-                # Rule #4 & Rule #9: Pessimistic SL check with slippage
-                if b['high'] >= curr_sl:
+                # Rule #4 & Rule #9: Pessimistic SL check with slippage (Ask = Bid + sym_spread)
+                if (b['high'] + sym_spread) >= curr_sl:
                     exit_price = round(curr_sl + sl_slip, digits) if curr_sl >= fill_price else curr_sl
                     exit_time = b['time']
                     break
 
                 # Rule #5: In the fill bar, DO NOT trail SL using low of the bar!
                 if is_fill_bar:
-                    if b['close'] <= tp_target:
+                    if (b['close'] + sym_spread) <= tp_target:
                         exit_price = tp_target
                         exit_time = b['time']
                         break
                     continue
 
                 if use_smc_stages:
-                    max_fav = fill_price - b['low']
+                    max_fav = fill_price - (b['low'] + sym_spread)
                     fav_r = max_fav / risk
                     if fav_r >= 0.8 and curr_sl > fill_price:
                         curr_sl = fill_price
@@ -351,12 +352,12 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
                         exit_time = b['time']
                         break
                     # Same-bar recheck: Did price retrace to newly tightened SL in the same bar?
-                    if b['high'] >= curr_sl:
+                    if (b['high'] + sym_spread) >= curr_sl:
                         exit_price = curr_sl
                         exit_time = b['time']
                         break
                 else:
-                    if b['low'] <= tp_target:
+                    if (b['low'] + sym_spread) <= tp_target:
                         exit_price = tp_target
                         exit_time = b['time']
                         break
@@ -365,7 +366,7 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
             continue
 
         pnl_pt = (exit_price - fill_price) if s['signal'] == 'BUY' else (fill_price - exit_price)
-        trade_pnl = (pnl_pt * lot * contract_size) / (exit_price if is_jpy else 1.0)
+        trade_pnl = ((pnl_pt - sym_spread) * lot * contract_size) / (exit_price if is_jpy else 1.0)
 
         busy_until = exit_time
         active_orders.append((int(exit_time), s_tf, s['signal'], s['entry']))
@@ -620,7 +621,19 @@ def main(default_strategy=None):
                 weight = config.S20_SYMBOL_WEIGHTS.get(sym, 1.0)
             sym_lot = round(base_lot * weight * scale, 2)
 
-            print(f"\n📊 Fetching data for {sym} (Weight: {weight}x -> Lot: {sym_lot}, Digits: {digits})...", flush=True)
+            # Dynamic Profile Spread
+            spread_pts = getattr(sinfo, "spread", 0) if sinfo else 0
+            if spread_pts and spread_pts > 0:
+                sym_spread = round(spread_pts * point, digits)
+            else:
+                if "XAU" in sym_u: sym_spread = 0.26
+                elif "XAG" in sym_u: sym_spread = 0.03
+                elif "JPY" in sym_u: sym_spread = 0.010
+                elif "EUR" in sym_u: sym_spread = 0.00008
+                elif "GBP" in sym_u: sym_spread = 0.00010
+                else: sym_spread = 0.20
+
+            print(f"\n📊 Fetching data for {sym} (Weight: {weight}x -> Lot: {sym_lot}, Digits: {digits}, Spread: ${sym_spread:.5f})...", flush=True)
 
             if args.tfs:
                 tfs = [t.strip().upper() for t in args.tfs.split(",") if t.strip()]
@@ -670,6 +683,7 @@ def main(default_strategy=None):
                         concurrent=args.concurrent or args.compare,
                         m1_bars=m1_bars,
                         m1_times=m1_times,
+                        sym_spread=sym_spread,
                     )
                     sym_trades_total.extend(t_list)
 
