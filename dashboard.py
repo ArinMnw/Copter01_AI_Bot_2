@@ -2153,6 +2153,29 @@ def _style_pnl_cell(v):
     return "color: #94a3b8"
 
 
+def _calc_group_dd(g):
+    """คำนวณ Max Drawdown ($ และ %) จาก equity curve สะสมของกลุ่มไม้ที่ส่งมา (เรียงตามเวลาถ้ามี
+    คอลัมน์ 'time') — DD% = drawdown / gross profit รวมของกลุ่มนี้ (เงินที่ชนะรวมทั้งหมด) ไม่ใช้
+    peak ของ curve เอง เพราะ curve เริ่มจาก 0 แต่ละ strategy กำไรสะสมมักยังน้อยตอนช่วงต้น ทำให้
+    peak ตรงจุด drawdown ลึกสุดอาจเล็กมาก หาร DD ออกมาได้เปอร์เซ็นต์บวมเกินจริง (เจอจริง 5967%,
+    8172% ตอน implement รอบแรก) — ใช้ gross profit แทนเพราะเสถียรกว่าและตีความง่ายกว่า ("DD กิน
+    กำไรที่ชนะมาไปกี่ % ณ จุดแย่สุด")"""
+    s = g.sort_values('time')['net'] if 'time' in g.columns else g['net']
+    cum = s.cumsum()
+    peak = cum.cummax()
+    dd = peak - cum
+    if dd.empty or dd.max() <= 0:
+        return 0.0, 0.0
+    max_dd = float(dd.max())
+    gross_profit = float(s[s > 0].sum())
+    dd_pct = (max_dd / gross_profit * 100) if gross_profit > 0 else 0.0
+    return round(max_dd, 2), round(dd_pct, 2)
+
+
+def _format_dd_cell(max_dd, dd_pct):
+    return f"-${max_dd:,.2f} ({dd_pct:.1f}%)" if max_dd > 0 else "$0.00 (0.0%)"
+
+
 # ─────────────────────────────────────────────────────────────
 #  MT5 DATA PIPELINE (LIVE TERMINAL & HISTORICAL TRADES)
 # ─────────────────────────────────────────────────────────────
@@ -4536,6 +4559,7 @@ if view_mode.startswith("🏦"):
                         w = g[g['net'] > 0]['net']
                         l = g[g['net'] <= 0]['net']
                         pf = w.sum() / abs(l.sum()) if l.sum() != 0 else float('inf')
+                        g_max_dd, g_dd_pct = _calc_group_dd(g)
                         daily_strat_rows.append({
                             "Strategy": sid,
                             "Trades": f"{len(g)} ({len(w)}W/{len(l)}L)",
@@ -4544,6 +4568,7 @@ if view_mode.startswith("🏦"):
                             "Avg Win": round(w.mean(), 2) if len(w) else 0.0,
                             "Avg Loss": round(l.mean(), 2) if len(l) else 0.0,
                             "Profit Factor": ("∞" if pf == float('inf') else f"{pf:.2f}"),
+                            "DD (DD%)": _format_dd_cell(g_max_dd, g_dd_pct),
                         })
                     daily_strat_df = pd.DataFrame(daily_strat_rows).sort_values("Net P/L", ascending=False)
                     daily_strat_rows_html = []
@@ -4558,13 +4583,14 @@ if view_mode.startswith("🏦"):
                             f"<td>${r['Avg Win']:+,.2f}</td>"
                             f"<td>${r['Avg Loss']:+,.2f}</td>"
                             f"<td>{r['Profit Factor']}</td>"
+                            f"<td style='color:#fb7185;'>{r['DD (DD%)']}</td>"
                             f"</tr>"
                         )
                     st.markdown(
                         f"<div class='pro-card' style='padding:0;overflow:hidden;'>"
                         f"<table class='pro-table'>"
                         f"<thead><tr>"
-                        f"<th>Strategy</th><th>Trades</th><th>Win%</th><th>Net P/L</th><th>Avg Win</th><th>Avg Loss</th><th>Profit Factor</th>"
+                        f"<th>Strategy</th><th>Trades</th><th>Win%</th><th>Net P/L</th><th>Avg Win</th><th>Avg Loss</th><th>Profit Factor</th><th>DD (DD%)</th>"
                         f"</tr></thead>"
                         f"<tbody>{''.join(daily_strat_rows_html)}</tbody>"
                         f"</table></div>",
@@ -4594,6 +4620,7 @@ if view_mode.startswith("🏦"):
                     w = g[g['net'] > 0]['net']
                     l = g[g['net'] <= 0]['net']
                     pf = w.sum() / abs(l.sum()) if l.sum() != 0 else float('inf')
+                    g_max_dd, g_dd_pct = _calc_group_dd(g)
                     strat_rows.append({
                         "Strategy": sid,
                         "Trades": f"{len(g)} ({len(w)}W/{len(l)}L)",
@@ -4602,6 +4629,7 @@ if view_mode.startswith("🏦"):
                         "Avg Win": round(w.mean(), 2) if len(w) else 0.0,
                         "Avg Loss": round(l.mean(), 2) if len(l) else 0.0,
                         "Profit Factor": ("∞" if pf == float('inf') else f"{pf:.2f}"),
+                        "DD (DD%)": _format_dd_cell(g_max_dd, g_dd_pct),
                     })
                 strat_month_df = pd.DataFrame(strat_rows).sort_values("Net P/L", ascending=False)
                 st.dataframe(
@@ -4715,6 +4743,7 @@ if view_mode.startswith("🏦"):
                         w = g[g['net'] > 0]['net']
                         l = g[g['net'] <= 0]['net']
                         pf = w.sum() / abs(l.sum()) if l.sum() != 0 else float('inf')
+                        g_max_dd, g_dd_pct = _calc_group_dd(g)
                         strat_rows.append({
                             "Strategy": str(sid),
                             "Trades": len(g),
@@ -4725,6 +4754,7 @@ if view_mode.startswith("🏦"):
                             "Avg Win": round(w.mean(), 2) if len(w) else 0.0,
                             "Avg Loss": round(l.mean(), 2) if len(l) else 0.0,
                             "Profit Factor": ("∞" if pf == float('inf') else f"{pf:.2f}"),
+                            "DD (DD%)": _format_dd_cell(g_max_dd, g_dd_pct),
                         })
 
                 if not strat_rows:
