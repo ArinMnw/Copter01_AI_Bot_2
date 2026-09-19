@@ -137,6 +137,28 @@ _last_strategy9_setup_by_key: dict = {}
 _last_strategy9_invalid_setup_by_key: dict = {}
 _last_pattern_notify_by_key: dict = {}
 _swing_data: dict = {}   # {tf_name: {"sh": str, "sl": str, "prev_sh": str, "prev_sl": str, "hh": str, "ll": str}}
+_s20_multi_scan_resolve_failed: set = set()  # กัน error.log spam: log แค่ครั้งแรกต่อ symbol ที่ resolve ไม่เจอ
+# แคช symbol resolve + แคชแท่งราคาของ S20 Multi-Asset Switchboard กัน MT5 IPC call รัวทุก scan cycle
+# (resolve แทบไม่เปลี่ยนเลยตลอด session, แท่งราคาก็เปลี่ยนแค่ตอนแท่งใหม่เปิดเท่านั้น ไม่จำเป็นต้อง fetch สดทุก 1s)
+_s20_multi_scan_resolved_cache: dict = {}   # {config_key: (resolved_symbol, resolved_at)}
+_s20_multi_scan_bar_cache: dict = {}        # {(resolved_symbol, tf_name): (bars, fetched_at)}
+_s20_multi_scan_eval_cache: dict = {}       # {(resolved_symbol, tf_name): (last_closed_bar_time, [(sid, result)])}
+_scan_stats: dict = {"n": 0, "sum": 0.0, "max": 0.0, "slow": 0, "t0": 0.0}  # สรุปเวลา scan cycle ทุก 60s (SCAN_STATS)
+_s20_timing: dict = {}  # {(symbol, tf): {"fetch"/"eval": [first, n_next, sum_next]}} สำหรับ log S20_TIMING
+
+
+def _s20_time_rec(symbol: str, tf: str, kind: str, dur: float) -> None:
+    rec = _s20_timing.setdefault((symbol, tf), {}).setdefault(kind, [None, 0, 0.0])
+    if rec[0] is None:
+        rec[0] = dur
+    else:
+        rec[1] += 1
+        rec[2] += dur
+
+
+_s20_primary_eval_cache: dict = {}      # {(symbol, tf_name, sid): (last_candle_time, result)}
+_S20_MULTI_SCAN_RESOLVE_TTL = 60.0
+_S20_MULTI_SCAN_BAR_TTL = 3.0
 
 
 def _s20_12_start_gate() -> tuple[bool, str]:
@@ -2309,6 +2331,33 @@ async def _auto_scan_inner(app):
 
     # ── timing diag: หา step ที่ทำให้ scan cycle ช้าผิดปกติ (กัน event-loop stall) ──
     _total_dur = _timing_steps[-1][1] if _timing_steps else 0.0
+    _scan_stats["n"] += 1
+    _scan_stats["sum"] += _total_dur
+    _scan_stats["max"] = max(_scan_stats["max"], _total_dur)
+    _scan_stats["slow"] += 1 if _total_dur > 3.0 else 0
+    _stats_now = _time.time()
+    if _scan_stats["t0"] == 0.0:
+        _scan_stats["t0"] = _stats_now
+    elif _stats_now - _scan_stats["t0"] >= 60.0:
+        log_event(
+            "SCAN_STATS",
+            f"scan cycle เฉลี่ย {_scan_stats['sum'] / _scan_stats['n']:.2f}s | max {_scan_stats['max']:.2f}s | "
+            f"{_scan_stats['n']} รอบ/{_stats_now - _scan_stats['t0']:.0f}s | ช้า(>3s) {_scan_stats['slow']} รอบ",
+            avg=round(_scan_stats["sum"] / _scan_stats["n"], 3), max=round(_scan_stats["max"], 3),
+            cycles=_scan_stats["n"], slow=_scan_stats["slow"],
+        )
+        _parts = []
+        for (_sy, _tf), _d in sorted(_s20_timing.items()):
+            _seg = []
+            for _k in ("fetch", "eval"):
+                _rc = _d.get(_k)
+                if _rc:
+                    _nx = f"{_rc[2] / _rc[1]:.2f}s(n={_rc[1]})" if _rc[1] else "-"
+                    _seg.append(f"{_k} แรก={_rc[0]:.2f}s ต่อไป={_nx}")
+            _parts.append(f"{_sy}/{_tf}: " + " ; ".join(_seg))
+        if _parts:
+            log_event("S20_TIMING", " | ".join(_parts))
+        _scan_stats.update(n=0, sum=0.0, max=0.0, slow=0, t0=_stats_now)
     if _total_dur > 3.0:
         _prev = 0.0
         _breakdown = []
@@ -3181,10 +3230,21 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── S20 Institutional Suite (11 Standalone Strategies) ─────────────────
     S20_INSTITUTIONAL_SIDS = (20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304)
     r_s20_inst = {}
+    _prim_eval_sum, _prim_eval_ran = 0.0, False
     for _s_inst in S20_INSTITUTIONAL_SIDS:
         if active_strategies.get(_s_inst, False):
             try:
-                _r = s20_institutional_hub.evaluate_s20_institutional(_s_inst, rates, tf_name=tf_name, symbol=SYMBOL)
+                # ผล evaluate ขึ้นกับแท่งปิดเท่านั้น → คำนวณ pandas หนักครั้งเดียวต่อแท่ง แล้วใช้ผลเดิมซ้ำทุกรอบ scan
+                _pk = (SYMBOL, tf_name, _s_inst)
+                _pc = _s20_primary_eval_cache.get(_pk)
+                if _pc is not None and _pc[0] == last_candle_time:
+                    _r = _pc[1]
+                else:
+                    _t_ev = _time.time()
+                    _r = s20_institutional_hub.evaluate_s20_institutional(_s_inst, rates, tf_name=tf_name, symbol=SYMBOL)
+                    _prim_eval_sum += _time.time() - _t_ev
+                    _prim_eval_ran = True
+                    _s20_primary_eval_cache[_pk] = (last_candle_time, _r)
                 r_s20_inst[_s_inst] = _r
                 if _r.get("signal") in ("BUY", "SELL"):
                     _log_divergence_once(tf_name, _s_inst, _r["signal"], last_candle_time, _r)
@@ -3194,22 +3254,69 @@ async def scan_one_tf(app, tf_name: str) -> bool:
         else:
             r_s20_inst[_s_inst] = {"signal": "WAIT", "reason": f"S{_s_inst} ปิด"}
 
+    if _prim_eval_ran:
+        _s20_time_rec(SYMBOL, tf_name, "eval", _prim_eval_sum)
+
     # S20 Multi-Asset Switchboard: scans all enabled symbols (Gold, Silver, EURUSD, GBPUSD, USDJPY) matching backtest
     s20_multi_results = []
     enabled_s20_syms = getattr(config, "S20_304_SYMBOLS", getattr(config, "S20_SYMBOLS", {}))
-    for _other_sym, _is_on in enabled_s20_syms.items():
-        if _is_on and _other_sym != SYMBOL:
+    for _other_sym_cfg, _is_on in enabled_s20_syms.items():
+        if _is_on and _other_sym_cfg != SYMBOL:
             try:
-                mt5.symbol_select(_other_sym, True)
-                _fetch_count = max(500, lookback)
-                _other_bar = mt5.copy_rates_from_pos(_other_sym, tf_val, 0, _fetch_count)
+                # config key อาจเป็น broker suffix คนละแบบกับ terminal ที่รันจริง (เช่น .iux vs m)
+                # ต้อง resolve เป็นชื่อ symbol จริงบน broker นี้ก่อน ไม่งั้น symbol_select/copy_rates จะเงียบล้มเหลว
+                # แคช resolve ไว้ (rare เปลี่ยน) กัน mt5.symbol_info() วนซ้ำหลาย candidate ทุก scan cycle
+                _cached_resolve = _s20_multi_scan_resolved_cache.get(_other_sym_cfg)
+                _now_ts = _time.time()
+                if _cached_resolve is not None and (_now_ts - _cached_resolve[1]) < _S20_MULTI_SCAN_RESOLVE_TTL:
+                    _other_sym = _cached_resolve[0]
+                else:
+                    _other_sym = config.resolve_mt5_symbol(mt5, symbol=_other_sym_cfg, set_runtime=False)
+                    _s20_multi_scan_resolved_cache[_other_sym_cfg] = (_other_sym, _now_ts)
+                if _other_sym == SYMBOL:
+                    continue
+
+                # ดึงเฉพาะแท่งที่ปิดแล้ว (pos=1) เหมือน symbol หลัก — เดิมใช้ pos=0 (รวมแท่งที่กำลังวิ่ง)
+                # ทำให้สัญญาณ symbol อื่นยิงกลางแท่ง (เช่น 13:49:24 ใน M15) ไม่ตรง backtest ที่ใช้แท่งปิด
+                # แคชแท่ง 3s กัน IPC รัว + แคชผล evaluate ต่อ "แท่งปิดล่าสุด" → คำนวณ pandas หนักครั้งเดียวต่อแท่ง
+                _cache_key = (_other_sym, tf_name)
+                _cached_bar = _s20_multi_scan_bar_cache.get(_cache_key)
+                if _cached_bar is not None and (_now_ts - _cached_bar[1]) < _S20_MULTI_SCAN_BAR_TTL:
+                    _other_bar = _cached_bar[0]
+                    _select_ok = _other_bar is not None
+                else:
+                    _t_fe = _time.time()
+                    _select_ok = mt5.symbol_select(_other_sym, True)
+                    _fetch_count = max(500, lookback)
+                    _other_bar = mt5.copy_rates_from_pos(_other_sym, tf_val, 1, _fetch_count) if _select_ok else None
+                    _s20_time_rec(_other_sym, tf_name, "fetch", _time.time() - _t_fe)
+                    _s20_multi_scan_bar_cache[_cache_key] = (_other_bar, _now_ts)
                 if _other_bar is not None and len(_other_bar) >= 50:
-                    for _s_inst in S20_INSTITUTIONAL_SIDS:
-                        if active_strategies.get(_s_inst, False):
-                            _r_inst = s20_institutional_hub.evaluate_s20_institutional(_s_inst, _other_bar, tf_name=tf_name, symbol=_other_sym)
-                            if _r_inst.get("signal") in ("BUY", "SELL"):
-                                _r_inst["symbol"] = _other_sym
-                                s20_multi_results.append((_s_inst, _r_inst))
+                    _s20_multi_scan_resolve_failed.discard(_other_sym_cfg)
+                    _bar_t = int(_other_bar[-1]["time"])
+                    _ev = _s20_multi_scan_eval_cache.get(_cache_key)
+                    if _ev is None or _ev[0] != _bar_t:
+                        _ev_list = []
+                        _t_me = _time.time()
+                        for _s_inst in S20_INSTITUTIONAL_SIDS:
+                            if active_strategies.get(_s_inst, False):
+                                _r_inst = s20_institutional_hub.evaluate_s20_institutional(_s_inst, _other_bar, tf_name=tf_name, symbol=_other_sym)
+                                if _r_inst.get("signal") in ("BUY", "SELL"):
+                                    _r_inst["symbol"] = _other_sym
+                                    _ev_list.append((_s_inst, _r_inst))
+                        _s20_time_rec(_other_sym, tf_name, "eval", _time.time() - _t_me)
+                        _ev = (_bar_t, _ev_list)
+                        _s20_multi_scan_eval_cache[_cache_key] = _ev
+                    s20_multi_results.extend(_ev[1])
+                elif _other_sym_cfg not in _s20_multi_scan_resolve_failed:
+                    _s20_multi_scan_resolve_failed.add(_other_sym_cfg)
+                    log_error(
+                        "S20_MULTI_SCAN_SYMBOL_NOT_FOUND",
+                        f"หา symbol '{_other_sym_cfg}' บนโบรกเกอร์นี้ไม่เจอ หรือดึงราคาไม่ได้ "
+                        f"(resolved -> '{_other_sym}', select_ok={_select_ok}) — S20 institutional suite "
+                        f"จะไม่ทำงานกับ symbol นี้จนกว่าจะแก้ SYMBOL_CANDIDATES/S20_304_SYMBOLS",
+                        tf=tf_name,
+                    )
             except Exception as _e_inst:
                 log_error("S20_MULTI_SCAN", f"Error scanning {_other_sym} [{tf_name}]: {_e_inst}")
 

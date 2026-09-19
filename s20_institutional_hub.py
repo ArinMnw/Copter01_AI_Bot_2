@@ -51,13 +51,14 @@ def get_symbol_scale_and_digits(symbol: str):
 def is_symbol_enabled_for_s20(symbol: str) -> bool:
     """Checks if the symbol is enabled in config switchboard."""
     enabled_syms = getattr(config, "S20_SYMBOLS", getattr(config, "S20_304_SYMBOLS", {}))
-    return enabled_syms.get(symbol, True)
+    root = config._symbol_root(symbol)
+    return enabled_syms.get(root, enabled_syms.get(symbol, True))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. S20.18: Order Flow Delta & Passive Absorption
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_18(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_18(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.18 disabled for {symbol}"}
     if tf_name != "M15":
@@ -100,7 +101,7 @@ def detect_s20_18(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. S20.19: Micro-Liquidity Pinbar Scalper
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_19(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_19(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.19 disabled for {symbol}"}
     if tf_name != "M15":
@@ -141,7 +142,7 @@ def detect_s20_19(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. S20.20: Asian Judas Swing Reversal
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_20(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_20(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.20 disabled for {symbol}"}
     if tf_name != "M15":
@@ -183,7 +184,7 @@ def detect_s20_20(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. S20.21: Intermarket SMT Divergence
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_21(rates, tf_name="M15", symbol="XAUUSD.iux", silver_rates=None) -> dict:
+def detect_s20_21(rates, tf_name="M15", symbol="XAUUSD", silver_rates=None) -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.21 disabled for {symbol}"}
     if tf_name != "M15":
@@ -229,7 +230,7 @@ def detect_s20_21(rates, tf_name="M15", symbol="XAUUSD.iux", silver_rates=None) 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. S20.22: Session Anchored VWAP Reversion
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_22(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_22(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.22 disabled for {symbol}"}
     if tf_name != "M15":
@@ -273,7 +274,7 @@ def detect_s20_22(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. S20.24: Wyckoff Stopping Volume & London Fix
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_24(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_24(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.24 disabled for {symbol}"}
     if tf_name != "M15":
@@ -315,7 +316,7 @@ def detect_s20_24(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. S20.28: Macro Session Pool Sweeps
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_28(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_28(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.28 disabled for {symbol}"}
     if tf_name != "M15":
@@ -477,7 +478,7 @@ def _evaluate_smc_candle(cur, digits=2, is_overlap=False, tp_r=13.43, stages=Non
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. S20.301: Structural Trend HTF Extension & Sniper
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_301(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_301(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.301 disabled for {symbol}"}
     # backtest skip M1,M5,M12 — ล้วเฉพาะ Institutional TF (M15, M30, H1, H4) ตรง line 110
@@ -502,7 +503,7 @@ def detect_s20_301(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 9. S20.302: Non-Conflicting Multi-Session Architecture
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_302(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_302(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.302 disabled for {symbol}"}
     # backtest skip M1,M5,M12 — ล้วเฉพาะ Institutional TF (M15, M30, H1, H4) ตรง line 110
@@ -527,7 +528,7 @@ def detect_s20_302(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. S20.303: Dynamic Volatility-Scaled Engine (Gold Solo Zenith)
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_303(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_303(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.303 disabled for {symbol}"}
     # backtest skip M1,M5,M12 — ล้วเฉพาะ Institutional TF (M15, M30, H1, H4) ตรง line 110
@@ -553,7 +554,7 @@ def detect_s20_303(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. S20.304: The Sovereign Dual-Asset Citadel Matrix (Cross-Asset Zenith)
 # ─────────────────────────────────────────────────────────────────────────────
-def detect_s20_304(rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def detect_s20_304(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     if not is_symbol_enabled_for_s20(symbol):
         return {"signal": "WAIT", "reason": f"S20.304 disabled for {symbol}"}
     # backtest skip M1,M5,M12 — ล้วเฉพาะ Institutional TF (M15, M30, H1, H4) ตรง line 110
@@ -592,7 +593,7 @@ DISPATCHER = {
     20.304: detect_s20_304,
 }
 
-def evaluate_s20_institutional(sid: float, rates, tf_name="M15", symbol="XAUUSD.iux") -> dict:
+def evaluate_s20_institutional(sid: float, rates, tf_name="M15", symbol="XAUUSD") -> dict:
     func = DISPATCHER.get(sid)
     if not func:
         return {"signal": "WAIT", "reason": f"Unknown S20 SID: {sid}"}

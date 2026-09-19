@@ -163,12 +163,11 @@ async def handle_ohlc_lookup(update, context, tf_str: str, date_str: str, time_s
     symbol = symbol_str.strip() if symbol_str else config.SYMBOL
     sym_info = mt5.symbol_info(symbol)
     if sym_info is None:
-        # Try appending .iux
-        if not symbol.endswith(".iux"):
-            alt_sym = f"{symbol}.iux"
-            if mt5.symbol_info(alt_sym):
-                symbol = alt_sym
-                sym_info = mt5.symbol_info(symbol)
+        # ลอง resolve เป็นชื่อ symbol จริงของโบรกเกอร์นี้ (รองรับ suffix ทุกแบบ ไม่ใช่แค่ .iux)
+        resolved = config.resolve_mt5_symbol(mt5, symbol=symbol, set_runtime=False)
+        if resolved and resolved != symbol and mt5.symbol_info(resolved):
+            symbol = resolved
+            sym_info = mt5.symbol_info(symbol)
 
     if sym_info is None:
         await update.effective_message.reply_text(

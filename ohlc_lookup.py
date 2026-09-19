@@ -72,10 +72,11 @@ def main():
 
     symbol = symbol_str.strip() if symbol_str else config.SYMBOL
     sym_info = mt5.symbol_info(symbol)
-    if sym_info is None and not symbol.endswith(".iux"):
-        alt = f"{symbol}.iux"
-        if mt5.symbol_info(alt):
-            symbol = alt
+    if sym_info is None:
+        # ลอง resolve เป็นชื่อ symbol จริงของโบรกเกอร์นี้ (รองรับ suffix ทุกแบบ ไม่ใช่แค่ .iux)
+        resolved = config.resolve_mt5_symbol(mt5, symbol=symbol, set_runtime=False)
+        if resolved and resolved != symbol and mt5.symbol_info(resolved):
+            symbol = resolved
             sym_info = mt5.symbol_info(symbol)
     if sym_info is None:
         print(f"ไม่พบ symbol '{symbol}' ใน MT5")

@@ -1114,22 +1114,24 @@ STRATEGY_NAMES = {
 }
 
 # ── S20 Universal Symbol Switchboard (เปิด-ปิด Symbol อิสระสำหรับทั้ง 11 กลยุทธ์) ──
+# ใช้ชื่อ root เฉยๆ ไม่ผูก suffix โบรกเกอร์ (.iux/m/c/...) — ตอนใช้งานจริงจะ resolve
+# เป็นชื่อ symbol ของโบรกเกอร์นั้นๆ เองผ่าน resolve_mt5_symbol() (ดู scanner.py multi-asset scan)
 S20_SYMBOLS = {
-    "XAUUSD.iux": True,   # Gold
-    "XAGUSD.iux": True,   # Silver
-    "EURUSD.iux": True,   # EURUSD
-    "GBPUSD.iux": True,   # GBPUSD
-    "USDJPY.iux": True,   # USDJPY
+    "XAUUSD": True,   # Gold
+    "XAGUSD": True,   # Silver
+    "EURUSD": True,   # EURUSD
+    "GBPUSD": True,   # GBPUSD
+    "USDJPY": True,   # USDJPY
 }
 S20_304_SYMBOLS = S20_SYMBOLS  # Backward compatibility
 
 # ── S20 Symbol Lot Weights (สำหรับ Equal Profit Parity เทียบกับ 0.01 Gold) ──
 S20_SYMBOL_WEIGHTS = {
-    "XAUUSD.iux": 1.0,   # Gold (0.01 lot)
-    "XAGUSD.iux": 1.0,   # Silver (0.01 lot -> contract 5,000 oz ให้กำไรสมดุลกับ Gold)
-    "GBPUSD.iux": 11.0,  # GBPUSD (0.11 lot -> 11x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
-    "EURUSD.iux": 14.0,  # EURUSD (0.14 lot -> 14x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
-    "USDJPY.iux": 14.0,  # USDJPY (0.14 lot -> 14x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
+    "XAUUSD": 1.0,   # Gold (0.01 lot)
+    "XAGUSD": 1.0,   # Silver (0.01 lot -> contract 5,000 oz ให้กำไรสมดุลกับ Gold)
+    "GBPUSD": 11.0,  # GBPUSD (0.11 lot -> 11x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
+    "EURUSD": 14.0,  # EURUSD (0.14 lot -> 14x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
+    "USDJPY": 14.0,  # USDJPY (0.14 lot -> 14x เพื่อให้ได้กำไร ~$38,400/ปี เท่า Gold)
 }
 S20_304_SYMBOL_WEIGHTS = S20_SYMBOL_WEIGHTS  # Backward compatibility
 
@@ -3188,7 +3190,12 @@ def restore_runtime_state():
         if isinstance(saved_s20_304_syms, dict):
             global S20_304_SYMBOLS
             for sym, val in saved_s20_304_syms.items():
-                S20_304_SYMBOLS[sym] = bool(val)
+                # migrate ค่าเก่าที่เคย save ด้วย key ติด suffix โบรกเกอร์ (เช่น "USDJPY.iux") ให้กลับมาเป็น root
+                root_sym = _symbol_root(sym)
+                if root_sym in S20_304_SYMBOLS:
+                    S20_304_SYMBOLS[root_sym] = bool(val)
+                else:
+                    S20_304_SYMBOLS[sym] = bool(val)
 
         global TG_QUEUE_DEBUG, SLTP_AUDIT_DEBUG, TRADE_DEBUG, OPPOSITE_ORDER_MODE
         global ENTRY_CANDLE_MODE, ENTRY_CLOSE_REVERSE_MARKET, ENTRY_CLOSE_REVERSE_LIMIT
