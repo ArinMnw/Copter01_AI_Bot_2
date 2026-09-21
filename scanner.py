@@ -3299,6 +3299,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                         _ev_list = []
                         _t_me = _time.time()
                         for _s_inst in S20_INSTITUTIONAL_SIDS:
+                            # ตรงกับ backtest: S20.18-20.303 เทรดเฉพาะทอง, symbol อื่นมีแค่ S20.304
+                            if _s_inst != 20.304 and "XAU" not in _other_sym.upper():
+                                continue
                             if active_strategies.get(_s_inst, False):
                                 _r_inst = s20_institutional_hub.evaluate_s20_institutional(_s_inst, _other_bar, tf_name=tf_name, symbol=_other_sym)
                                 if _r_inst.get("signal") in ("BUY", "SELL"):
