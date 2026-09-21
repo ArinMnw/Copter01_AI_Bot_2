@@ -5987,14 +5987,17 @@ async def check_engulf_trail_sl(app):
             continue
         if t not in open_tickets:
             _trend_filter_last_dir.pop(key, None)
+    # สถานะแจ้งเตือน fill ผูกกับทุก symbol (check_fill ใช้ positions_get() ทั้งหมด) — ห้ามล้างด้วยไม้ของ SYMBOL หลักอย่างเดียว
+    # ไม่งั้นไม้ symbol รอง (S20 multi-asset) ถูกลืมทุกรอบ แล้วแจ้ง Limit Fill ซ้ำรัว
+    all_open_tickets = {p.ticket for p in (mt5.positions_get() or [])}
     for t in list(_fill_notified.keys()):
-        if t not in open_tickets:
+        if t not in all_open_tickets:
             _fill_notified.pop(t, None)
     for t in list(_entry_bar_notified.keys()):
-        if t not in open_tickets:
+        if t not in all_open_tickets:
             _entry_bar_notified.pop(t, None)
     for t in list(_fill_rsi_checked):
-        if t not in open_tickets:
+        if t not in all_open_tickets:
             _fill_rsi_checked.discard(t)
 
     now = now_bkk().strftime("%H:%M:%S")
