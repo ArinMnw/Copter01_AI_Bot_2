@@ -38,6 +38,20 @@ def _get_module(folder_name: str, file_name: str):
         print(f"[S20 HUB] Error loading {key}: {e}")
         return None
 
+_MARATHON_CACHE = {"key": None, "df": None}
+
+
+def _marathon_df(rates, compute_fn):
+    """S20.301-304 คำนวณ marathon df จาก rates ชุดเดียวกันติดกัน 4 ครั้ง — คำนวณครั้งเดียวแล้วใช้ร่วม (single-slot)"""
+    key = (len(rates), int(rates[0]["time"]), int(rates[-1]["time"]), float(rates[-1]["close"]), float(rates[-1]["high"]), float(rates[-1]["low"]))
+    if _MARATHON_CACHE["key"] == key and _MARATHON_CACHE["df"] is not None:
+        return _MARATHON_CACHE["df"]
+    df = compute_fn(rates)
+    _MARATHON_CACHE["key"] = key
+    _MARATHON_CACHE["df"] = df
+    return df
+
+
 def get_symbol_scale_and_digits(symbol: str):
     """Returns (scale_factor, digits) for scaling rates to pass ATR thresholds."""
     sym = symbol.upper()
@@ -487,7 +501,7 @@ def detect_s20_301(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     try:
         from strategy.run_master_s20_marathon_201_to_300 import compute_marathon_300_synergies, make_stages
         _, digits = get_symbol_scale_and_digits(symbol)
-        df = compute_marathon_300_synergies(rates)
+        df = _marathon_df(rates, compute_marathon_300_synergies)
         cur = df.iloc[-1]
         stages = make_stages(55)
         res = _evaluate_smc_candle(cur, digits=digits, is_overlap=cur.get('is_ldn_ny_overlap', False), tp_r=13.43, stages=stages, symbol=symbol, tf_name=tf_name)
@@ -512,7 +526,7 @@ def detect_s20_302(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     try:
         from strategy.run_master_s20_marathon_201_to_300 import compute_marathon_300_synergies, make_stages
         _, digits = get_symbol_scale_and_digits(symbol)
-        df = compute_marathon_300_synergies(rates)
+        df = _marathon_df(rates, compute_marathon_300_synergies)
         cur = df.iloc[-1]
         stages = make_stages(55)
         res = _evaluate_smc_candle(cur, digits=digits, is_overlap=cur.get('is_ldn_ny_overlap', False), tp_r=13.43, stages=stages, symbol=symbol, tf_name=tf_name)
@@ -537,7 +551,7 @@ def detect_s20_303(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     try:
         from strategy.run_master_s20_marathon_201_to_300 import compute_marathon_300_synergies, make_stages
         _, digits = get_symbol_scale_and_digits(symbol)
-        df = compute_marathon_300_synergies(rates)
+        df = _marathon_df(rates, compute_marathon_300_synergies)
         cur = df.iloc[-1]
         stages = make_stages(56)
         # tp_r=13.43 ตรง backtest (run_s20_304_m5_verified.py line 593: tp_r=13.43 สำหรับทุกกลยุทธ์)
@@ -563,7 +577,7 @@ def detect_s20_304(rates, tf_name="M15", symbol="XAUUSD") -> dict:
     try:
         from strategy.run_master_s20_marathon_201_to_300 import compute_marathon_300_synergies, make_stages
         _, digits = get_symbol_scale_and_digits(symbol)
-        df = compute_marathon_300_synergies(rates)
+        df = _marathon_df(rates, compute_marathon_300_synergies)
         cur = df.iloc[-1]
         stages = make_stages(55)
         res = _evaluate_smc_candle(cur, digits=digits, is_overlap=cur.get('is_ldn_ny_overlap', False), tp_r=13.43, stages=stages, symbol=symbol, tf_name=tf_name)
