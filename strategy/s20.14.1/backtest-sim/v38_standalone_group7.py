@@ -1,3 +1,16 @@
+
+def get_cached_rates(symbol, tf_val, tf_name, count=50000):
+    cache_dir = os.path.join(os.path.dirname(__file__), 'rate_cache')
+    cache_file = os.path.join(cache_dir, f'rates_{tf_name}.pkl')
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'rb') as f:
+                return pickle.load(f)
+        except Exception:
+            pass
+    rates = mt5.copy_rates_from_pos(symbol, tf_val, 0, count)
+    return rates
+
 import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
@@ -88,8 +101,29 @@ if __name__ == '__main__':
             days = days_diff
     compound = 0.01
     group_id = 7
-    target_orders = [8]
-    target_tfs = {"Naiya": [], "Inst_Gap": [], "Fibo": ["H1", "M15"], "FVG": [], "GapSweep": [], "Doji": [], "MA12": [], "Div": [], "ATR": []}
+    target_orders = None  # Allow all valid signals to trigger without single order lockout
+
+    # Quant Checklist Optional Flags:
+    ENABLE_LIMIT_PENETRATION = True   # Rule #7: Touch is Not a Fill (penetrate by 0.10 USD)
+    LIMIT_PENETRATION_PTS = 0.10      # 10 points (0.10 USD on Gold)
+
+    ENABLE_SL_SLIPPAGE = True         # Rule #9: Negative Slippage on SL Exit
+    SL_SLIPPAGE_PTS = 0.10            # 0.10 USD negative slippage penalty on SL
+
+    ENABLE_FRIDAY_FORCE_CLOSE = True   # Rule #17: Weekend Price Gap Guard (Force close Friday late night)
+
+    ALL_TFS_LIST = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'H12', 'D1']
+    target_tfs = {
+        'Naiya': ALL_TFS_LIST.copy(),
+        'Inst_Gap': ALL_TFS_LIST.copy(),
+        'Fibo': ALL_TFS_LIST.copy(),
+        'FVG': ALL_TFS_LIST.copy(),
+        'GapSweep': ALL_TFS_LIST.copy(),
+        'Doji': ALL_TFS_LIST.copy(),
+        'MA12': ALL_TFS_LIST.copy(),
+        'Div': ALL_TFS_LIST.copy(),
+        'ATR': ALL_TFS_LIST.copy()
+    }
     mt5.initialize(r'D:\Project\Copter01_AI_Bot_2\profiles\demo\demo-iux-2101182459\mt5\terminal64.exe')
     symbol = "XAUUSD.iux"
     info = mt5.symbol_info(symbol)
@@ -103,17 +137,14 @@ if __name__ == '__main__':
     print(f"Using Symbol: {symbol} | Spread: {spread_points} points ({spread_price})")
 
     tf_map = {
-        "M15": mt5.TIMEFRAME_M15, "M30": mt5.TIMEFRAME_M30,
-        "H1": mt5.TIMEFRAME_H1, "H12": mt5.TIMEFRAME_H12, "D1": mt5.TIMEFRAME_D1
+        "M1": mt5.TIMEFRAME_M1, "M5": mt5.TIMEFRAME_M5, "M15": mt5.TIMEFRAME_M15, "M30": mt5.TIMEFRAME_M30,
+        "H1": mt5.TIMEFRAME_H1, "H4": mt5.TIMEFRAME_H4, "H12": mt5.TIMEFRAME_H12, "D1": mt5.TIMEFRAME_D1
     }
     
     
     all_tfs = set()
     for tfs in target_tfs.values():
         all_tfs.update(tfs)
-    all_tfs.discard("M1")
-    all_tfs.discard("M5")
-        
     trades_list = []
     print(f"Generating CSV backtest data for {days} days (Walk-Forward Simulator)...")
     
@@ -127,7 +158,7 @@ if __name__ == '__main__':
     global_dfs = {}
     for t_name, t_val in [('D1', mt5.TIMEFRAME_D1), ('H12', mt5.TIMEFRAME_H12), ('H4', mt5.TIMEFRAME_H4), 
                           ('H1', mt5.TIMEFRAME_H1), ('M30', mt5.TIMEFRAME_M30), ('M15', mt5.TIMEFRAME_M15)]:
-        rates = mt5.copy_rates_from_pos(symbol, t_val, 0, 50000 if 'M' in t_name else 10000)
+        rates = get_cached_rates(symbol, t_val, t_name)
         if rates is not None and len(rates) > 0:
             df_g = pd.DataFrame(rates)
             df_g['time_dt'] = pd.to_datetime(df_g['time'], unit='s') + timedelta(hours=1)
@@ -376,6 +407,8 @@ if __name__ == '__main__':
         recent_div_sell = 0
         
         for i, (idx, row) in enumerate(valid.iterrows()):
+            pen_offset = LIMIT_PENETRATION_PTS if ENABLE_LIMIT_PENETRATION else 0.0
+            slip_offset = SL_SLIPPAGE_PTS if ENABLE_SL_SLIPPAGE else 0.0
             if i % 1000 == 0:
                 print(f"[{tf_str}] Processing row {i}/{len(valid)}...")
             if i < 50:
@@ -392,7 +425,7 @@ if __name__ == '__main__':
                     continue
                     
                 if p['Type'] == 'BUY':
-                    if row.low <= p['Limit_Price'] or p.get('Entry', 0.0) != 0.0:
+                    if row.low <= (p['Limit_Price'] - pen_offset) or p.get('Entry', 0.0) != 0.0:
                         if p['Entry'] == 0.0: 
                             p['Entry'] = p['Limit_Price']
                             p['Time (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
@@ -405,7 +438,7 @@ if __name__ == '__main__':
                         open_trades.append(p)
                         pending_orders.remove(p)
                 elif p['Type'] == 'SELL':
-                    if (row.high + spread_price) >= p['Limit_Price'] or p.get('Entry', 0.0) != 0.0:
+                    if (row.high + spread_price) >= (p['Limit_Price'] + pen_offset) or p.get('Entry', 0.0) != 0.0:
                         if p['Entry'] == 0.0: 
                             p['Entry'] = p['Limit_Price']
                             p['Time (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
@@ -483,8 +516,19 @@ if __name__ == '__main__':
                     "Bars_Waited": 0
                 })
 
+            # Rule #17: Friday Force Close Guard (Weekend protection)
+            is_friday_night = (ENABLE_FRIDAY_FORCE_CLOSE and row.time_dt.dayofweek == 4 and row.time_dt.hour >= 23 and row.time_dt.minute >= 30)
+
             # 1. Update open trades (Check if SL or TP is hit)
             for t in open_trades[:]:
+                if is_friday_night:
+                    t['Reason'] = 'Friday Close'
+                    close_p = row.close if t['Type'] == 'BUY' else (row.close + spread_price)
+                    t['P&L'] = (close_p - t['Entry']) * 100 * t['Lot'] if t['Type'] == 'BUY' else (t['Entry'] - close_p) * 100 * t['Lot']
+                    t['CloseTime (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
+                    trades_list.append(t)
+                    open_trades.remove(t)
+                    continue
                 if t['Type'] == 'BUY':
                     if row.low <= t['SL']:
                         t['Reason'] = 'BE' if t.get('be_act') else 'SL'
