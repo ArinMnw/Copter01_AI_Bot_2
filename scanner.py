@@ -1,3 +1,4 @@
+from strategy_ids import normalize_sid
 from config import *
 import config
 import asyncio
@@ -5,7 +6,7 @@ import importlib.util as _importlib_util
 from pathlib import Path as _Path
 import time as _time
 from bot_log import log_block, log_event, log_error
-from mt5_utils import connect_mt5, get_dynamic_volume, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP
+from mt5_utils import connect_mt5, get_dynamic_volume, open_order, open_order_stop, open_order_market, get_existing_tp, should_cancel_pending, find_swing_tp, get_structure, has_previous_bar_trade, TF_SECONDS_MAP, S20_14_ALL_SIDS
 from strategy1 import strategy_1
 from strategy2 import strategy_2
 from strategy3 import strategy_3
@@ -30,6 +31,14 @@ from strategy19 import strategy_19
 from strategy20 import strategy_20
 import sys, os
 import s20_institutional_hub
+_ea2_path = os.path.join(os.path.dirname(__file__), "mq5_strategy", "ea2")
+if _ea2_path not in sys.path:
+    sys.path.append(_ea2_path)
+from live_ea2 import detect_ea2
+_ea2_1_path = os.path.join(os.path.dirname(__file__), "mq5_strategy", "ea2.1")
+if _ea2_1_path not in sys.path:
+    sys.path.append(_ea2_1_path)
+from live_ea2_1 import detect_ea2_1
 sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.5"))
 from strategy20_5 import strategy_20_5
 sys.path.append(os.path.join(os.path.dirname(__file__), "strategy", "s20.6"))
@@ -421,7 +430,7 @@ def _has_active_sid_trade(tf_name: str, sid: int) -> bool:
     for info in pending_order_tf.values():
         if not isinstance(info, dict):
             continue
-        if info.get("tf") == tf_name and int(info.get("sid", 0) or 0) == sid:
+        if info.get("tf") == tf_name and normalize_sid(info.get("sid", 0)) == sid:
             return True
     try:
         positions = mt5.positions_get(symbol=SYMBOL) or []
@@ -431,7 +440,7 @@ def _has_active_sid_trade(tf_name: str, sid: int) -> bool:
         ticket = int(getattr(pos, "ticket", 0) or 0)
         if not ticket:
             continue
-        if position_tf.get(ticket) == tf_name and int(position_sid.get(ticket, 0) or 0) == sid:
+        if position_tf.get(ticket) == tf_name and normalize_sid(position_sid.get(ticket, 0)) == sid:
             return True
     return False
 
@@ -452,7 +461,7 @@ def _adjacent_sid_blocked(tf_name: str, sid: int, candle_time: int, tf_secs: int
 
 def _pattern_allows_adjacent_order(sid: int, pattern: str) -> bool:
     # S1 ทุก pattern สร้าง order แท่งติดกันได้ (เดิมจำกัดแค่ "2 แดง"/"2 เขียว")
-    return int(sid or 0) == 1
+    return normalize_sid(sid) == 1
 
 
 async def _clear_opposite_s13_exposure(app, tf_name: str, signal: str) -> bool:
@@ -2805,6 +2814,8 @@ async def _group_guard_place_retries(app, tf_name: str, rates) -> bool:
 
 async def scan_one_tf(app, tf_name: str) -> bool:
     """สแกน 1 Timeframe — return True ถ้าเปิด Order สำเร็จ"""
+    config.enforce_ea2_only_mode()
+    config.enforce_ea2_1_only_mode()
     tf_val = TF_OPTIONS[tf_name]
     now    = now_bkk().strftime("%H:%M")
     lookback = TF_LOOKBACK.get(tf_name, SWING_LOOKBACK)
@@ -2820,7 +2831,11 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     current_bar_time = int(current_bar[0]["time"])
 
     # ดึงแท่งที่ปิดแล้ว (start=1 ข้ามแท่งปัจจุบัน)
-    _normal_rate_count = lookback + 6
+    _normal_rate_count = max(
+        lookback + 6,
+        720 if active_strategies.get(config.EA2_SID, False) and tf_name == getattr(config, "EA2_LIVE_TF", "M1") else 0,
+        720 if active_strategies.get(config.EA2_1_SID, False) and tf_name == getattr(config, "EA2_1_LIVE_TF", "M5") else 0,
+    )
     _s14_warmup_count = (
         max(_normal_rate_count, int(getattr(config, "S14_RSI_WARMUP_BARS", 300)))
         if active_strategies.get(14, False)
@@ -3117,26 +3132,87 @@ async def scan_one_tf(app, tf_name: str) -> bool:
 
     r20_13 = strategy_20_13(rates, tf=tf_name) if active_strategies.get(20.13, False) and getattr(config, "S20_13_TF_ENABLED", {}).get(tf_name, True) and _s20_ok else {"signal": "WAIT", "reason": "S20.13 ปิด หรือ TF ปิด"}
     # S20.14 Groups Integration
-    r20_14_1 = strategy20_14_groups.strategy_20_14_1(rates, tf=tf_name) if active_strategies.get(20.141, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_2 = strategy20_14_groups.strategy_20_14_2(rates, tf=tf_name) if active_strategies.get(20.142, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.2 ปิด'}
-    r20_14_5 = strategy20_14_groups.strategy_20_14_5(rates, tf=tf_name) if active_strategies.get(20.145, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.5 ปิด'}
-    r20_14_9 = strategy20_14_groups.strategy_20_14_9(rates, tf=tf_name) if active_strategies.get(20.149, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.9 ปิด'}
-    r20_14_12 = strategy20_14_groups.strategy_20_14_12(rates, tf=tf_name) if active_strategies.get(20.1412, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.12 ปิด'}
-    r20_14_13 = strategy20_14_groups.strategy_20_14_13(rates, tf=tf_name) if active_strategies.get(20.1413, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.13 ปิด'}
-    r20_14_7 = strategy20_14_groups.strategy_20_14_7(rates, tf=tf_name) if active_strategies.get(20.147, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_8 = strategy20_14_groups.strategy_20_14_8(rates, tf=tf_name) if active_strategies.get(20.148, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_10 = strategy20_14_groups.strategy_20_14_10(rates, tf=tf_name) if active_strategies.get(20.1410, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_11 = strategy20_14_groups.strategy_20_14_11(rates, tf=tf_name) if active_strategies.get(20.1411, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_15 = strategy20_14_groups.strategy_20_14_15(rates, tf=tf_name) if active_strategies.get(20.1415, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_17 = strategy20_14_groups.strategy_20_14_17(rates, tf=tf_name) if active_strategies.get(20.1417, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_14 = strategy20_14_groups.strategy_20_14_14(rates, tf=tf_name) if active_strategies.get(20.1414, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_16 = strategy20_14_groups.strategy_20_14_16(rates, tf=tf_name) if active_strategies.get(20.1416, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_18 = strategy20_14_groups.strategy_20_14_18(rates, tf=tf_name) if active_strategies.get(20.1418, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT'}
-    r20_14_19 = strategy20_14_groups.strategy_20_14_19(rates, tf=tf_name) if active_strategies.get(20.1419, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.19 ปิด'}
-    r20_14_21 = strategy20_14_groups.strategy_20_14_21(rates, tf=tf_name) if active_strategies.get(20.1421, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.21 ปิด'}
-    r20_14_22 = strategy20_14_groups.strategy_20_14_22(rates, tf=tf_name) if active_strategies.get(20.1422, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.22 ปิด'}
+    r20_14_1 = strategy20_14_groups.strategy_20_14_1(rates, tf=tf_name) if active_strategies.get(20.141, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(1, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_2 = strategy20_14_groups.strategy_20_14_2(rates, tf=tf_name) if active_strategies.get(20.142, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(2, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.2 ปิด'}
+    r20_14_3 = strategy20_14_groups.strategy_20_14_3(rates, tf=tf_name) if active_strategies.get(20.143, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(3, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.3 ปิด'}
+    r20_14_4 = strategy20_14_groups.strategy_20_14_4(rates, tf=tf_name) if active_strategies.get(20.144, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(4, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.4 ปิด'}
+    r20_14_6 = strategy20_14_groups.strategy_20_14_6(rates, tf=tf_name) if active_strategies.get(20.146, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(6, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.6 ปิด'}
+    r20_14_20 = strategy20_14_groups.strategy_20_14_20(rates, tf=tf_name) if active_strategies.get(20.1402, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(20, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.20 ปิด'}
+    r20_14_5 = strategy20_14_groups.strategy_20_14_5(rates, tf=tf_name) if active_strategies.get(20.145, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(5, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.5 ปิด'}
+    r20_14_9 = strategy20_14_groups.strategy_20_14_9(rates, tf=tf_name) if active_strategies.get(20.149, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(9, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.9 ปิด'}
+    r20_14_12 = strategy20_14_groups.strategy_20_14_12(rates, tf=tf_name) if active_strategies.get(20.1412, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(12, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.12 ปิด'}
+    r20_14_13 = strategy20_14_groups.strategy_20_14_13(rates, tf=tf_name) if active_strategies.get(20.1413, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(13, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.13 ปิด'}
+    r20_14_7 = strategy20_14_groups.strategy_20_14_7(rates, tf=tf_name) if active_strategies.get(20.147, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(7, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_8 = strategy20_14_groups.strategy_20_14_8(rates, tf=tf_name) if active_strategies.get(20.148, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(8, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_10 = strategy20_14_groups.strategy_20_14_10(rates, tf=tf_name) if active_strategies.get(20.1410, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(10, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_11 = strategy20_14_groups.strategy_20_14_11(rates, tf=tf_name) if active_strategies.get(20.1411, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(11, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_15 = strategy20_14_groups.strategy_20_14_15(rates, tf=tf_name) if active_strategies.get(20.1415, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(15, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_17 = strategy20_14_groups.strategy_20_14_17(rates, tf=tf_name) if active_strategies.get(20.1417, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(17, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_14 = strategy20_14_groups.strategy_20_14_14(rates, tf=tf_name) if active_strategies.get(20.1414, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(14, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_16 = strategy20_14_groups.strategy_20_14_16(rates, tf=tf_name) if active_strategies.get(20.1416, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(16, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_18 = strategy20_14_groups.strategy_20_14_18(rates, tf=tf_name) if active_strategies.get(20.1418, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(18, {tf_name}) and _s20_ok else {'signal': 'WAIT'}
+    r20_14_19 = strategy20_14_groups.strategy_20_14_19(rates, tf=tf_name) if active_strategies.get(20.1419, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(19, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.19 ปิด'}
+    r20_14_21 = strategy20_14_groups.strategy_20_14_21(rates, tf=tf_name) if active_strategies.get(20.1421, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(21, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.21 ปิด'}
+    r20_14_22 = strategy20_14_groups.strategy_20_14_22(rates, tf=tf_name) if active_strategies.get(20.1422, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(22, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.22 ปิด'}
     r20_14_23 = strategy20_14_groups.strategy_20_14_23(rates, tf=tf_name) if active_strategies.get(20.1423, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.23 ปิด'}
-    r20_14_24 = strategy20_14_groups.strategy_20_14_24(rates, tf=tf_name) if active_strategies.get(20.1424, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.24 ปิด'}
+    r20_14_24 = strategy20_14_groups.strategy_20_14_24(rates, tf=tf_name) if active_strategies.get(20.1424, False) and getattr(config, 'S20_14_TF_ENABLED', {}).get(tf_name, True) and tf_name in getattr(config, 'S20_14_GROUP_TOP_TFS', {}).get(24, {tf_name}) and _s20_ok else {'signal': 'WAIT', 'reason': 'S20.14.24 ปิด'}
+
+    # --- S20.14 Group-level (Pattern, TF) -> Round Whitelist (2026-09-23 v2) ---
+    # เดิมแยก whitelist pattern กับ TF เป็นคนละ dict อิสระ ทำให้คู่ที่ไม่เคยอยู่ใน top-10 จริง
+    # (เช่น pattern A + TF ที่ A ไม่เคยทำกำไรด้วย) หลุดผ่านได้ และใช้ round เดียวกันทั้งกลุ่มทั้งที่แต่ละ
+    # คู่ใน top-10 มาจากคนละ round — ตอนนี้เช็คเป็นคู่ (pattern, tf) ตรงๆ ผ่าน S20_14_GROUP_COMBOS
+    # ไม่มีคู่นี้ในกลุ่ม = ไม่เคยพิสูจน์ว่าทำกำไร บล็อกเป็น WAIT ทันที ถ้ามีคู่ก็ apply round ของคู่นั้นเป๊ะๆ
+    _s2014_results = {1: r20_14_1, 2: r20_14_2, 3: r20_14_3, 4: r20_14_4, 5: r20_14_5, 6: r20_14_6,
+                       7: r20_14_7, 8: r20_14_8, 9: r20_14_9, 10: r20_14_10, 11: r20_14_11, 12: r20_14_12,
+                       13: r20_14_13, 14: r20_14_14, 15: r20_14_15, 16: r20_14_16, 17: r20_14_17,
+                       18: r20_14_18, 19: r20_14_19, 20: r20_14_20, 21: r20_14_21, 22: r20_14_22,
+                       24: r20_14_24}
+    _s2014_combos = getattr(config, 'S20_14_GROUP_COMBOS', {})
+    for _s2014_g, _s2014_r in _s2014_results.items():
+        if isinstance(_s2014_r, dict) and _s2014_r.get('signal') in ('BUY', 'SELL'):
+            _s2014_mode_target = _s2014_combos.get(_s2014_g, {}).get((_s2014_r.get('pattern'), tf_name))
+            if not _s2014_mode_target:
+                _s2014_results[_s2014_g] = {'signal': 'WAIT', 'reason': f"S20.14.{_s2014_g} (pattern={_s2014_r.get('pattern')}, tf={tf_name}) ไม่อยู่ใน top10 combo"}
+                continue
+            _s2014_r2 = strategy20_14_groups.apply_group_tpsl_round(rates, tf_name, _s2014_g, _s2014_r, _s2014_mode_target)
+            _s2014_results[_s2014_g] = strategy20_14_groups.apply_group_cancel_bars(tf_name, _s2014_r2)
+        elif isinstance(_s2014_r, dict) and _s2014_r.get('signal') == 'MULTI':
+            # 2026-10-02 (Phase A): หลาย pattern อิสระ (Naiya Doji/Naiya/Naiya Hidden/GapSweep/Inst_Gap)
+            # ยิงพร้อมกันในบาร์เดียว (ดู strategy20_14_groups._wrap_multi) — apply combo-check +
+            # round-override + cancel-bars แยกทีละ order เหมือน single-signal เดิม ตัวไหนไม่อยู่ใน
+            # top10 combo ก็ตัดทิ้งเฉพาะตัวนั้น ไม่กระทบตัวอื่นในชุดเดียวกัน
+            _s2014_processed = []
+            for _s2014_o in _s2014_r.get('orders', []):
+                if not isinstance(_s2014_o, dict) or _s2014_o.get('signal') not in ('BUY', 'SELL'):
+                    continue
+                _s2014_mt = _s2014_combos.get(_s2014_g, {}).get((_s2014_o.get('pattern'), tf_name))
+                if not _s2014_mt:
+                    continue
+                _s2014_o2 = strategy20_14_groups.apply_group_tpsl_round(rates, tf_name, _s2014_g, _s2014_o, _s2014_mt)
+                _s2014_processed.append(strategy20_14_groups.apply_group_cancel_bars(tf_name, _s2014_o2))
+            if not _s2014_processed:
+                _s2014_results[_s2014_g] = {'signal': 'WAIT', 'reason': f"S20.14.{_s2014_g} MULTI: ไม่มี order ไหนอยู่ใน top10 combo"}
+            elif len(_s2014_processed) == 1:
+                _s2014_results[_s2014_g] = _s2014_processed[0]
+            else:
+                _s2014_pat_join = '+'.join(o.get('pattern', '') for o in _s2014_processed)
+                _s2014_results[_s2014_g] = {'signal': 'MULTI', 'orders': _s2014_processed,
+                                             'pattern': _s2014_pat_join,
+                                             'reason': f"S20.14.{_s2014_g} multi-pattern same bar"}
+                # 2026-10-02: log แยกต่างหากตอนที่ MULTI เกิดขึ้นจริงบน live (ผ่าน top10 combo
+                # filter แล้วทั้งคู่/ทั้งหมด) — พี่ขอให้รอดูว่าเกิดจริงเมื่อไหร่ ก่อนตัดสินใจเรื่อง Phase B
+                log_event(
+                    "S20_14_MULTI_FIRED", f"{len(_s2014_processed)} orders: {_s2014_pat_join}",
+                    tf=tf_name, sid=_s2014_g,
+                    signals=[o.get('signal') for o in _s2014_processed],
+                    patterns=[o.get('pattern') for o in _s2014_processed],
+                )
+    (r20_14_1, r20_14_2, r20_14_3, r20_14_4, r20_14_5, r20_14_6, r20_14_7, r20_14_8, r20_14_9,
+     r20_14_10, r20_14_11, r20_14_12, r20_14_13, r20_14_14, r20_14_15, r20_14_16, r20_14_17,
+     r20_14_18, r20_14_19, r20_14_20, r20_14_21, r20_14_22, r20_14_24) = (
+        _s2014_results[k] for k in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                                     18, 19, 20, 21, 22, 24))
+
     if r20_13.get("signal") in ("BUY", "SELL"):
         from trailing import s20_13_guard_blocks, s20_13_calc_lot_multiplier
         # ATR แบบง่าย (high-low rolling mean 14 แท่ง) ตรงตาม backtest_s20.13_runner_mt5.py
@@ -3215,6 +3291,35 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r21.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 21, r21["signal"], last_candle_time, r21)
 
+    r_ea2 = {"signal": "WAIT", "reason": "EA2 ปิด"}
+    if active_strategies.get(config.EA2_SID, False):
+        try:
+            r_ea2 = detect_ea2(
+                rates, tf=tf_name, mt5=mt5, cfg=config, symbol=SYMBOL,
+            )
+            if r_ea2.get("signal") in ("BUY", "SELL"):
+                _log_divergence_once(tf_name, config.EA2_SID, r_ea2["signal"], last_candle_time, r_ea2)
+        except Exception as e:
+            log_error("EA2", f"live detect error: {type(e).__name__}: {e}", tf=tf_name, sid=config.EA2_SID)
+            r_ea2 = {"signal": "WAIT", "reason": f"EA2 error: {type(e).__name__}"}
+
+    r_ea2_1 = {"signal": "WAIT", "reason": "EA2.1 ปิด"}
+    ea2_1_live_tf = str(getattr(config, "EA2_1_LIVE_TF", "M5")).upper()
+    if active_strategies.get(config.EA2_1_SID, False) and tf_name == ea2_1_live_tf:
+        try:
+            htf_name = str(getattr(config, "EA2_1_HTF", "M15")).upper()
+            htf_value = TF_OPTIONS.get(htf_name, mt5.TIMEFRAME_M15)
+            htf_rates = mt5.copy_rates_from_pos(SYMBOL, htf_value, 1, 200)
+            r_ea2_1 = detect_ea2_1(
+                rates, tf=tf_name, mt5=mt5, cfg=config, symbol=SYMBOL,
+                htf_rates=htf_rates,
+            )
+            if r_ea2_1.get("signal") in ("BUY", "SELL"):
+                _log_divergence_once(tf_name, config.EA2_1_SID, r_ea2_1["signal"], last_candle_time, r_ea2_1)
+        except Exception as e:
+            log_error("EA2.1", f"live detect error: {type(e).__name__}: {e}", tf=tf_name, sid=config.EA2_1_SID)
+            r_ea2_1 = {"signal": "WAIT", "reason": f"EA2.1 error: {type(e).__name__}"}
+
     r95 = detect_s95(rates, tf=tf_name) if active_strategies.get(95, False) else {"signal": "WAIT", "reason": "S95 ปิด"}
     if r95.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 95, r95["signal"], last_candle_time, r95)
@@ -3227,8 +3332,17 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     if r97.get("signal") in ("BUY", "SELL"):
         _log_divergence_once(tf_name, 97, r97["signal"], last_candle_time, r97)
 
-    # ── S20 Institutional Suite (11 Standalone Strategies) ─────────────────
-    S20_INSTITUTIONAL_SIDS = (20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304)
+    # ── S20 Institutional Suite / 48_New_God_S20 (48 sids: 8 เดิม + 40 ใหม่ 2026-09-24) ───────
+    # 20.40/20.30 = pilot, ครบ 40 ตัว (Group 1/2 backtest-verified strategies) 2026-09-24
+    S20_INSTITUTIONAL_SIDS = (
+        20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.304, 20.40, 20.30,
+        20.31, 20.32, 20.33, 20.34, 20.35, 20.36, 20.37, 20.38, 20.39,
+        20.41, 20.42, 20.43, 20.44, 20.45, 20.46, 20.47, 20.48, 20.49,
+        20.505, 20.51, 20.52, 20.53, 20.1305, 20.131, 20.132, 20.133, 20.134,
+        20.135, 20.136, 20.137, 20.138, 20.139, 20.3005,
+        20.23, 20.25, 20.26, 20.27, 20.29,
+        20.3006,
+    )
     r_s20_inst = {}
     _prim_eval_sum, _prim_eval_ran = 0.0, False
     for _s_inst in S20_INSTITUTIONAL_SIDS:
@@ -3731,7 +3845,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ── News Filter Bypass Application ──
     if getattr(config, "news_pause_active", False):
         _n_skip = getattr(config, "NEWS_FILTER_SKIP_SIDS", set())
-        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (20.10,r20_10), (20.11,r20_11), (20.12,r20_12), (20.16,r20_16), (20.17,r20_17), (21,r21)]:
+        for _s, _r in [(1,r1), (2,r2), (3,r3), (4,r4), (5,r5), (8,r8), (9,r9), (10,r10), (11,r11), (13,r13), (14,r14), (15,r15), (16,r16), (17,r17), (18,r18), (19,r19), (20,r20), (20.5,r20_5), (20.6,r20_6), (20.7,r20_7), (20.8,r20_8), (20.9,r20_9), (20.10,r20_10), (20.11,r20_11), (20.12,r20_12), (20.16,r20_16), (20.17,r20_17), (21,r21), (config.EA2_SID,r_ea2), (config.EA2_1_SID,r_ea2_1)]:
             if _s not in _n_skip and _r.get("signal") not in ("WAIT", None):
                 _r["signal"] = "WAIT"
                 _r["reason"] = "📰 ติด News Filter Embargo"
@@ -3740,13 +3854,19 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     # ท่า 1, 3, 4 execute ตรง | ท่า 2 FVG_DETECTED รอ pending
     signal_results = []
     _all_evaluated = [(1, r1), (3, r3), (4, r4), (5, r5), (9, r9), (2, r2), (10, r10), (11, r11), (13, r13), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
-                      (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.147, r20_14_7), (20.148, r20_14_8), (20.1410, r20_14_10), (20.1411, r20_14_11), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1415, r20_14_15), (20.1417, r20_14_17), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (20.17, r20_17), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
+                      (20.141, r20_14_1), (20.142, r20_14_2), (20.143, r20_14_3), (20.144, r20_14_4), (20.146, r20_14_6), (20.1402, r20_14_20), (20.145, r20_14_5), (20.147, r20_14_7), (20.148, r20_14_8), (20.1410, r20_14_10), (20.1411, r20_14_11), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1415, r20_14_15), (20.1417, r20_14_17), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (20.17, r20_17), (21, r21), (95, r95), (96, r96), (97, r97), (config.EA2_SID, r_ea2), (config.EA2_1_SID, r_ea2_1)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
 
     for sid, r in _all_evaluated:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
-        if sig not in ("WAIT", "FVG_DETECTED"):
+        if sig == "MULTI":
+            # 2026-10-02: รองรับ MULTI ทั่วไป (ปัจจุบันใช้กับ S20.14 Phase A — หลาย pattern
+            # อิสระยิงพร้อมกันบาร์เดียว) ตาม convention เดียวกับ S8/S14/S15 ด้านล่าง
+            for _o in r.get("orders", []):
+                if isinstance(_o, dict) and _o.get("signal") in ("BUY", "SELL"):
+                    signal_results.append((sid, _o))
+        elif sig not in ("WAIT", "FVG_DETECTED"):
             signal_results.append((sid, r))
 
     # ── S8 Swing Limit — ตั้งทั้ง 2 ฝั่งพร้อมกัน ────────────────
@@ -3783,12 +3903,31 @@ async def scan_one_tf(app, tf_name: str) -> bool:
     first_entry_part = None
 
     _all_parts = [(1, r1), (2, r2), (3, r3), (4, r4), (5, r5), (9, r9), (10, r10), (11, r11), (13, r13), (14, r14), (15, r15), (16, r16), (17, r17), (18, r18), (19, r19), (20, r20), (20.5, r20_5), (20.6, r20_6), (20.7, r20_7), (20.8, r20_8), (20.9, r20_9), (20.10, r20_10), (20.11, r20_11), (20.12, r20_12), (20.13, r20_13),
-                  (20.141, r20_14_1), (20.142, r20_14_2), (20.145, r20_14_5), (20.147, r20_14_7), (20.148, r20_14_8), (20.1410, r20_14_10), (20.1411, r20_14_11), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1415, r20_14_15), (20.1417, r20_14_17), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (21, r21), (95, r95), (96, r96), (97, r97)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
+                  (20.141, r20_14_1), (20.142, r20_14_2), (20.143, r20_14_3), (20.144, r20_14_4), (20.146, r20_14_6), (20.1402, r20_14_20), (20.145, r20_14_5), (20.147, r20_14_7), (20.148, r20_14_8), (20.1410, r20_14_10), (20.1411, r20_14_11), (20.149, r20_14_9), (20.1412, r20_14_12), (20.1413, r20_14_13), (20.1414, r20_14_14), (20.1415, r20_14_15), (20.1417, r20_14_17), (20.1416, r20_14_16), (20.1418, r20_14_18), (20.1419, r20_14_19), (20.1421, r20_14_21), (20.1422, r20_14_22), (20.1423, r20_14_23), (20.1424, r20_14_24), (20.1323, r20_13_23), (20.1324, r20_13_24), (20.16, r20_16), (21, r21), (95, r95), (96, r96), (97, r97), (config.EA2_SID, r_ea2), (config.EA2_1_SID, r_ea2_1)] + [(s, r_s20_inst[s]) for s in S20_INSTITUTIONAL_SIDS] + s20_multi_results
 
     for sid, r in _all_parts:
         if not active_strategies.get(sid, False):
             continue
         sig = r.get("signal", "WAIT")
+
+        if sig == "MULTI":
+            # 2026-10-02: แสดงผลแต่ละ order ใน MULTI แยกกันใน scan summary (ไม่ใช่ dict รวม)
+            for _o in r.get("orders", []):
+                if not isinstance(_o, dict):
+                    continue
+                _pat = _o.get("pattern", "") or f"ท่าที่ {sid}"
+                _reas = _o.get("reason", "")
+                _flat = " | ".join(line.strip() for line in _reas.splitlines() if line.strip())
+                _parsed = _parse_pattern(_pat, _o.get("signal", "WAIT"), _flat,
+                                          _o.get("entry", 0), _o.get("sl", 0), _o.get("tp", 0))
+                has_entry_signal = True
+                if first_entry_part is None:
+                    first_entry_part = _parsed.copy()
+                _extra = f"Entry:{_o.get('entry', 0)} | SL:{_o.get('sl', 0)} | TP:{_o.get('tp', 0)}"
+                _parsed["description"] = f"{_parsed.get('description', '')} | {_extra}".strip(" |")
+                parts.append((sid, _parsed))
+            continue
+
         pat = r.get("pattern", "") or f"ท่าที่ {sid}"
         reas = r.get("reason", "")
 
@@ -4121,13 +4260,18 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 )
                 continue
         elif result.get("order_mode") != "market":
+            # 2026-09-29: พี่สั่งให้ S20.14 ไม่กันไม้ซ้ำเลย ให้ตรงกับ backtest เดิม
+            # (ก่อนแก้บั๊ก #1) — ทดสอบ mapping v2 บน demo 8722 เท่านั้น (ดู
+            # config.S20_14_IGNORE_DUP_ORDERS)
+            if getattr(config, "S20_14_IGNORE_DUP_ORDERS", False) and sid in S20_14_ALL_SIDS:
+                dup_ticket, dup_source = None, ""
             # S16 และกลุ่ม S20.14 (Group 5/9/... ที่คำนวณ SL จาก ATR ของแท่งที่ยัง
             # ไม่ปิด): ATR ขยับทุกสแกน (5s) → SL drift เกิน tol=0.05 ทำให้ dedup
             # เดิม (เทียบ entry+SL+TP) มองว่าเป็น setup ใหม่ทุกรอบ สร้าง order ซ้ำ
             # รัวๆ จนโดน Telegram flood control (เจอจริง 2026-09-04, sid=20.145
             # ยิง order ใหม่ทุก ~5s นานหลายนาที) — เช็ก duplicate บน
             # (signal, entry, tp) อย่างเดียว ไม่รวม SL เหมือนที่แก้ให้ S16 ไว้แล้ว
-            if sid == 16 or s20_14_merge.is_s20_14_sid(sid):
+            elif sid == 16 or s20_14_merge.is_s20_14_sid(sid):
                 dup_ticket = next(
                     (t for t, info in pending_order_tf.items()
                      if isinstance(info, dict)
@@ -4158,7 +4302,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     log_message=f"sid={sid} duplicate setup ticket={dup_ticket} source={dup_source} signal={signal} entry={entry} sl={sl} tp={tp}",
                 )
                 continue
-        elif result.get("order_mode") == "market":
+        elif result.get("order_mode") == "market" and sid not in (config.EA2_SID, config.EA2_1_SID):
             # order_mode="market" (เช่น S14, S20.12) เลย skip dup-check ด้านบนไปทั้งหมด
             # เช็กแยกกับ position ที่ fill ไปแล้วจริงใน MT5 — กันยิงซ้ำตอน in-memory state
             # หลุด/ไม่ทันอัปเดต (เช่น restart กลางแท่ง) ที่เคยทำให้ออก order ซ้ำแท่งเดียวกัน
@@ -4181,7 +4325,7 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                 )
                 continue
         # adjacent bar check per-sid (ท่า 8 ข้ามเช็กนี้ — ตั้งแท่งติดกันได้)
-        if sid != 8 and not _pattern_allows_adjacent_order(sid, pattern):
+        if sid not in (8, config.EA2_SID, config.EA2_1_SID) and not _pattern_allows_adjacent_order(sid, pattern):
             if _adjacent_sid_blocked(tf_name, sid, last_candle_time, tf_secs):
                 _print_skip_once(tf_name, f"⏭️ [{now}] {tf_label(tf_name)} ท่า{sid}: แท่งติดกับ order ท่าเดียวกัน → ข้าม")
                 if sid == 14:
@@ -4705,6 +4849,9 @@ async def scan_one_tf(app, tf_name: str) -> bool:
             # Apply Quant Lot Multiplier or S20 Symbol Weight for all 11 strategies
             if sid in S20_INSTITUTIONAL_SIDS:
                 final_volume = getattr(config, "get_s20_volume", lambda s_id, s, v: v)(sid, result.get("symbol", SYMBOL), get_volume())
+            elif sid in (config.EA2_SID, config.EA2_1_SID):
+                # EA2/EA2.1 own their fixed-percent risk sizing.
+                final_volume = float(result.get("volume", get_volume()))
             else:
                 final_volume = round(get_dynamic_volume(tf_name, signal, get_volume()) * result.get("quant_lot_multiplier", 1.0), 2)
             await _notify_pattern_found_once(
@@ -4782,6 +4929,10 @@ async def scan_one_tf(app, tf_name: str) -> bool:
                     _pend_info["trend_filter"] = ",".join(_trend_keys)
                 if result.get("cancel_bars"):
                     _pend_info["cancel_bars"] = result["cancel_bars"]
+                if getattr(config, "S20_NEW_GOD_RATCHET_ENABLED", False) and sid in config._s20_institutional_variants and "stages" in result:
+                    _pend_info["stages"] = [[float(_t), float(_l)] for _t, _l in (result.get("stages") or [])]
+                    if result.get("be_r"):
+                        _pend_info["be_r"] = float(result["be_r"])
                 if sid == 1 and result.get("s1_zone_meta"):
                     _pend_info["s1_zone_meta"] = dict(result["s1_zone_meta"])
                 

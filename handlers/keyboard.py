@@ -3,6 +3,7 @@ import config
 from mt5_utils import connect_mt5
 from datetime import datetime, timedelta, timezone
 from bot_log import BOT_LOG_FILE, get_monthly_bot_log_file
+from strategy_ids import normalize_sid, ea_comment_meta, sid_sort_key
 import re
 import os
 
@@ -964,6 +965,11 @@ def build_strategy_keyboard():
     rows = []
     row = []
     for sid, name in STRATEGY_NAMES.items():
+        if getattr(config, "EA2_1_ONLY_MODE", False) and sid != config.EA2_1_SID:
+            continue
+        if (getattr(config, "EA2_ONLY_MODE", False) and not getattr(config, "EA2_1_ONLY_MODE", False)
+                and sid != config.EA2_SID):
+            continue
         if sid in getattr(config, "_s20_14_variants", set()):
             continue
         is_on = _strat_on(sid)
@@ -975,7 +981,13 @@ def build_strategy_keyboard():
     if row:
         rows.append(row)
 
-    all_on = all(_strat_on(s) for s in STRATEGY_NAMES)
+    if getattr(config, "EA2_1_ONLY_MODE", False):
+        visible_sids = [config.EA2_1_SID]
+    elif getattr(config, "EA2_ONLY_MODE", False):
+        visible_sids = [config.EA2_SID]
+    else:
+        visible_sids = list(STRATEGY_NAMES)
+    all_on = all(_strat_on(s) for s in visible_sids)
     ctrl = [
         InlineKeyboardButton(
             "⬜ ยกเลิกทุก Strategy" if all_on else "🟢 เลือกทุก Strategy",
@@ -1776,6 +1788,9 @@ def _parse_comment_detail(comment: str):
     """Parse comment เช่น H4_S2_FVG -> (tf, sid, pattern_code)"""
     if not comment:
         return None, None, None
+    ea_meta = ea_comment_meta(comment)
+    if ea_meta:
+        return ea_meta[0], ea_meta[1], ""
     m = re.match(r"(\[[\w-]+\]|M\d+|H\d+|D\d+)(?:_S(\w+?))?(?:_(PA|PB|PC|PD|PE|P4|DMSP|MARU|FVG|SIGFVG|S5|SWING|RSI9))?$", comment)
     if not m:
         return None, None, None
@@ -1866,7 +1881,7 @@ def _get_profit_data(year: int, month: int, trend_filter_key: str = "all"):
                     fields[key.strip()] = value.strip()
 
             try:
-                sid = int(fields.get("sid", "0"))
+                sid = normalize_sid(fields.get("sid", "0"))
             except Exception:
                 sid = 0
             try:
@@ -1932,7 +1947,7 @@ def _format_profit_summary(year: int, month: int):
         # TF sort order
         tf_order = ["M1", "M5", "M15", "M30", "H1", "H4", "H12", "D1", "-"]
 
-        for sid in sorted(data.keys()):
+        for sid in sorted(data.keys(), key=sid_sort_key):
             # รวมกำไรของ strategy นี้
             sid_profit = sum(
                 info["profit"]
@@ -2002,7 +2017,7 @@ def _format_profit_overview(year: int, month: int, trend_filter_key: str = "all"
         lines.append("📭 ไม่มีข้อมูลเดือนนี้")
         return "\n".join(lines)
 
-    for sid in sorted(data.keys()):
+    for sid in sorted(data.keys(), key=sid_sort_key):
         sid_profit = sum(
             info["profit"]
             for tfs in data[sid].values()
@@ -2162,7 +2177,7 @@ def build_profit_overview_keyboard(year: int, month: int, trend_filter_key: str 
     data, _, _, _, _ = _get_profit_data(year, month, trend_filter_key)
     rows = []
     rows.extend(build_profit_trend_filter_keyboard(year, month, None, trend_filter_key))
-    for sid in sorted(data.keys()):
+    for sid in sorted(data.keys(), key=sid_sort_key):
         name = "ไม่ระบุท่า" if sid == 0 else STRATEGY_NAMES.get(sid, f"ท่าที่ {sid}")
         rows.append([InlineKeyboardButton(name, callback_data=f"profit_sid_{year}_{month}_{sid}_{trend_filter_key}")])
 

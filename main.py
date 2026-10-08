@@ -13,7 +13,7 @@ from config import *
 import config
 from config import wrap_bot
 from scanner import auto_scan
-from trailing import (check_entry_candle_quality, check_engulf_trail_sl,
+from trailing import (check_entry_candle_quality, check_engulf_trail_sl, check_ea2_trail, check_ea2_1_trail,
                       check_breakeven_tp, check_opposite_order_tp,
                       check_cancel_pending_orders, check_s1_zone_rules, check_s1_forward_confirm_rules, check_s6_trail,
                       check_limit_sweep, check_scale_out_partial, check_fill_rsi_recheck, check_limit_fill_notify,
@@ -498,6 +498,30 @@ def main():
                 log_event("TRAIL_SL_SLOW", f"run_trail_sl ใช้เวลา {_total:.2f}s > 3s",
                           breakdown=" ".join(_breakdown))
 
+    async def run_ea2_trail():
+        """Fast dedicated manager; mt5_worker serializes calls and restart-safe state."""
+        if not config.auto_active or not config.active_strategies.get(config.EA2_SID, False):
+            return
+        from mt5_utils import connect_mt5
+        if not connect_mt5():
+            return
+        try:
+            await check_ea2_trail(app)
+        except Exception as e:
+            log_error("EA2_TRAIL", f"{type(e).__name__}: {e}", sid=config.EA2_SID)
+
+    async def run_ea2_1_trail():
+        """Fast EA2.1 manager, isolated by SID and magic number."""
+        if not config.auto_active or not config.active_strategies.get(config.EA2_1_SID, False):
+            return
+        from mt5_utils import connect_mt5
+        if not connect_mt5():
+            return
+        try:
+            await check_ea2_1_trail(app)
+        except Exception as e:
+            log_error("EA2_1_TRAIL", f"{type(e).__name__}: {e}", sid=config.EA2_1_SID)
+
     async def run_position_check():
         """Position management — รอ job ก่อนหน้าเสร็จก่อน (กัน race condition)
         มี timing breakdown กัน MT5 call ค้างแบบไม่รู้ตัว (เหมือน auto_scan ใน scanner.py)"""
@@ -748,6 +772,26 @@ def main():
         coalesce=True,
         misfire_grace_time=10,
         next_run_time=datetime.now(_tz.utc) + timedelta(seconds=_stagger_seconds(5))
+    )
+    scheduler.add_job(
+        run_ea2_trail,
+        'interval',
+        seconds=max(1, int(getattr(config, "EA2_TRAIL_INTERVAL_SEC", 1))),
+        id="ea2_trail_job",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=5,
+        next_run_time=datetime.now(_tz.utc) + timedelta(seconds=1),
+    )
+    scheduler.add_job(
+        run_ea2_1_trail,
+        'interval',
+        seconds=max(1, int(getattr(config, "EA2_1_TRAIL_INTERVAL_SEC", 1))),
+        id="ea2_1_trail_job",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=5,
+        next_run_time=datetime.now(_tz.utc) + timedelta(seconds=2),
     )
 
     # Position check ทุก 5 วินาที — รอ job ก่อนหน้าเสร็จ

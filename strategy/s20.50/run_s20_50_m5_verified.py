@@ -37,6 +37,11 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 import bisect
+import bisect as _bi
+# Rule #2: สัญญาณรู้ได้เมื่อแท่งปิดแล้ว (bar_open + tf_secs) จึงเริ่มหา fill หลังแท่งปิด; ตั้ง LEGACY_FILL_FROM_BAR_OPEN=1 เพื่อรันแบบเดิมเทียบ
+_LEGACY_FILL = bool(__import__("os").environ.get("LEGACY_FILL_FROM_BAR_OPEN"))
+TF_SECS_FIX = {} if _LEGACY_FILL else {"M1": 60, "M5": 300, "M12": 720, "M15": 900, "M20": 1200, "M30": 1800, "H1": 3600, "H2": 7200, "H3": 10800, "H4": 14400, "H12": 43200, "D1": 86400}
+FILL_BISECT = _bi.bisect_right if _LEGACY_FILL else _bi.bisect_left
 from datetime import datetime, timedelta, timezone
 import os, sys
 
@@ -158,11 +163,11 @@ def main():
 
     print("Running sequential M5 SL-First simulation...", flush=True)
     for s in combined:
-        s_time = s['time']
+        s_time = s["time"] + TF_SECS_FIX.get(s["tf"], 0)
         if s_time < busy_until:
             continue
 
-        m5_start = bisect.bisect_right(m5_times, s_time)
+        m5_start = FILL_BISECT(m5_times, s_time)
         if m5_start >= m5_len:
             continue
 
@@ -218,7 +223,7 @@ def main():
 
         filled = False
         fill_m5 = 0
-        for k in range(m5_start, min(m5_start + 24, m5_len)):
+        for k in range(m5_start, min(m5_start + int(os.environ.get("FILL_WAIT_M5", "24")), m5_len)):
             m_b = m5_gold[k]
             if sig == "BUY" and m_b['low'] <= entry:
                 filled = True
@@ -265,46 +270,46 @@ def main():
                 # PESSIMISTIC SL-FIRST EVALUATION
                 if b['low'] <= current_sl:
                     if l14_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l14_sl - entry) * point_val
                     elif l13_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l13_sl - entry) * point_val
                     elif l12_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l12_sl - entry) * point_val
                     elif l11_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l11_sl - entry) * point_val
                     elif l10_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l10_sl - entry) * point_val
                     elif l9_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l9_sl - entry) * point_val
                     elif l8_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l8_sl - entry) * point_val
                     elif l7_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l7_sl - entry) * point_val
                     elif l6_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l6_sl - entry) * point_val
                     elif l5_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l5_sl - entry) * point_val
                     elif l4_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l4_sl - entry) * point_val
                     elif l3_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l3_sl - entry) * point_val
                     elif l2_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l2_sl - entry) * point_val
                     elif l1_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (l1_sl - entry) * point_val
                     elif be_active:
                         outcome = "BE"
@@ -316,7 +321,7 @@ def main():
 
                 # TP Evaluation
                 if b['high'] >= tp:
-                    outcome = "WIN"
+                    outcome = "FULL_TP"
                     trade_pnl = (tp - entry) * point_val
                     break
 
@@ -367,50 +372,104 @@ def main():
                     be_active = True
                     current_sl = max(current_sl, entry)
 
+                # Rule #5 (pessimistic completeness): recheck SAME bar's low against the
+                # just-updated SL (a stage/BE trigger from this bar's high must not ignore
+                # a retracement to the new SL within the same bar).
+                if b['low'] <= current_sl:
+                    if l14_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l14_sl - entry) * point_val
+                    elif l13_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l13_sl - entry) * point_val
+                    elif l12_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l12_sl - entry) * point_val
+                    elif l11_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l11_sl - entry) * point_val
+                    elif l10_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l10_sl - entry) * point_val
+                    elif l9_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l9_sl - entry) * point_val
+                    elif l8_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l8_sl - entry) * point_val
+                    elif l7_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l7_sl - entry) * point_val
+                    elif l6_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l6_sl - entry) * point_val
+                    elif l5_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l5_sl - entry) * point_val
+                    elif l4_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l4_sl - entry) * point_val
+                    elif l3_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l3_sl - entry) * point_val
+                    elif l2_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l2_sl - entry) * point_val
+                    elif l1_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (l1_sl - entry) * point_val
+                    elif be_active:
+                        outcome = "BE"
+                        trade_pnl = 0.0
+                    else:
+                        outcome = "LOSS"
+                        trade_pnl = -risk * point_val
+                    break
+
             else:  # SELL
                 # PESSIMISTIC SL-FIRST EVALUATION
                 if b['high'] >= current_sl:
                     if l14_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l14_sl) * point_val
                     elif l13_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l13_sl) * point_val
                     elif l12_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l12_sl) * point_val
                     elif l11_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l11_sl) * point_val
                     elif l10_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l10_sl) * point_val
                     elif l9_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l9_sl) * point_val
                     elif l8_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l8_sl) * point_val
                     elif l7_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l7_sl) * point_val
                     elif l6_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l6_sl) * point_val
                     elif l5_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l5_sl) * point_val
                     elif l4_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l4_sl) * point_val
                     elif l3_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l3_sl) * point_val
                     elif l2_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l2_sl) * point_val
                     elif l1_active:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"
                         trade_pnl = (entry - l1_sl) * point_val
                     elif be_active:
                         outcome = "BE"
@@ -422,7 +481,7 @@ def main():
 
                 # TP Evaluation
                 if b['low'] <= tp:
-                    outcome = "WIN"
+                    outcome = "FULL_TP"
                     trade_pnl = (entry - tp) * point_val
                     break
 
@@ -473,6 +532,59 @@ def main():
                     be_active = True
                     current_sl = min(current_sl, entry)
 
+                # Rule #5 (pessimistic completeness): recheck SAME bar's high against the
+                # just-updated SL.
+                if b['high'] >= current_sl:
+                    if l14_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l14_sl) * point_val
+                    elif l13_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l13_sl) * point_val
+                    elif l12_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l12_sl) * point_val
+                    elif l11_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l11_sl) * point_val
+                    elif l10_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l10_sl) * point_val
+                    elif l9_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l9_sl) * point_val
+                    elif l8_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l8_sl) * point_val
+                    elif l7_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l7_sl) * point_val
+                    elif l6_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l6_sl) * point_val
+                    elif l5_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l5_sl) * point_val
+                    elif l4_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l4_sl) * point_val
+                    elif l3_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l3_sl) * point_val
+                    elif l2_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l2_sl) * point_val
+                    elif l1_active:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - l1_sl) * point_val
+                    elif be_active:
+                        outcome = "BE"
+                        trade_pnl = 0.0
+                    else:
+                        outcome = "LOSS"
+                        trade_pnl = -risk * point_val
+                    break
+
         if outcome is None:
             final_b = m5_gold[min(fill_m5 + 288, m5_len - 1)]
             final_c = final_b['close']
@@ -480,15 +592,16 @@ def main():
             pnl_pts = (final_c - entry) if sig == "BUY" else (entry - final_c)
             trade_pnl = pnl_pts * point_val
             if trade_pnl > 0.05:
-                outcome = "WIN"
+                outcome = "TRAIL_TP"
             elif trade_pnl < -0.05:
                 outcome = "LOSS"
             else:
                 outcome = "BE"
 
+        trade_pnl -= 0.27 * point_val  # Rule #8: realistic spread ($0.20) + commission ($0.07/0.01-lot) friction cost
         busy_until = exit_time
 
-        if outcome == "WIN":
+        if outcome in ("FULL_TP", "TRAIL_TP", "TIMEOUT_WIN"):
             wins += 1
         elif outcome == "BE":
             bes += 1
@@ -505,7 +618,7 @@ def main():
         if month_key not in monthly_stats:
             monthly_stats[month_key] = {"trades": 0, "wins": 0, "bes": 0, "losses": 0, "pnl": 0.0}
         monthly_stats[month_key]["trades"] += 1
-        if outcome == "WIN":
+        if outcome in ("FULL_TP", "TRAIL_TP", "TIMEOUT_WIN"):
             monthly_stats[month_key]["wins"] += 1
         elif outcome == "BE":
             monthly_stats[month_key]["bes"] += 1

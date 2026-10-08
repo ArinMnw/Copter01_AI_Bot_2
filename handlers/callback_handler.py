@@ -506,7 +506,7 @@ async def handle_callback(update, ctx):
 
     elif data.startswith("open_strategy_detail_"):
         try:
-            _sid_val = float(data.replace("open_strategy_detail_", "")); sid = int(_sid_val) if _sid_val.is_integer() else _sid_val
+            sid = config.normalize_sid(data.replace("open_strategy_detail_", ""))
         except ValueError:
             await _qanswer(query)
             return
@@ -1561,8 +1561,17 @@ async def handle_callback(update, ctx):
             await _qanswer(query,"Mode ไม่ถูกต้อง")
 
     elif data.startswith("toggle_strategy_"):
-        _sid_val = float(data.split("_")[-1]); sid = int(_sid_val) if _sid_val.is_integer() else _sid_val
+        sid = config.normalize_sid(data.split("_")[-1])
         if sid in active_strategies:
+            if getattr(config, "EA2_1_ONLY_MODE", False) and sid != config.EA2_1_SID:
+                config.enforce_ea2_1_only_mode()
+                await _qanswer(query, "โหมดนี้อนุญาตเฉพาะ EA2.1")
+                return
+            if (getattr(config, "EA2_ONLY_MODE", False) and not getattr(config, "EA2_1_ONLY_MODE", False)
+                    and sid != config.EA2_SID):
+                config.enforce_ea2_only_mode()
+                await _qanswer(query, "โหมดนี้อนุญาตเฉพาะ EA2")
+                return
             active_strategies[sid] = not active_strategies[sid]
             config.active_strategies[sid] = active_strategies[sid]
             save_runtime_state()
@@ -1653,17 +1662,25 @@ async def handle_callback(update, ctx):
         # strategy_all_on = เปิดทั้งหมด, strategy_all_off = ปิดทั้งหมด
         turn_on = (data == "strategy_all_on")
         for sid in active_strategies:
-            active_strategies[sid] = turn_on
-            config.active_strategies[sid] = turn_on
+            enabled = turn_on
+            if getattr(config, "EA2_1_ONLY_MODE", False):
+                enabled = enabled and sid == config.EA2_1_SID
+            elif getattr(config, "EA2_ONLY_MODE", False):
+                enabled = enabled and sid == config.EA2_SID
+            active_strategies[sid] = enabled
+            config.active_strategies[sid] = enabled
         # S20.5-S20.9 ใช้ flag แยก — sync ตามด้วยเพื่อให้ execution ตรงกับที่กด
-        config.S20_5_ENABLED = turn_on
-        config.S20_6_FVG_ENABLED = turn_on
-        config.S20_7_ENABLED = turn_on
-        config.S20_8_ENABLED = turn_on
-        config.S20_9_ENABLED = turn_on
-        config.S20_10_ENABLED = turn_on
-        config.S20_11_ENABLED = turn_on
-        config.S20_12_ENABLED = turn_on
+        _legacy_turn_on = turn_on and not (
+            getattr(config, "EA2_ONLY_MODE", False) or getattr(config, "EA2_1_ONLY_MODE", False)
+        )
+        config.S20_5_ENABLED = _legacy_turn_on
+        config.S20_6_FVG_ENABLED = _legacy_turn_on
+        config.S20_7_ENABLED = _legacy_turn_on
+        config.S20_8_ENABLED = _legacy_turn_on
+        config.S20_9_ENABLED = _legacy_turn_on
+        config.S20_10_ENABLED = _legacy_turn_on
+        config.S20_11_ENABLED = _legacy_turn_on
+        config.S20_12_ENABLED = _legacy_turn_on
         save_runtime_state()
         active_list = [STRATEGY_NAMES[s] for s in active_strategies if _strategy_is_on(s)]
         summary = " + ".join(active_list) if active_list else "ไม่มี"
@@ -2168,7 +2185,7 @@ async def handle_callback(update, ctx):
         parts = data.split("_")
         year = int(parts[2])
         month = int(parts[3])
-        sid = int(parts[4])
+        sid = config.normalize_sid(parts[4])
         trend_filter_key = "_".join(parts[5:]) if len(parts) > 5 else "all"
         await show_profit_strategy_detail(query, year, month, sid, trend_filter_key, is_query=True)
         await _qanswer(query)

@@ -1,0 +1,4844 @@
+{
+  "created_utc": "2026-10-08T15:21:53.235704+00:00",
+  "code_plan_sha256": {
+    "strategy_scalping456.py": "bba7e64b8e4589686976c8f4651086cfa60c59a94ad323d6214f6c16e1481c1b",
+    "replay_pending_vector.py": "6e6f1446e8139299a96fe4542a05f460a9b711159394005218299d6818deb7a6",
+    "replay_vantage_pending.py": "910fecb5370aa9570bb193843e7a4e0e3fa8d5e9d7cc5f5319da15e239ad4016",
+    "strict_source_matcher.py": "2efa0e84840f00ccb7035a6ac1fe53565efe84a17e1ede19299691ba2f7057b2",
+    "test_pending_stop.py": "88a77ee5ca958e0040d0de9255698144c03ed9432446e82532dc428ee4ccc97b",
+    "EXPERIMENT_PENDING_STOP_PLAN.md": "32d8cdfd6bd7ac56aae5a71e0d536bd7c856a8b887ae655cf2d86cd60acef9f2",
+    "EXPERIMENT_PENDING_TRAIL_GUARD_PLAN.md": "c2619ff9aa1d5ac1ac2151e84f36d2db27e13ec25006cf23b8b6c8964a9eea55",
+    "test_pending_trail_guard.py": "e8998a1f0f8d1755f1e57bf666c82f3941a55c95a93b56f5db4e5f692f6cbee1"
+  },
+  "start_inferred_utc": "2026-08-18T21:00:00+00:00",
+  "end_exclusive_inferred_utc": "2026-10-08T01:17:56+00:00",
+  "chunk_size": 256,
+  "source_parse_order": "after all32 trajectories generated",
+  "require_valid_trail": true,
+  "full_source_clone_complete": false,
+  "source_feed_identity_verified": false,
+  "method": "continuous_unknown_startup_no_source_actions_no_day_or_split_resets",
+  "validation_not_unseen": true,
+  "lot_and_engines": "fixedlot10 XAU prototypes; every Fixed source row remains missing",
+  "parity_checks": [
+    {
+      "model": "pending_fixed_close_oco_entrylevel_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 80
+    },
+    {
+      "model": "pending_fixed_close_oco_entrylevel_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 99
+    },
+    {
+      "model": "pending_fixed_close_oco_entrylevel_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 78
+    },
+    {
+      "model": "pending_fixed_close_oco_entrylevel_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 98
+    },
+    {
+      "model": "pending_fixed_close_oco_entryquote_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 77
+    },
+    {
+      "model": "pending_fixed_close_oco_entryquote_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 99
+    },
+    {
+      "model": "pending_fixed_close_oco_entryquote_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 74
+    },
+    {
+      "model": "pending_fixed_close_oco_entryquote_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 90
+    },
+    {
+      "model": "pending_fixed_close_retain_entrylevel_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 19
+    },
+    {
+      "model": "pending_fixed_close_retain_entrylevel_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 22
+    },
+    {
+      "model": "pending_fixed_close_retain_entrylevel_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 21
+    },
+    {
+      "model": "pending_fixed_close_retain_entrylevel_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 19
+    },
+    {
+      "model": "pending_fixed_close_retain_entryquote_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 18
+    },
+    {
+      "model": "pending_fixed_close_retain_entryquote_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 19
+    },
+    {
+      "model": "pending_fixed_close_retain_entryquote_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 19
+    },
+    {
+      "model": "pending_fixed_close_retain_entryquote_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 21
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 90
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 114
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 90
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 114
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 85
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 110
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entryquote_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 85
+    },
+    {
+      "model": "pending_rolling_extrema_oco_entryquote_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 110
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 104
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 128
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 104
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 128
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 101
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 126
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entryquote_stopquote_a40d30",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 101
+    },
+    {
+      "model": "pending_rolling_extrema_retain_entryquote_stopquote_a16d16",
+      "sample_ticks": 28154,
+      "all_fields_equal": true,
+      "sample_predictions": 126
+    }
+  ],
+  "models": [
+    {
+      "name": "pending_fixed_close_oco_entrylevel_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 57818,
+      "source_orders": 35462,
+      "predicted_orders": 52562,
+      "exact_all_observable_fields": 22,
+      "missing": 35440,
+      "extra": 52540,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 18655,
+          "exact_all_observable_fields": 7,
+          "missing": 11101,
+          "extra": 18648,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 33906,
+          "exact_all_observable_fields": 15,
+          "missing": 24335,
+          "extra": 33891,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 22
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 128,
+          "missing": 35334,
+          "extra": 52434
+        },
+        "without_lot": {
+          "matched": 206,
+          "missing": 35256,
+          "extra": 52356
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entrylevel_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 74235,
+      "source_orders": 35462,
+      "predicted_orders": 67496,
+      "exact_all_observable_fields": 25,
+      "missing": 35437,
+      "extra": 67471,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22941,
+          "exact_all_observable_fields": 3,
+          "missing": 11105,
+          "extra": 22938,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 44555,
+          "exact_all_observable_fields": 22,
+          "missing": 24328,
+          "extra": 44533,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 25
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 159,
+          "missing": 35303,
+          "extra": 67337
+        },
+        "without_lot": {
+          "matched": 235,
+          "missing": 35227,
+          "extra": 67261
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entrylevel_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 62641,
+      "source_orders": 35462,
+      "predicted_orders": 57094,
+      "exact_all_observable_fields": 2,
+      "missing": 35460,
+      "extra": 57092,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 18938,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 18938,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 38155,
+          "exact_all_observable_fields": 2,
+          "missing": 24348,
+          "extra": 38153,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 2
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 120,
+          "missing": 35342,
+          "extra": 56974
+        },
+        "without_lot": {
+          "matched": 207,
+          "missing": 35255,
+          "extra": 56887
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entrylevel_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 75659,
+      "source_orders": 35462,
+      "predicted_orders": 68935,
+      "exact_all_observable_fields": 5,
+      "missing": 35457,
+      "extra": 68930,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22916,
+          "exact_all_observable_fields": 1,
+          "missing": 11107,
+          "extra": 22915,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 46019,
+          "exact_all_observable_fields": 4,
+          "missing": 24346,
+          "extra": 46015,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 5
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 179,
+          "missing": 35283,
+          "extra": 68756
+        },
+        "without_lot": {
+          "matched": 259,
+          "missing": 35203,
+          "extra": 68676
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entryquote_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 60228,
+      "source_orders": 35462,
+      "predicted_orders": 55069,
+      "exact_all_observable_fields": 17,
+      "missing": 35445,
+      "extra": 55052,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 18427,
+          "exact_all_observable_fields": 3,
+          "missing": 11105,
+          "extra": 18424,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 36641,
+          "exact_all_observable_fields": 14,
+          "missing": 24336,
+          "extra": 36627,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 17
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 102,
+          "missing": 35360,
+          "extra": 54967
+        },
+        "without_lot": {
+          "matched": 139,
+          "missing": 35323,
+          "extra": 54930
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entryquote_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 72943,
+      "source_orders": 35462,
+      "predicted_orders": 66429,
+      "exact_all_observable_fields": 18,
+      "missing": 35444,
+      "extra": 66411,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22333,
+          "exact_all_observable_fields": 3,
+          "missing": 11105,
+          "extra": 22330,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 44096,
+          "exact_all_observable_fields": 15,
+          "missing": 24335,
+          "extra": 44081,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 18
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 124,
+          "missing": 35338,
+          "extra": 66305
+        },
+        "without_lot": {
+          "matched": 180,
+          "missing": 35282,
+          "extra": 66249
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entryquote_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 61841,
+      "source_orders": 35462,
+      "predicted_orders": 56379,
+      "exact_all_observable_fields": 2,
+      "missing": 35460,
+      "extra": 56377,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 18723,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 18723,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 37655,
+          "exact_all_observable_fields": 2,
+          "missing": 24348,
+          "extra": 37653,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 2
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 89,
+          "missing": 35373,
+          "extra": 56290
+        },
+        "without_lot": {
+          "matched": 136,
+          "missing": 35326,
+          "extra": 56243
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_oco_entryquote_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 73715,
+      "source_orders": 35462,
+      "predicted_orders": 67171,
+      "exact_all_observable_fields": 4,
+      "missing": 35458,
+      "extra": 67167,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22358,
+          "exact_all_observable_fields": 1,
+          "missing": 11107,
+          "extra": 22357,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 44813,
+          "exact_all_observable_fields": 3,
+          "missing": 24347,
+          "extra": 44810,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 4
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 123,
+          "missing": 35339,
+          "extra": 67048
+        },
+        "without_lot": {
+          "matched": 186,
+          "missing": 35276,
+          "extra": 66985
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entrylevel_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 558,
+      "source_orders": 35462,
+      "predicted_orders": 260,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 260,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 143,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 143,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 117,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 117,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 260
+        },
+        "without_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 260
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entrylevel_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 543,
+      "source_orders": 35462,
+      "predicted_orders": 258,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 258,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 152,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 152,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 106,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 106,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 258
+        },
+        "without_lot": {
+          "matched": 1,
+          "missing": 35461,
+          "extra": 257
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entrylevel_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 607,
+      "source_orders": 35462,
+      "predicted_orders": 290,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 290,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 166,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 166,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 124,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 124,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 290
+        },
+        "without_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 290
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entrylevel_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 603,
+      "source_orders": 35462,
+      "predicted_orders": 285,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 285,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 171,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 171,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 114,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 114,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 285
+        },
+        "without_lot": {
+          "matched": 1,
+          "missing": 35461,
+          "extra": 284
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entryquote_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 580,
+      "source_orders": 35462,
+      "predicted_orders": 278,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 278,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 163,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 163,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 115,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 115,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 278
+        },
+        "without_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 278
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entryquote_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 563,
+      "source_orders": 35462,
+      "predicted_orders": 263,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 263,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 151,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 151,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 112,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 112,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 263
+        },
+        "without_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 263
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entryquote_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 612,
+      "source_orders": 35462,
+      "predicted_orders": 303,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 303,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 173,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 173,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 130,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 130,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 303
+        },
+        "without_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 303
+        }
+      }
+    },
+    {
+      "name": "pending_fixed_close_retain_entryquote_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "fixed_close",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 603,
+      "source_orders": 35462,
+      "predicted_orders": 284,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 284,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 165,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 165,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 119,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 119,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 284
+        },
+        "without_lot": {
+          "matched": 0,
+          "missing": 35462,
+          "extra": 284
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 73089,
+      "source_orders": 35462,
+      "predicted_orders": 66622,
+      "exact_all_observable_fields": 21,
+      "missing": 35441,
+      "extra": 66601,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22380,
+          "exact_all_observable_fields": 5,
+          "missing": 11103,
+          "extra": 22375,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 44242,
+          "exact_all_observable_fields": 16,
+          "missing": 24334,
+          "extra": 44226,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 21
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 124,
+          "missing": 35338,
+          "extra": 66498
+        },
+        "without_lot": {
+          "matched": 197,
+          "missing": 35265,
+          "extra": 66425
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 91237,
+      "source_orders": 35462,
+      "predicted_orders": 83118,
+      "exact_all_observable_fields": 24,
+      "missing": 35438,
+      "extra": 83094,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 27984,
+          "exact_all_observable_fields": 9,
+          "missing": 11099,
+          "extra": 27975,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 55134,
+          "exact_all_observable_fields": 15,
+          "missing": 24335,
+          "extra": 55119,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 24
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 120,
+          "missing": 35342,
+          "extra": 82998
+        },
+        "without_lot": {
+          "matched": 214,
+          "missing": 35248,
+          "extra": 82904
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 73089,
+      "source_orders": 35462,
+      "predicted_orders": 66622,
+      "exact_all_observable_fields": 5,
+      "missing": 35457,
+      "extra": 66617,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22380,
+          "exact_all_observable_fields": 3,
+          "missing": 11105,
+          "extra": 22377,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 44242,
+          "exact_all_observable_fields": 2,
+          "missing": 24348,
+          "extra": 44240,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 5
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 124,
+          "missing": 35338,
+          "extra": 66498
+        },
+        "without_lot": {
+          "matched": 197,
+          "missing": 35265,
+          "extra": 66425
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 91237,
+      "source_orders": 35462,
+      "predicted_orders": 83118,
+      "exact_all_observable_fields": 3,
+      "missing": 35459,
+      "extra": 83115,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 27984,
+          "exact_all_observable_fields": 2,
+          "missing": 11106,
+          "extra": 27982,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 55134,
+          "exact_all_observable_fields": 1,
+          "missing": 24349,
+          "extra": 55133,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 3
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 120,
+          "missing": 35342,
+          "extra": 82998
+        },
+        "without_lot": {
+          "matched": 214,
+          "missing": 35248,
+          "extra": 82904
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 72092,
+      "source_orders": 35462,
+      "predicted_orders": 65691,
+      "exact_all_observable_fields": 9,
+      "missing": 35453,
+      "extra": 65682,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22049,
+          "exact_all_observable_fields": 3,
+          "missing": 11105,
+          "extra": 22046,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 43642,
+          "exact_all_observable_fields": 6,
+          "missing": 24344,
+          "extra": 43636,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 9
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 92,
+          "missing": 35370,
+          "extra": 65599
+        },
+        "without_lot": {
+          "matched": 139,
+          "missing": 35323,
+          "extra": 65552
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 88466,
+      "source_orders": 35462,
+      "predicted_orders": 80588,
+      "exact_all_observable_fields": 8,
+      "missing": 35454,
+      "extra": 80580,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 27149,
+          "exact_all_observable_fields": 4,
+          "missing": 11104,
+          "extra": 27145,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 53439,
+          "exact_all_observable_fields": 4,
+          "missing": 24346,
+          "extra": 53435,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 8
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 92,
+          "missing": 35370,
+          "extra": 80496
+        },
+        "without_lot": {
+          "matched": 143,
+          "missing": 35319,
+          "extra": 80445
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entryquote_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 72092,
+      "source_orders": 35462,
+      "predicted_orders": 65691,
+      "exact_all_observable_fields": 2,
+      "missing": 35460,
+      "extra": 65689,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 22049,
+          "exact_all_observable_fields": 1,
+          "missing": 11107,
+          "extra": 22048,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 43642,
+          "exact_all_observable_fields": 1,
+          "missing": 24349,
+          "extra": 43641,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 2
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 92,
+          "missing": 35370,
+          "extra": 65599
+        },
+        "without_lot": {
+          "matched": 139,
+          "missing": 35323,
+          "extra": 65552
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_oco_entryquote_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "oco",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 88466,
+      "source_orders": 35462,
+      "predicted_orders": 80588,
+      "exact_all_observable_fields": 0,
+      "missing": 35462,
+      "extra": 80588,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 27149,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 27149,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 53439,
+          "exact_all_observable_fields": 0,
+          "missing": 24350,
+          "extra": 53439,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 0
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 92,
+          "missing": 35370,
+          "extra": 80496
+        },
+        "without_lot": {
+          "matched": 143,
+          "missing": 35319,
+          "extra": 80445
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 81577,
+      "source_orders": 35462,
+      "predicted_orders": 74316,
+      "exact_all_observable_fields": 21,
+      "missing": 35441,
+      "extra": 74295,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 25092,
+          "exact_all_observable_fields": 4,
+          "missing": 11104,
+          "extra": 25088,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 49223,
+          "exact_all_observable_fields": 17,
+          "missing": 24333,
+          "extra": 49206,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 21
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 124,
+          "missing": 35338,
+          "extra": 74192
+        },
+        "without_lot": {
+          "matched": 210,
+          "missing": 35252,
+          "extra": 74106
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 100741,
+      "source_orders": 35462,
+      "predicted_orders": 91797,
+      "exact_all_observable_fields": 29,
+      "missing": 35433,
+      "extra": 91768,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 31051,
+          "exact_all_observable_fields": 9,
+          "missing": 11099,
+          "extra": 31042,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 60746,
+          "exact_all_observable_fields": 20,
+          "missing": 24330,
+          "extra": 60726,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 29
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 129,
+          "missing": 35333,
+          "extra": 91668
+        },
+        "without_lot": {
+          "matched": 227,
+          "missing": 35235,
+          "extra": 91570
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 81577,
+      "source_orders": 35462,
+      "predicted_orders": 74316,
+      "exact_all_observable_fields": 3,
+      "missing": 35459,
+      "extra": 74313,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 25092,
+          "exact_all_observable_fields": 2,
+          "missing": 11106,
+          "extra": 25090,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 49223,
+          "exact_all_observable_fields": 1,
+          "missing": 24349,
+          "extra": 49222,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 3
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 124,
+          "missing": 35338,
+          "extra": 74192
+        },
+        "without_lot": {
+          "matched": 210,
+          "missing": 35252,
+          "extra": 74106
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "level",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 100741,
+      "source_orders": 35462,
+      "predicted_orders": 91797,
+      "exact_all_observable_fields": 4,
+      "missing": 35458,
+      "extra": 91793,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 31051,
+          "exact_all_observable_fields": 1,
+          "missing": 11107,
+          "extra": 31050,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 60746,
+          "exact_all_observable_fields": 3,
+          "missing": 24347,
+          "extra": 60743,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 4
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 129,
+          "missing": 35333,
+          "extra": 91668
+        },
+        "without_lot": {
+          "matched": 227,
+          "missing": 35235,
+          "extra": 91570
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 80241,
+      "source_orders": 35462,
+      "predicted_orders": 73115,
+      "exact_all_observable_fields": 13,
+      "missing": 35449,
+      "extra": 73102,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 24703,
+          "exact_all_observable_fields": 3,
+          "missing": 11105,
+          "extra": 24700,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 48411,
+          "exact_all_observable_fields": 10,
+          "missing": 24340,
+          "extra": 48401,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 13
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 102,
+          "missing": 35360,
+          "extra": 73013
+        },
+        "without_lot": {
+          "matched": 161,
+          "missing": 35301,
+          "extra": 72954
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "level",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 97769,
+      "source_orders": 35462,
+      "predicted_orders": 89070,
+      "exact_all_observable_fields": 12,
+      "missing": 35450,
+      "extra": 89058,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 30084,
+          "exact_all_observable_fields": 6,
+          "missing": 11102,
+          "extra": 30078,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 58986,
+          "exact_all_observable_fields": 6,
+          "missing": 24344,
+          "extra": 58980,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 12
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 100,
+          "missing": 35362,
+          "extra": 88970
+        },
+        "without_lot": {
+          "matched": 162,
+          "missing": 35300,
+          "extra": 88908
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entryquote_stopquote_a40d30",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 40,
+          "trailing_distance_points": 30,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 80241,
+      "source_orders": 35462,
+      "predicted_orders": 73115,
+      "exact_all_observable_fields": 1,
+      "missing": 35461,
+      "extra": 73114,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 24703,
+          "exact_all_observable_fields": 0,
+          "missing": 11108,
+          "extra": 24703,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 1,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 1,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 48411,
+          "exact_all_observable_fields": 1,
+          "missing": 24349,
+          "extra": 48410,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 1
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 102,
+          "missing": 35360,
+          "extra": 73013
+        },
+        "without_lot": {
+          "matched": 161,
+          "missing": 35301,
+          "extra": 72954
+        }
+      }
+    },
+    {
+      "name": "pending_rolling_extrema_retain_entryquote_stopquote_a16d16",
+      "config": {
+        "anchor_mode": "rolling_extrema",
+        "opposite_policy": "retain",
+        "entry_distance_price": 1.0,
+        "entry_fill_mode": "quote",
+        "price_digits": 2,
+        "execution": {
+          "point": 0.01,
+          "entry_reversal_points": 100,
+          "initial_stop_points": 100,
+          "entry_mode": "fixed_close",
+          "momentum_window_seconds": 10,
+          "trailing_activation_points": 16,
+          "trailing_distance_points": 16,
+          "trailing_step_points": 0,
+          "stop_fill_mode": "quote",
+          "volume": 10.0
+        },
+        "require_valid_trail": true
+      },
+      "predictions_including_warmup": 97769,
+      "source_orders": 35462,
+      "predicted_orders": 89070,
+      "exact_all_observable_fields": 2,
+      "missing": 35460,
+      "extra": 89068,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false,
+      "phases": {
+        "chronological_validation_not_unseen": {
+          "source_orders": 11108,
+          "predicted_orders": 30084,
+          "exact_all_observable_fields": 1,
+          "missing": 11107,
+          "extra": 30083,
+          "unknown_source_close_behavior": 46,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "cross_split_not_parameter_selection": {
+          "source_orders": 4,
+          "predicted_orders": 0,
+          "exact_all_observable_fields": 0,
+          "missing": 4,
+          "extra": 0,
+          "unknown_source_close_behavior": 0,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        },
+        "development_closed_before_split": {
+          "source_orders": 24350,
+          "predicted_orders": 58986,
+          "exact_all_observable_fields": 1,
+          "missing": 24349,
+          "extra": 58985,
+          "unknown_source_close_behavior": 62,
+          "timing_tolerance_seconds": 0,
+          "source_field_precision_only": true,
+          "complete": false
+        }
+      },
+      "cohorts": {
+        "fixed_tp": {
+          "source_rows": 4076,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_rows": 31123,
+          "exact": 2
+        },
+        "fixed_other": {
+          "source_rows": 33,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_rows": 87,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_rows": 143,
+          "exact": 0
+        }
+      },
+      "entry_diagnostics_not_success": {
+        "with_lot": {
+          "matched": 100,
+          "missing": 35362,
+          "extra": 88970
+        },
+        "without_lot": {
+          "matched": 162,
+          "missing": 35300,
+          "extra": 88908
+        }
+      }
+    }
+  ],
+  "artifact_sha256": {
+    "pending_fixed_close_oco_entrylevel_stoplevel_a40d30_predictions.jsonl": "e3447752fcf9b3cc920153ca08b55d0d012363f7711411abffe745b2196a66b1",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a16d16_predictions.jsonl": "82f6d621de4d9d82cedda42bc5054652d9567675f073e95ae0c1275176b08b57",
+    "pending_fixed_close_oco_entrylevel_stopquote_a40d30_predictions.jsonl": "66d84f58109058a9dca20c586a20102c4035cffb14ad88b466a03005ab542ae7",
+    "pending_fixed_close_oco_entrylevel_stopquote_a16d16_predictions.jsonl": "306776b2b7a77e3fc64b53592f10ba0b62c5ebbdc6262c0d974906d3502027ee",
+    "pending_fixed_close_oco_entryquote_stoplevel_a40d30_predictions.jsonl": "da84ed38a609d5de1b713607cdf1a29679cb323db85b47dd0f74ffc23ebd6d76",
+    "pending_fixed_close_oco_entryquote_stoplevel_a16d16_predictions.jsonl": "c6b2fd369f90e168df80f1b270221b2d7ab10c83f22c8824cbfdd8fb55a3d1ae",
+    "pending_fixed_close_oco_entryquote_stopquote_a40d30_predictions.jsonl": "a664cb8618c630efaad3325960b3219d4436bf79f024b2b6f36fbdd757d23fb2",
+    "pending_fixed_close_oco_entryquote_stopquote_a16d16_predictions.jsonl": "5f00e8216b8a83e36517087d6c65f55a2d17fc3759ec513911dc2ac20a97f857",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a40d30_predictions.jsonl": "9c6b652c06a387e3fe9390f9948fc7cb99af5e59ff1db02a4b4ee68813e073b2",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a16d16_predictions.jsonl": "5f85c5ba93071240c727f834b14c052013591cd7d3904caff25d479e4d09004a",
+    "pending_fixed_close_retain_entrylevel_stopquote_a40d30_predictions.jsonl": "b5c86b60dedbd9ddaed532e326cdb81ad58e126810863effd97fedd385870069",
+    "pending_fixed_close_retain_entrylevel_stopquote_a16d16_predictions.jsonl": "649b0a9b355edbeeb158ec2906cc7c2366acde2439e818f8c5006142483e2f7f",
+    "pending_fixed_close_retain_entryquote_stoplevel_a40d30_predictions.jsonl": "2641c1525c897b6399fe531b972230217b9c574020864293286e2fff67a4d24f",
+    "pending_fixed_close_retain_entryquote_stoplevel_a16d16_predictions.jsonl": "b026385f32ca44c673ac8ebc1e20392935cf94812c7e95db713980a44ecb479c",
+    "pending_fixed_close_retain_entryquote_stopquote_a40d30_predictions.jsonl": "9c9a6e96c6b7d9b186557097261993193e302c43b3d3fd3e11da86439b05bb1a",
+    "pending_fixed_close_retain_entryquote_stopquote_a16d16_predictions.jsonl": "9ecde238f2a2712c3993ea9fc5d32bbbb855dc214b130a2c9edd655a2c2edcdc",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30_predictions.jsonl": "583567848ee22823fc85d40d3625df688e7efb2adb0b8c0d6a0cf5247f783194",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16_predictions.jsonl": "1101e45439ea2085f193058305feb603faf4043d7f0c37e4b9019058d771e118",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30_predictions.jsonl": "8d934bf27c69c14a27560b94a882c9394b27b47ce4a34295cbc3e63b53ec1cfa",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16_predictions.jsonl": "1af4fde61ddb3b1d6018ca81d75297b41fabf8723e2665692420ff66217fd70f",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30_predictions.jsonl": "fa6e0847bf49bd5bc98e5e46e6c65d02131c64441bbe94cfb8ee979175efde58",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16_predictions.jsonl": "dc3114fa97c92f12d3b3934c313c72194048050156588fae1a80473a917aa417",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a40d30_predictions.jsonl": "a0ea7a1fbd7165b4ae9121321a9b3186e777365dfa0c7ec848dc2335baccacb1",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a16d16_predictions.jsonl": "ddcca0b38741bfd42575b81d74286bfdb3b403dd965dfb8be90db9b7f92ecaa6",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30_predictions.jsonl": "9cbc57ac8dbc7e7909dfee7ab0ef6f370ee782eb508861f65fbd2c48df6b6f4b",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16_predictions.jsonl": "8ad0e3649048aed6466b96f2fe62552e4a9f87108b0dc69fced18b074f04f4e6",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30_predictions.jsonl": "13396fdba11ca44a85b069c8ab2a75f6d460dc6f2fa7bc8ee38a9cc662d1a7b6",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16_predictions.jsonl": "cae769df31f1045b00f1c4da46d632414ee4cea3cc31e3ed1ddf9a73e471a035",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30_predictions.jsonl": "abd3a3d2da72eaede695595c69deea4e6b4fe02bbb9db79f4e14164a862e3b0c",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16_predictions.jsonl": "cf10ee8d8f039ee94813fee16555fab731aa859f3b4f6a2dfa82d30177d8196b",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a40d30_predictions.jsonl": "64db611183d02af508c62dd6aae9d47042278379593b1ad1e1f8a813c089cbf9",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a16d16_predictions.jsonl": "a21b638a7eae781eecc2510971f2ee4f86c91d866c151f3a4f91f091e136755c",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a40d30_all_source_results.jsonl": "5439482562df2fa15074284a506d217c4dc6d9c22e6a37b81dc3478708a62827",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a40d30_extras.jsonl": "2dd6c1370076a137440f9b5764872e9c46cfdb9ac0d2a7ea6783e85112b57131",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a40d30_entry_all_source_results.jsonl": "40945695b006d62ef330549fee4d9c42a59543cab9e3eed717bd84f55c7354e5",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a40d30_entry_extras.jsonl": "331b901f04698cd9555a3e17ce5b8c97c36d1f7e8ad853cc864e804209f626bf",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a16d16_all_source_results.jsonl": "134f60abfb75fe428d59cf90cd77197f80cf888900af5cca776ab65a3a7910f8",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a16d16_extras.jsonl": "2169ad5828e06cc814d01a3cde020b8b1475b18a273ca5684dc216a53076d4b1",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a16d16_entry_all_source_results.jsonl": "fac47bacb7737cd35449c219217a03d40690aa7e51bb9917b679383675bc61e9",
+    "pending_fixed_close_oco_entrylevel_stoplevel_a16d16_entry_extras.jsonl": "fd7097f8ac1cd87dab4ceca9842fa93bc4e4451af89b11e5ac59d1c391e9e28f",
+    "pending_fixed_close_oco_entrylevel_stopquote_a40d30_all_source_results.jsonl": "129d9265fd067f3fb7dbd57a249e6bc65aad75867067bcee82f2945609df8d14",
+    "pending_fixed_close_oco_entrylevel_stopquote_a40d30_extras.jsonl": "80bc0722e3ddf98787a9ac7e09a5e36a2722f0ff157545ef09758d2ce976820b",
+    "pending_fixed_close_oco_entrylevel_stopquote_a40d30_entry_all_source_results.jsonl": "e5700022c84bb11c7d1bae6c72ba38b99075d81f3bb4793f402e5f0f46defd34",
+    "pending_fixed_close_oco_entrylevel_stopquote_a40d30_entry_extras.jsonl": "6446fa93cd881412d8d0a0636af09ae521383b445eac1c6ebd3302e1583cdab0",
+    "pending_fixed_close_oco_entrylevel_stopquote_a16d16_all_source_results.jsonl": "49d6633c81e7207bf0a64f12e8ea39a1e21a0f7fbbf3ca026f5f8aec9f734c4b",
+    "pending_fixed_close_oco_entrylevel_stopquote_a16d16_extras.jsonl": "43488599fca817392d747ff27644c6e9620db1f8cd2bd1b88b6d69c89d0cc624",
+    "pending_fixed_close_oco_entrylevel_stopquote_a16d16_entry_all_source_results.jsonl": "3e9b80afdef125e986751d056a36fcab74a574ea7121b573f2f02f222c8c6910",
+    "pending_fixed_close_oco_entrylevel_stopquote_a16d16_entry_extras.jsonl": "d9a830c59ab6526f090175576846a3a352a955a5c60f4db13b79ad010a2ebbec",
+    "pending_fixed_close_oco_entryquote_stoplevel_a40d30_all_source_results.jsonl": "9528d95f97100bba275bb0338867e15a21fb55bc0a9f0785fb995fa20278e12c",
+    "pending_fixed_close_oco_entryquote_stoplevel_a40d30_extras.jsonl": "b99d123a41dc729682504cd0cdd8bc21c1fc55b6a7d21e34096c23c56c2b9ed0",
+    "pending_fixed_close_oco_entryquote_stoplevel_a40d30_entry_all_source_results.jsonl": "6746fa13fadbae47e94eda18d6c1949635e1de5bbb22fced191e5c239b72cd73",
+    "pending_fixed_close_oco_entryquote_stoplevel_a40d30_entry_extras.jsonl": "85ecb4a9ed4ba5f807cf9665a8ba815d85fc64135ba48ae7d42faa6c31521425",
+    "pending_fixed_close_oco_entryquote_stoplevel_a16d16_all_source_results.jsonl": "9633e178050c3f355f5bb644f16eb6e8fc4f8482d6f2cb2e58814e7bdd1eb21d",
+    "pending_fixed_close_oco_entryquote_stoplevel_a16d16_extras.jsonl": "a33d5e717f1dd0ca1289d16ce51d94c9aaf1a4ecaccda2a958aefeb4a895f04f",
+    "pending_fixed_close_oco_entryquote_stoplevel_a16d16_entry_all_source_results.jsonl": "a3ef523d9377c8810cad59d1e7dacd159ae6b522b9cd907bb6cbfe6f18d62c92",
+    "pending_fixed_close_oco_entryquote_stoplevel_a16d16_entry_extras.jsonl": "a0d7275273a1c5d7c58b4e9682372e8b908c032e53145fefcc9bc740fe8bf9e7",
+    "pending_fixed_close_oco_entryquote_stopquote_a40d30_all_source_results.jsonl": "a80c7c90bcdc200dc01dd41bd2afabcbd8bd9a45fe5f5e3a1cc21c50b367a139",
+    "pending_fixed_close_oco_entryquote_stopquote_a40d30_extras.jsonl": "b180c65b033dcf3be8892455c38ebf71ecc18b5553b6c961bef41e76afc044af",
+    "pending_fixed_close_oco_entryquote_stopquote_a40d30_entry_all_source_results.jsonl": "160165fb34db61c5438e8874fada8dd1f42d2a3d4051ca1b24e8eaed66cf5a92",
+    "pending_fixed_close_oco_entryquote_stopquote_a40d30_entry_extras.jsonl": "f01b41378cc0d734dcb0ab73f5c39770c645bb048f4f60138233d900cce2e43b",
+    "pending_fixed_close_oco_entryquote_stopquote_a16d16_all_source_results.jsonl": "6343e4ca5e0f669cf1db054033ee944b34ddbee76a9d49f57f2c8c2a54df6105",
+    "pending_fixed_close_oco_entryquote_stopquote_a16d16_extras.jsonl": "923aeee98abd8235c5a52ae6dd689d4a6755d9249668196fd17135c7b76ff980",
+    "pending_fixed_close_oco_entryquote_stopquote_a16d16_entry_all_source_results.jsonl": "bae25c9a37ab05cc8607a593919251f13629ee3ea3889470c058421246d177fc",
+    "pending_fixed_close_oco_entryquote_stopquote_a16d16_entry_extras.jsonl": "571a53a5b59861de2c93cff8c2b603a885a86517923dff0bcd6fa5b22ebefe93",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a40d30_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a40d30_extras.jsonl": "64d84988b46e61add6bf1d354e4fa4fbc6c936e6f586b24169c50b9458615778",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a40d30_entry_all_source_results.jsonl": "1cdf2e64da95d456c70dd14d6a27da65df174c69db1a169604f7b89fcd58aa53",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a40d30_entry_extras.jsonl": "ecb7a00041d99ec5bffca0c9b3621cbae113ed79ea833dac57afa8f395287895",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a16d16_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a16d16_extras.jsonl": "c0fb16faad9c6d2b72f14aa6999cdaa895236260959e0eb7dd45f1fa0a14acd2",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a16d16_entry_all_source_results.jsonl": "a6772a4d18a9207a183014c20ef3caa99054af498e13ea90b8d5e3ade1980586",
+    "pending_fixed_close_retain_entrylevel_stoplevel_a16d16_entry_extras.jsonl": "904fb3a66e802e6fc89cf887ea783065579ee18c01875ee5881dcdebec57ed99",
+    "pending_fixed_close_retain_entrylevel_stopquote_a40d30_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entrylevel_stopquote_a40d30_extras.jsonl": "279e5706d377c6cbb43be23feeeacc72dbf9e3edc2e72c24f331c1ba4982ef1e",
+    "pending_fixed_close_retain_entrylevel_stopquote_a40d30_entry_all_source_results.jsonl": "1cdf2e64da95d456c70dd14d6a27da65df174c69db1a169604f7b89fcd58aa53",
+    "pending_fixed_close_retain_entrylevel_stopquote_a40d30_entry_extras.jsonl": "48cf165bb6e223d851d25369bbb5aceb36b5dd2041e7464884aa25e7af0dbe14",
+    "pending_fixed_close_retain_entrylevel_stopquote_a16d16_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entrylevel_stopquote_a16d16_extras.jsonl": "1cf969af480ce2db2ac72565149e1d1211ec2b8c8f8c9b6a46be46ab6ef2424d",
+    "pending_fixed_close_retain_entrylevel_stopquote_a16d16_entry_all_source_results.jsonl": "eece345a04e85b180231c559e9f2ecb06cf44dff6f46b84527f5553295c165cf",
+    "pending_fixed_close_retain_entrylevel_stopquote_a16d16_entry_extras.jsonl": "d6839767e83e6dc3f999a24c4e881b5dd6685defb413eec835f5d3eacc60cdad",
+    "pending_fixed_close_retain_entryquote_stoplevel_a40d30_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entryquote_stoplevel_a40d30_extras.jsonl": "ca064c2abb40be237f0241ad0ff285c62058da86aa02a8a9e5eb9c55d14c1b8b",
+    "pending_fixed_close_retain_entryquote_stoplevel_a40d30_entry_all_source_results.jsonl": "1cdf2e64da95d456c70dd14d6a27da65df174c69db1a169604f7b89fcd58aa53",
+    "pending_fixed_close_retain_entryquote_stoplevel_a40d30_entry_extras.jsonl": "49ffa648e3afb4df49b8f0faae70819bc05656720e207f9de71b6c584f83968e",
+    "pending_fixed_close_retain_entryquote_stoplevel_a16d16_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entryquote_stoplevel_a16d16_extras.jsonl": "54814816aaa342953e106ffb2afa09ff4aa7254f4d68d64e094b922152bcbcfb",
+    "pending_fixed_close_retain_entryquote_stoplevel_a16d16_entry_all_source_results.jsonl": "1cdf2e64da95d456c70dd14d6a27da65df174c69db1a169604f7b89fcd58aa53",
+    "pending_fixed_close_retain_entryquote_stoplevel_a16d16_entry_extras.jsonl": "9eb9fe92dd35611b37bb85e5f9ea82fffbce9a8fdea62b71ab6ccbe5f79eb158",
+    "pending_fixed_close_retain_entryquote_stopquote_a40d30_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entryquote_stopquote_a40d30_extras.jsonl": "b508304ce00a196cfa1d8a84c44095ea9d1dd73178893252549951664f30d94a",
+    "pending_fixed_close_retain_entryquote_stopquote_a40d30_entry_all_source_results.jsonl": "1cdf2e64da95d456c70dd14d6a27da65df174c69db1a169604f7b89fcd58aa53",
+    "pending_fixed_close_retain_entryquote_stopquote_a40d30_entry_extras.jsonl": "5362fc61997492e8ab1348f78d3435d455c7edce0e17f7223f7b3dc5b3b83e05",
+    "pending_fixed_close_retain_entryquote_stopquote_a16d16_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_fixed_close_retain_entryquote_stopquote_a16d16_extras.jsonl": "a4ae3b8f29a08f2ef43b9589e8d99ed7e05b6d9af476477e044f48cdbea83835",
+    "pending_fixed_close_retain_entryquote_stopquote_a16d16_entry_all_source_results.jsonl": "1cdf2e64da95d456c70dd14d6a27da65df174c69db1a169604f7b89fcd58aa53",
+    "pending_fixed_close_retain_entryquote_stopquote_a16d16_entry_extras.jsonl": "277149c8b6f1792d78ec34f9e97e2329dd376ee9db9a5aea6bb9798cbe195f30",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30_all_source_results.jsonl": "bac8c559503f0b8485f4fcc08f614ce97a3b142f0f2752aa4a32464f34533959",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30_extras.jsonl": "3d0a2d03eb91b14e693cf459e5c6bbc1a93991f319ea1d65776cb97f8354b3a8",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30_entry_all_source_results.jsonl": "8c5d923af53b3e2b3b1ffcbf00fa167b2582c3608f4762275797d24b5442587d",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a40d30_entry_extras.jsonl": "0bca02e5dac311ad53dc59dd4e2df97a902262efdee0a4f0e70e539e7f75dc1c",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16_all_source_results.jsonl": "4db263037ac3d6fce97a282404f5e927cc25600d9da4dbfd649670965469b91c",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16_extras.jsonl": "a281f6e85ee1adcda0b4664eee7fb3e69be86466a998a72eeece668ea0c804aa",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16_entry_all_source_results.jsonl": "f7a316dca5e25e770a9671ed1da02570bfa91c0777d05dce21dd3e3551b691b4",
+    "pending_rolling_extrema_oco_entrylevel_stoplevel_a16d16_entry_extras.jsonl": "42a7677fd96f5ea6824d1caa9757869bfca60bb23b8ba8882e99e931394c9878",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30_all_source_results.jsonl": "08d6c3529e950bad5d8e8135a8dd659e02e6f1e26a08bb60883b48d047b35141",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30_extras.jsonl": "b1ef826104b35106ca1859a34ad8f82c36b98d8e57619e81f755077ce8c729db",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30_entry_all_source_results.jsonl": "8c5d923af53b3e2b3b1ffcbf00fa167b2582c3608f4762275797d24b5442587d",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a40d30_entry_extras.jsonl": "92a65768618f116766b6b7cbe17e45276264210b33c849ff9b7af2a1c4096925",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16_all_source_results.jsonl": "967aaffc1f0a5dbc5418ffe4a0c36b013125551018d2cf587b05aca35084c81a",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16_extras.jsonl": "18013c3dec3dc3edec61874e74b4cb0855dd08b120a9ff4c4f2414caf4445e39",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16_entry_all_source_results.jsonl": "f7a316dca5e25e770a9671ed1da02570bfa91c0777d05dce21dd3e3551b691b4",
+    "pending_rolling_extrema_oco_entrylevel_stopquote_a16d16_entry_extras.jsonl": "d34adbb7646c4586df8c940faab993502ce252a1cf1462028e266c1d98175690",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30_all_source_results.jsonl": "cee7ae9d14768022d7334498de081a17d32e5aa5ecc4cf269f0b4b94a301689d",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30_extras.jsonl": "2656d7ef7dbc31bbe873900502e4732592a5bf895a3dd50e6d55a0d15f6ce9bf",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30_entry_all_source_results.jsonl": "564fdcaf9595b7d5374369e89a17bf275de8e2d0bc8b28b13213101bec853040",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a40d30_entry_extras.jsonl": "088e819805e5ec09f729c9d8c5f1859f287ec398c0fc79bf575b523183809a78",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16_all_source_results.jsonl": "7802603c58a4270bae95a17168903c2863e1e791fc3cefdc234a1317c59fd65f",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16_extras.jsonl": "df753a39879551da2bee77f292f6a8ac45da6aaaa7501e58690c25a3bd9ac1e4",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16_entry_all_source_results.jsonl": "5ba3d7540c16a2eb3cef73d424dfc072075f9ca090887cd39d1eac10a35c8e56",
+    "pending_rolling_extrema_oco_entryquote_stoplevel_a16d16_entry_extras.jsonl": "23835e630a933d8d73cf4226943d4fd836fb150cfaaf4112f2e4e65bb919d83e",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a40d30_all_source_results.jsonl": "a2a72c1dcb77e21c199d5b15fecf31e483f7ceee5be9751b903708f11be5630d",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a40d30_extras.jsonl": "5595df8a2b06a91e42a9e7775290902c001cbbc6ab346c90f48413b97ff90143",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a40d30_entry_all_source_results.jsonl": "564fdcaf9595b7d5374369e89a17bf275de8e2d0bc8b28b13213101bec853040",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a40d30_entry_extras.jsonl": "f970e01c42ac65a3fd2ac502ffaee6564f0549f3ae269843a5f0c3a74d4ecbd4",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a16d16_all_source_results.jsonl": "8c5b0e7b7e7d520479669e66290a5030823ecd178e9f77dbbd502b7aa33a65dd",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a16d16_extras.jsonl": "620aa950a8c6d7874a22ac62993787ed451e73f059886cd15ec292637e9c56c6",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a16d16_entry_all_source_results.jsonl": "5ba3d7540c16a2eb3cef73d424dfc072075f9ca090887cd39d1eac10a35c8e56",
+    "pending_rolling_extrema_oco_entryquote_stopquote_a16d16_entry_extras.jsonl": "a290ab9b238bef58154fc811664b6c157bde10947b1b220de4a78f0349533d16",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30_all_source_results.jsonl": "6acc90520de238f779968f764ee4678cbac183c001d50a42dbce73b905bb92fa",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30_extras.jsonl": "13002d56bd04cd09a110075b9f0e970e2b124b843bd89114b8b7de9232e830a0",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30_entry_all_source_results.jsonl": "dbbd9dca4b3b041384328205d4e05ee900bfa8c8acd5811d08447c9682c15687",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a40d30_entry_extras.jsonl": "338dd960668dc983605e5360daa87852b22c22af3de1277b17c6dab3572e3341",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16_all_source_results.jsonl": "8e5798c4cc135d244876fe6471e1134147eef8633b06895d3cfd94ba34297c13",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16_extras.jsonl": "40e4cc235e221ee5ce05bb95ba693ec27db71a9804fa293997a934967aa365be",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16_entry_all_source_results.jsonl": "c09613d8c6e601789946b796a40ec8584be798cbed04d780f6e4c36ed6a20f42",
+    "pending_rolling_extrema_retain_entrylevel_stoplevel_a16d16_entry_extras.jsonl": "28afdc3bff6e19aec0d056c777d8284ad5a5e5009d68e20659d4be3f3ab7acf0",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30_all_source_results.jsonl": "79d766d6023fd9115b531ffb1f66578a25094cbc959e4fe7f98e7ba8d5f62124",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30_extras.jsonl": "4369d3e467382296feab70908d6055c3059e8eb42fc090f59922b453d6740d84",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30_entry_all_source_results.jsonl": "dbbd9dca4b3b041384328205d4e05ee900bfa8c8acd5811d08447c9682c15687",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a40d30_entry_extras.jsonl": "b97ddbf6c4754e8f944dd3a5c90691ce1c9446bd47823e404f2e363b04b74edc",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16_all_source_results.jsonl": "2bbffb7a633617e5247d6960502a29f5ff28425cb1c220e9516f6cca6e79af3e",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16_extras.jsonl": "99415186d14a85dd94714374e21d07c8009c122648728ebd6a79b1a29ad93431",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16_entry_all_source_results.jsonl": "c09613d8c6e601789946b796a40ec8584be798cbed04d780f6e4c36ed6a20f42",
+    "pending_rolling_extrema_retain_entrylevel_stopquote_a16d16_entry_extras.jsonl": "21c037f467ac91cef4b93d940b3504f92a2eb8272f614ab5a00e08d80f76b5cc",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30_all_source_results.jsonl": "254111ad4b94c08865720c7bcb859a28ab7e1c180bacc8b87dc28aea25805e81",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30_extras.jsonl": "7d155a3602c74a4467dc10033165d34c472603ff9f86f280917ae09db25af2e2",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30_entry_all_source_results.jsonl": "fa347d00ac66937a5d48f291d2f527f7e076fd149627acbb01a68b2254c8a240",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a40d30_entry_extras.jsonl": "37638c0111b6c98dbd1f3193639e6f18edc17f799314839503c8646183aacfb9",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16_all_source_results.jsonl": "1f2125c40d0165daba01e78049fdcf061a73c090636f93d433fbcb0860e37531",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16_extras.jsonl": "b97dce3882aa0e1b602bdd5bce098f9b829b94417051902e7983a368ca9b2bc3",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16_entry_all_source_results.jsonl": "2853810f0ceacf5da880fe501740c24f30b8cb9b5d7b473bd5039b0913221dc9",
+    "pending_rolling_extrema_retain_entryquote_stoplevel_a16d16_entry_extras.jsonl": "8a57a8bfc605a1ac343e34536b8e84a98d8797b476fafa290dc968ce53b9e68d",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a40d30_all_source_results.jsonl": "97402df7c9fce9e8d4b7ced99014314107bf020fcb0899bc91b58af1ca820b83",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a40d30_extras.jsonl": "b52edd824a8aeb2b83e9f8e2bcc8b8cea1fde94d53125c8c2346ef3112f2ceff",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a40d30_entry_all_source_results.jsonl": "fa347d00ac66937a5d48f291d2f527f7e076fd149627acbb01a68b2254c8a240",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a40d30_entry_extras.jsonl": "683ed08b640272dbda88f3e667d315ce228f30d8fa8657ffa7bc8be470cacce0",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a16d16_all_source_results.jsonl": "4a3ef51152711198629de08ebd8dfa9e3b518abd5e43f05a57b3359a90029aa1",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a16d16_extras.jsonl": "a2807ba5115297a3900dfd2373d3df83271970cd330a36e233d38c7267c42fc4",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a16d16_entry_all_source_results.jsonl": "2853810f0ceacf5da880fe501740c24f30b8cb9b5d7b473bd5039b0913221dc9",
+    "pending_rolling_extrema_retain_entryquote_stopquote_a16d16_entry_extras.jsonl": "5ad6faa5b0c9cc947301a4f2ab7370e74f8649a252355444b798b5c20b4da31c"
+  },
+  "cache_provenance": [
+    {
+      "day": "2026-08-18",
+      "symbol": "XAUUSD",
+      "ticks": 38305,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-18.npz",
+      "raw_sha256": "c077525441ad04d2cb4bfc4a781b4944f908a87d169ce7c832e571419becd610",
+      "sha256": "27dc22743007728a5eb07256bfc86ef1af6c61ea2f0f4f21b4ec314244a6aec1",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-18T21:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-19T00:00:00+00:00",
+      "query_start": "2026-08-19T00:00:00+00:00",
+      "query_end_exclusive": "2026-08-19T03:00:00+00:00",
+      "first_raw_time_msc": 1787101201063,
+      "last_raw_time_msc": 1787108399976,
+      "maximum_intertick_gap_ms": 12816,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-19",
+      "symbol": "XAUUSD",
+      "ticks": 704694,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-19.npz",
+      "raw_sha256": "5fb1e5b3a9720f567122951a2910db163ed0f879f6956e937816b78b94a8f7e5",
+      "sha256": "71966d189bfd3a6fef918a82a454ced8f65860bd34827086ee3772684b08cce2",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-19T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-20T00:00:00+00:00",
+      "query_start": "2026-08-19T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-20T03:00:00+00:00",
+      "first_raw_time_msc": 1787108400043,
+      "last_raw_time_msc": 1787194799923,
+      "maximum_intertick_gap_ms": 3720287,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-20",
+      "symbol": "XAUUSD",
+      "ticks": 692300,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-20.npz",
+      "raw_sha256": "52b2b93230087756c10cb6bfadd7221b8f7ed0501349ae9b9bb3678de5f42aa6",
+      "sha256": "8439fa1a3fd65253c1256cf58e359c854bcf07849861ce6a1c494a65f5d2fe34",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-20T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-21T00:00:00+00:00",
+      "query_start": "2026-08-20T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-21T03:00:00+00:00",
+      "first_raw_time_msc": 1787194800029,
+      "last_raw_time_msc": 1787281199924,
+      "maximum_intertick_gap_ms": 3720483,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-21",
+      "symbol": "XAUUSD",
+      "ticks": 649318,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-21.npz",
+      "raw_sha256": "0826729ac4015d94c3b8cfd73e50c45ee625ee9f6e57438325d9e954b34db23b",
+      "sha256": "9f5953fa5c70fd9602e67d8880d25b3a7bad8cd6472787867dff2045d0d0d16f",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-21T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-22T00:00:00+00:00",
+      "query_start": "2026-08-21T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-22T03:00:00+00:00",
+      "first_raw_time_msc": 1787281200012,
+      "last_raw_time_msc": 1787356619930,
+      "maximum_intertick_gap_ms": 9028,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-22",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-22.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-22T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-23T00:00:00+00:00",
+      "query_start": "2026-08-22T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-23T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-23",
+      "symbol": "XAUUSD",
+      "ticks": 44980,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-23.npz",
+      "raw_sha256": "945a9c254124de8b6a828462a354fe281be64f3bfc4ba8d27eda821655e71f79",
+      "sha256": "32f0bfc4d4a5b32516eda7a7357f4101fb20af11ec8d8dcbdefe205aa5ed2c11",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-23T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-24T00:00:00+00:00",
+      "query_start": "2026-08-23T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-24T03:00:00+00:00",
+      "first_raw_time_msc": 1787533200525,
+      "last_raw_time_msc": 1787540399803,
+      "maximum_intertick_gap_ms": 4426,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-24",
+      "symbol": "XAUUSD",
+      "ticks": 743529,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-24.npz",
+      "raw_sha256": "3ef88f74113e9d37885e4626494ab62a43a91284efbac454dff2ab638b5b7fdd",
+      "sha256": "9ba5437957768282c981da2c8595afeb8057bc02f6b79260899c72ba804f7c62",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-24T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-25T00:00:00+00:00",
+      "query_start": "2026-08-24T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-25T03:00:00+00:00",
+      "first_raw_time_msc": 1787540400019,
+      "last_raw_time_msc": 1787626799908,
+      "maximum_intertick_gap_ms": 3720757,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-25",
+      "symbol": "XAUUSD",
+      "ticks": 709480,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-25.npz",
+      "raw_sha256": "678ba57507e6ace86f08440bae1564994edb9f28188a5e75235059d392fa7cb2",
+      "sha256": "f8cd3c813d581b3322723d62e605db3583c19f0a0d7859c744db3acfaaa655d6",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-25T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-26T00:00:00+00:00",
+      "query_start": "2026-08-25T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-26T03:00:00+00:00",
+      "first_raw_time_msc": 1787626800044,
+      "last_raw_time_msc": 1787713199889,
+      "maximum_intertick_gap_ms": 3721021,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-26",
+      "symbol": "XAUUSD",
+      "ticks": 659229,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-26.npz",
+      "raw_sha256": "d3d114e9aea22721f8bd7b33c203d342437df350ac73658d821985f9f56a62fd",
+      "sha256": "30eeb8e3c3c9ac502cd8ea41940bd1347c76c6700920cfad7c4196694f7e3d0e",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-26T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-27T00:00:00+00:00",
+      "query_start": "2026-08-26T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-27T03:00:00+00:00",
+      "first_raw_time_msc": 1787713200004,
+      "last_raw_time_msc": 1787799599964,
+      "maximum_intertick_gap_ms": 3720448,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-27",
+      "symbol": "XAUUSD",
+      "ticks": 659653,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-27.npz",
+      "raw_sha256": "57713fdeb52c00662510e25d54aa40999af8c858ffcdda61589fcd7d772cc85f",
+      "sha256": "ddd685759e336e636e4c538114085855c62b7e079173af9ac6389fae8633d1df",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-27T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-28T00:00:00+00:00",
+      "query_start": "2026-08-27T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-28T03:00:00+00:00",
+      "first_raw_time_msc": 1787799600020,
+      "last_raw_time_msc": 1787885999888,
+      "maximum_intertick_gap_ms": 3720532,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-28",
+      "symbol": "XAUUSD",
+      "ticks": 675098,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-28.npz",
+      "raw_sha256": "7b51a9bf3e32a2fd19552d2079de0914e01a6f922f2acfbb6d7b3de35f0ed0ab",
+      "sha256": "c42657c6b14f1dfe7a833f88bde6b967b9b06ad830e855b4335a2b22c026c3cb",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-28T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-29T00:00:00+00:00",
+      "query_start": "2026-08-28T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-29T03:00:00+00:00",
+      "first_raw_time_msc": 1787886000009,
+      "last_raw_time_msc": 1787961419841,
+      "maximum_intertick_gap_ms": 10121,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-29",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-29.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-29T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-30T00:00:00+00:00",
+      "query_start": "2026-08-29T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-30T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-30",
+      "symbol": "XAUUSD",
+      "ticks": 49231,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-30.npz",
+      "raw_sha256": "71777f613361759431d4d68a51ca805dcbf5161ce63f54e59c4bcd76ce675bb6",
+      "sha256": "d73529696111d4c03bdd0e8875578529776c2464c2e86f82a76e62e57fbeddcb",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-30T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-08-31T00:00:00+00:00",
+      "query_start": "2026-08-30T03:00:00+00:00",
+      "query_end_exclusive": "2026-08-31T03:00:00+00:00",
+      "first_raw_time_msc": 1788138000940,
+      "last_raw_time_msc": 1788145199926,
+      "maximum_intertick_gap_ms": 4539,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-08-31",
+      "symbol": "XAUUSD",
+      "ticks": 671638,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-08-31.npz",
+      "raw_sha256": "8d4a0d39303d7b969f10ccac160d88d74436302446efd0926ba7efa09ae1be7d",
+      "sha256": "61ab2ee4588370516f21ce97c08d2788a68db92cb4d3544e2f59b814e1f29a7b",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-08-31T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-01T00:00:00+00:00",
+      "query_start": "2026-08-31T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-01T03:00:00+00:00",
+      "first_raw_time_msc": 1788145200064,
+      "last_raw_time_msc": 1788231599969,
+      "maximum_intertick_gap_ms": 3720704,
+      "gaps_over_60s": 2,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-01",
+      "symbol": "XAUUSD",
+      "ticks": 717350,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-01.npz",
+      "raw_sha256": "e4ad61baf5ea4ad9bdcdfe193f7ff253c167ebe2ba8050bb4aa2c2f2e2cab33b",
+      "sha256": "f847eb0900629b3e3174647795c7b4a07332a233565fa2850be2e896ecc3fa0a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-01T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-02T00:00:00+00:00",
+      "query_start": "2026-09-01T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-02T03:00:00+00:00",
+      "first_raw_time_msc": 1788231600021,
+      "last_raw_time_msc": 1788317999919,
+      "maximum_intertick_gap_ms": 3721283,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-02",
+      "symbol": "XAUUSD",
+      "ticks": 702748,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-02.npz",
+      "raw_sha256": "d441f315897fc262ff71ff3412cb1831a36d19638232724b61a0f53dca56cc7f",
+      "sha256": "3e89a42b2b9f563012ea4e6593b0576a9d3fac28e4aba21bf4ffb6af27457d4e",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-02T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-03T00:00:00+00:00",
+      "query_start": "2026-09-02T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-03T03:00:00+00:00",
+      "first_raw_time_msc": 1788318000022,
+      "last_raw_time_msc": 1788404399832,
+      "maximum_intertick_gap_ms": 3720383,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-03",
+      "symbol": "XAUUSD",
+      "ticks": 692198,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-03.npz",
+      "raw_sha256": "b4ff8a5b3f1c444bd8133ea7277c704f6da88f94352e86abdfd61a538b4b97d5",
+      "sha256": "14c207425c267f7d13f3dfc2ceb0d958114a7717c61ea9e7c263d45213302727",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-03T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-04T00:00:00+00:00",
+      "query_start": "2026-09-03T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-04T03:00:00+00:00",
+      "first_raw_time_msc": 1788404400059,
+      "last_raw_time_msc": 1788490799992,
+      "maximum_intertick_gap_ms": 3720861,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-04",
+      "symbol": "XAUUSD",
+      "ticks": 601491,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-04.npz",
+      "raw_sha256": "1f108cb726427fed7fd48d9a3bcd82f88a7f2023791fef1caae47c8ab0523797",
+      "sha256": "3273b14e85cd8f778ea89141f2bad9c279ac64ef5c2bd1df9455e764e58f55e1",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-04T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-05T00:00:00+00:00",
+      "query_start": "2026-09-04T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-05T03:00:00+00:00",
+      "first_raw_time_msc": 1788490800060,
+      "last_raw_time_msc": 1788566219440,
+      "maximum_intertick_gap_ms": 9384,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-05",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-05.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-05T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-06T00:00:00+00:00",
+      "query_start": "2026-09-05T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-06T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-06",
+      "symbol": "XAUUSD",
+      "ticks": 31613,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-06.npz",
+      "raw_sha256": "68b03d5d9c4eaa07e0d0d63cf9494dcab11c18ea98aaa88fa22b78f697cba25c",
+      "sha256": "70480129af372eeb5ee912820cfcdc6ca741fe227f49503397f4dbb2beee9110",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-06T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-07T00:00:00+00:00",
+      "query_start": "2026-09-06T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-07T03:00:00+00:00",
+      "first_raw_time_msc": 1788742800650,
+      "last_raw_time_msc": 1788749999966,
+      "maximum_intertick_gap_ms": 7827,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-07",
+      "symbol": "XAUUSD",
+      "ticks": 473840,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-07.npz",
+      "raw_sha256": "aa644a869a71f1d31c9ceb4480cd1c53ea104a47091ec21aafe207b0ff8e6845",
+      "sha256": "02fe9bd2a4b08163a40472abd57baf9a9c94cad53b248dd8441a1822a7544214",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-07T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-08T00:00:00+00:00",
+      "query_start": "2026-09-07T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-08T03:00:00+00:00",
+      "first_raw_time_msc": 1788750000016,
+      "last_raw_time_msc": 1788836399939,
+      "maximum_intertick_gap_ms": 12600645,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-08",
+      "symbol": "XAUUSD",
+      "ticks": 688474,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-08.npz",
+      "raw_sha256": "f7c251de138462a6a6121986c06f65dd04332d0ce7798c2cf02e60151fc60cf2",
+      "sha256": "ca9129bfa4ad3c87543623f7587a8efdc37504a8e40a7f19fc43cea72401cc67",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-08T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-09T00:00:00+00:00",
+      "query_start": "2026-09-08T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-09T03:00:00+00:00",
+      "first_raw_time_msc": 1788836400015,
+      "last_raw_time_msc": 1788922799992,
+      "maximum_intertick_gap_ms": 3720504,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-09",
+      "symbol": "XAUUSD",
+      "ticks": 648016,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-09.npz",
+      "raw_sha256": "57ec056e3dd549887a4e9a85b50e14137123fc782f75389037ea98322639e225",
+      "sha256": "bdfed14c142001bd06293efa718728cfcc297acec93d69f1053f0c39edd8626b",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-09T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-10T00:00:00+00:00",
+      "query_start": "2026-09-09T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-10T03:00:00+00:00",
+      "first_raw_time_msc": 1788922800052,
+      "last_raw_time_msc": 1789009199990,
+      "maximum_intertick_gap_ms": 3720675,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-10",
+      "symbol": "XAUUSD",
+      "ticks": 735499,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-10.npz",
+      "raw_sha256": "70c6021c8030c31f87858f9cef004c8b207669b8e4282b327d34ac876dfa2874",
+      "sha256": "70f3f02896e96b44013c4434ca2a5d6705484b0d139ff7858a3c41a1304fe532",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-10T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-11T00:00:00+00:00",
+      "query_start": "2026-09-10T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-11T03:00:00+00:00",
+      "first_raw_time_msc": 1789009200048,
+      "last_raw_time_msc": 1789095599925,
+      "maximum_intertick_gap_ms": 3720380,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-11",
+      "symbol": "XAUUSD",
+      "ticks": 691624,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-11.npz",
+      "raw_sha256": "cd5a0993ddd50d3c20506559d4339382bbdd203efc2c66561dd0dc8230d5b016",
+      "sha256": "9343a4b5d3d53ef5bbcd9632c215097c0053b18505fe69ee2030970b361ee3ea",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-11T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-12T00:00:00+00:00",
+      "query_start": "2026-09-11T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-12T03:00:00+00:00",
+      "first_raw_time_msc": 1789095600013,
+      "last_raw_time_msc": 1789171017989,
+      "maximum_intertick_gap_ms": 9410,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-12",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-12.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-12T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-13T00:00:00+00:00",
+      "query_start": "2026-09-12T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-13T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-13",
+      "symbol": "XAUUSD",
+      "ticks": 40912,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-13.npz",
+      "raw_sha256": "705ad435b4189290960be958884672c302c868ada0c7224dab0cfbfaa3cb2668",
+      "sha256": "753fa5eddc4c003ff93c0f8393aa04f7b0c9178e1e74aa90c96fd6d19b43f3c3",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-13T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-14T00:00:00+00:00",
+      "query_start": "2026-09-13T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-14T03:00:00+00:00",
+      "first_raw_time_msc": 1789347600694,
+      "last_raw_time_msc": 1789354799938,
+      "maximum_intertick_gap_ms": 7263,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-14",
+      "symbol": "XAUUSD",
+      "ticks": 697107,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-14.npz",
+      "raw_sha256": "302dff69ed18799371ee025443bb283ecdb380112b785c4050209d9845262b27",
+      "sha256": "879a947eba06bc9838a75db3144fe47271acde989ca94368381b6cf2c8128f76",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-14T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-15T00:00:00+00:00",
+      "query_start": "2026-09-14T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-15T03:00:00+00:00",
+      "first_raw_time_msc": 1789354800021,
+      "last_raw_time_msc": 1789441199932,
+      "maximum_intertick_gap_ms": 3720720,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-15",
+      "symbol": "XAUUSD",
+      "ticks": 627212,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-15.npz",
+      "raw_sha256": "ffa6ff937429c141bdb2db07c023bf5967747090653218fbd305420b0dc0598b",
+      "sha256": "9e4717a083622bc8c0e52f22dfc8af36709b004c7cd29adc113246b107d229e3",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-15T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-16T00:00:00+00:00",
+      "query_start": "2026-09-15T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-16T03:00:00+00:00",
+      "first_raw_time_msc": 1789441200026,
+      "last_raw_time_msc": 1789527599945,
+      "maximum_intertick_gap_ms": 3720675,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-16",
+      "symbol": "XAUUSD",
+      "ticks": 690345,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-16.npz",
+      "raw_sha256": "ec420dc53df9a8a9189cb9abbdb69c7ef6ad41ca17e8fc9710bc2381f64cf0f1",
+      "sha256": "b93a85b3d756f999c6a9476e32154d590ef9af4dbaa79044982dbd46e47bbea4",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-16T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-17T00:00:00+00:00",
+      "query_start": "2026-09-16T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-17T03:00:00+00:00",
+      "first_raw_time_msc": 1789527600006,
+      "last_raw_time_msc": 1789613999968,
+      "maximum_intertick_gap_ms": 3721365,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-17",
+      "symbol": "XAUUSD",
+      "ticks": 677617,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-17.npz",
+      "raw_sha256": "5fc524e562181fb032168be4227c20b44bfb59aeb1b1129d54cb0fafa2ad4ea9",
+      "sha256": "1606d40e7db16b2ddcbc21d3a1d06715658ee0b9ef77f68a0e0ed9200ce80c80",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-17T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-18T00:00:00+00:00",
+      "query_start": "2026-09-17T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-18T03:00:00+00:00",
+      "first_raw_time_msc": 1789614000017,
+      "last_raw_time_msc": 1789700399735,
+      "maximum_intertick_gap_ms": 3722236,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-18",
+      "symbol": "XAUUSD",
+      "ticks": 621161,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-18.npz",
+      "raw_sha256": "c6eb0981e499985ade0f03f36559f6b242ba5175c5aadf21856a307fb9c60080",
+      "sha256": "c4b58ec89b14a3208f2853cb56101f66eff700a07f5db66c3a87905e656502c2",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-18T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-19T00:00:00+00:00",
+      "query_start": "2026-09-18T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-19T03:00:00+00:00",
+      "first_raw_time_msc": 1789700400020,
+      "last_raw_time_msc": 1789775819929,
+      "maximum_intertick_gap_ms": 7450,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-19",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-19.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-19T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-20T00:00:00+00:00",
+      "query_start": "2026-09-19T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-20T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-20",
+      "symbol": "XAUUSD",
+      "ticks": 36514,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-20.npz",
+      "raw_sha256": "f806e0e95c26695aa1c1820b49b18d73fdee616948233fd18822786ef5497e74",
+      "sha256": "1d5a272ae6fcb00f5d4723de82c654efdd9d0d2f9fa684ea20765c4866e518c3",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-20T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-21T00:00:00+00:00",
+      "query_start": "2026-09-20T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-21T03:00:00+00:00",
+      "first_raw_time_msc": 1789952400638,
+      "last_raw_time_msc": 1789959599910,
+      "maximum_intertick_gap_ms": 5505,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-21",
+      "symbol": "XAUUSD",
+      "ticks": 606936,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-21.npz",
+      "raw_sha256": "5d633bb3bfc0c0010c26146f4b27ea504e4965eb1aa6c50fc514af6fe4ceb9a2",
+      "sha256": "e26891a889e0d6afb906129ad814685802463eb24cf1513bf804d4bc84e0af4f",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-21T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-22T00:00:00+00:00",
+      "query_start": "2026-09-21T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-22T03:00:00+00:00",
+      "first_raw_time_msc": 1789959600035,
+      "last_raw_time_msc": 1790045999848,
+      "maximum_intertick_gap_ms": 3721749,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-22",
+      "symbol": "XAUUSD",
+      "ticks": 684749,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-22.npz",
+      "raw_sha256": "c6a66acafa977fa39f38b1146b7dfd56a0f6386d2344a35361db6d12ec94c766",
+      "sha256": "7a4e357776050120a4457cc95e9f10da89b8010f1e4fcad4a22bdacea8d96d8d",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-22T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-23T00:00:00+00:00",
+      "query_start": "2026-09-22T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-23T03:00:00+00:00",
+      "first_raw_time_msc": 1790046000021,
+      "last_raw_time_msc": 1790132399746,
+      "maximum_intertick_gap_ms": 3720762,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-23",
+      "symbol": "XAUUSD",
+      "ticks": 616936,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-23.npz",
+      "raw_sha256": "df82be5c0f17c3c011b8c8bf23d899dfae3dc7184c8320c478648fd529cebb3a",
+      "sha256": "a92834a8cd5473f5b7e00d66b357ea16f58e1b597962cab17696a6d7f86544fa",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-23T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-24T00:00:00+00:00",
+      "query_start": "2026-09-23T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-24T03:00:00+00:00",
+      "first_raw_time_msc": 1790132400012,
+      "last_raw_time_msc": 1790218799953,
+      "maximum_intertick_gap_ms": 3720411,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-24",
+      "symbol": "XAUUSD",
+      "ticks": 696381,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-24.npz",
+      "raw_sha256": "465b0e3def3aed58a735777f104c9c4be3c3fda2fe6949f2c36c7c319dfafe40",
+      "sha256": "230d9eb3a4388c375248b6d40418a798411507377e03c9379048c2500c25b29b",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-24T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-25T00:00:00+00:00",
+      "query_start": "2026-09-24T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-25T03:00:00+00:00",
+      "first_raw_time_msc": 1790218800014,
+      "last_raw_time_msc": 1790305199978,
+      "maximum_intertick_gap_ms": 3720802,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-25",
+      "symbol": "XAUUSD",
+      "ticks": 633413,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-25.npz",
+      "raw_sha256": "34aa47b9bb7ccb46f789570e065bc0e8884eb109789d5dbd72ec17ab4c8f03b2",
+      "sha256": "b773f9a36987237aadf5747733da387c3447b35dbee74665441d0681a8f6a59a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-25T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-26T00:00:00+00:00",
+      "query_start": "2026-09-25T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-26T03:00:00+00:00",
+      "first_raw_time_msc": 1790305200045,
+      "last_raw_time_msc": 1790380619891,
+      "maximum_intertick_gap_ms": 6603,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-26",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-26.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-26T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-27T00:00:00+00:00",
+      "query_start": "2026-09-26T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-27T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-27",
+      "symbol": "XAUUSD",
+      "ticks": 41153,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-27.npz",
+      "raw_sha256": "ac4c2584bfdc22b5174b8f5f56294f00544105d6345b203b9af6a27445c70d0a",
+      "sha256": "05bd056d9707dfc6d82df173a2fc01e5c5220410d017bb1781c4c7b58d9d665d",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-27T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-28T00:00:00+00:00",
+      "query_start": "2026-09-27T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-28T03:00:00+00:00",
+      "first_raw_time_msc": 1790557200582,
+      "last_raw_time_msc": 1790564399943,
+      "maximum_intertick_gap_ms": 7651,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-28",
+      "symbol": "XAUUSD",
+      "ticks": 707271,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-28.npz",
+      "raw_sha256": "78e0c5c297a24dfa821c41d9282cc51596210f1dd21d689b46551f9abd68a390",
+      "sha256": "d3aa2a69dfdc98f933de2dd0d734fe1fc0605ad239137961d2834eb908e89ffa",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-28T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-29T00:00:00+00:00",
+      "query_start": "2026-09-28T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-29T03:00:00+00:00",
+      "first_raw_time_msc": 1790564400011,
+      "last_raw_time_msc": 1790650799364,
+      "maximum_intertick_gap_ms": 3720915,
+      "gaps_over_60s": 3,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-29",
+      "symbol": "XAUUSD",
+      "ticks": 629239,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-29.npz",
+      "raw_sha256": "a0be889e996cfabd4132b523367f369fdf3346683f9a4b52c734220f95f1a300",
+      "sha256": "6012d03066d7cb170df84f8d98405fed266c96f0f5e8115c7214b746e07c6d4f",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-29T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-09-30T00:00:00+00:00",
+      "query_start": "2026-09-29T03:00:00+00:00",
+      "query_end_exclusive": "2026-09-30T03:00:00+00:00",
+      "first_raw_time_msc": 1790650800041,
+      "last_raw_time_msc": 1790737199786,
+      "maximum_intertick_gap_ms": 3720572,
+      "gaps_over_60s": 5,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-09-30",
+      "symbol": "XAUUSD",
+      "ticks": 646804,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-09-30.npz",
+      "raw_sha256": "4b28e62de801d60d4a4e325edb6fe01e8c8a7fc2e543b3d38c9a349aefa69f51",
+      "sha256": "97f8140e9e2a42e1ffe4c793bfd6a4001e172ecc413785fb472948106dcb2d2d",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-09-30T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-01T00:00:00+00:00",
+      "query_start": "2026-09-30T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-01T03:00:00+00:00",
+      "first_raw_time_msc": 1790737200015,
+      "last_raw_time_msc": 1790823599990,
+      "maximum_intertick_gap_ms": 3721334,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-01",
+      "symbol": "XAUUSD",
+      "ticks": 495174,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-01.npz",
+      "raw_sha256": "b6f5baf74b4fad11c8c34c810b7142699e2cd845cf4c0c837b45ce1fe72d901f",
+      "sha256": "27b9e9c6a471a56611daa962ecf1ab82f19b585a05d8a2cfcbaf217615551635",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-01T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-02T00:00:00+00:00",
+      "query_start": "2026-10-01T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-02T03:00:00+00:00",
+      "first_raw_time_msc": 1790823600062,
+      "last_raw_time_msc": 1790909999393,
+      "maximum_intertick_gap_ms": 3720798,
+      "gaps_over_60s": 2,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-02",
+      "symbol": "XAUUSD",
+      "ticks": 435752,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-02.npz",
+      "raw_sha256": "704d78bf64b9e012a0704cf58649c9d8ccb8d58e03b66c81642be39e24c05c62",
+      "sha256": "d1641562f00063f128b10c42bd43113c76ae1ce1c89359860e8a3d85e18bced5",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-02T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-03T00:00:00+00:00",
+      "query_start": "2026-10-02T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-03T03:00:00+00:00",
+      "first_raw_time_msc": 1790910000015,
+      "last_raw_time_msc": 1790985419165,
+      "maximum_intertick_gap_ms": 5539,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-03",
+      "symbol": "XAUUSD",
+      "ticks": 0,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-03.npz",
+      "raw_sha256": "b5049a998a29061aefd72eee853727b4533ed108d0c8b105ff14e0a57bfd5ba1",
+      "sha256": "e4af155cb5d796f56f58a28d1cfe3137ffc9b2cfde338920a0ef5e20567a4a4a",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-03T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-04T00:00:00+00:00",
+      "query_start": "2026-10-03T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-04T03:00:00+00:00",
+      "first_raw_time_msc": null,
+      "last_raw_time_msc": null,
+      "maximum_intertick_gap_ms": null,
+      "gaps_over_60s": 0,
+      "spread_min": null,
+      "spread_median": null,
+      "spread_max": null,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-04",
+      "symbol": "XAUUSD",
+      "ticks": 25023,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-04.npz",
+      "raw_sha256": "459779205ad17d6afb82d2101a1530506dc35a8b57bbfcafee923e3ecc1d8d1f",
+      "sha256": "a3a87e151a19741ec0f2f8cc087cd0d47206ce7332f972ecd771400f2e1468dc",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-04T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-05T00:00:00+00:00",
+      "query_start": "2026-10-04T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-05T03:00:00+00:00",
+      "first_raw_time_msc": 1791162000574,
+      "last_raw_time_msc": 1791169199831,
+      "maximum_intertick_gap_ms": 7836,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.22000000000025466,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-05",
+      "symbol": "XAUUSD",
+      "ticks": 421950,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-05.npz",
+      "raw_sha256": "834e608c96650d06f8285101ac9d24a9e1cb42a53bde66d6630ff7e8a82de7bc",
+      "sha256": "bee853d8bfeea35b7df9e30a3b65e790b9fcde19298acbfdf7ef022fef7eb004",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-05T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-06T00:00:00+00:00",
+      "query_start": "2026-10-05T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-06T03:00:00+00:00",
+      "first_raw_time_msc": 1791169200042,
+      "last_raw_time_msc": 1791255599728,
+      "maximum_intertick_gap_ms": 3720593,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-06",
+      "symbol": "XAUUSD",
+      "ticks": 398882,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-06.npz",
+      "raw_sha256": "f39560a8fd6fbc12135f163a594ded16f74658a5fe1d2c9e26da10a38e99503b",
+      "sha256": "7926588bbcb8a3f2442715a7ca14acdc8ca0895e9353b76f19436ce012c11f2d",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-06T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-07T00:00:00+00:00",
+      "query_start": "2026-10-06T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-07T03:00:00+00:00",
+      "first_raw_time_msc": 1791255600046,
+      "last_raw_time_msc": 1791341999925,
+      "maximum_intertick_gap_ms": 3720432,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-07",
+      "symbol": "XAUUSD",
+      "ticks": 421168,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-07.npz",
+      "raw_sha256": "e1c98dab090eb395a6a9a142595f26abf84be8e6035187235616b82f82c4eba2",
+      "sha256": "f6e81f60d8c4fb9e4a40de2e8a8d52ac561ad5a8a80f9811a6f7068039971f3b",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-07T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-08T00:00:00+00:00",
+      "query_start": "2026-10-07T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-08T03:00:00+00:00",
+      "first_raw_time_msc": 1791342000040,
+      "last_raw_time_msc": 1791428399950,
+      "maximum_intertick_gap_ms": 3723507,
+      "gaps_over_60s": 1,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.2900000000008731,
+      "source_feed_identity_verified": false
+    },
+    {
+      "day": "2026-10-08",
+      "symbol": "XAUUSD",
+      "ticks": 26662,
+      "invalid_quotes": 0,
+      "raw_file": "D:\\Project\\Copter01_AI_Bot_2\\thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\vantage_raw_ticks_vantage_gold_shift3\\2026-10-08.npz",
+      "raw_sha256": "b5d912fe18ce6146e544f3c20783f069d16a072fe978d8ff6e0ef5f301d700f4",
+      "sha256": "d96a3230951d45cd3ff64cb981dc5ff45646fcae1fe3387a89c0359266d63594",
+      "query_shift_ms": 10800000,
+      "feed_time_shift_hours": 3,
+      "canonical_start_inferred": "2026-10-08T00:00:00+00:00",
+      "canonical_end_exclusive_inferred": "2026-10-08T01:17:56+00:00",
+      "query_start": "2026-10-08T03:00:00+00:00",
+      "query_end_exclusive": "2026-10-08T04:17:56+00:00",
+      "first_raw_time_msc": 1791428400074,
+      "last_raw_time_msc": 1791433075886,
+      "maximum_intertick_gap_ms": 4238,
+      "gaps_over_60s": 0,
+      "spread_min": 0.20999999999912689,
+      "spread_median": 0.21999999999934516,
+      "spread_max": 0.25,
+      "source_feed_identity_verified": false
+    }
+  ],
+  "source_sha256": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1"
+}

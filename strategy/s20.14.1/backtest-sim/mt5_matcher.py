@@ -56,7 +56,23 @@ def generate_mt5_reports(df_trades, group_id, out_dir, symbol="XAUUSD.iux", prof
     if not mt5.initialize(path=mt5_path, login=login, password=password, server=server, portable=True):
         print("MT5 initialization failed in matcher")
         return
-        
+
+    # symbol ที่ backtest ใช้ (มักเป็น "XAUUSD.iux" ตายตัว) อาจไม่ตรงกับ broker จริงของ profile
+    # นี้ (เช่น Exness ใช้ "XAUUSDm") ถ้ากรองด้วยชื่อเดิมตรงๆ จะไม่เจอ order สักตัวเลยแม้มีจริง
+    # ลอง resolve เป็นชื่อจริงบน broker นี้ก่อน ไม่เจอค่อย fallback ไปใช้ symbol เดิม
+    root = "".join(ch for ch in symbol if ch.isalpha()).upper()
+    resolved_symbol = symbol
+    for candidate in (root, f"{root}.iux", f"{root}m", f"{root}c", f"{root}-VIPc", symbol):
+        try:
+            if mt5.symbol_info(candidate) is not None:
+                resolved_symbol = candidate
+                break
+        except Exception:
+            continue
+    if resolved_symbol != symbol:
+        print(f"[mt5_matcher] resolve symbol: '{symbol}' -> '{resolved_symbol}' (profile={profile})")
+    symbol = resolved_symbol
+
     orders = mt5.history_orders_get(start_dt, end_dt)
     deals = mt5.history_deals_get(start_dt, end_dt)
     mt5.shutdown() # shutdown after we fetch

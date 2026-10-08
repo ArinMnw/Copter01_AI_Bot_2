@@ -1,0 +1,112 @@
+{
+  "period": {
+    "start_bkk": "2025-10-06 21:57:18",
+    "end_bkk": "2026-10-06 21:57:18"
+  },
+  "model": "M1 Thirakorn SMC MQ5 defaults: fixed 200/600pt SL/TP, fixed BE/trailing, no HTF/ATR gates",
+  "candidate": {
+    "trades": 4428,
+    "wins": 2277,
+    "win_rate": 51.42,
+    "pnl": -12.29,
+    "profit_factor": 0.997,
+    "max_drawdown": 195.84
+  },
+  "split_half": {
+    "first": {
+      "trades": 2065,
+      "wins": 1055,
+      "win_rate": 51.09,
+      "pnl": 69.84,
+      "profit_factor": 1.035,
+      "max_drawdown": 195.84
+    },
+    "second_oos": {
+      "trades": 2363,
+      "wins": 1222,
+      "win_rate": 51.71,
+      "pnl": -82.13,
+      "profit_factor": 0.964,
+      "max_drawdown": 149.32
+    }
+  },
+  "walk_forward_quarters": {
+    "q1": {
+      "trades": 999,
+      "wins": 505,
+      "win_rate": 50.55,
+      "pnl": -128.22,
+      "profit_factor": 0.87,
+      "max_drawdown": 161.01
+    },
+    "q2": {
+      "trades": 1066,
+      "wins": 550,
+      "win_rate": 51.59,
+      "pnl": 198.06,
+      "profit_factor": 1.192,
+      "max_drawdown": 64.78
+    },
+    "q3": {
+      "trades": 1157,
+      "wins": 603,
+      "win_rate": 52.12,
+      "pnl": -15.22,
+      "profit_factor": 0.986,
+      "max_drawdown": 93.49
+    },
+    "q4": {
+      "trades": 1206,
+      "wins": 619,
+      "win_rate": 51.33,
+      "pnl": -66.91,
+      "profit_factor": 0.943,
+      "max_drawdown": 89.82
+    }
+  },
+  "spread_stress": {
+    "spread_0.20": {
+      "trades": 4428,
+      "wins": 2277,
+      "win_rate": 51.42,
+      "pnl": -12.29,
+      "profit_factor": 0.997,
+      "max_drawdown": 195.84
+    },
+    "spread_0.30": {
+      "trades": 4429,
+      "wins": 2171,
+      "win_rate": 49.02,
+      "pnl": -424.75,
+      "profit_factor": 0.906,
+      "max_drawdown": 439.76
+    },
+    "spread_0.40": {
+      "trades": 4428,
+      "wins": 2051,
+      "win_rate": 46.32,
+      "pnl": -842.99,
+      "profit_factor": 0.823,
+      "max_drawdown": 846.4
+    }
+  },
+  "monte_carlo": {
+    "samples": 1000,
+    "p05_net": -290.13,
+    "median_net": -2.08,
+    "p95_drawdown": 395.51
+  },
+  "checks": {
+    "profit_factor_above_1": false,
+    "both_split_halves_profitable": false,
+    "all_walk_forward_quarters_profitable": false,
+    "spread_0_40_profitable": false,
+    "monte_carlo_p05_profitable": false
+  },
+  "all_checks_pass": false,
+  "limitations": [
+    "OHLC deterministic intrabar path, not MT5 real-tick execution",
+    "spread is modeled; real slippage, commission, swaps and rejected modifications are not included",
+    "demo soak and restart/disconnect drills require live elapsed time"
+  ]
+}

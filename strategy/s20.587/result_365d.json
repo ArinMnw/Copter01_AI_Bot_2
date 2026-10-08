@@ -1,0 +1,379 @@
+{
+ "sid": "20.587",
+ "name": "S20.339 x S20.508",
+ "concept": "Mix",
+ "period_bkk": [
+  "2025-10-05 12:12",
+  "2026-10-05 12:12"
+ ],
+ "params": {
+  "sl_atr": 1.5,
+  "rr": 1.5,
+  "max_hold": 24,
+  "be_r": 1.0
+ },
+ "spread_floor": 0.24,
+ "tf": {
+  "M1": {
+   "days": 103.0,
+   "n": 58,
+   "net": -42.94,
+   "pf": 0.659,
+   "wr": 31.0,
+   "dd": 78.05,
+   "avg": -0.74,
+   "outcomes": {
+    "FULL_TP": 16,
+    "SL": 30,
+    "BE": 10,
+    "TIME": 2
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 39,
+    "net": 16.73,
+    "pf": 1.306,
+    "wr": 41.0,
+    "dd": 20.9,
+    "avg": 0.429,
+    "outcomes": {
+     "FULL_TP": 14,
+     "SL": 18,
+     "BE": 5,
+     "TIME": 2
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 19,
+    "net": -59.67,
+    "pf": 0.162,
+    "wr": 10.5,
+    "dd": 65.91,
+    "avg": -3.141,
+    "outcomes": {
+     "SL": 12,
+     "FULL_TP": 2,
+     "BE": 5
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -54.51,
+    "median": -37.12,
+    "pct_pos": 1.0
+   },
+   "audit": null,
+   "null": null,
+   "signals": 61,
+   "verdict": "FAIL"
+  },
+  "M5": {
+   "days": 365.0,
+   "n": 26,
+   "net": 70.29,
+   "pf": 1.719,
+   "wr": 42.3,
+   "dd": 33.77,
+   "avg": 2.703,
+   "outcomes": {
+    "SL": 12,
+    "FULL_TP": 11,
+    "BE": 3
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 18,
+    "net": 48.06,
+    "pf": 1.709,
+    "wr": 44.4,
+    "dd": 33.77,
+    "avg": 2.67,
+    "outcomes": {
+     "SL": 8,
+     "FULL_TP": 8,
+     "BE": 2
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 8,
+    "net": 22.23,
+    "pf": 1.742,
+    "wr": 37.5,
+    "dd": 16.01,
+    "avg": 2.779,
+    "outcomes": {
+     "FULL_TP": 3,
+     "SL": 4,
+     "BE": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": 25.01,
+    "median": 61.34,
+    "pct_pos": 99.7
+   },
+   "audit": null,
+   "null": null,
+   "signals": 28,
+   "verdict": "WEAK"
+  },
+  "M15": {
+   "days": 365.0,
+   "n": 12,
+   "net": 43.13,
+   "pf": 1.696,
+   "wr": 50.0,
+   "dd": 45.33,
+   "avg": 3.594,
+   "outcomes": {
+    "FULL_TP": 5,
+    "TIME": 1,
+    "SL": 3,
+    "BE": 3
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 8,
+    "net": 23.04,
+    "pf": 1.508,
+    "wr": 50.0,
+    "dd": 45.33,
+    "avg": 2.88,
+    "outcomes": {
+     "FULL_TP": 3,
+     "TIME": 1,
+     "SL": 2,
+     "BE": 2
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 4,
+    "net": 20.09,
+    "pf": 2.205,
+    "wr": 50.0,
+    "dd": 16.67,
+    "avg": 5.022,
+    "outcomes": {
+     "FULL_TP": 2,
+     "BE": 1,
+     "SL": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": 2.93,
+    "median": 41.88,
+    "pct_pos": 96.0
+   },
+   "audit": {
+    "cuts": 12,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 12,
+   "verdict": "WEAK"
+  },
+  "M30": {
+   "days": 365.0,
+   "n": 9,
+   "net": -72.9,
+   "pf": 0.586,
+   "wr": 33.3,
+   "dd": 148.92,
+   "avg": -8.1,
+   "outcomes": {
+    "TIME": 3,
+    "FULL_TP": 1,
+    "SL": 5
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 7,
+    "net": -58.06,
+    "pf": 0.631,
+    "wr": 28.6,
+    "dd": 130.26,
+    "avg": -8.294,
+    "outcomes": {
+     "TIME": 2,
+     "FULL_TP": 1,
+     "SL": 4
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 2,
+    "net": -14.84,
+    "pf": 0.205,
+    "wr": 50.0,
+    "dd": 18.66,
+    "avg": -7.42,
+    "outcomes": {
+     "SL": 1,
+     "TIME": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -145.85,
+    "median": -59.33,
+    "pct_pos": 8.7
+   },
+   "audit": null,
+   "null": null,
+   "signals": 10,
+   "verdict": "FAIL"
+  },
+  "H1": {
+   "days": 365.0,
+   "n": 2,
+   "net": 105.37,
+   "pf": 99.0,
+   "wr": 100.0,
+   "dd": 0.0,
+   "avg": 52.685,
+   "outcomes": {
+    "FULL_TP": 2
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 2,
+    "net": 105.37,
+    "pf": 99.0,
+    "wr": 100.0,
+    "dd": 0.0,
+    "avg": 52.685,
+    "outcomes": {
+     "FULL_TP": 2
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "mc": {
+    "p5": 0.0,
+    "median": 0.0,
+    "pct_pos": 0.0
+   },
+   "audit": {
+    "cuts": 8,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 2,
+   "verdict": "WEAK"
+  },
+  "H4": {
+   "days": 365.0,
+   "n": 1,
+   "net": -47.25,
+   "pf": 0.0,
+   "wr": 0.0,
+   "dd": 47.25,
+   "avg": -47.25,
+   "outcomes": {
+    "SL": 1
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "oos": {
+    "n": 1,
+    "net": -47.25,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 47.25,
+    "avg": -47.25,
+    "outcomes": {
+     "SL": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": 0.0,
+    "median": 0.0,
+    "pct_pos": 0.0
+   },
+   "audit": {
+    "cuts": 7,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 1,
+   "verdict": "FAIL"
+  },
+  "D1": {
+   "days": 365.0,
+   "n": 0,
+   "net": 0.0,
+   "pf": 0.0,
+   "wr": 0.0,
+   "dd": 0.0,
+   "avg": 0.0,
+   "is": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "oos": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "mc": {
+    "p5": 0.0,
+    "median": 0.0,
+    "pct_pos": 0.0
+   },
+   "audit": null,
+   "null": null,
+   "signals": 0,
+   "verdict": "NO_TRADE"
+  }
+ },
+ "data_snapshot_utc": "2026-10-05 05:12:41",
+ "total": {
+  "n": 108,
+  "net": 55.7,
+  "pf": 1.109,
+  "wr": 37.0,
+  "dd": 197.93,
+  "avg": 0.516,
+  "outcomes": {
+   "FULL_TP": 35,
+   "SL": 51,
+   "BE": 16,
+   "TIME": 6
+  },
+  "worst_weekend_gap_r": 0.0
+ },
+ "pass_tfs": [],
+ "lookahead_ok": true,
+ "uniqueness": {
+  "max_jaccard": 0.207,
+  "with": "S20.583",
+  "unique": true
+ }
+}

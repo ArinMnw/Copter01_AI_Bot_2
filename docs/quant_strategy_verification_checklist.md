@@ -83,7 +83,7 @@
 
 ## หมวดที่ 3: สถาปัตยกรรมการจัดการคำสั่ง (Order Management & Semantics)
 
-### 10. ⏱️ อายุคำสั่งรอต้องสมเหตุสมผลตาม Timeframe (Timeframe-Proportional Expiry) [Optional - เฉพาะระบบ Pending Limit]
+### 10. ⏱️ อายุคำสั่งรอต้องสมเหตุสมผลตาม Timeframe (Timeframe-Proportional Expiry) [Optional - เฉพาะระบบ Pending Limit แต่บางทีก็ไม่จำเป็นเช่น Broker Exness ที่สามารถตั้ง pending ได้ถึง 1000 order]
 * **ปัญหา:** สัญญาณ M1 แต่ตั้งรอ Limit ข้ามวัน (สัญญาณเน่า/Stale Signal) หรือสัญญาณ H4 แต่รอแค่ 30 นาทีแล้วยกเลิก (ราคายังไม่ทันย้อนมา Retest)
 * **ข้อบังคับ:**
   * อายุก่อน Cancel ของ Pending Order ต้องสัมพันธ์กับ Timeframe ของสัญญาณ เช่น:

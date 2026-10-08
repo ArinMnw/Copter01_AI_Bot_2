@@ -70,8 +70,8 @@ def compute_indicators(rates):
     asian_mask = (df['hour'] >= 0) & (df['hour'] < 8)
     df['asian_high_raw'] = np.where(asian_mask, df['high'], np.nan)
     df['asian_low_raw'] = np.where(asian_mask, df['low'], np.nan)
-    df['asian_high'] = df.groupby('date')['asian_high_raw'].transform('max')
-    df['asian_low'] = df.groupby('date')['asian_low_raw'].transform('min')
+    df['asian_high'] = np.where(df['hour'] >= 8, df.groupby('date')['asian_high_raw'].transform('max'), np.nan)
+    df['asian_low'] = np.where(df['hour'] >= 8, df.groupby('date')['asian_low_raw'].transform('min'), np.nan)
 
     day_highs = df.groupby('date')['high'].max()
     day_lows = df.groupby('date')['low'].min()

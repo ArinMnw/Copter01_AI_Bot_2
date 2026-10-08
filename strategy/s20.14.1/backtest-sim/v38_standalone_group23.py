@@ -428,7 +428,8 @@ if __name__ == '__main__':
         if open_trade is not None:
             if row.low <= open_trade['SL']:
                 open_trade['CloseTime (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
-                open_trade['Close'] = open_trade['SL']
+                # Rule #9: Negative Slippage on SL — SL เป็น market order พอโดนตลาดผันผวนจะได้ราคาแย่กว่าที่ตั้งไว้เสมอ
+                open_trade['Close'] = (open_trade['SL'] - slip_offset) if open_trade['Type'] == 'BUY' else (open_trade['SL'] + slip_offset)
                 open_trade['P&L'] = (open_trade['Close'] - open_trade['Entry']) * 100 * open_trade['Lot'] if open_trade['Type'] == 'BUY' else (open_trade['Entry'] - open_trade['Close']) * 100 * open_trade['Lot']
                 open_trade['Balance'] = 0.0
                 open_trade['Reason'] = 'SL'

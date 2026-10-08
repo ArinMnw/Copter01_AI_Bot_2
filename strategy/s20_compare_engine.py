@@ -271,6 +271,7 @@ def run_s20_compare(
             "lot": bt.get("lot", 0.01),
             "pnl": bt.get("pnl_usd", 0.0),
             "outcome": bt.get("outcome", ""),
+            "exit": bt.get("exit"),
             "leg_name": bt.get("leg", portfolio_name),
             "sid": bt.get("sid", None)
         })
@@ -343,7 +344,7 @@ def run_s20_compare(
     for bt_idx, bt in enumerate(bt_compare_list):
         matched = bt_to_mt.get(bt_idx)
         if matched:
-            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            sim_exit = bt["exit"] if bt.get("exit") is not None else (bt["tp"] if bt["outcome"] in ("TP", "FULL_TP") else bt["sl"])
             sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
             sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
 
@@ -383,7 +384,7 @@ def run_s20_compare(
                 "MT5_point": mt5_pt
             })
         else:
-            sim_exit = bt["tp"] if bt["outcome"] == "TP" else bt["sl"]
+            sim_exit = bt["exit"] if bt.get("exit") is not None else (bt["tp"] if bt["outcome"] in ("TP", "FULL_TP") else bt["sl"])
             sim_diff = (sim_exit - bt["entry"]) if bt["type"] == "BUY" else (bt["entry"] - sim_exit)
             sim_pt = round(sim_diff * 100, 1) if bt["entry"] and sim_exit else ""
 

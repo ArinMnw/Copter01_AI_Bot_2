@@ -526,7 +526,7 @@ if __name__ == '__main__':
             if open_trade is not None:
                 if row.low <= open_trade['SL']:
                     open_trade['CloseTime (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
-                    open_trade['Close'] = open_trade['SL']
+                    open_trade['Close'] = open_trade['SL'] - slip_offset  # Rule #9: Negative Slippage on SL
                     open_trade['P&L'] = (open_trade['Close'] - open_trade['Entry']) * 100 * open_trade['Lot']
                     open_trade['Balance'] = 0.0
                     open_trade['Reason'] = 'SL'

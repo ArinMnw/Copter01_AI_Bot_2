@@ -84,7 +84,7 @@ def simulate_synergy_combo(rates, df, combo_name="combo_grand_synergy", tf_name=
         future = rates[i + 1:]
         filled = False
         fill_idx = 0
-        for f_idx, f_bar in enumerate(future[:5]):
+        for f_idx, f_bar in enumerate(future[:int(os.environ.get("FILL_WAIT_BARS", "5"))]):
             if sig == "BUY" and f_bar['low'] <= entry:
                 filled = True
                 fill_idx = f_idx
@@ -101,7 +101,7 @@ def simulate_synergy_combo(rates, df, combo_name="combo_grand_synergy", tf_name=
         trades += 1
         entry_time = datetime.fromtimestamp(future[fill_idx]['time'], tz=timezone.utc)
         month_key = entry_time.strftime("%Y-%m")
-        active = future[fill_idx:]
+        active = future[fill_idx + 1:]  # Rule 5: Start trailing from NEXT bar (no same-bar lookahead)
 
         be_active = False
         profit_lock_active = False
@@ -113,23 +113,37 @@ def simulate_synergy_combo(rates, df, combo_name="combo_grand_synergy", tf_name=
         for bar in active:
             bars_held += 1
             if sig == "BUY":
-                # BE Trigger (at 40% towards TP1)
-                if not be_active and bar['high'] >= be_trig:
-                    be_active = True
-                    current_sl = entry
+                # 1. MANDATORY RULE 4: Check SL FIRST (Pessimistic)
+                if bar['low'] <= current_sl:
+                    if profit_lock_active:
+                        outcome = "PROFIT_LOCK_WIN"
+                        trade_pnl = (current_sl - entry) * point_val
+                    elif be_active:
+                        outcome = "BE"
+                        trade_pnl = 0.0
+                    else:
+                        outcome = "LOSS"
+                        trade_pnl = -abs(entry - current_sl) * point_val
+                    break
 
-                # Profit-Lock Step (at TP1 1.8R, lock +0.8R)
-                if not profit_lock_active and bar['high'] >= tp1:
-                    profit_lock_active = True
-                    current_sl = entry + (0.80 * risk)
-
-                # Full TP2 hit (4.0R)
+                # 2. Full TP2 hit (4.0R)
                 if bar['high'] >= tp2:
                     trade_pnl = abs(tp2 - entry) * point_val
                     outcome = "FULL_WIN"
                     break
 
-                # SL hit
+                # 3. Profit-Lock Step (at TP1 1.8R, lock +0.8R)
+                if not profit_lock_active and bar['high'] >= tp1:
+                    profit_lock_active = True
+                    current_sl = entry + (0.80 * risk)
+
+                # 4. BE Trigger (at 40% towards TP1)
+                if not be_active and bar['high'] >= be_trig:
+                    be_active = True
+                    current_sl = entry
+
+                # Rule #5 (pessimistic completeness): recheck SAME bar's low against the
+                # just-updated current_sl.
                 if bar['low'] <= current_sl:
                     if profit_lock_active:
                         outcome = "PROFIT_LOCK_WIN"
@@ -143,19 +157,37 @@ def simulate_synergy_combo(rates, df, combo_name="combo_grand_synergy", tf_name=
                     break
 
             else:  # SELL
-                if not be_active and bar['low'] <= be_trig:
-                    be_active = True
-                    current_sl = entry
+                # 1. MANDATORY RULE 4: Check SL FIRST (Pessimistic)
+                if bar['high'] >= current_sl:
+                    if profit_lock_active:
+                        outcome = "PROFIT_LOCK_WIN"
+                        trade_pnl = (entry - current_sl) * point_val
+                    elif be_active:
+                        outcome = "BE"
+                        trade_pnl = 0.0
+                    else:
+                        outcome = "LOSS"
+                        trade_pnl = -abs(current_sl - entry) * point_val
+                    break
 
-                if not profit_lock_active and bar['low'] <= tp1:
-                    profit_lock_active = True
-                    current_sl = entry - (0.80 * risk)
-
+                # 2. Full TP2 hit (4.0R)
                 if bar['low'] <= tp2:
                     trade_pnl = abs(entry - tp2) * point_val
                     outcome = "FULL_WIN"
                     break
 
+                # 3. Profit-Lock Step (at TP1 1.8R, lock +0.8R)
+                if not profit_lock_active and bar['low'] <= tp1:
+                    profit_lock_active = True
+                    current_sl = entry - (0.80 * risk)
+
+                # 4. BE Trigger
+                if not be_active and bar['low'] <= be_trig:
+                    be_active = True
+                    current_sl = entry
+
+                # Rule #5 (pessimistic completeness): recheck SAME bar's high against the
+                # just-updated current_sl.
                 if bar['high'] >= current_sl:
                     if profit_lock_active:
                         outcome = "PROFIT_LOCK_WIN"
@@ -176,6 +208,8 @@ def simulate_synergy_combo(rates, df, combo_name="combo_grand_synergy", tf_name=
             full_losses += 1
         else:
             breakevens += 1
+
+        trade_pnl -= 0.27 * point_val  # Rule #8: realistic spread ($0.20) + commission ($0.07/0.01-lot) friction cost
 
         pnl += trade_pnl
         if pnl > max_pnl:

@@ -14,7 +14,7 @@
      วางใหม่เป็น order รวม (group ใหม่ขึ้นก่อน ตามด้วย group เดิม) พร้อม lot
      ที่เพิ่มขึ้น
 
-Comment format: "{tf}_s20.14-{group1}-{group2}-..." (เช่น "M30_s20.14-2-14")
+Comment format: "{tf}_S20.14-{group1}-{group2}-..." (เช่น "M30_S20.14-2-14")
 — เลขคือหมายเลข Group ตามชื่อฟังก์ชัน strategy_20_14_N ไม่ใช่ sid ทศนิยมเต็ม
 (sid=20.142 → group "2", sid=20.1414 → group "14") เพื่อให้ comment สั้นพอ
 สำหรับ MT5 (broker comment limit ~31 ตัวอักษร, เผื่อ margin ไว้ที่ ~28)
@@ -22,7 +22,7 @@ Comment format: "{tf}_s20.14-{group1}-{group2}-..." (เช่น "M30_s20.14-2-
 
 from __future__ import annotations
 
-MERGE_PREFIX = "s20.14-"
+MERGE_PREFIX = "S20.14-"  # 2026-09-23: เปลี่ยนจาก "s20.14-" ตัวเล็ก ให้ตรงกับ mt5_utils.py._build_order_comment
 COMMENT_MAX_LEN = 28
 
 # sid (ทศนิยม) ของแต่ละ Group ที่รองรับการรวม — ต้องตรงกับ tuple ใน scanner.py's
@@ -61,11 +61,15 @@ def build_merge_comment(tf_name: str, labels: list) -> str:
 
 def parse_merge_comment(comment: str):
     """แยก comment ที่ build_merge_comment() สร้างไว้ กลับเป็น (tf_name, [labels])
-    คืน (None, []) ถ้า comment นี้ไม่ใช่รูปแบบ merge ของเรา"""
-    if not comment or MERGE_PREFIX not in comment:
+    คืน (None, []) ถ้า comment นี้ไม่ใช่รูปแบบ merge ของเรา
+    2026-09-23: เช็คแบบ case-insensitive กันตกหล่น order เก่าที่ยังค้างอยู่ก่อนเปลี่ยน
+    MERGE_PREFIX จาก "s20.14-" ตัวเล็กเป็น "S20.14-" ตัวใหญ่"""
+    if not comment or MERGE_PREFIX.lower() not in comment.lower():
         return None, []
     try:
-        tf_part, rest = comment.split(f"_{MERGE_PREFIX}", 1)
+        idx = comment.lower().index(f"_{MERGE_PREFIX.lower()}")
+        tf_part = comment[:idx]
+        rest = comment[idx + len(MERGE_PREFIX) + 1:]
     except ValueError:
         return None, []
     labels = [x for x in rest.split("-") if x]

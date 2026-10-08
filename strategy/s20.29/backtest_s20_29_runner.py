@@ -96,7 +96,7 @@ def simulate_single_feed(rates, df, mode="mode_stepped_macro", base_lot=0.02, tf
         future = rates[i + 1:]
         filled = False
         fill_idx = 0
-        for f_idx, f_bar in enumerate(future[:5]):
+        for f_idx, f_bar in enumerate(future[:int(os.environ.get("FILL_WAIT_BARS", "5"))]):
             if sig == "BUY" and f_bar['low'] <= entry:
                 filled = True
                 fill_idx = f_idx
@@ -113,7 +113,7 @@ def simulate_single_feed(rates, df, mode="mode_stepped_macro", base_lot=0.02, tf
         trades += 1
         entry_time = datetime.fromtimestamp(future[fill_idx]['time'], tz=timezone.utc)
         month_key = entry_time.strftime("%Y-%m")
-        active = future[fill_idx:]
+        active = future[fill_idx + 1:]  # Rule 5: Start trailing from NEXT bar (no same-bar lookahead)
 
         tp1_hit = False
         step2_active = False
@@ -126,30 +126,45 @@ def simulate_single_feed(rates, df, mode="mode_stepped_macro", base_lot=0.02, tf
         for bar in active:
             bars_held += 1
             if sig == "BUY":
-                # BE trigger
-                if not be_active and bar['high'] >= be_trig:
-                    be_active = True
-                    runner_sl = entry
+                # 1. MANDATORY RULE 4: Check SL FIRST (Pessimistic)
+                if bar['low'] <= runner_sl:
+                    if not tp1_hit:
+                        if be_active:
+                            outcome = "BE"
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = -abs(entry - runner_sl) * (val_scalp + val_runner)
+                    else:
+                        outcome = "SCALP_WIN"
+                        locked_pnl = (runner_sl - entry) * val_runner
+                        trade_pnl += locked_pnl
+                    break
 
-                # TP1 hit
+                # 2. TP2 hit
+                if tp1_hit and bar['high'] >= tp2:
+                    trade_pnl += abs(tp2 - entry) * val_runner
+                    outcome = "FULL_WIN"
+                    break
+
+                # 3. Step 2 lock (+1.8R at 2.8R)
+                if tp1_hit and step2_trig is not None and not step2_active and bar['high'] >= step2_trig:
+                    step2_active = True
+                    runner_sl = entry + (1.80 * risk)  # Lock +1.8R!
+
+                # 4. TP1 hit
                 if not tp1_hit and bar['high'] >= tp1:
                     tp1_hit = True
                     be_active = True
                     runner_sl = entry + (0.80 * risk)  # Lock +0.8R
                     trade_pnl += abs(tp1 - entry) * val_scalp
 
-                # Step 2 lock (+1.8R at 2.8R)
-                if tp1_hit and step2_trig is not None and not step2_active and bar['high'] >= step2_trig:
-                    step2_active = True
-                    runner_sl = entry + (1.80 * risk)  # Lock +1.8R!
+                # 5. BE trigger
+                if not be_active and bar['high'] >= be_trig:
+                    be_active = True
+                    runner_sl = entry
 
-                # TP2 hit
-                if tp1_hit and bar['high'] >= tp2:
-                    trade_pnl += abs(tp2 - entry) * val_runner
-                    outcome = "FULL_WIN"
-                    break
-
-                # SL hit
+                # Rule #5 (pessimistic completeness): recheck SAME bar's low against the
+                # just-updated runner_sl.
                 if bar['low'] <= runner_sl:
                     if not tp1_hit:
                         if be_active:
@@ -164,25 +179,45 @@ def simulate_single_feed(rates, df, mode="mode_stepped_macro", base_lot=0.02, tf
                     break
 
             else:  # SELL
-                if not be_active and bar['low'] <= be_trig:
-                    be_active = True
-                    runner_sl = entry
+                # 1. MANDATORY RULE 4: Check SL FIRST (Pessimistic)
+                if bar['high'] >= runner_sl:
+                    if not tp1_hit:
+                        if be_active:
+                            outcome = "BE"
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = -abs(runner_sl - entry) * (val_scalp + val_runner)
+                    else:
+                        outcome = "SCALP_WIN"
+                        locked_pnl = (entry - runner_sl) * val_runner
+                        trade_pnl += locked_pnl
+                    break
 
+                # 2. TP2 hit
+                if tp1_hit and bar['low'] <= tp2:
+                    trade_pnl += abs(entry - tp2) * val_runner
+                    outcome = "FULL_WIN"
+                    break
+
+                # 3. Step 2 lock
+                if tp1_hit and step2_trig is not None and not step2_active and bar['low'] <= step2_trig:
+                    step2_active = True
+                    runner_sl = entry - (1.80 * risk)
+
+                # 4. TP1 hit
                 if not tp1_hit and bar['low'] <= tp1:
                     tp1_hit = True
                     be_active = True
                     runner_sl = entry - (0.80 * risk)
                     trade_pnl += abs(entry - tp1) * val_scalp
 
-                if tp1_hit and step2_trig is not None and not step2_active and bar['low'] <= step2_trig:
-                    step2_active = True
-                    runner_sl = entry - (1.80 * risk)
+                # 5. BE trigger
+                if not be_active and bar['low'] <= be_trig:
+                    be_active = True
+                    runner_sl = entry
 
-                if tp1_hit and bar['low'] <= tp2:
-                    trade_pnl += abs(entry - tp2) * val_runner
-                    outcome = "FULL_WIN"
-                    break
-
+                # Rule #5 (pessimistic completeness): recheck SAME bar's high against the
+                # just-updated runner_sl.
                 if bar['high'] >= runner_sl:
                     if not tp1_hit:
                         if be_active:
@@ -204,6 +239,8 @@ def simulate_single_feed(rates, df, mode="mode_stepped_macro", base_lot=0.02, tf
             full_losses += 1
         else:
             breakevens += 1
+
+        trade_pnl -= 0.27 * (val_scalp + val_runner)  # Rule #8: realistic spread ($0.20) + commission ($0.07/0.01-lot) friction cost
 
         pnl += trade_pnl
         if pnl > max_pnl:

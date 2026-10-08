@@ -1,0 +1,485 @@
+{
+  "1": {
+    "name": "Primary Baseline Setup",
+    "round": "R4",
+    "pattern": "FollowDiv",
+    "tf": "M15",
+    "full_365d_pnl": "+1,383.24",
+    "windows": {
+      "A": {
+        "trades": 208,
+        "wins": 17,
+        "wr": "8.3",
+        "pnl": 365.04
+      },
+      "B": {
+        "trades": 206,
+        "wins": 20,
+        "wr": "10.0",
+        "pnl": 1494.65
+      }
+    }
+  },
+  "2": {
+    "name": "Micro Retest Engine",
+    "round": "R3",
+    "pattern": "Inst_Gap",
+    "tf": "D1",
+    "full_365d_pnl": "+27,743.93",
+    "windows": {
+      "A": {
+        "trades": 75,
+        "wins": 17,
+        "wr": "23.0",
+        "pnl": -5205.34
+      },
+      "B": {
+        "trades": 75,
+        "wins": 23,
+        "wr": "31.9",
+        "pnl": 4903.7
+      }
+    }
+  },
+  "3": {
+    "name": "Institutional Fibo Zone",
+    "round": "R4",
+    "pattern": "Fibo",
+    "tf": "M15",
+    "full_365d_pnl": "+34,951.49",
+    "windows": {
+      "A": {
+        "trades": 19625,
+        "wins": 2575,
+        "wr": "13.2",
+        "pnl": 91336.09
+      },
+      "B": {
+        "trades": 21059,
+        "wins": 1934,
+        "wr": "9.3",
+        "pnl": 13355.06
+      }
+    }
+  },
+  "4": {
+    "name": "Liquidity Sweep Cluster",
+    "round": "R2",
+    "pattern": "Fibo",
+    "tf": "M30",
+    "full_365d_pnl": "+3,906.08",
+    "windows": {
+      "A": {
+        "trades": 6398,
+        "wins": 2484,
+        "wr": "38.8",
+        "pnl": 6067.54
+      },
+      "B": {
+        "trades": 7296,
+        "wins": 2921,
+        "wr": "40.2",
+        "pnl": 3354.94
+      }
+    }
+  },
+  "5": {
+    "name": "FVG + Fibo Confluence",
+    "round": "R4",
+    "pattern": "FVG/Fibo",
+    "tf": "M15",
+    "full_365d_pnl": "+19,979.67",
+    "windows": {
+      "A": {
+        "trades": 548,
+        "wins": 45,
+        "wr": "8.4",
+        "pnl": -2312.76
+      },
+      "B": {
+        "trades": 729,
+        "wins": 67,
+        "wr": "9.3",
+        "pnl": 3380.33
+      }
+    }
+  },
+  "6": {
+    "name": "Naiya Doji Volume Trap",
+    "round": "R3",
+    "pattern": "Naiya Doji",
+    "tf": "H1",
+    "full_365d_pnl": "+1,536,258.83",
+    "windows": {
+      "A": {
+        "trades": 3282,
+        "wins": 280,
+        "wr": "8.5",
+        "pnl": 549030.21
+      },
+      "B": {
+        "trades": 3501,
+        "wins": 596,
+        "wr": "17.0",
+        "pnl": 109123.9
+      }
+    }
+  },
+  "7": {
+    "name": "Institutional Order Flow",
+    "round": "R4",
+    "pattern": "Fibo",
+    "tf": "M15",
+    "full_365d_pnl": "+34,951.49",
+    "windows": {
+      "A": {
+        "trades": 19625,
+        "wins": 2575,
+        "wr": "13.2",
+        "pnl": 91336.09
+      },
+      "B": {
+        "trades": 21059,
+        "wins": 1934,
+        "wr": "9.3",
+        "pnl": 13355.06
+      }
+    }
+  },
+  "8": {
+    "name": "High-RR Trend Follower",
+    "round": "R4",
+    "pattern": "Naiya Doji",
+    "tf": "H1",
+    "full_365d_pnl": "+1,605,461.92",
+    "windows": {
+      "A": {
+        "trades": 3282,
+        "wins": 263,
+        "wr": "8.0",
+        "pnl": 482180.57
+      },
+      "B": {
+        "trades": 3501,
+        "wins": 417,
+        "wr": "11.9",
+        "pnl": 95892.72
+      }
+    }
+  },
+  "9": {
+    "name": "Naiya High Volatility",
+    "round": "R2",
+    "pattern": "Naiya Doji",
+    "tf": "M15",
+    "full_365d_pnl": "+223,138.86",
+    "windows": {
+      "A": {
+        "trades": 15281,
+        "wins": 2640,
+        "wr": "17.3",
+        "pnl": 116680.17
+      },
+      "B": {
+        "trades": 15897,
+        "wins": 1883,
+        "wr": "11.9",
+        "pnl": 36607.34
+      }
+    }
+  },
+  "10": {
+    "name": "Quant Fibo Expansion",
+    "round": "R4",
+    "pattern": "Fibo",
+    "tf": "M15",
+    "full_365d_pnl": "+36,013.53",
+    "windows": {
+      "A": {
+        "trades": 19625,
+        "wins": 2575,
+        "wr": "13.2",
+        "pnl": 91336.09
+      },
+      "B": {
+        "trades": 21059,
+        "wins": 1934,
+        "wr": "9.3",
+        "pnl": 13355.06
+      }
+    }
+  },
+  "11": {
+    "name": "Fibo Multi-Layer Engine",
+    "round": "R4",
+    "pattern": "Fibo",
+    "tf": "M15",
+    "full_365d_pnl": "+36,033.28",
+    "windows": {
+      "A": {
+        "trades": 19625,
+        "wins": 2575,
+        "wr": "13.2",
+        "pnl": 91336.09
+      },
+      "B": {
+        "trades": 21059,
+        "wins": 1934,
+        "wr": "9.3",
+        "pnl": 13355.06
+      }
+    }
+  },
+  "12": {
+    "name": "Master Naiya Cashflow Engine",
+    "round": "R3",
+    "pattern": "Naiya Doji",
+    "tf": "H1",
+    "full_365d_pnl": "+1,466,438.69",
+    "windows": {
+      "A": {
+        "trades": 3282,
+        "wins": 523,
+        "wr": "15.9",
+        "pnl": 774471.22
+      },
+      "B": {
+        "trades": 3501,
+        "wins": 1050,
+        "wr": "30.0",
+        "pnl": -909.21
+      }
+    }
+  },
+  "13": {
+    "name": "Institutional FVG Retest",
+    "round": "R4",
+    "pattern": "FVG",
+    "tf": "M15",
+    "full_365d_pnl": "+13,502.30",
+    "windows": {
+      "A": {
+        "trades": 2439,
+        "wins": 269,
+        "wr": "11.1",
+        "pnl": 2585.64
+      },
+      "B": {
+        "trades": 3042,
+        "wins": 323,
+        "wr": "10.8",
+        "pnl": 28500.04
+      }
+    }
+  },
+  "14": {
+    "name": "GapSweep Momentum Filter",
+    "round": "R4",
+    "pattern": "FollowDiv",
+    "tf": "M15",
+    "full_365d_pnl": "+1,265.49",
+    "windows": {
+      "A": {
+        "trades": 208,
+        "wins": 17,
+        "wr": "8.3",
+        "pnl": 365.04
+      },
+      "B": {
+        "trades": 206,
+        "wins": 20,
+        "wr": "10.0",
+        "pnl": 1494.65
+      }
+    }
+  },
+  "15": {
+    "name": "Macro Fibo Strategy",
+    "round": "R4",
+    "pattern": "Fibo",
+    "tf": "M15",
+    "full_365d_pnl": "+35,965.76",
+    "windows": {
+      "A": {
+        "trades": 19625,
+        "wins": 2575,
+        "wr": "13.2",
+        "pnl": 91336.09
+      },
+      "B": {
+        "trades": 21059,
+        "wins": 1934,
+        "wr": "9.3",
+        "pnl": 13355.06
+      }
+    }
+  },
+  "16": {
+    "name": "Heavy Volume Scalper",
+    "round": "R2",
+    "pattern": "Naiya Doji",
+    "tf": "M15",
+    "full_365d_pnl": "+674,714.24",
+    "windows": {
+      "A": {
+        "trades": 15281,
+        "wins": 1461,
+        "wr": "9.6",
+        "pnl": 299576.37
+      },
+      "B": {
+        "trades": 15897,
+        "wins": 1292,
+        "wr": "8.1",
+        "pnl": 282159.21
+      }
+    }
+  },
+  "17": {
+    "name": "Low Frequency Precision Engine",
+    "round": "R2",
+    "pattern": "Naiya Doji",
+    "tf": "M15",
+    "full_365d_pnl": "+664,634.91",
+    "windows": {
+      "A": {
+        "trades": 15281,
+        "wins": 1461,
+        "wr": "9.6",
+        "pnl": 293881.77
+      },
+      "B": {
+        "trades": 15897,
+        "wins": 1292,
+        "wr": "8.1",
+        "pnl": 282159.21
+      }
+    }
+  },
+  "18": {
+    "name": "Divergence Momentum Capture",
+    "round": "R1",
+    "pattern": "Naiya Doji",
+    "tf": "M15",
+    "full_365d_pnl": "+258,004.31",
+    "windows": {
+      "A": {
+        "trades": 15281,
+        "wins": 2572,
+        "wr": "16.8",
+        "pnl": 114260.49
+      },
+      "B": {
+        "trades": 15897,
+        "wins": 2260,
+        "wr": "14.2",
+        "pnl": 88357.04
+      }
+    }
+  },
+  "19": {
+    "name": "Order #34 Dedicated Filter",
+    "round": "R4",
+    "pattern": "FVG",
+    "tf": "M15",
+    "full_365d_pnl": "+13,502.30",
+    "windows": {
+      "A": {
+        "trades": 2439,
+        "wins": 269,
+        "wr": "11.1",
+        "pnl": 2585.64
+      },
+      "B": {
+        "trades": 3042,
+        "wins": 323,
+        "wr": "10.8",
+        "pnl": 28500.04
+      }
+    }
+  },
+  "20": {
+    "name": "GapSweep Reversion Engine",
+    "round": "R4",
+    "pattern": "FollowDiv",
+    "tf": "M15",
+    "full_365d_pnl": "+1,265.49",
+    "windows": {
+      "A": {
+        "trades": 208,
+        "wins": 17,
+        "wr": "8.3",
+        "pnl": 365.04
+      },
+      "B": {
+        "trades": 206,
+        "wins": 20,
+        "wr": "10.0",
+        "pnl": 1494.65
+      }
+    }
+  },
+  "21": {
+    "name": "ATR Volatility Filter",
+    "round": "R4",
+    "pattern": "FollowDiv",
+    "tf": "M15",
+    "full_365d_pnl": "+1,265.49",
+    "windows": {
+      "A": {
+        "trades": 208,
+        "wins": 17,
+        "wr": "8.3",
+        "pnl": 365.04
+      },
+      "B": {
+        "trades": 206,
+        "wins": 20,
+        "wr": "10.0",
+        "pnl": 1494.65
+      }
+    }
+  },
+  "22": {
+    "name": "GapSweep M15 Dynamic Engine",
+    "round": "R2",
+    "pattern": "GapSweep",
+    "tf": "M15",
+    "full_365d_pnl": "+8,487.73",
+    "windows": {
+      "A": {
+        "trades": 81,
+        "wins": 12,
+        "wr": "15.2",
+        "pnl": 859.31
+      },
+      "B": {
+        "trades": 98,
+        "wins": 24,
+        "wr": "24.5",
+        "pnl": 8786.51
+      }
+    }
+  },
+  "24": {
+    "name": "FollowDiv Trend Capture",
+    "round": "R4",
+    "pattern": "FVG",
+    "tf": "M15",
+    "full_365d_pnl": "+13,502.30",
+    "windows": {
+      "A": {
+        "trades": 2439,
+        "wins": 269,
+        "wr": "11.1",
+        "pnl": 2585.64
+      },
+      "B": {
+        "trades": 3042,
+        "wins": 323,
+        "wr": "10.8",
+        "pnl": 28500.04
+      }
+    }
+  }
+}

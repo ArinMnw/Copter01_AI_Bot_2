@@ -68,11 +68,31 @@ def run_backtest(days=365, tf_list=["H1"], compound=1.0, symbol="XAUUSD.iux"):
                 entry = res.get("entry")
                 sl = res.get("sl")
                 tp = res.get("tp")
+                order_mode = res.get("order_mode", "limit")
                 
                 future_rates = rates[i+1:]
+                
+                # Rule #6: Realistic Limit Order Fill Model (No Magic Fill)
+                fill_idx = -1
+                if order_mode == "limit":
+                    max_wait = min(10, len(future_rates))
+                    for w_idx in range(max_wait):
+                        f_bar = future_rates[w_idx]
+                        if sig == "BUY" and f_bar['low'] <= entry:
+                            fill_idx = w_idx
+                            break
+                        elif sig == "SELL" and f_bar['high'] >= entry:
+                            fill_idx = w_idx
+                            break
+                    if fill_idx == -1:
+                        continue # Limit order expired without touch
+                else:
+                    fill_idx = 0
+                
+                active_rates = future_rates[fill_idx+1:]
                 be_trig = entry + ((tp - entry) * 0.4) if sig == "BUY" else entry - ((entry - tp) * 0.4)
                 be_act = False; closed_type = None
-                for f_bar in future_rates:
+                for f_bar in active_rates:
                     if sig == "BUY":
                         if f_bar['low'] <= sl: closed_type = "BE" if be_act else "LOSS"; break
                         elif f_bar['high'] >= tp: closed_type = "WIN"; break
@@ -82,10 +102,11 @@ def run_backtest(days=365, tf_list=["H1"], compound=1.0, symbol="XAUUSD.iux"):
                         elif f_bar['low'] <= tp: closed_type = "WIN"; break
                         if not be_act and f_bar['low'] <= be_trig: be_act = True; sl = entry
                         
+                spread_cost = 0.27 * 10 * compound  # Rule #8: realistic spread ($0.20) + commission ($0.07/0.01-lot) friction cost
                 if closed_type == "WIN":
-                    wins += 1; trades += 1; pnl += ((tp - entry) * 10 * compound) if sig == "BUY" else ((entry - tp) * 10 * compound)
+                    wins += 1; trades += 1; pnl += (((tp - entry) * 10 * compound) if sig == "BUY" else ((entry - tp) * 10 * compound)) - spread_cost
                 elif closed_type == "LOSS":
-                    losses += 1; trades += 1; pnl -= ((entry - sl) * 10 * compound) if sig == "BUY" else ((sl - entry) * 10 * compound)
+                    losses += 1; trades += 1; pnl -= (((entry - sl) * 10 * compound) if sig == "BUY" else ((sl - entry) * 10 * compound)) + spread_cost
                 elif closed_type == "BE":
                     be += 1
 

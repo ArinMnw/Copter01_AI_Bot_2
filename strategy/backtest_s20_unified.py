@@ -14,11 +14,25 @@ import sys
 import os
 import csv
 import bisect
+import json
 import argparse
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
+
+# ── Tuning hook (opt-in, ไม่กระทบพฤติกรรม default) ──────────────────────
+# เซ็ต env var S20_TUNE_PARAMS เป็น JSON ก่อนรัน เช่น
+#   S20_TUNE_PARAMS='{"20.304": {"tp_r": 2.5}, "20.18": {"tp_r": 1.2}}'
+# เพื่อจูนแต่ละ sid แยกกันโดยไม่ต้องแก้โค้ดซ้ำทุกรอบ sweep ไม่ตั้ง env var = ค่าเดิมทุกประการ
+try:
+    _S20_TUNE = {float(k): v for k, v in json.loads(os.environ.get("S20_TUNE_PARAMS", "{}")).items()}
+except Exception:
+    _S20_TUNE = {}
+
+
+def _tp_r_for(sid, default=1.8):
+    return float(_S20_TUNE.get(sid, {}).get("tp_r", default))
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
@@ -95,10 +109,11 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
         from run_s20_304_m5_verified import extract_setups_for_symbol
         dfs = {tf: compute_marathon_300_synergies(r) for tf, r in rates_by_tf.items()}
         raw = extract_setups_for_symbol(symbol, dfs, digits, point)
+        _tp_r = _tp_r_for(sid, 1.8)
         for s in raw:
             s["sid"] = sid
-            # Realistic institutional target 1.8R
-            s["tp"] = round(s["entry"] + 1.8 * s["risk"], digits) if s["signal"] == "BUY" else round(s["entry"] - 1.8 * s["risk"], digits)
+            # Realistic institutional target (default 1.8R, จูนได้ผ่าน S20_TUNE_PARAMS)
+            s["tp"] = round(s["entry"] + _tp_r * s["risk"], digits) if s["signal"] == "BUY" else round(s["entry"] - _tp_r * s["risk"], digits)
             setups.append(s)
         return setups
 
@@ -134,22 +149,23 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
     try:
         df = mod.compute_indicators_df(r_eval)
         n = len(df)
+        _rr = _tp_r_for(sid, 1.8)
         for idx in range(30, n):
             res = None
             if sid == 20.18:
-                res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="RETEST", rr_ratio=1.8)
+                res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="RETEST", rr_ratio=_rr)
             elif sid == 20.19:
-                res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="RETEST", rr_ratio=1.8)
+                res = mod.evaluate_bar(df, idx, tf=tf_primary, entry_mode="RETEST", rr_ratio=_rr)
             elif sid == 20.20:
-                res = getattr(mod, "evaluate_asian_mean_reversion", lambda *a, **kw: None)(df, idx, tf=tf_primary, min_rr=1.8, entry_mode="RETEST")
+                res = getattr(mod, "evaluate_asian_mean_reversion", lambda *a, **kw: None)(df, idx, tf=tf_primary, min_rr=_rr, entry_mode="RETEST")
                 if not res or res.get("signal") in ("WAIT", None):
-                    res = getattr(mod, "evaluate_asymmetric_rr", lambda *a, **kw: None)(df, idx, tf=tf_primary, min_rr=1.8, entry_mode="RETEST")
+                    res = getattr(mod, "evaluate_asymmetric_rr", lambda *a, **kw: None)(df, idx, tf=tf_primary, min_rr=_rr, entry_mode="RETEST")
             elif sid == 20.21:
-                res = getattr(mod, "evaluate_smt_divergence", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8)
+                res = getattr(mod, "evaluate_smt_divergence", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=_rr)
                 if not res or res.get("signal") in ("WAIT", None):
-                    res = getattr(mod, "evaluate_breaker_block", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8)
+                    res = getattr(mod, "evaluate_breaker_block", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=_rr)
                 if not res or res.get("signal") in ("WAIT", None):
-                    res = getattr(mod, "evaluate_judas_swing", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8)
+                    res = getattr(mod, "evaluate_judas_swing", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=_rr)
             elif sid == 20.22:
                 res = getattr(mod, "evaluate_vwap_reversion", lambda *a, **kw: None)(df, idx, tf=tf_primary)
                 if not res or res.get("signal") in ("WAIT", None):
@@ -157,7 +173,7 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
                 if not res or res.get("signal") in ("WAIT", None):
                     res = getattr(mod, "evaluate_institutional_orb", lambda *a, **kw: None)(df, idx, tf=tf_primary)
             elif sid == 20.24:
-                res = getattr(mod, "evaluate_wyckoff_vsa", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=1.8, entry_mode="RETEST")
+                res = getattr(mod, "evaluate_wyckoff_vsa", lambda *a, **kw: None)(df, idx, tf=tf_primary, rr=_rr, entry_mode="RETEST")
                 if not res or res.get("signal") in ("WAIT", None):
                     res = getattr(mod, "evaluate_london_close_reversal", lambda *a, **kw: None)(df, idx, tf=tf_primary, retrace_pct=0.25, entry_mode="RETEST")
             elif sid == 20.28:
@@ -171,7 +187,9 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
                 tp = res["tp"] / scale if scale != 1.0 else res["tp"]
                 risk = abs(entry - sl)
                 setups.append({
-                    "time": int(df.iloc[idx]['time']),
+                    # Checklist ข้อ 2 (Bar Close Execution Integrity): สัญญาณอาศัยลักษณะแท่ง M15 เต็มแท่ง
+                    # (เช่น engulf, pinbar) รู้ได้ก็ต่อเมื่อแท่งปิดแล้ว +900s (M15) กัน magic fill ในแท่งเดียวกัน
+                    "time": int(df.iloc[idx]['time']) + 900,
                     "signal": res["signal"],
                     "entry": round(entry, digits),
                     "sl": round(sl, digits),
@@ -188,7 +206,18 @@ def extract_setups_for_strategy(sid, symbol, rates_by_tf, digits, point):
 def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contract_size, digits, start_ts=None, end_ts=None, concurrent=False, m1_bars=None, m1_times=None, sym_spread=0.20):
     """Executes setups chronologically on sequential bars (M1 for M1 setups, M5 for others)."""
     m5_len = len(m5_bars)
-    m1_len = len(m1_bars) if m1_bars is not None else 0
+    if sym_spread == 0.20 or sym_spread is None:
+        sym_u = symbol.upper()
+        if "XAU" in sym_u:
+            sym_spread = 0.25
+        elif "XAG" in sym_u:
+            sym_spread = 0.020
+        elif "EUR" in sym_u:
+            sym_spread = 0.00015
+        elif "GBP" in sym_u:
+            sym_spread = 0.00020
+        elif "JPY" in sym_u:
+            sym_spread = 0.020
     trades_list = []
     busy_until = 0
     is_jpy = "JPY" in symbol.upper()
@@ -197,7 +226,13 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
     tp_r = 13.45 if sid == 20.303 else 13.43
     active_orders = []  # list of (active_until_time, tf, signal, entry) to prevent duplicate stacked orders per TF
     price_tol = 0.30 if "XAU" in symbol.upper() else (0.05 if "XAG" in symbol.upper() else 0.0020)
-    is_limit_strategy = sid in (20.18, 20.28, 20.301, 20.302, 20.303, 20.304)
+    _entry_mode_tune = _S20_TUNE.get(sid, {}).get("entry_mode", None)
+    if _entry_mode_tune == "MARKET":
+        is_limit_strategy = False
+    elif _entry_mode_tune == "LIMIT":
+        is_limit_strategy = True
+    else:
+        is_limit_strategy = sid in (20.18, 20.28, 20.301, 20.302, 20.303, 20.304)
     # Rule #7: Limit Penetration (Touch is not a fill)
     penetration_pt = (0.10 if "XAU" in symbol.upper() else (0.01 if "XAG" in symbol.upper() else 0.0001)) if is_limit_strategy else 0.0
     # Rule #9: Negative Slippage on SL
@@ -221,7 +256,15 @@ def simulate_strategy_trades(sid, symbol, m5_bars, m5_times, setups, lot, contra
         sim_bars = m1_bars if is_m1_setup else m5_bars
         sim_times = m1_times if is_m1_setup else m5_times
         sim_len = m1_len if is_m1_setup else m5_len
-        max_wait_bars = 60 if is_m1_setup else 12  # 1 hour fill window
+        # Checklist ข้อ 10 (Timeframe-Proportional Expiry): เดิม fix 12 แท่ง M5 (1 ชม.) ทุก TF
+        # ทำให้สัญญาณ H4 (live รอได้ 1 แท่ง = 4 ชม. ตาม "S20 Standalone Pending Expired") มีโอกาส fill แค่ 1/4
+        # ของเวลาจริง แก้ให้สัดส่วนเวลารอตรงกับ live: M15=4แท่ง, M30=2แท่ง, H1/H4=1แท่งของ TF นั้น
+        _wait_bars_live = {"M15": 4, "M30": 2, "H1": 1, "H4": 1}.get(s_tf, 1)
+        _tf_secs_local = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H4": 14400}
+        _wait_secs = _wait_bars_live * _tf_secs_local.get(s_tf, 900)
+        max_wait_bars = 60 if is_m1_setup else max(12, _wait_secs // 300)
+        if os.environ.get("FILL_WAIT_DAYS"):
+            max_wait_bars = int(float(os.environ["FILL_WAIT_DAYS"]) * (1440 if is_m1_setup else 288))
 
         start_idx = bisect.bisect_right(sim_times, s_time)
         if start_idx >= sim_len:

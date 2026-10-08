@@ -1,0 +1,92 @@
+{
+ "99": {
+  "sid": "20.99",
+  "name": "Dynamic Time Warping Time-Series Match",
+  "tf": {
+   "H1": {
+    "days": 271.0,
+    "n": 100,
+    "net": 2012.5,
+    "pf": 2.164,
+    "wr": 39.0,
+    "dd": 283.01,
+    "avg": 20.125,
+    "outcomes": {
+     "SL": 59,
+     "TIME": 38,
+     "FULL_TP": 3
+    },
+    "worst_weekend_gap_r": 0.0,
+    "is": {
+     "n": 63,
+     "net": 1498.7,
+     "pf": 2.221,
+     "wr": 39.7,
+     "dd": 283.01,
+     "avg": 23.789,
+     "outcomes": {
+      "SL": 36,
+      "TIME": 25,
+      "FULL_TP": 2
+     },
+     "worst_weekend_gap_r": 0.0
+    },
+    "oos": {
+     "n": 37,
+     "net": 513.8,
+     "pf": 2.024,
+     "wr": 37.8,
+     "dd": 139.12,
+     "avg": 13.886,
+     "outcomes": {
+      "SL": 23,
+      "TIME": 13,
+      "FULL_TP": 1
+     },
+     "worst_weekend_gap_r": 0.0
+    },
+    "mc": {
+     "p5": 1071.26,
+     "median": 1719.96,
+     "pct_pos": 100.0
+    },
+    "audit": {
+     "cuts": 6,
+     "mismatch": 0
+    },
+    "null": {
+     "p": 0.0,
+     "null_avg_p95": 6.615,
+     "mine_avg": 20.125
+    },
+    "signals": 184,
+    "verdict": "PASS"
+   }
+  },
+  "tp_r": 9.9,
+  "period_bkk": [
+   "2026-01-01 00:00",
+   "2026-09-29 00:00"
+  ],
+  "spread_floor": 0.24,
+  "data_snapshot_utc": "2026-09-29 13:40:43",
+  "total": {
+   "n": 100,
+   "net": 2012.5,
+   "pf": 2.164,
+   "wr": 39.0,
+   "dd": 283.01,
+   "avg": 20.125,
+   "outcomes": {
+    "SL": 59,
+    "TIME": 38,
+    "FULL_TP": 3
+   },
+   "worst_weekend_gap_r": 0.0
+  },
+  "pass_tfs": [
+   "H1"
+  ],
+  "leak_tfs": []
+ }
+}

@@ -1,0 +1,1361 @@
+{
+  "feed": {
+    "proxy_symbol": "XAUUSD.iux",
+    "proxy_broker": "IUXMarkets",
+    "source_broker": "Vantage Markets (Pty) Ltd",
+    "warning": "Proxy ticks can identify structure but cannot prove tick-perfect 100% replay across brokers."
+  },
+  "orders": 31123,
+  "entry_tick_matches": 30940,
+  "entry_tick_match_pct": 99.41201,
+  "source_proxy_price_difference": {
+    "median": 0.005,
+    "median_absolute": 0.275,
+    "p90_absolute": 0.74
+  },
+  "best_direction_tests": [
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 50.0,
+      "orders": 9151,
+      "coverage_pct": 29.402693,
+      "momentum_accuracy_pct": 95.945798,
+      "reversal_accuracy_pct": 4.054202
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 50.0,
+      "orders": 12945,
+      "coverage_pct": 41.593034,
+      "momentum_accuracy_pct": 95.890305,
+      "reversal_accuracy_pct": 4.109695
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 50.0,
+      "orders": 6602,
+      "coverage_pct": 21.212608,
+      "momentum_accuracy_pct": 95.546804,
+      "reversal_accuracy_pct": 4.453196
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 50.0,
+      "orders": 3334,
+      "coverage_pct": 10.712335,
+      "momentum_accuracy_pct": 95.440912,
+      "reversal_accuracy_pct": 4.559088
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 30.0,
+      "orders": 18974,
+      "coverage_pct": 60.96456,
+      "momentum_accuracy_pct": 95.051123,
+      "reversal_accuracy_pct": 4.948877
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 30.0,
+      "orders": 15086,
+      "coverage_pct": 48.472191,
+      "momentum_accuracy_pct": 94.99536,
+      "reversal_accuracy_pct": 5.00464
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 30.0,
+      "orders": 12031,
+      "coverage_pct": 38.656299,
+      "momentum_accuracy_pct": 94.447677,
+      "reversal_accuracy_pct": 5.552323
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 50.0,
+      "orders": 17807,
+      "coverage_pct": 57.214921,
+      "momentum_accuracy_pct": 94.260684,
+      "reversal_accuracy_pct": 5.739316
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 20.0,
+      "orders": 22418,
+      "coverage_pct": 72.030331,
+      "momentum_accuracy_pct": 93.960211,
+      "reversal_accuracy_pct": 6.039789
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 20.0,
+      "orders": 19004,
+      "coverage_pct": 61.060952,
+      "momentum_accuracy_pct": 93.722374,
+      "reversal_accuracy_pct": 6.277626
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 30.0,
+      "orders": 7286,
+      "coverage_pct": 23.41034,
+      "momentum_accuracy_pct": 93.672797,
+      "reversal_accuracy_pct": 6.327203
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 30.0,
+      "orders": 23164,
+      "coverage_pct": 74.427272,
+      "momentum_accuracy_pct": 93.463996,
+      "reversal_accuracy_pct": 6.536004
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 20.0,
+      "orders": 16008,
+      "coverage_pct": 51.43463,
+      "momentum_accuracy_pct": 92.884808,
+      "reversal_accuracy_pct": 7.115192
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 20.0,
+      "orders": 25677,
+      "coverage_pct": 82.501687,
+      "momentum_accuracy_pct": 92.705534,
+      "reversal_accuracy_pct": 7.294466
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 50.0,
+      "orders": 20192,
+      "coverage_pct": 64.878064,
+      "momentum_accuracy_pct": 92.041403,
+      "reversal_accuracy_pct": 7.958597
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 20.0,
+      "orders": 10855,
+      "coverage_pct": 34.877743,
+      "momentum_accuracy_pct": 91.856287,
+      "reversal_accuracy_pct": 8.143713
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 10.0,
+      "orders": 26453,
+      "coverage_pct": 84.99502,
+      "momentum_accuracy_pct": 91.842135,
+      "reversal_accuracy_pct": 8.157865
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 30.0,
+      "orders": 24837,
+      "coverage_pct": 79.802718,
+      "momentum_accuracy_pct": 91.287192,
+      "reversal_accuracy_pct": 8.712808
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 10.0,
+      "orders": 28326,
+      "coverage_pct": 91.013077,
+      "momentum_accuracy_pct": 91.184777,
+      "reversal_accuracy_pct": 8.815223
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 10.0,
+      "orders": 24200,
+      "coverage_pct": 77.756,
+      "momentum_accuracy_pct": 90.710744,
+      "reversal_accuracy_pct": 9.289256
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 20.0,
+      "orders": 26870,
+      "coverage_pct": 86.334865,
+      "momentum_accuracy_pct": 90.483811,
+      "reversal_accuracy_pct": 9.516189
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 5.0,
+      "orders": 28619,
+      "coverage_pct": 91.954503,
+      "momentum_accuracy_pct": 90.069534,
+      "reversal_accuracy_pct": 9.930466
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 5.0,
+      "orders": 29630,
+      "coverage_pct": 95.202905,
+      "momentum_accuracy_pct": 89.935876,
+      "reversal_accuracy_pct": 10.064124
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 50.0,
+      "orders": 21384,
+      "coverage_pct": 68.708029,
+      "momentum_accuracy_pct": 89.772727,
+      "reversal_accuracy_pct": 10.227273
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 10.0,
+      "orders": 21898,
+      "coverage_pct": 70.359541,
+      "momentum_accuracy_pct": 89.528724,
+      "reversal_accuracy_pct": 10.471276
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 3.0,
+      "orders": 30076,
+      "coverage_pct": 96.635928,
+      "momentum_accuracy_pct": 89.460035,
+      "reversal_accuracy_pct": 10.539965
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 10.0,
+      "orders": 28970,
+      "coverage_pct": 93.082286,
+      "momentum_accuracy_pct": 89.399379,
+      "reversal_accuracy_pct": 10.600621
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 3.0,
+      "orders": 29392,
+      "coverage_pct": 94.438197,
+      "momentum_accuracy_pct": 89.310016,
+      "reversal_accuracy_pct": 10.689984
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 2.0,
+      "orders": 30389,
+      "coverage_pct": 97.641616,
+      "momentum_accuracy_pct": 89.10132,
+      "reversal_accuracy_pct": 10.89868
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 30.0,
+      "orders": 25551,
+      "coverage_pct": 82.096842,
+      "momentum_accuracy_pct": 88.99456,
+      "reversal_accuracy_pct": 11.00544
+    }
+  ],
+  "all_direction_tests": [
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 50.0,
+      "orders": 9151,
+      "coverage_pct": 29.402693,
+      "momentum_accuracy_pct": 95.945798,
+      "reversal_accuracy_pct": 4.054202
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 50.0,
+      "orders": 12945,
+      "coverage_pct": 41.593034,
+      "momentum_accuracy_pct": 95.890305,
+      "reversal_accuracy_pct": 4.109695
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 50.0,
+      "orders": 6602,
+      "coverage_pct": 21.212608,
+      "momentum_accuracy_pct": 95.546804,
+      "reversal_accuracy_pct": 4.453196
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 50.0,
+      "orders": 3334,
+      "coverage_pct": 10.712335,
+      "momentum_accuracy_pct": 95.440912,
+      "reversal_accuracy_pct": 4.559088
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 30.0,
+      "orders": 18974,
+      "coverage_pct": 60.96456,
+      "momentum_accuracy_pct": 95.051123,
+      "reversal_accuracy_pct": 4.948877
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 30.0,
+      "orders": 15086,
+      "coverage_pct": 48.472191,
+      "momentum_accuracy_pct": 94.99536,
+      "reversal_accuracy_pct": 5.00464
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 30.0,
+      "orders": 12031,
+      "coverage_pct": 38.656299,
+      "momentum_accuracy_pct": 94.447677,
+      "reversal_accuracy_pct": 5.552323
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 50.0,
+      "orders": 17807,
+      "coverage_pct": 57.214921,
+      "momentum_accuracy_pct": 94.260684,
+      "reversal_accuracy_pct": 5.739316
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 20.0,
+      "orders": 22418,
+      "coverage_pct": 72.030331,
+      "momentum_accuracy_pct": 93.960211,
+      "reversal_accuracy_pct": 6.039789
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 20.0,
+      "orders": 19004,
+      "coverage_pct": 61.060952,
+      "momentum_accuracy_pct": 93.722374,
+      "reversal_accuracy_pct": 6.277626
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 30.0,
+      "orders": 7286,
+      "coverage_pct": 23.41034,
+      "momentum_accuracy_pct": 93.672797,
+      "reversal_accuracy_pct": 6.327203
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 30.0,
+      "orders": 23164,
+      "coverage_pct": 74.427272,
+      "momentum_accuracy_pct": 93.463996,
+      "reversal_accuracy_pct": 6.536004
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 20.0,
+      "orders": 16008,
+      "coverage_pct": 51.43463,
+      "momentum_accuracy_pct": 92.884808,
+      "reversal_accuracy_pct": 7.115192
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 20.0,
+      "orders": 25677,
+      "coverage_pct": 82.501687,
+      "momentum_accuracy_pct": 92.705534,
+      "reversal_accuracy_pct": 7.294466
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 50.0,
+      "orders": 20192,
+      "coverage_pct": 64.878064,
+      "momentum_accuracy_pct": 92.041403,
+      "reversal_accuracy_pct": 7.958597
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 20.0,
+      "orders": 10855,
+      "coverage_pct": 34.877743,
+      "momentum_accuracy_pct": 91.856287,
+      "reversal_accuracy_pct": 8.143713
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 10.0,
+      "orders": 26453,
+      "coverage_pct": 84.99502,
+      "momentum_accuracy_pct": 91.842135,
+      "reversal_accuracy_pct": 8.157865
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 30.0,
+      "orders": 24837,
+      "coverage_pct": 79.802718,
+      "momentum_accuracy_pct": 91.287192,
+      "reversal_accuracy_pct": 8.712808
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 10.0,
+      "orders": 28326,
+      "coverage_pct": 91.013077,
+      "momentum_accuracy_pct": 91.184777,
+      "reversal_accuracy_pct": 8.815223
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 10.0,
+      "orders": 24200,
+      "coverage_pct": 77.756,
+      "momentum_accuracy_pct": 90.710744,
+      "reversal_accuracy_pct": 9.289256
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 20.0,
+      "orders": 26870,
+      "coverage_pct": 86.334865,
+      "momentum_accuracy_pct": 90.483811,
+      "reversal_accuracy_pct": 9.516189
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 5.0,
+      "orders": 28619,
+      "coverage_pct": 91.954503,
+      "momentum_accuracy_pct": 90.069534,
+      "reversal_accuracy_pct": 9.930466
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 5.0,
+      "orders": 29630,
+      "coverage_pct": 95.202905,
+      "momentum_accuracy_pct": 89.935876,
+      "reversal_accuracy_pct": 10.064124
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 50.0,
+      "orders": 21384,
+      "coverage_pct": 68.708029,
+      "momentum_accuracy_pct": 89.772727,
+      "reversal_accuracy_pct": 10.227273
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 10.0,
+      "orders": 21898,
+      "coverage_pct": 70.359541,
+      "momentum_accuracy_pct": 89.528724,
+      "reversal_accuracy_pct": 10.471276
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 3.0,
+      "orders": 30076,
+      "coverage_pct": 96.635928,
+      "momentum_accuracy_pct": 89.460035,
+      "reversal_accuracy_pct": 10.539965
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 10.0,
+      "orders": 28970,
+      "coverage_pct": 93.082286,
+      "momentum_accuracy_pct": 89.399379,
+      "reversal_accuracy_pct": 10.600621
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 3.0,
+      "orders": 29392,
+      "coverage_pct": 94.438197,
+      "momentum_accuracy_pct": 89.310016,
+      "reversal_accuracy_pct": 10.689984
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 2.0,
+      "orders": 30389,
+      "coverage_pct": 97.641616,
+      "momentum_accuracy_pct": 89.10132,
+      "reversal_accuracy_pct": 10.89868
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 30.0,
+      "orders": 25551,
+      "coverage_pct": 82.096842,
+      "momentum_accuracy_pct": 88.99456,
+      "reversal_accuracy_pct": 11.00544
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 2.0,
+      "orders": 29914,
+      "coverage_pct": 96.115413,
+      "momentum_accuracy_pct": 88.737715,
+      "reversal_accuracy_pct": 11.262285
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 1.0,
+      "orders": 30728,
+      "coverage_pct": 98.730842,
+      "momentum_accuracy_pct": 88.697605,
+      "reversal_accuracy_pct": 11.302395
+    },
+    {
+      "feature": "ret_10s_points",
+      "min_abs_points": 0.0,
+      "orders": 30794,
+      "coverage_pct": 98.942904,
+      "momentum_accuracy_pct": 88.630902,
+      "reversal_accuracy_pct": 11.369098
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 5.0,
+      "orders": 29977,
+      "coverage_pct": 96.317836,
+      "momentum_accuracy_pct": 88.544551,
+      "reversal_accuracy_pct": 11.455449
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 5.0,
+      "orders": 27155,
+      "coverage_pct": 87.250586,
+      "momentum_accuracy_pct": 88.344688,
+      "reversal_accuracy_pct": 11.655312
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 3.0,
+      "orders": 30322,
+      "coverage_pct": 97.426341,
+      "momentum_accuracy_pct": 88.170305,
+      "reversal_accuracy_pct": 11.829695
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 20.0,
+      "orders": 27480,
+      "coverage_pct": 88.29483,
+      "momentum_accuracy_pct": 88.05313,
+      "reversal_accuracy_pct": 11.94687
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 1.0,
+      "orders": 30540,
+      "coverage_pct": 98.126787,
+      "momentum_accuracy_pct": 87.966601,
+      "reversal_accuracy_pct": 12.033399
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 2.0,
+      "orders": 30560,
+      "coverage_pct": 98.191048,
+      "momentum_accuracy_pct": 87.915576,
+      "reversal_accuracy_pct": 12.084424
+    },
+    {
+      "feature": "ret_5s_points",
+      "min_abs_points": 0.0,
+      "orders": 30661,
+      "coverage_pct": 98.515567,
+      "momentum_accuracy_pct": 87.818401,
+      "reversal_accuracy_pct": 12.181599
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 1.0,
+      "orders": 30777,
+      "coverage_pct": 98.888282,
+      "momentum_accuracy_pct": 87.72135,
+      "reversal_accuracy_pct": 12.27865
+    },
+    {
+      "feature": "ret_15s_points",
+      "min_abs_points": 0.0,
+      "orders": 30821,
+      "coverage_pct": 99.029657,
+      "momentum_accuracy_pct": 87.667499,
+      "reversal_accuracy_pct": 12.332501
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 10.0,
+      "orders": 17112,
+      "coverage_pct": 54.981846,
+      "momentum_accuracy_pct": 87.5,
+      "reversal_accuracy_pct": 12.5
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 3.0,
+      "orders": 28313,
+      "coverage_pct": 90.971307,
+      "momentum_accuracy_pct": 87.217886,
+      "reversal_accuracy_pct": 12.782114
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 10.0,
+      "orders": 29243,
+      "coverage_pct": 93.959451,
+      "momentum_accuracy_pct": 87.049892,
+      "reversal_accuracy_pct": 12.950108
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 5.0,
+      "orders": 25676,
+      "coverage_pct": 82.498474,
+      "momentum_accuracy_pct": 86.53217,
+      "reversal_accuracy_pct": 13.46783
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 2.0,
+      "orders": 29181,
+      "coverage_pct": 93.760242,
+      "momentum_accuracy_pct": 86.38155,
+      "reversal_accuracy_pct": 13.61845
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 5.0,
+      "orders": 30164,
+      "coverage_pct": 96.918678,
+      "momentum_accuracy_pct": 86.298236,
+      "reversal_accuracy_pct": 13.701764
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 3.0,
+      "orders": 30458,
+      "coverage_pct": 97.863317,
+      "momentum_accuracy_pct": 86.059492,
+      "reversal_accuracy_pct": 13.940508
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 2.0,
+      "orders": 30616,
+      "coverage_pct": 98.37098,
+      "momentum_accuracy_pct": 85.889731,
+      "reversal_accuracy_pct": 14.110269
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 1.0,
+      "orders": 30786,
+      "coverage_pct": 98.917199,
+      "momentum_accuracy_pct": 85.714286,
+      "reversal_accuracy_pct": 14.285714
+    },
+    {
+      "feature": "ret_20s_points",
+      "min_abs_points": 0.0,
+      "orders": 30829,
+      "coverage_pct": 99.055361,
+      "momentum_accuracy_pct": 85.659606,
+      "reversal_accuracy_pct": 14.340394
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 50.0,
+      "orders": 22723,
+      "coverage_pct": 73.010314,
+      "momentum_accuracy_pct": 85.406856,
+      "reversal_accuracy_pct": 14.593144
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 1.0,
+      "orders": 30223,
+      "coverage_pct": 97.108248,
+      "momentum_accuracy_pct": 85.381994,
+      "reversal_accuracy_pct": 14.618006
+    },
+    {
+      "feature": "ret_3s_points",
+      "min_abs_points": 0.0,
+      "orders": 30433,
+      "coverage_pct": 97.78299,
+      "momentum_accuracy_pct": 85.160845,
+      "reversal_accuracy_pct": 14.839155
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 3.0,
+      "orders": 27212,
+      "coverage_pct": 87.433731,
+      "momentum_accuracy_pct": 85.076437,
+      "reversal_accuracy_pct": 14.923563
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 30.0,
+      "orders": 26385,
+      "coverage_pct": 84.776532,
+      "momentum_accuracy_pct": 84.487398,
+      "reversal_accuracy_pct": 15.512602
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 2.0,
+      "orders": 28421,
+      "coverage_pct": 91.318318,
+      "momentum_accuracy_pct": 83.937933,
+      "reversal_accuracy_pct": 16.062067
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 20.0,
+      "orders": 27923,
+      "coverage_pct": 89.718215,
+      "momentum_accuracy_pct": 83.780396,
+      "reversal_accuracy_pct": 16.219604
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 5.0,
+      "orders": 22019,
+      "coverage_pct": 70.748321,
+      "momentum_accuracy_pct": 83.505155,
+      "reversal_accuracy_pct": 16.494845
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 10.0,
+      "orders": 29464,
+      "coverage_pct": 94.669537,
+      "momentum_accuracy_pct": 82.775591,
+      "reversal_accuracy_pct": 17.224409
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 1.0,
+      "orders": 29805,
+      "coverage_pct": 95.76519,
+      "momentum_accuracy_pct": 82.670693,
+      "reversal_accuracy_pct": 17.329307
+    },
+    {
+      "feature": "ret_2s_points",
+      "min_abs_points": 0.0,
+      "orders": 30076,
+      "coverage_pct": 96.635928,
+      "momentum_accuracy_pct": 82.348052,
+      "reversal_accuracy_pct": 17.651948
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 5.0,
+      "orders": 30171,
+      "coverage_pct": 96.941169,
+      "momentum_accuracy_pct": 82.254483,
+      "reversal_accuracy_pct": 17.745517
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 3.0,
+      "orders": 30456,
+      "coverage_pct": 97.85689,
+      "momentum_accuracy_pct": 82.029814,
+      "reversal_accuracy_pct": 17.970186
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 2.0,
+      "orders": 30621,
+      "coverage_pct": 98.387045,
+      "momentum_accuracy_pct": 81.868652,
+      "reversal_accuracy_pct": 18.131348
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 1.0,
+      "orders": 30814,
+      "coverage_pct": 99.007165,
+      "momentum_accuracy_pct": 81.68365,
+      "reversal_accuracy_pct": 18.31635
+    },
+    {
+      "feature": "ret_30s_points",
+      "min_abs_points": 0.0,
+      "orders": 30843,
+      "coverage_pct": 99.100344,
+      "momentum_accuracy_pct": 81.661965,
+      "reversal_accuracy_pct": 18.338035
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 3.0,
+      "orders": 24244,
+      "coverage_pct": 77.897375,
+      "momentum_accuracy_pct": 81.603696,
+      "reversal_accuracy_pct": 18.396304
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 50.0,
+      "orders": 23699,
+      "coverage_pct": 76.146258,
+      "momentum_accuracy_pct": 80.442213,
+      "reversal_accuracy_pct": 19.557787
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 2.0,
+      "orders": 25978,
+      "coverage_pct": 83.468817,
+      "momentum_accuracy_pct": 80.052352,
+      "reversal_accuracy_pct": 19.947648
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 30.0,
+      "orders": 26783,
+      "coverage_pct": 86.055329,
+      "momentum_accuracy_pct": 79.520591,
+      "reversal_accuracy_pct": 20.479409
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 20.0,
+      "orders": 28138,
+      "coverage_pct": 90.409022,
+      "momentum_accuracy_pct": 78.88265,
+      "reversal_accuracy_pct": 21.11735
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 10.0,
+      "orders": 29537,
+      "coverage_pct": 94.90409,
+      "momentum_accuracy_pct": 78.115584,
+      "reversal_accuracy_pct": 21.884416
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 1.0,
+      "orders": 28402,
+      "coverage_pct": 91.25727,
+      "momentum_accuracy_pct": 77.952257,
+      "reversal_accuracy_pct": 22.047743
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 5.0,
+      "orders": 30269,
+      "coverage_pct": 97.256049,
+      "momentum_accuracy_pct": 77.590935,
+      "reversal_accuracy_pct": 22.409065
+    },
+    {
+      "feature": "ret_1s_points",
+      "min_abs_points": 0.0,
+      "orders": 28900,
+      "coverage_pct": 92.857372,
+      "momentum_accuracy_pct": 77.581315,
+      "reversal_accuracy_pct": 22.418685
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 3.0,
+      "orders": 30474,
+      "coverage_pct": 97.914725,
+      "momentum_accuracy_pct": 77.423377,
+      "reversal_accuracy_pct": 22.576623
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 2.0,
+      "orders": 30635,
+      "coverage_pct": 98.432028,
+      "momentum_accuracy_pct": 77.267831,
+      "reversal_accuracy_pct": 22.732169
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 1.0,
+      "orders": 30798,
+      "coverage_pct": 98.955756,
+      "momentum_accuracy_pct": 77.092668,
+      "reversal_accuracy_pct": 22.907332
+    },
+    {
+      "feature": "ret_45s_points",
+      "min_abs_points": 0.0,
+      "orders": 30836,
+      "coverage_pct": 99.077852,
+      "momentum_accuracy_pct": 77.06901,
+      "reversal_accuracy_pct": 22.93099
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 50.0,
+      "orders": 24419,
+      "coverage_pct": 78.45966,
+      "momentum_accuracy_pct": 76.821328,
+      "reversal_accuracy_pct": 23.178672
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 30.0,
+      "orders": 27151,
+      "coverage_pct": 87.237734,
+      "momentum_accuracy_pct": 75.967736,
+      "reversal_accuracy_pct": 24.032264
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 20.0,
+      "orders": 28402,
+      "coverage_pct": 91.25727,
+      "momentum_accuracy_pct": 75.39962,
+      "reversal_accuracy_pct": 24.60038
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 10.0,
+      "orders": 29711,
+      "coverage_pct": 95.463162,
+      "momentum_accuracy_pct": 74.51449,
+      "reversal_accuracy_pct": 25.48551
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 5.0,
+      "orders": 30289,
+      "coverage_pct": 97.32031,
+      "momentum_accuracy_pct": 74.066493,
+      "reversal_accuracy_pct": 25.933507
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 3.0,
+      "orders": 30497,
+      "coverage_pct": 97.988626,
+      "momentum_accuracy_pct": 73.918746,
+      "reversal_accuracy_pct": 26.081254
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 2.0,
+      "orders": 30650,
+      "coverage_pct": 98.480224,
+      "momentum_accuracy_pct": 73.820555,
+      "reversal_accuracy_pct": 26.179445
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 1.0,
+      "orders": 30795,
+      "coverage_pct": 98.946117,
+      "momentum_accuracy_pct": 73.723007,
+      "reversal_accuracy_pct": 26.276993
+    },
+    {
+      "feature": "ret_60s_points",
+      "min_abs_points": 0.0,
+      "orders": 30831,
+      "coverage_pct": 99.061787,
+      "momentum_accuracy_pct": 73.69855,
+      "reversal_accuracy_pct": 26.30145
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 50.0,
+      "orders": 25699,
+      "coverage_pct": 82.572374,
+      "momentum_accuracy_pct": 68.621347,
+      "reversal_accuracy_pct": 31.378653
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 30.0,
+      "orders": 27745,
+      "coverage_pct": 89.146291,
+      "momentum_accuracy_pct": 67.907731,
+      "reversal_accuracy_pct": 32.092269
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 20.0,
+      "orders": 28793,
+      "coverage_pct": 92.513575,
+      "momentum_accuracy_pct": 67.384434,
+      "reversal_accuracy_pct": 32.615566
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 10.0,
+      "orders": 29885,
+      "coverage_pct": 96.022234,
+      "momentum_accuracy_pct": 66.913167,
+      "reversal_accuracy_pct": 33.086833
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 5.0,
+      "orders": 30402,
+      "coverage_pct": 97.683385,
+      "momentum_accuracy_pct": 66.60746,
+      "reversal_accuracy_pct": 33.39254
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 3.0,
+      "orders": 30587,
+      "coverage_pct": 98.277801,
+      "momentum_accuracy_pct": 66.528264,
+      "reversal_accuracy_pct": 33.471736
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 2.0,
+      "orders": 30697,
+      "coverage_pct": 98.631237,
+      "momentum_accuracy_pct": 66.488582,
+      "reversal_accuracy_pct": 33.511418
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 1.0,
+      "orders": 30811,
+      "coverage_pct": 98.997526,
+      "momentum_accuracy_pct": 66.417838,
+      "reversal_accuracy_pct": 33.582162
+    },
+    {
+      "feature": "ret_120s_points",
+      "min_abs_points": 0.0,
+      "orders": 30836,
+      "coverage_pct": 99.077852,
+      "momentum_accuracy_pct": 66.402906,
+      "reversal_accuracy_pct": 33.597094
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 50.0,
+      "orders": 27338,
+      "coverage_pct": 87.838576,
+      "momentum_accuracy_pct": 60.695735,
+      "reversal_accuracy_pct": 39.304265
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 30.0,
+      "orders": 28688,
+      "coverage_pct": 92.176204,
+      "momentum_accuracy_pct": 60.366704,
+      "reversal_accuracy_pct": 39.633296
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 20.0,
+      "orders": 29400,
+      "coverage_pct": 94.463901,
+      "momentum_accuracy_pct": 60.088435,
+      "reversal_accuracy_pct": 39.911565
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 10.0,
+      "orders": 30157,
+      "coverage_pct": 96.896186,
+      "momentum_accuracy_pct": 59.843486,
+      "reversal_accuracy_pct": 40.156514
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 5.0,
+      "orders": 30500,
+      "coverage_pct": 97.998265,
+      "momentum_accuracy_pct": 59.731148,
+      "reversal_accuracy_pct": 40.268852
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 2.0,
+      "orders": 30693,
+      "coverage_pct": 98.618385,
+      "momentum_accuracy_pct": 59.704167,
+      "reversal_accuracy_pct": 40.295833
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 3.0,
+      "orders": 30610,
+      "coverage_pct": 98.351701,
+      "momentum_accuracy_pct": 59.699445,
+      "reversal_accuracy_pct": 40.300555
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 1.0,
+      "orders": 30776,
+      "coverage_pct": 98.885069,
+      "momentum_accuracy_pct": 59.647128,
+      "reversal_accuracy_pct": 40.352872
+    },
+    {
+      "feature": "ret_300s_points",
+      "min_abs_points": 0.0,
+      "orders": 30790,
+      "coverage_pct": 98.930052,
+      "momentum_accuracy_pct": 59.645989,
+      "reversal_accuracy_pct": 40.354011
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 50.0,
+      "orders": 28692,
+      "coverage_pct": 92.189056,
+      "momentum_accuracy_pct": 55.886658,
+      "reversal_accuracy_pct": 44.113342
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 30.0,
+      "orders": 29513,
+      "coverage_pct": 94.826977,
+      "momentum_accuracy_pct": 55.734761,
+      "reversal_accuracy_pct": 44.265239
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 20.0,
+      "orders": 29846,
+      "coverage_pct": 95.896925,
+      "momentum_accuracy_pct": 55.622194,
+      "reversal_accuracy_pct": 44.377806
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 10.0,
+      "orders": 30266,
+      "coverage_pct": 97.246409,
+      "momentum_accuracy_pct": 55.587127,
+      "reversal_accuracy_pct": 44.412873
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 5.0,
+      "orders": 30467,
+      "coverage_pct": 97.892234,
+      "momentum_accuracy_pct": 55.535497,
+      "reversal_accuracy_pct": 44.464503
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 3.0,
+      "orders": 30525,
+      "coverage_pct": 98.078591,
+      "momentum_accuracy_pct": 55.518428,
+      "reversal_accuracy_pct": 44.481572
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 2.0,
+      "orders": 30583,
+      "coverage_pct": 98.264949,
+      "momentum_accuracy_pct": 55.504692,
+      "reversal_accuracy_pct": 44.495308
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 1.0,
+      "orders": 30638,
+      "coverage_pct": 98.441667,
+      "momentum_accuracy_pct": 55.496442,
+      "reversal_accuracy_pct": 44.503558
+    },
+    {
+      "feature": "ret_900s_points",
+      "min_abs_points": 0.0,
+      "orders": 30640,
+      "coverage_pct": 98.448093,
+      "momentum_accuracy_pct": 55.49282,
+      "reversal_accuracy_pct": 44.50718
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 50.0,
+      "orders": 29051,
+      "coverage_pct": 93.342544,
+      "momentum_accuracy_pct": 53.657361,
+      "reversal_accuracy_pct": 46.342639
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 30.0,
+      "orders": 29570,
+      "coverage_pct": 95.010121,
+      "momentum_accuracy_pct": 53.642205,
+      "reversal_accuracy_pct": 46.357795
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 20.0,
+      "orders": 29831,
+      "coverage_pct": 95.848729,
+      "momentum_accuracy_pct": 53.608662,
+      "reversal_accuracy_pct": 46.391338
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 10.0,
+      "orders": 30120,
+      "coverage_pct": 96.777303,
+      "momentum_accuracy_pct": 53.565737,
+      "reversal_accuracy_pct": 46.434263
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 2.0,
+      "orders": 30327,
+      "coverage_pct": 97.442406,
+      "momentum_accuracy_pct": 53.556237,
+      "reversal_accuracy_pct": 46.443763
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 0.0,
+      "orders": 30371,
+      "coverage_pct": 97.58378,
+      "momentum_accuracy_pct": 53.554378,
+      "reversal_accuracy_pct": 46.445622
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 1.0,
+      "orders": 30364,
+      "coverage_pct": 97.561289,
+      "momentum_accuracy_pct": 53.550257,
+      "reversal_accuracy_pct": 46.449743
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 3.0,
+      "orders": 30294,
+      "coverage_pct": 97.336375,
+      "momentum_accuracy_pct": 53.541956,
+      "reversal_accuracy_pct": 46.458044
+    },
+    {
+      "feature": "ret_1800s_points",
+      "min_abs_points": 5.0,
+      "orders": 30248,
+      "coverage_pct": 97.188574,
+      "momentum_accuracy_pct": 53.54073,
+      "reversal_accuracy_pct": 46.45927
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 50.0,
+      "orders": 28965,
+      "coverage_pct": 93.066221,
+      "momentum_accuracy_pct": 52.418436,
+      "reversal_accuracy_pct": 47.581564
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 20.0,
+      "orders": 29474,
+      "coverage_pct": 94.701668,
+      "momentum_accuracy_pct": 52.412296,
+      "reversal_accuracy_pct": 47.587704
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 30.0,
+      "orders": 29293,
+      "coverage_pct": 94.120104,
+      "momentum_accuracy_pct": 52.411839,
+      "reversal_accuracy_pct": 47.588161
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 3.0,
+      "orders": 29787,
+      "coverage_pct": 95.707355,
+      "momentum_accuracy_pct": 52.39534,
+      "reversal_accuracy_pct": 47.60466
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 2.0,
+      "orders": 29809,
+      "coverage_pct": 95.778042,
+      "momentum_accuracy_pct": 52.390218,
+      "reversal_accuracy_pct": 47.609782
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 5.0,
+      "orders": 29755,
+      "coverage_pct": 95.604537,
+      "momentum_accuracy_pct": 52.387834,
+      "reversal_accuracy_pct": 47.612166
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 1.0,
+      "orders": 29833,
+      "coverage_pct": 95.855155,
+      "momentum_accuracy_pct": 52.381591,
+      "reversal_accuracy_pct": 47.618409
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 0.0,
+      "orders": 29835,
+      "coverage_pct": 95.861581,
+      "momentum_accuracy_pct": 52.381431,
+      "reversal_accuracy_pct": 47.618569
+    },
+    {
+      "feature": "ret_3600s_points",
+      "min_abs_points": 10.0,
+      "orders": 29657,
+      "coverage_pct": 95.289657,
+      "momentum_accuracy_pct": 52.375493,
+      "reversal_accuracy_pct": 47.624507
+    }
+  ],
+  "reentry_gap_sec": {
+    "median": 24.0,
+    "p25": 11.0,
+    "p75": 54.0,
+    "share_0_to_5_pct": 11.056132,
+    "share_0_to_30_pct": 57.269543
+  },
+  "exit_proxy": {
+    "eligible_orders": 30905,
+    "winning_giveback_points": {
+      "p25": 39.0,
+      "median": 54.0,
+      "p75": 76.0
+    },
+    "losing_mfe_points": {
+      "p25": 17.0,
+      "median": 34.0,
+      "p75": 56.0,
+      "p90": 85.0
+    }
+  }
+}

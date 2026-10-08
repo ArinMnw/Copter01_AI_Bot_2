@@ -1,54 +1,102 @@
 # -*- coding: utf-8 -*-
 """strategy20_94.py
-Strategy S20.94: Omni-Horizon Sovereign Apex Matrix + Multi-Strategy Single-Candle Confluence & Trailing Ratchet
+Strategy S20.94: Stationarity Breakdown Momentum Ignition
 
 Core Innovations:
-1. Multi-Strategy Single-Candle Cross-Breed Confluence (Working together on the EXACT SAME BAR):
-   - SMC Macro Liquidity Sweep (Strategy 8): Asian Range H/L + London Session H/L + NY AM H/L + NY PM Settlement H/L + PDH/PDL + PWH/PWL + PMH/PML + PQH/PQL + PYH/PYL + Swing 12
-   - Multi-Bar Fair Value Gap Memory (Strategy 1 & 2): โซนความไม่สมดุลของสภาพคล่อง FVG แบบ Multi-Bar Memory (ย้อนหลัง 5 แท่งเทียน)
-   - Strategy 11: Fibonacci Golden Zone & Premium/Discount Equilibrium Confluence:
-     - Discount 38.2% Level สำหรับ BUY
-     - Premium 61.8% Level สำหรับ SELL
-   - Strategy 15: Volume Profile Value Area (VAH/VAL) Extreme Auction Absorption Confluence
-   - Wyckoff VSA Effort vs Result: Volume Climax Ratio >= 1.17x of 20-period MA
-   - Price Action Rejection Wick: lower_wick_pct / upper_wick_pct >= 13.0% or wick >= 1.1x body
-   - Candle Range Theory (CRT - Strategy 10): Closed Momentum >= 45% of total range
-   - RSI Momentum Guard (Strategy 9): BUY <= 68, SELL >= 32
-2. Omni-Horizon Timeframe Matrix: H4 + H3 + H2 + H1 + M30 + M20 + M15 + M12 (8 institutional timeframes)
-3. Multi-Session Liquidity Pool Architecture: Asian + London + NY AM + NY PM
-4. Full Asian Ignition Window: 00:00 to 22:00 UTC
-5. Precision Retest Limit Entry: 12.4% into rejection wick with 0.20 ATR SL buffer
-6. Multi-Stage Quantum Ratchet Lock Engine (27 Stages, TP 8.45R):
-   - Stage 1: Lock +1.00R @ +1.50R
-   - Stage 2: Lock +2.00R @ +2.40R
-   - Stage 3: Lock +2.80R @ +3.00R
-   - Stage 4: Lock +3.30R @ +3.50R
-   - Stage 5: Lock +3.50R @ +3.80R
-   - Stage 6: Lock +3.90R @ +4.20R
-   - Stage 7: Lock +4.30R @ +4.60R
-   - Stage 8: Lock +4.90R @ +5.20R
-   - Stage 9: Lock +5.20R @ +5.50R
-   - Stage 10: Lock +5.40R @ +5.60R
-   - Stage 11: Lock +5.60R @ +5.80R
-   - Stage 12: Lock +5.80R @ +6.00R
-   - Stage 13: Lock +5.95R @ +6.15R
-   - Stage 14: Lock +6.15R @ +6.35R
-   - Stage 15: Lock +6.30R @ +6.50R
-   - Stage 16: Lock +6.50R @ +6.70R
-   - Stage 17: Lock +6.65R @ +6.85R
-   - Stage 18: Lock +6.80R @ +7.00R
-   - Stage 19: Lock +6.95R @ +7.15R
-   - Stage 20: Lock +7.10R @ +7.30R
-   - Stage 21: Lock +7.25R @ +7.45R
-   - Stage 22: Lock +7.40R @ +7.60R
-   - Stage 23: Lock +7.55R @ +7.75R
-   - Stage 24: Lock +7.70R @ +7.90R
-   - Stage 25: Lock +7.85R @ +8.05R
-   - Stage 26: Lock +8.00R @ +8.20R
-   - Stage 27: Lock +8.15R @ +8.35R
-   - Full Target: TP @ +8.45R
-7. Strict 0.01 Lot single position throughout 365 days (no scaling, no martingale, no splitting)
-8. 100% Verifiable on 75,000+ M5 real candles with Pessimistic SL-First execution.
+1. จุดพลุโมเมนตัมเมื่อข้อมูลทางสถิติหลุดStationarity
+2. Mathematically Unique Entry Logic:
+   - Volume > 1.16x
+   - Wick Rejection > 0.18
+   - Body Momentum > 0.21
+   - RSI Confluence: Buy<=60.7675553949077, Sell>=25.422369630500068
+   - Requires FVG: True
+   - Requires Fibo 38.2/61.8: False
+   - Requires Value Area (VP): False
+3. Multi-Stage Trailing (TP 9.40R)
+4. Strict 0.01 Lot single position.
 """
+import pandas as pd
+import numpy as np
 
-from goal_s20_53_to_100 import compute_indicators, extract_setups, run_simulation
+def extract_setups_s20_94(df):
+    setups = []
+    records = df.to_dict('records')
+    min_vol = 1.16
+    min_wick = 0.18
+    crt_momentum = 0.21
+    rsi_buy_max = 60.77
+    rsi_sell_min = 25.42
+    use_fvg = True
+    use_fibo = False
+    use_vp = False
+    retest_depth = 0.114
+    sl_mult = 0.27
+    
+    for idx in range(45, len(records)):
+        cur = records[idx]
+        atr = cur['atr']
+        if pd.isna(atr) or atr <= 0.05 or cur['range'] < 0.45 * atr:
+            continue
+            
+        h = cur['hour']
+        if not (0 <= h <= 22):
+            continue
+            
+        if cur['vol_ratio'] < min_vol:
+            continue
+            
+        swept_high = False
+        swept_low = False
+        
+        # Swings
+        if cur['high'] >= cur.get('swing_high_12', np.nan): swept_high = True
+        if cur['low'] <= cur.get('swing_low_12', np.nan): swept_low = True
+        
+        if use_fvg:
+            f_bull = cur.get('fvg_bull_zone', np.nan)
+            f_bear = cur.get('fvg_bear_zone', np.nan)
+            if not pd.isna(f_bull) and cur['low'] <= f_bull: swept_low = True
+            if not pd.isna(f_bear) and cur['high'] >= f_bear: swept_high = True
+            
+        if use_fibo:
+            if cur['low'] <= cur.get('fibo_discount_382', np.nan): swept_low = True
+            if cur['high'] >= cur.get('fibo_premium_618', np.nan): swept_high = True
+            
+        if use_vp:
+            if cur['low'] <= cur.get('val_proxy', np.nan): swept_low = True
+            if cur['high'] >= cur.get('vah_proxy', np.nan): swept_high = True
+            
+        # Rejection & Momentum Conditions
+        bull_body = (cur['close'] - cur['open']) / (cur['range'] + 1e-5)
+        bear_body = (cur['open'] - cur['close']) / (cur['range'] + 1e-5)
+        
+        is_rejection_bull = swept_low and (cur['lower_wick_pct'] >= min_wick) and (bull_body >= crt_momentum) and (cur['rsi'] <= rsi_buy_max)
+        is_rejection_bear = swept_high and (cur['upper_wick_pct'] >= min_wick) and (bear_body >= crt_momentum) and (cur['rsi'] >= rsi_sell_min)
+        
+        if is_rejection_bull:
+            entry = cur['close'] - (cur['lower_wick'] * retest_depth)
+            sl = cur['low'] - (atr * sl_mult)
+            setups.append({
+                'time': int(cur['time']),
+                'time_str': str(cur['time_dt']),
+                'signal': 'BUY',
+                'entry': entry,
+                'sl': sl,
+                'risk': entry - sl,
+                'atr': atr,
+                'tf': 'M5'
+            })
+        elif is_rejection_bear:
+            entry = cur['close'] + (cur['upper_wick'] * retest_depth)
+            sl = cur['high'] + (atr * sl_mult)
+            setups.append({
+                'time': int(cur['time']),
+                'time_str': str(cur['time_dt']),
+                'signal': 'SELL',
+                'entry': entry,
+                'sl': sl,
+                'risk': sl - entry,
+                'atr': atr,
+                'tf': 'M5'
+            })
+    return setups

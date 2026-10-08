@@ -1,3 +1,4 @@
+from strategy_ids import normalize_sid, migrate_sid_metadata
 import mt5_worker as mt5
 import asyncio
 import copy
@@ -215,16 +216,6 @@ def now_bkk() -> datetime:
 
 
 
-# เจอจริง 2026-08-08: ตอน IN_BACKTEST=True ฟังก์ชันนี้ข้าม MT5_SERVER_TZ ไปเลย สมมติ broker
-# server clock offset = 0 เสมอ ทั้งที่จริงแล้ว IUX/Exness ไม่เท่ากัน (วัดสด ณ ขณะหนึ่ง: IUX
-# server_tz=1, Exness=0) และแม้ broker เดียวกันก็เลื่อนไปมาได้คนละวัน (เจอ +1/+1/-2/0 ของบัญชี
-# เดียวกัน) — Exness บังเอิญใกล้ 0 เลยไม่ค่อยกระทบ แต่ IUX ผิดไปเต็มๆ ~1 ชม. ทำให้ session filter
-# (SESSION_FILTER ใน strategy84.py ที่เช็ค dt_bkk.time()) และ hour-target filter ของ leg คลาด
-# เคลื่อนอย่างเป็นระบบสำหรับพอร์ตที่ดึงข้อมูลผ่าน IUX (LTS890/999/P34/HIGH_FREQ ที่ fallback ไปใช้
-# terminal ของ AHR) — เพิ่ม resolver hook แบบ opt-in ตรงนี้ (ไม่ตั้งค่า = พฤติกรรมเดิมทุกอย่าง
-# ไม่กระทบสคริปต์อื่นที่ import config.py ไปใช้ตอน backtest อีก 70+ ไฟล์) run_backtest_sim.py
-# จะเซ็ต resolver นี้เฉพาะตอนรันพอร์ตสาย LTS ที่ยืนยันแล้วว่ามีปัญหานี้จริง (ดู
-# _in_lts_scoped_fixes/_config_backtest_server_tz_resolver)
 _backtest_server_tz_resolver = None  # callable(ts_int:int) -> int(server_tz offset) | None
 
 
@@ -586,6 +577,72 @@ TREND_FILTER_SKIP_SIDS      = {9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 20.5, 20.6
 LIMIT_GUARD_SKIP_SIDS       = {1, 10, 12, 13, 15, 16, 17, 18, 19, 20.14, 20.13, 20.1323, 20.1324, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
 NEAR_APPROACH_CANCEL_SKIP_SIDS = {10, 16, 20.14, 20.13, 20.1323, 20.1324, 20.5, 20.6, 20.7, 20.8, 20.9, 20.10, 20.11, 20.12, 21, 95, 96}
 
+EA2_SID = "ea2"
+EA2_1_SID = "ea2.1"
+RISK_PERCENT_SKIP_SIDS         = {EA2_SID, EA2_1_SID}
+SCALE_OUT_SKIP_SIDS            = {EA2_SID, EA2_1_SID}
+ML_SCORING_SKIP_SIDS           = {EA2_SID, EA2_1_SID}
+
+# EA Strategy 2 standalone setup.
+for _ea2_skip in (
+    PENDING_LIMIT_GUARD_SKIP_SIDS, NEWS_FILTER_SKIP_SIDS,
+    SL_GUARD_SKIP_SIDS, SL_GUARD_GROUP_SKIP_SIDS,
+    OPPOSITE_ORDER_SKIP_SIDS, PDFIBOPLUS_SKIP_SIDS, SHARED_TP_SKIP_SIDS,
+    LIMIT_SWEEP_SKIP_SIDS, RSI_RECHECK_SKIP_SIDS, FILL_TREND_RECHECK_SKIP_SIDS,
+    PENDING_TREND_RECHECK_SKIP_SIDS, ENTRY_CANDLE_QUALITY_SKIP_SIDS,
+    TRAIL_SL_SKIP_SIDS, SWEEP_FILTER_SKIP_SIDS, TREND_FILTER_SKIP_SIDS,
+    LIMIT_GUARD_SKIP_SIDS, NEAR_APPROACH_CANCEL_SKIP_SIDS,
+):
+    _ea2_skip.update((EA2_SID, EA2_1_SID))
+
+# EA2 live; Auto Trade stays OFF on restart.
+# 2026-10-08: เปลี่ยน default True -> False — ของเดิม default=True ทำให้ profile ที่ไม่รู้จัก
+# flag นี้เลย (ไม่มี opt-out ใน profile.env) ถูก isolate เหลือ sid เดียว (EA2_SID) โดยไม่ตั้งใจ
+# ทุกครั้งที่ restart (เจอจริงกับ demo-exness-434237129/434238722 หายไปข้ามวันกว่าจะรู้ตัว)
+# Enable isolation explicitly through profile.env or the caller environment.
+# Shared launchers do not override this default.
+EA2_ONLY_MODE = _env_bool("EA2_ONLY_MODE", False)
+EA2_LIVE_TF = os.getenv("EA2_LIVE_TF", "M1").strip().upper() or "M1"
+EA2_MAGIC_NUMBER = 550011
+EA2_RISK_PERCENT = 1.0
+EA2_SL_POINTS = 200
+EA2_TP_POINTS = 600
+EA2_MAX_POSITIONS = 2
+EA2_MAX_SPREAD_POINTS = 50.0
+EA2_SESSION_START_HOUR = 8
+EA2_SESSION_END_HOUR = 22
+EA2_USE_BREAKEVEN = True
+EA2_BREAKEVEN_TRIGGER_POINTS = 150
+EA2_BREAKEVEN_LOCK_POINTS = 10
+EA2_USE_TRAILING = True
+EA2_TRAIL_TRIGGER_POINTS = 200
+EA2_TRAIL_DISTANCE_POINTS = 300
+EA2_TRAIL_STEP_POINTS = 10
+EA2_TRAIL_INTERVAL_SEC = 1
+# MQ5 parity: no ATR, HTF, daily loss, cooldown, Friday, or custom margin gates.
+# One-trade-per-cycle only affects BOS-confirm entry; EA2 state is profile local and OB retests stay independent.
+
+# EA2.1 edge-improved M5/M15 variant. Default OFF until demo forward-test passes.
+EA2_1_ONLY_MODE = _env_bool("EA2_1_ONLY_MODE", False)
+EA2_1_LIVE_TF = os.getenv("EA2_1_LIVE_TF", "M5").strip().upper() or "M5"
+EA2_1_HTF = os.getenv("EA2_1_HTF", "M15").strip().upper() or "M15"
+EA2_1_MAGIC_NUMBER = 550021
+EA2_1_RISK_PERCENT = 1.0
+EA2_1_SL_POINTS = 1200
+EA2_1_TP_POINTS = 5000
+EA2_1_MAX_POSITIONS = 1
+EA2_1_MAX_SPREAD_POINTS = 25.0
+EA2_1_SESSION_START_HOUR = 0
+EA2_1_SESSION_END_HOUR = 24
+EA2_1_BREAKEVEN_TRIGGER_POINTS = 75
+EA2_1_BREAKEVEN_LOCK_POINTS = 25
+EA2_1_TRAIL_TRIGGER_POINTS = 100
+EA2_1_TRAIL_DISTANCE_POINTS = 75
+EA2_1_TRAIL_STEP_POINTS = 5
+EA2_1_OB_MAX_BARS_VALID = 100
+EA2_1_COOLDOWN_BARS = 3
+EA2_1_TRAIL_INTERVAL_SEC = 1
+
 # --- Dynamic Expansion for s20.14 Variants ---
 # Ensure any set that skips 20.14 also automatically skips all its sub-groups
 _skip_sets = [
@@ -595,14 +652,75 @@ _skip_sets = [
     ENTRY_CANDLE_QUALITY_SKIP_SIDS, TRAIL_SL_SKIP_SIDS, SWEEP_FILTER_SKIP_SIDS, TREND_FILTER_SKIP_SIDS,
     LIMIT_GUARD_SKIP_SIDS, NEAR_APPROACH_CANCEL_SKIP_SIDS
 ]
-_s20_14_variants = {20.141, 20.142, 20.145, 20.147, 20.148, 20.1410, 20.1411, 20.1412, 20.1413, 20.1415, 20.1417, 20.1418, 20.1422, 20.1423, 20.1424}
+_s20_14_variants = {20.141, 20.142, 20.143, 20.144, 20.145, 20.146, 20.147, 20.148, 20.1410, 20.1411, 20.1412, 20.1413, 20.1415, 20.1417, 20.1418, 20.1402, 20.1422, 20.1423, 20.1424}
 for s in _skip_sets:
     s.update(_s20_14_variants)
 
+# --- S20.14 Group-specific (Pattern, TF) -> TPSL Round (จาก quant-verification-v2, 2026-09-23) ---
+# 2026-09-23 v2: เดิมแยกเป็น 3 dict คนละที่ (TOP_PATTERNS / TOP_TFS ต่ำกว่านี้ / ROUND) ทำให้ pattern กับ TF
+# ถูกอนุญาตแบบ "เซตอิสระ" ไม่ผูกกันเป็นคู่ — เช่น Group 1 pattern "GapSweep" ถูกกับ TF "M15" ก็ได้ทั้งที่
+# ไม่เคยมีคู่ GapSweep/M15 อยู่ใน top-10 จริงเลย (มีแค่ GapSweep/H1, GapSweep/H12) แถม round ก็ใช้ตัวเดียว
+# ทั้งกลุ่มทั้งที่แต่ละ (pattern, TF) ใน top-10 มาจากคนละ round กัน (Group 1 top-10 มีครบ R1-R4 ปนกัน!)
+# แก้เป็น dict เดียวคีย์ (pattern, tf) -> (mode, target) ตรงตัวต่อคู่ที่เคยพิสูจน์แล้วว่าทำกำไรจริง
+# ไม่มีคู่ในนี้ = ไม่อยู่ใน top-10 เลย บล็อกเป็น WAIT (ดู scanner.py _s2014_results loop)
+# ที่มา: strategy/s20.14/s20_14_live_top10_mapping.json (สร้างจาก top10 ต่อกลุ่ม ไม่ใช่แค่ rank #1)
+# 2026-09-23 v3: top10_per_group_all_rounds.md เดิมดึง top-10 ของแต่ละ round มารวมกันตรงๆ ทำให้
+# (pattern, TF) คู่เดียวกันโผล่ซ้ำหลายอันดับ (เช่น FollowDiv/M15 ทั้ง R4#1 และ R1#2) กิน slot ที่ควรเป็น
+# คู่ใหม่ — แก้โดยดึงจากตารางคู่ผสมกำไรเต็ม (ไม่ capped ที่ 10/round) ตัดซ้ำเหลือ round ที่ดีที่สุดต่อคู่
+# แล้วเติมอันดับถัดไปจนครบ 10 คู่ไม่ซ้ำกันจริงต่อกลุ่ม (พี่เป็นคนชี้ปัญหานี้)
+S20_14_GROUP_COMBOS = {
+    1: {("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("GapSweep", "H1"): ("S20.13.23", "BOTH"), ("GapSweep", "H12"): ("S20.14.23", "BOTH"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "D1"): ("S20.14.23", "SL_ONLY"), ("GapSweep", "D1"): ("S20.14.23", "BOTH")},
+    2: {("Inst_Gap", "D1"): ("S20.14.23", "BOTH"), ("Inst_Gap", "H12"): ("S20.14.23", "SL_ONLY"), ("Inst_Gap", "H4"): ("S20.14.23", "SL_ONLY"), ("Inst_Gap", "H1"): ("S20.14.23", "SL_ONLY"), ("Inst_Gap", "M30"): ("S20.14.23", "SL_ONLY"), ("Inst_Gap", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.14.23", "SL_ONLY"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("ATR", "M15"): ("S20.14.23", "SL_ONLY")},
+    3: {("Fibo", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "H12"): ("S20.14.23", "SL_ONLY"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "D1"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.13.23", "BOTH"), ("Div", "H4"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "H4"): ("S20.14.23", "SL_ONLY"), ("ATR", "D1"): ("S20.14.23", "BOTH")},
+    4: {("Fibo", "M30"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H12"): ("S20.14.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.14.23", "SL_ONLY"), ("Fibo", "M15"): ("S20.14.23", "BOTH"), ("Fibo", "D1"): ("S20.14.23", "BOTH"), ("Div", "H4"): ("S20.13.23", "BOTH"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH")},
+    5: {("FVG", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "M15"): ("S20.13.23", "BOTH"), ("FVG", "H1"): ("S20.14.23", "BOTH"), ("Fibo", "H1"): ("S20.14.23", "BOTH"), ("FVG", "M30"): ("S20.13.23", "BOTH"), ("Fibo", "M30"): ("S20.13.23", "BOTH"), ("FVG", "H4"): ("S20.14.23", "BOTH"), ("FVG", "H12"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H12"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.13.23", "SL_ONLY"), ("FVG", "D1"): ("S20.13.23", "SL_ONLY"), ("Fibo", "D1"): ("S20.13.23", "SL_ONLY")},
+    6: {("Naiya Doji", "H1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H4"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "D1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "H12"): ("S20.14.23", "BOTH"), ("Naiya", "M30"): ("S20.14.23", "BOTH"), ("Naiya", "M15"): ("S20.14.23", "BOTH"), ("FollowDiv", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya", "H1"): ("S20.14.23", "SL_ONLY")},
+    7: {("Fibo", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "H12"): ("S20.14.23", "SL_ONLY"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "D1"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.13.23", "BOTH"), ("Div", "H4"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "H4"): ("S20.14.23", "SL_ONLY"), ("ATR", "D1"): ("S20.14.23", "BOTH")},
+    8: {("Naiya Doji", "H1"): ("S20.13.23", "BOTH"), ("Naiya Doji", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H4"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "D1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "H12"): ("S20.14.23", "BOTH"), ("Naiya", "M30"): ("S20.14.23", "BOTH"), ("Naiya", "M15"): ("S20.14.23", "BOTH"), ("FollowDiv", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya", "H1"): ("S20.14.23", "SL_ONLY")},
+    9: {("Naiya Doji", "M15"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H1"): ("S20.13.23", "BOTH"), ("Naiya Doji", "D1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "H4"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H12"): ("S20.14.23", "BOTH"), ("Naiya", "M30"): ("S20.14.23", "BOTH"), ("Naiya", "H1"): ("S20.14.23", "SL_ONLY"), ("FollowDiv", "M15"): ("S20.14.23", "BOTH"), ("Naiya Hidden", "M30"): ("S20.13.23", "BOTH")},
+    10: {("Fibo", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "H12"): ("S20.14.23", "SL_ONLY"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "D1"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.13.23", "BOTH"), ("Div", "H4"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "H4"): ("S20.14.23", "SL_ONLY"), ("ATR", "D1"): ("S20.14.23", "BOTH")},
+    11: {("Fibo", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "H12"): ("S20.14.23", "SL_ONLY"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "D1"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.13.23", "BOTH"), ("Div", "H4"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "H4"): ("S20.14.23", "SL_ONLY"), ("ATR", "D1"): ("S20.14.23", "BOTH")},
+    12: {("Naiya Doji", "H1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H4"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "D1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "H12"): ("S20.14.23", "BOTH"), ("Naiya", "M30"): ("S20.14.23", "BOTH"), ("Naiya", "M15"): ("S20.13.23", "BOTH"), ("ATR", "H1"): ("S20.14.23", "BOTH"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH")},
+    13: {("FVG", "M15"): ("S20.13.23", "BOTH"), ("FVG", "H4"): ("S20.14.23", "SL_ONLY"), ("FVG", "H12"): ("S20.14.23", "BOTH"), ("FVG", "H1"): ("S20.13.23", "BOTH"), ("FVG", "M30"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "M15"): ("S20.13.23", "BOTH")},
+    14: {("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("GapSweep", "H1"): ("S20.13.23", "BOTH"), ("ATR", "H1"): ("S20.13.23", "BOTH"), ("FVG", "H1"): ("S20.13.23", "BOTH"), ("GapSweep", "H12"): ("S20.14.23", "BOTH"), ("FollowDiv", "H1"): ("S20.14.23", "SL_ONLY"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M30"): ("S20.14.23", "BOTH")},
+    15: {("Fibo", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "H12"): ("S20.14.23", "SL_ONLY"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("Fibo", "D1"): ("S20.13.23", "SL_ONLY"), ("Fibo", "H4"): ("S20.13.23", "BOTH"), ("Div", "H4"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "H4"): ("S20.14.23", "SL_ONLY"), ("ATR", "D1"): ("S20.14.23", "BOTH")},
+    16: {("Naiya Doji", "M15"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "H1"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "H4"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "D1"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "H12"): ("S20.13.23", "SL_ONLY"), ("Naiya", "M30"): ("S20.14.23", "BOTH"), ("Naiya", "M15"): ("S20.14.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("Naiya", "H1"): ("S20.14.23", "SL_ONLY")},
+    17: {("Naiya Doji", "M15"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "H1"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "H4"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "D1"): ("S20.13.23", "SL_ONLY"), ("Naiya Doji", "H12"): ("S20.13.23", "SL_ONLY"), ("Naiya", "M30"): ("S20.13.23", "BOTH"), ("Naiya", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("Naiya FVG", "D1"): ("S20.14.23", "SL_ONLY")},
+    18: {("Naiya Doji", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "M30"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H1"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "H4"): ("S20.14.23", "SL_ONLY"), ("Naiya Doji", "D1"): ("S20.14.23", "BOTH"), ("Naiya Doji", "H12"): ("S20.14.23", "BOTH"), ("Naiya", "M30"): ("S20.13.23", "BOTH"), ("Naiya", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.14.23", "SL_ONLY"), ("Naiya", "H1"): ("S20.14.23", "SL_ONLY")},
+    19: {("FVG", "M15"): ("S20.13.23", "BOTH"), ("Group26", "H1"): ("S20.14.23", "SL_ONLY"), ("FVG", "H1"): ("S20.14.23", "SL_ONLY"), ("FVG", "H12"): ("S20.14.23", "SL_ONLY"), ("FVG", "H4"): ("S20.14.23", "BOTH"), ("FVG", "M30"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("ATR", "H1"): ("S20.13.23", "BOTH"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"),
+         # 2026-10-05 (Phase B): 4 คู่ combined_pat จาก quant-verification-v2/top10_per_group_deduped.md
+         # Group 19 (ดู strategy20_14_groups.strategy_20_14_19 — ลำดับ join ต้องตรงกับที่นี่เป๊ะ)
+         ("Group26/FVG", "H1"): ("S20.14.23", "SL_ONLY"), ("FVG/FollowDiv", "M15"): ("S20.13.23", "BOTH"),
+         ("Group26/ATR", "H1"): ("S20.13.23", "BOTH"), ("FVG/ATR", "M15"): ("S20.13.23", "BOTH")},
+    20: {("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("GapSweep", "H1"): ("S20.13.23", "BOTH"), ("GapSweep", "H12"): ("S20.14.23", "BOTH"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "D1"): ("S20.14.23", "SL_ONLY"), ("GapSweep", "D1"): ("S20.14.23", "BOTH")},
+    21: {("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("GapSweep", "H1"): ("S20.13.23", "BOTH"), ("GapSweep", "H12"): ("S20.14.23", "BOTH"), ("Div", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M30"): ("S20.14.23", "BOTH"), ("Fibo", "D1"): ("S20.14.23", "SL_ONLY"), ("GapSweep", "D1"): ("S20.14.23", "BOTH")},
+    22: {("GapSweep", "M15"): ("S20.13.23", "SL_ONLY"), ("GapSweep", "M30"): ("S20.13.23", "SL_ONLY"), ("GapSweep", "H1"): ("S20.13.23", "SL_ONLY"), ("GapSweep", "H4"): ("S20.14.23", "SL_ONLY"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("GapSweep", "D1"): ("S20.14.23", "BOTH"), ("Div", "M15"): ("S20.13.23", "BOTH")},
+    24: {("FVG", "M15"): ("S20.13.23", "BOTH"), ("FVG", "H4"): ("S20.14.23", "SL_ONLY"), ("FVG", "H12"): ("S20.14.23", "BOTH"), ("FVG", "M30"): ("S20.13.23", "BOTH"), ("FollowDiv", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "H4"): ("S20.13.23", "SL_ONLY"), ("ATR", "M15"): ("S20.13.23", "BOTH"), ("FollowDiv", "M30"): ("S20.14.23", "BOTH"), ("FVG", "D1"): ("S20.14.23", "BOTH")},
+}
+
+# S20_14_GROUP_TOP_TFS: derive จาก S20_14_GROUP_COMBOS อัตโนมัติ (ไม่ hardcode แยก กัน drift ไม่ตรงกัน)
+# ใช้เป็น pre-filter คร่าวๆ ตอน dispatch (ก่อนรัน pattern-detection function จริง) ส่วนความแม่นยำระดับ
+# (pattern, tf) คู่จริงเช็คอีกทีใน scanner.py ผ่าน S20_14_GROUP_COMBOS โดยตรง
+S20_14_GROUP_TOP_TFS = {g: {tf for (_p, tf) in combo} for g, combo in S20_14_GROUP_COMBOS.items()}
+
+
 # --- Dynamic Expansion for S20 Institutional Suite (Standalone 20.18 - 20.304) ---
-_s20_institutional_variants = {20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.301, 20.302, 20.303, 20.304}
+# 20.40/20.30 = pilot (Group 1/2 backtest-verified strategies) 2026-09-24
+_s20_institutional_variants = {
+    20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.304, 20.40, 20.30,
+    20.31, 20.32, 20.33, 20.34, 20.35, 20.36, 20.37, 20.38, 20.39,
+    20.41, 20.42, 20.43, 20.44, 20.45, 20.46, 20.47, 20.48, 20.49,
+    20.505, 20.51, 20.52, 20.53, 20.1305, 20.131, 20.132, 20.133, 20.134,
+    20.135, 20.136, 20.137, 20.138, 20.139, 20.3005,
+    20.23, 20.25, 20.26, 20.27, 20.29,
+    20.3006,
+}
 for s in _skip_sets:
     s.update(_s20_institutional_variants)
+
+# Ratchet/BE lock ของกลุ่มใหม่ใน 48_New_God_S20 (กลุ่ม 1, 34 ตัว) — wire เสร็จเมื่อ 2026-10-02 แต่พี่เลือกปิดไว้ก่อน
+# (backtest ที่แก้ fill แล้วไม่เห็นว่ากำไรรวมเพิ่ม) เปิดด้วย True แล้วรีสตาร์ทบอท S20.301-304 ไม่ขึ้นกับ flag นี้
+S20_NEW_GOD_RATCHET_ENABLED = False
 
 STRONG_TREND_BLOCK_SIDS       = [9, 10, 11, 13, 14, 15, 16, 17] # เฉพาะท่าในลิสต์นี้จะถูกบล็อกเวลาเทรนแรง
 # ────────────────────────────────────────────────────────
@@ -666,6 +784,13 @@ MAX_GRID_LIMITS = {
     20.1424: 99999,
 }
 PENDING_LIMIT_BUFFER        = 2      # เว้นช่อง pending ว่างกี่ตัวก่อนถึง broker cap
+
+# ── S20.14: ปิด duplicate-setup guard ให้ตรงกับ backtest เดิม (2026-09-29) ──────
+# พี่ตั้งใจให้ live ไม่กันไม้ซ้ำ (ตรงกับพฤติกรรม backtest ก่อนแก้บั๊ก #1 — Naiya Doji
+# สร้าง pending ใหม่ได้ทุกแท่งที่เงื่อนไขยังเป็นจริง ไม่เช็คว่าเคยสร้างไปแล้ว) เพื่อทดสอบ
+# mapping v2 บน demo profile 8722 (ไม่ใช่บัญชีจริง — ยอมรับความเสี่ยงไม้ซ้อนไม่จำกัดแล้ว)
+# ⚠️ ห้ามเปิดใช้กับบัญชีจริงเด็ดขาด — ไม้จะซ้อนไม่จำกัดจนกว่าจะโดน broker pending cap
+S20_14_IGNORE_DUP_ORDERS = True
 ORDERS_LIMIT_COOLDOWN_SEC   = 60     # หลังโดน 10033 → งดยิง order ใหม่กี่วินาที
 
 
@@ -734,7 +859,7 @@ OBSERVABLE_MODE = True
 #  ทุก Pattern ต้องเกิดที่ High/Low Zone
 # ============================================================
 
-auto_active = True
+auto_active = False  # safety: every start/restart requires explicit Telegram enable
 last_traded_candle = 0  # เก็บ timestamp แท่งที่เพิ่งเทรดไป (ป้องกันเปิดซ้ำในแท่งเดิม)
 
 # Strategy ที่เปิดใช้งาน (True=เปิด, False=ปิด)
@@ -978,6 +1103,10 @@ active_strategies = {
     20.1324: True,  # S20.13.24: Quant Fuel v24 (Live Market Order) — เปิดตามคำขอพี่ (2026-08-02) แม้ split-half walk-forward เจอ overfitting ชัดเจน (WR 58%→100% ระหว่าง 2 ครึ่งข้อมูล) — พี่รับความเสี่ยงแล้ว
     20.141: False, # S20.14 Group 1
     20.142: False, # S20.14 Group 2
+    20.143: False, # S20.14 Group 3 (เพิ่ง implement 2026-09-23)
+    20.144: False, # S20.14 Group 4 (เพิ่ง implement 2026-09-23)
+    20.146: False, # S20.14 Group 6 (เพิ่ง implement 2026-09-23)
+    20.1402: False, # S20.14 Group 20 (เพิ่ง implement 2026-09-23)
     20.145: False, # S20.14 Group 5
     20.147: False, # S20.14 Group 7
     20.148: False, # S20.14 Group 8
@@ -1005,24 +1134,29 @@ active_strategies = {
     20.22: False,  # S20.22: Session Anchored VWAP Reversion
     20.24: False,  # S20.24: Wyckoff Stopping Volume & London Fix
     20.28: False,  # S20.28: Macro Session Pool Sweeps
-    20.301: False, # S20.301: Structural Trend HTF Extension & Sniper
-    20.302: False, # S20.302: Non-Conflicting Multi-Session Architecture
-    20.303: False, # S20.303: Dynamic Volatility-Scaled Engine (Gold Solo)
-    20.304: False, # S20.304: The Sovereign Dual-Asset Citadel Matrix (Cross-Asset)
+    20.304: False, # S20.304: Institutional SMC Multi-Asset Engine
+    20.40: False,  # S20.40 pilot: Group 1 Octa-Stage Ratchet (2026-09-24)
+    20.30: False,  # S20.30 pilot: Group 2 Scalp+Runner (2026-09-24)
+    # ครบ 40 ตัว: Group 1 (34) + Group 2 (6) เหลือจาก pilot (2026-09-24)
+    20.31: False, 20.32: False, 20.33: False, 20.34: False, 20.35: False, 20.36: False,
+    20.37: False, 20.38: False, 20.39: False,
+    20.41: False, 20.42: False, 20.43: False, 20.44: False, 20.45: False,
+    20.46: False, 20.47: False, 20.48: False, 20.49: False,
+    20.505: False, 20.51: False, 20.52: False, 20.53: False,
+    20.1305: False, 20.131: False, 20.132: False, 20.133: False, 20.134: False,
+    20.135: False, 20.136: False, 20.137: False, 20.138: False, 20.139: False,
+    20.3005: False,
+    20.3006: False,  # S20.300 v2 (โซน+M5) ผ่าน walk-forward/sensitivity ครบ แต่ default ปิดไว้จนกว่าจะ validate บน live
+    20.23: False, 20.25: False, 20.26: False, 20.27: False, 20.29: False,
     95: False, # ท่าที่ 95: Liquidity Sweep (SMC)
     96: False, # ท่าที่ 96: Volume Profile POC Pullback
+    EA2_SID: True, # EA2: Thirakorn SMC (dedicated live profile)
+    EA2_1_SID: False, # EA2.1: M5 + M15 cost-aware confirmation (demo gate)
 }
 
 
 def _sid_from_env_token(token):
-    token = str(token).strip()
-    if not token:
-        return None
-    try:
-        val = float(token) if "." in token else int(token)
-    except ValueError:
-        return None
-    return int(val) if isinstance(val, float) and val.is_integer() else val
+    return normalize_sid(token)
 
 
 def _apply_active_strategies_env_override():
@@ -1042,7 +1176,43 @@ def _apply_active_strategies_env_override():
             active_strategies[sid] = True
 
 
+def enforce_ea2_only_mode():
+    """Keep the rollout isolated even if old bot_state/Telegram toggles differ."""
+    if not EA2_ONLY_MODE:
+        return
+    # 2026-10-08: เตือนทันทีถ้า isolate ไปทับ strategy อื่นที่เคย active จริง — เหตุการณ์จริง
+    # (2026-10-07/08) EA2_ONLY_MODE default=True ทำ active_strategies ของ 2 profiles
+    # (demo-exness-434237129, demo-exness-434238722) หายไปเงียบๆทุก restart นานกว่า 1 วัน
+    # กว่าจะรู้ตัว — ต่อไปต้องเห็น warning ทันทีใน error.log ถ้าเกิดเหตุแบบนี้อีก
+    _other_active = [sid for sid, on in active_strategies.items() if on and sid != EA2_SID]
+    for sid in active_strategies:
+        if sid != EA2_SID:
+            active_strategies[sid] = False
+    if _other_active:
+        try:
+            from bot_log import log_error as _lerr
+            _lerr(
+                "EA2_ONLY_MODE_WARNING",
+                f"EA2_ONLY_MODE=True ปิด {len(_other_active)} strategies ที่เคย active ไปเหลือแค่ sid={EA2_SID} "
+                f"(ตัวอย่าง: {_other_active[:10]}) — ถ้าไม่ได้ตั้งใจให้ profile นี้วิ่ง EA2 เดี่ยว ให้เพิ่ม "
+                f"EA2_ONLY_MODE=false ใน profile.env",
+            )
+        except Exception:
+            pass
+
+
+def enforce_ea2_1_only_mode():
+    """Optionally isolate the EA2.1 rollout without enabling it by default."""
+    if not EA2_1_ONLY_MODE:
+        return
+    for sid in active_strategies:
+        active_strategies[sid] = sid == EA2_1_SID
+
+
 _apply_active_strategies_env_override()
+enforce_ea2_only_mode()
+enforce_ea2_1_only_mode()
+# Reserved byte padding: config.py was updated in place while the live bot held a fixed-size mapping. ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 STRATEGY_NAMES = {
     1: "ท่าที่ 1: กลืนกิน/ตำหนิ",
@@ -1079,6 +1249,10 @@ STRATEGY_NAMES = {
     20.14: "S20.14: ML Groups",
     20.141: "S20.14.1: Group 1",
     20.142: "S20.14.2: Group 2",
+    20.143: "S20.14.3: Group 3",
+    20.144: "S20.14.4: Group 4",
+    20.146: "S20.14.6: Group 6",
+    20.1402: "S20.14.20: Group 20",
     20.145: "S20.14.5: Group 5",
     20.147: "S20.14.7: Group 7",
     20.148: "S20.14.8: Group 8",
@@ -1105,12 +1279,34 @@ STRATEGY_NAMES = {
     20.22: "S20.22: VWAP Reversion",
     20.24: "S20.24: Wyckoff London Fix",
     20.28: "S20.28: Session Pool Sweeps",
-    20.301: "S20.301: HTF Trend Sniper",
-    20.302: "S20.302: Multi-Session Engine",
-    20.303: "S20.303: Dynamic Volatility Gold",
-    20.304: "S20.304: Dual-Asset Citadel Matrix",
+    20.304: "S20.304: Institutional SMC Multi-Asset Engine",
+    20.40: "S20.40 (Pilot): Octa-Stage Ratchet",
+    20.30: "S20.30 (Pilot): Scalp+Runner",
+    20.31: "S20.31: Sweep-Only Synergy", 20.32: "S20.32: Retest Ladder v2",
+    20.33: "S20.33: Retest Ladder v3", 20.34: "S20.34: Current Synergy v1",
+    20.35: "S20.35: Current Synergy v2", 20.36: "S20.36: Current Synergy v3",
+    20.37: "S20.37: Extract Family v1", 20.38: "S20.38: Extract Family v2",
+    20.39: "S20.39: Extract Family v3", 20.41: "S20.41: Extract Family v4",
+    20.42: "S20.42: Extract Family v5", 20.43: "S20.43: Extract Family v6",
+    20.44: "S20.44: Extract Family v7", 20.45: "S20.45: Extract Family v8",
+    20.46: "S20.46: Extract Family v9", 20.47: "S20.47: Extract Family v10",
+    20.48: "S20.48: Extract Family v11", 20.49: "S20.49: Extract Family v12",
+    20.505: "S20.50: Extract Family v13", 20.51: "S20.51: Extract Family v14",
+    20.52: "S20.52: Extract Family v15", 20.53: "S20.53: Goal Engine v1",
+    20.1305: "S20.130: Goal Engine v2",
+    20.131: "S20.131: Fusion Synergy A1", 20.132: "S20.132: Fusion Synergy A2",
+    20.133: "S20.133: Fusion Synergy A3", 20.134: "S20.134: Fusion Synergy B1",
+    20.135: "S20.135: Fusion Synergy B2", 20.136: "S20.136: Fusion Synergy B3",
+    20.137: "S20.137: Fusion Synergy C1", 20.138: "S20.138: Fusion Synergy C2",
+    20.139: "S20.139: Fusion Synergy C3", 20.3005: "S20.300: Marathon Synergy",
+    20.3006: "S20.300 v2: Zone(HTF closed)+M5 Confirm",
+    20.23: "S20.23: Hybrid Setup", 20.25: "S20.25: Confluence Bar",
+    20.26: "S20.26: Session Pool Scalp", 20.27: "S20.27: Nexus HTF Scalp",
+    20.29: "S20.29: Scalp+Runner v2",
     95: "S95: LiqSweep",
     96: "S96: PoC Pullback",
+    EA2_SID: "EA2: Thirakorn SMC",
+    EA2_1_SID: "EA2.1: M5 + M15 Edge",
 }
 
 # ── S20 Universal Symbol Switchboard (เปิด-ปิด Symbol อิสระสำหรับทั้ง 11 กลยุทธ์) ──
@@ -3049,11 +3245,29 @@ def save_runtime_state():
 def restore_runtime_state():
     """restore state จากไฟล์ แล้วกรองให้เหลือเฉพาะ ticket ที่ยังมีใน MT5"""
     if not os.path.exists(STATE_FILE):
+        # 2026-10-08: เตือนทันทีถ้า bot_state.json หายทั้งที่ profile นี้เคยรันมาก่อนแล้ว
+        # (มี logs/bot.log อยู่) — เหตุการณ์จริง: session อื่น git add -A ไปโดน bot_state.json
+        # ของ 2 profiles จนถูก stage เป็น deleted โดยไม่มีใครรู้ตัว
+        try:
+            _bot_log_path = os.path.join(PROFILE_DIR, "logs", "bot.log")
+            if os.path.exists(_bot_log_path) and os.path.getsize(_bot_log_path) > 0:
+                from bot_log import log_error as _lerr
+                _lerr(
+                    "BOT_STATE_MISSING",
+                    f"ไม่พบ {STATE_FILE} ทั้งที่ profile นี้มี logs/bot.log อยู่แล้ว (เคยรันมาก่อน) — "
+                    f"active_strategies/position state จะเริ่มจาก default ทั้งหมด เช็คว่าไฟล์หายไปโดยไม่ตั้งใจหรือไม่",
+                )
+        except Exception:
+            pass
         return {"restored": False, "reason": "state file not found"}
 
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             state = json.load(f)
+        state = migrate_sid_metadata(state)
+        state["position_sid"] = {
+            ticket: normalize_sid(sid) for ticket, sid in state.get("position_sid", {}).items()
+        }
     except Exception as e:
         return {"restored": False, "reason": f"load error: {e}"}
 
@@ -3181,6 +3395,10 @@ def restore_runtime_state():
             AUTO_VOLUME = round(float(saved_auto_volume), 2)
 
         saved_active_strategies = state.get("active_strategies", {})
+        if isinstance(saved_active_strategies, dict):
+            saved_active_strategies = {
+                normalize_sid(sid): enabled for sid, enabled in saved_active_strategies.items()
+            }
         if isinstance(saved_active_strategies, dict):
             for sid in active_strategies:
                 if sid in saved_active_strategies or str(sid) in saved_active_strategies:
@@ -3792,6 +4010,8 @@ def restore_runtime_state():
             _focus_suppress_until_flat[feature_key] = bool(state.get(state_key, False))
 
         _apply_active_strategies_env_override()
+        enforce_ea2_only_mode()
+        enforce_ea2_1_only_mode()
         _apply_s20_profile_mode_env_override()
         _apply_profile_feature_env_overrides()
 

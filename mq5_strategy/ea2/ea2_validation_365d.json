@@ -1,0 +1,121 @@
+{
+  "period": {
+    "start_bkk": "2025-10-06 18:00:00",
+    "end_bkk": "2026-10-06 18:00:00"
+  },
+  "model": "M1 S435 + ATR stops + strict one-entry/leg + M15 EMA trend + modeled costs",
+  "baseline": {
+    "trades": 4511,
+    "wins": 2310,
+    "win_rate": 51.21,
+    "pnl": -110.44,
+    "profit_factor": 0.975,
+    "max_drawdown": 267.38
+  },
+  "candidate": {
+    "trades": 2088,
+    "wins": 1385,
+    "win_rate": 66.33,
+    "pnl": 473.21,
+    "profit_factor": 1.196,
+    "max_drawdown": 112.93
+  },
+  "split_half": {
+    "first": {
+      "trades": 994,
+      "wins": 668,
+      "win_rate": 67.2,
+      "pnl": 365.34,
+      "profit_factor": 1.317,
+      "max_drawdown": 112.93
+    },
+    "second_oos": {
+      "trades": 1094,
+      "wins": 717,
+      "win_rate": 65.54,
+      "pnl": 107.87,
+      "profit_factor": 1.085,
+      "max_drawdown": 55.17
+    }
+  },
+  "walk_forward_quarters": {
+    "q1": {
+      "trades": 496,
+      "wins": 308,
+      "win_rate": 62.1,
+      "pnl": -8.91,
+      "profit_factor": 0.984,
+      "max_drawdown": 112.93
+    },
+    "q2": {
+      "trades": 498,
+      "wins": 360,
+      "win_rate": 72.29,
+      "pnl": 374.25,
+      "profit_factor": 1.632,
+      "max_drawdown": 32.32
+    },
+    "q3": {
+      "trades": 527,
+      "wins": 360,
+      "win_rate": 68.31,
+      "pnl": 56.31,
+      "profit_factor": 1.093,
+      "max_drawdown": 54.82
+    },
+    "q4": {
+      "trades": 567,
+      "wins": 357,
+      "win_rate": 62.96,
+      "pnl": 51.56,
+      "profit_factor": 1.078,
+      "max_drawdown": 55.17
+    }
+  },
+  "spread_stress": {
+    "spread_0.20": {
+      "trades": 2088,
+      "wins": 1385,
+      "win_rate": 66.33,
+      "pnl": 473.21,
+      "profit_factor": 1.196,
+      "max_drawdown": 112.93
+    },
+    "spread_0.30": {
+      "trades": 2087,
+      "wins": 1348,
+      "win_rate": 64.59,
+      "pnl": 281.47,
+      "profit_factor": 1.11,
+      "max_drawdown": 139.26
+    },
+    "spread_0.40": {
+      "trades": 2087,
+      "wins": 1315,
+      "win_rate": 63.01,
+      "pnl": 61.53,
+      "profit_factor": 1.023,
+      "max_drawdown": 174.02
+    }
+  },
+  "monte_carlo": {
+    "samples": 1000,
+    "p05_net": 205.5,
+    "median_net": 478.87,
+    "p95_drawdown": 162.71
+  },
+  "checks": {
+    "beats_mq5_parity_pnl": true,
+    "profit_factor_above_1": true,
+    "both_split_halves_profitable": true,
+    "all_walk_forward_quarters_profitable": false,
+    "spread_0_40_profitable": true,
+    "monte_carlo_p05_profitable": true
+  },
+  "all_checks_pass": false,
+  "limitations": [
+    "OHLC deterministic intrabar path, not MT5 real-tick execution",
+    "cost model is fixed at 5-point slippage plus USD 7/lot commission; worse fills are not included",
+    "demo soak and restart/disconnect drills require live elapsed time"
+  ]
+}

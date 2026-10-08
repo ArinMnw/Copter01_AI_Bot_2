@@ -85,6 +85,7 @@ def main():
     print("=" * 115, flush=True)
     print(f" Total Trades Executed:   {res['trades']:,}", flush=True)
     print(f" Wins:                   {res['wins']:,} ({res['wr']:.1f}%)", flush=True)
+    print(f"   └─ Full TP: {res['full_tp']:,} | Trail TP (ratchet lock): {res['trail_tp']:,} | Timeout Win: {res['timeout_win']:,}  # Rule #11 breakdown", flush=True)
     print(f" Breakevens:             {res['bes']:,} ({res['bes']/res['trades']*100:.1f}%)", flush=True)
     print(f" Losses:                 {res['losses']:,} ({res['losses']/res['trades']*100:.1f}%)", flush=True)
     print(f" Non-Loss Rate:          {res['non_loss_rate']:.1f}%", flush=True)

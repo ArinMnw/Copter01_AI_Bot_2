@@ -1,0 +1,1618 @@
+{
+  "period": {
+    "start_bkk": "2025-10-06 21:57:03",
+    "end_bkk": "2026-10-06 21:57:03"
+  },
+  "configs": {
+    "raw_best": {
+      "config": {
+        "POINT": 0.01,
+        "SL_POINTS": 350,
+        "TP_POINTS": 20000,
+        "USE_BREAKEVEN": true,
+        "BREAKEVEN_TRIGGER_POINTS": 75,
+        "BREAKEVEN_LOCK_POINTS": 15,
+        "USE_TRAILING": true,
+        "TRAIL_TRIGGER_POINTS": 125,
+        "TRAIL_DISTANCE_POINTS": 75,
+        "TRAIL_STEP_POINTS": 1,
+        "SWING_BARS": 1,
+        "BOS_CONFIRM_COUNT": 1,
+        "MAX_BARS_LOOKBACK": 500,
+        "ONE_TRADE_PER_CYCLE": true,
+        "ENTER_ON_BOS_CONFIRM": true,
+        "USE_FIB_OB_FILTER": false,
+        "OB_SEARCH_MAX_BARS": 5,
+        "ENABLE_OB_RETEST_ENTRY": true,
+        "OB_MIN_BARS_BEFORE_RETEST": 2,
+        "MIN_LEG_POINTS": 200,
+        "OB_MAX_BARS_VALID": 0,
+        "OB_PREFER_DEEPER_MAX_POINTS": 300,
+        "MAX_OPEN_POSITIONS": 1,
+        "USE_LIQUIDITY_SWEEP": true,
+        "SWEEP_VALID_BARS": 15,
+        "SESSION_START_HOUR": 0,
+        "SESSION_END_HOUR": 24,
+        "REQUIRE_LIQUIDITY_SWEEP": false,
+        "STRICT_ONE_ENTRY_PER_LEG": false,
+        "USE_ATR_STOPS": false,
+        "ATR_PERIOD": 14,
+        "ATR_SL_MULT": 1.5,
+        "ATR_BUFFER_MULT": 0.25,
+        "ATR_MIN_SL_POINTS": 120,
+        "ATR_MAX_SL_POINTS": 600,
+        "ATR_RR": 3.0,
+        "MAX_SPREAD_POINTS": 0,
+        "SLIPPAGE_POINTS": 0,
+        "COMMISSION_PER_LOT_USD": 0.0
+      },
+      "scenarios": {
+        "full_base": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 7776.53,
+              "max_drawdown": 60.11,
+              "profit_factor": 1.569172,
+              "trades": 15538,
+              "wins": 11637
+            },
+            "M5": {
+              "net_profit": 6327.4,
+              "max_drawdown": 24.5,
+              "profit_factor": 2.91032,
+              "trades": 3904,
+              "wins": 2963
+            },
+            "M15": {
+              "net_profit": 3687.53,
+              "max_drawdown": 22.48,
+              "profit_factor": 4.159594,
+              "trades": 1248,
+              "wins": 914
+            },
+            "M30": {
+              "net_profit": 2618.45,
+              "max_drawdown": 23.65,
+              "profit_factor": 4.722033,
+              "trades": 624,
+              "wins": 423
+            },
+            "H1": {
+              "net_profit": 1632.29,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.429181,
+              "trades": 362,
+              "wins": 226
+            },
+            "H4": {
+              "net_profit": 751.48,
+              "max_drawdown": 17.5,
+              "profit_factor": 8.952169,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 295.87,
+              "max_drawdown": 11.28,
+              "profit_factor": 8.684935,
+              "trades": 28,
+              "wins": 17
+            },
+            "D1": {
+              "net_profit": 193.77,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.227143,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 23283.32,
+            "max_drawdown": 43.62,
+            "profit_factor": 2.195507,
+            "trades": 21790,
+            "wins": 16233
+          },
+          "profitable_tfs": 8,
+          "score": 534.976249427
+        },
+        "first_half": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-04-07 09:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 5632.37,
+              "max_drawdown": 60.11,
+              "profit_factor": 1.800801,
+              "trades": 7973,
+              "wins": 5967
+            },
+            "M5": {
+              "net_profit": 3366.45,
+              "max_drawdown": 24.5,
+              "profit_factor": 3.08231,
+              "trades": 1793,
+              "wins": 1331
+            },
+            "M15": {
+              "net_profit": 1907.16,
+              "max_drawdown": 22.48,
+              "profit_factor": 4.302442,
+              "trades": 596,
+              "wins": 431
+            },
+            "M30": {
+              "net_profit": 1377.0,
+              "max_drawdown": 23.65,
+              "profit_factor": 4.71159,
+              "trades": 314,
+              "wins": 208
+            },
+            "H1": {
+              "net_profit": 890.91,
+              "max_drawdown": 14.0,
+              "profit_factor": 4.856753,
+              "trades": 179,
+              "wins": 113
+            },
+            "H4": {
+              "net_profit": 529.91,
+              "max_drawdown": 17.5,
+              "profit_factor": 14.763896,
+              "trades": 28,
+              "wins": 17
+            },
+            "H12": {
+              "net_profit": 131.08,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.362857,
+              "trades": 11,
+              "wins": 7
+            },
+            "D1": {
+              "net_profit": 18.46,
+              "max_drawdown": 3.5,
+              "profit_factor": 2.758095,
+              "trades": 5,
+              "wins": 2
+            }
+          },
+          "combined": {
+            "net_profit": 13853.34,
+            "max_drawdown": 41.21,
+            "profit_factor": 2.400373,
+            "trades": 10899,
+            "wins": 8076
+          },
+          "profitable_tfs": 8,
+          "score": 337.364523174
+        },
+        "second_half_oos": {
+          "period": {
+            "start_bkk": "2026-04-07 09:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 2144.16,
+              "max_drawdown": 55.41,
+              "profit_factor": 1.323429,
+              "trades": 7565,
+              "wins": 5670
+            },
+            "M5": {
+              "net_profit": 2960.95,
+              "max_drawdown": 21.92,
+              "profit_factor": 2.746327,
+              "trades": 2111,
+              "wins": 1632
+            },
+            "M15": {
+              "net_profit": 1780.37,
+              "max_drawdown": 16.5,
+              "profit_factor": 4.019675,
+              "trades": 652,
+              "wins": 483
+            },
+            "M30": {
+              "net_profit": 1241.45,
+              "max_drawdown": 14.0,
+              "profit_factor": 4.733684,
+              "trades": 310,
+              "wins": 215
+            },
+            "H1": {
+              "net_profit": 741.38,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.026041,
+              "trades": 183,
+              "wins": 113
+            },
+            "H4": {
+              "net_profit": 221.57,
+              "max_drawdown": 10.5,
+              "profit_factor": 4.956607,
+              "trades": 42,
+              "wins": 26
+            },
+            "H12": {
+              "net_profit": 164.79,
+              "max_drawdown": 11.28,
+              "profit_factor": 7.726122,
+              "trades": 17,
+              "wins": 10
+            },
+            "D1": {
+              "net_profit": 175.31,
+              "max_drawdown": 3.5,
+              "profit_factor": 17.69619,
+              "trades": 11,
+              "wins": 8
+            }
+          },
+          "combined": {
+            "net_profit": 9429.98,
+            "max_drawdown": 43.62,
+            "profit_factor": 1.984024,
+            "trades": 10891,
+            "wins": 8157
+          },
+          "profitable_tfs": 8,
+          "score": 217.384777625
+        },
+        "spread_30": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.3,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 5929.18,
+              "max_drawdown": 103.27,
+              "profit_factor": 1.39894,
+              "trades": 15525,
+              "wins": 11281
+            },
+            "M5": {
+              "net_profit": 5752.25,
+              "max_drawdown": 28.17,
+              "profit_factor": 2.598096,
+              "trades": 3905,
+              "wins": 2882
+            },
+            "M15": {
+              "net_profit": 3449.2,
+              "max_drawdown": 22.88,
+              "profit_factor": 3.756295,
+              "trades": 1248,
+              "wins": 890
+            },
+            "M30": {
+              "net_profit": 2498.78,
+              "max_drawdown": 23.85,
+              "profit_factor": 4.399701,
+              "trades": 624,
+              "wins": 414
+            },
+            "H1": {
+              "net_profit": 1570.57,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.205245,
+              "trades": 362,
+              "wins": 222
+            },
+            "H4": {
+              "net_profit": 747.48,
+              "max_drawdown": 17.5,
+              "profit_factor": 8.909841,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 290.62,
+              "max_drawdown": 11.38,
+              "profit_factor": 7.919524,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 192.77,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.179524,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 20430.85,
+            "max_drawdown": 56.75,
+            "profit_factor": 1.968485,
+            "trades": 21778,
+            "wins": 15758
+          },
+          "profitable_tfs": 8,
+          "score": 361.214977974
+        },
+        "spread_40": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.4,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 4033.3,
+              "max_drawdown": 196.82,
+              "profit_factor": 1.251852,
+              "trades": 15502,
+              "wins": 10927
+            },
+            "M5": {
+              "net_profit": 5137.08,
+              "max_drawdown": 31.62,
+              "profit_factor": 2.305133,
+              "trades": 3904,
+              "wins": 2783
+            },
+            "M15": {
+              "net_profit": 3200.25,
+              "max_drawdown": 23.28,
+              "profit_factor": 3.402247,
+              "trades": 1248,
+              "wins": 867
+            },
+            "M30": {
+              "net_profit": 2351.54,
+              "max_drawdown": 24.05,
+              "profit_factor": 4.053948,
+              "trades": 624,
+              "wins": 404
+            },
+            "H1": {
+              "net_profit": 1498.8,
+              "max_drawdown": 18.69,
+              "profit_factor": 3.97381,
+              "trades": 362,
+              "wins": 218
+            },
+            "H4": {
+              "net_profit": 739.29,
+              "max_drawdown": 17.5,
+              "profit_factor": 8.543776,
+              "trades": 70,
+              "wins": 42
+            },
+            "H12": {
+              "net_profit": 289.02,
+              "max_drawdown": 11.48,
+              "profit_factor": 7.881429,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 191.77,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.131905,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 17441.05,
+            "max_drawdown": 69.66,
+            "profit_factor": 1.767725,
+            "trades": 21754,
+            "wins": 15267
+          },
+          "profitable_tfs": 8,
+          "score": 251.573959231
+        },
+        "spread_50": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.5,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 2254.65,
+              "max_drawdown": 571.25,
+              "profit_factor": 1.131259,
+              "trades": 15530,
+              "wins": 10626
+            },
+            "M5": {
+              "net_profit": 4592.15,
+              "max_drawdown": 36.31,
+              "profit_factor": 2.096371,
+              "trades": 3907,
+              "wins": 2715
+            },
+            "M15": {
+              "net_profit": 2933.06,
+              "max_drawdown": 23.68,
+              "profit_factor": 3.030516,
+              "trades": 1249,
+              "wins": 836
+            },
+            "M30": {
+              "net_profit": 2265.9,
+              "max_drawdown": 24.57,
+              "profit_factor": 3.802597,
+              "trades": 624,
+              "wins": 393
+            },
+            "H1": {
+              "net_profit": 1428.71,
+              "max_drawdown": 18.79,
+              "profit_factor": 3.758127,
+              "trades": 362,
+              "wins": 214
+            },
+            "H4": {
+              "net_profit": 731.84,
+              "max_drawdown": 17.5,
+              "profit_factor": 8.210246,
+              "trades": 70,
+              "wins": 41
+            },
+            "H12": {
+              "net_profit": 287.42,
+              "max_drawdown": 11.58,
+              "profit_factor": 7.843333,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 190.77,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.084286,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 14684.5,
+            "max_drawdown": 115.94,
+            "profit_factor": 1.604272,
+            "trades": 21786,
+            "wins": 14851
+          },
+          "profitable_tfs": 8,
+          "score": 127.856028981
+        },
+        "slippage_10": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 10,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 5931.69,
+              "max_drawdown": 105.59,
+              "profit_factor": 1.399297,
+              "trades": 15524,
+              "wins": 11282
+            },
+            "M5": {
+              "net_profit": 5752.25,
+              "max_drawdown": 28.17,
+              "profit_factor": 2.598096,
+              "trades": 3905,
+              "wins": 2882
+            },
+            "M15": {
+              "net_profit": 3452.85,
+              "max_drawdown": 22.88,
+              "profit_factor": 3.766951,
+              "trades": 1248,
+              "wins": 891
+            },
+            "M30": {
+              "net_profit": 2498.78,
+              "max_drawdown": 23.85,
+              "profit_factor": 4.399701,
+              "trades": 624,
+              "wins": 414
+            },
+            "H1": {
+              "net_profit": 1570.57,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.205245,
+              "trades": 362,
+              "wins": 222
+            },
+            "H4": {
+              "net_profit": 747.48,
+              "max_drawdown": 17.5,
+              "profit_factor": 8.909841,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 290.62,
+              "max_drawdown": 11.38,
+              "profit_factor": 7.919524,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 192.77,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.179524,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 20437.01,
+            "max_drawdown": 56.75,
+            "profit_factor": 1.96926,
+            "trades": 21777,
+            "wins": 15760
+          },
+          "profitable_tfs": 8,
+          "score": 361.323524229
+        },
+        "slippage_20": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 20,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 4044.04,
+              "max_drawdown": 196.84,
+              "profit_factor": 1.252577,
+              "trades": 15500,
+              "wins": 10926
+            },
+            "M5": {
+              "net_profit": 5141.08,
+              "max_drawdown": 31.62,
+              "profit_factor": 2.307311,
+              "trades": 3904,
+              "wins": 2784
+            },
+            "M15": {
+              "net_profit": 3200.25,
+              "max_drawdown": 23.28,
+              "profit_factor": 3.402247,
+              "trades": 1248,
+              "wins": 867
+            },
+            "M30": {
+              "net_profit": 2351.54,
+              "max_drawdown": 24.05,
+              "profit_factor": 4.053948,
+              "trades": 624,
+              "wins": 404
+            },
+            "H1": {
+              "net_profit": 1498.8,
+              "max_drawdown": 18.69,
+              "profit_factor": 3.97381,
+              "trades": 362,
+              "wins": 218
+            },
+            "H4": {
+              "net_profit": 739.29,
+              "max_drawdown": 17.5,
+              "profit_factor": 8.543776,
+              "trades": 70,
+              "wins": 42
+            },
+            "H12": {
+              "net_profit": 289.02,
+              "max_drawdown": 11.48,
+              "profit_factor": 7.881429,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 191.77,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.131905,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 17455.79,
+            "max_drawdown": 69.66,
+            "profit_factor": 1.76861,
+            "trades": 21752,
+            "wins": 15267
+          },
+          "profitable_tfs": 8,
+          "score": 251.785558427
+        },
+        "commission_7": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 7.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 6688.87,
+              "max_drawdown": 75.99,
+              "profit_factor": 1.479962,
+              "trades": 15538,
+              "wins": 11629
+            },
+            "M5": {
+              "net_profit": 6054.12,
+              "max_drawdown": 25.04,
+              "profit_factor": 2.792172,
+              "trades": 3904,
+              "wins": 2963
+            },
+            "M15": {
+              "net_profit": 3600.17,
+              "max_drawdown": 23.53,
+              "profit_factor": 4.024159,
+              "trades": 1248,
+              "wins": 914
+            },
+            "M30": {
+              "net_profit": 2574.77,
+              "max_drawdown": 24.35,
+              "profit_factor": 4.58818,
+              "trades": 624,
+              "wins": 423
+            },
+            "H1": {
+              "net_profit": 1606.95,
+              "max_drawdown": 17.85,
+              "profit_factor": 4.30975,
+              "trades": 362,
+              "wins": 226
+            },
+            "H4": {
+              "net_profit": 746.58,
+              "max_drawdown": 17.85,
+              "profit_factor": 8.745409,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 293.91,
+              "max_drawdown": 11.63,
+              "profit_factor": 8.484339,
+              "trades": 28,
+              "wins": 17
+            },
+            "D1": {
+              "net_profit": 192.65,
+              "max_drawdown": 3.57,
+              "profit_factor": 9.993931,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 21758.02,
+            "max_drawdown": 50.06,
+            "profit_factor": 2.095295,
+            "trades": 21790,
+            "wins": 16225
+          },
+          "profitable_tfs": 8,
+          "score": 435.8388334
+        },
+        "adverse_costs": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.4,
+          "slippage_points": 10,
+          "commission_per_lot_usd": 7.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 1167.55,
+              "max_drawdown": 1081.27,
+              "profit_factor": 1.066639,
+              "trades": 15530,
+              "wins": 10618
+            },
+            "M5": {
+              "net_profit": 4318.66,
+              "max_drawdown": 39.53,
+              "profit_factor": 2.010929,
+              "trades": 3907,
+              "wins": 2714
+            },
+            "M15": {
+              "net_profit": 2845.63,
+              "max_drawdown": 24.73,
+              "profit_factor": 2.931336,
+              "trades": 1249,
+              "wins": 836
+            },
+            "M30": {
+              "net_profit": 2222.22,
+              "max_drawdown": 25.27,
+              "profit_factor": 3.694678,
+              "trades": 624,
+              "wins": 393
+            },
+            "H1": {
+              "net_profit": 1403.37,
+              "max_drawdown": 19.28,
+              "profit_factor": 3.656087,
+              "trades": 362,
+              "wins": 214
+            },
+            "H4": {
+              "net_profit": 726.94,
+              "max_drawdown": 17.85,
+              "profit_factor": 8.02154,
+              "trades": 70,
+              "wins": 41
+            },
+            "H12": {
+              "net_profit": 285.46,
+              "max_drawdown": 11.93,
+              "profit_factor": 7.663399,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 189.65,
+              "max_drawdown": 3.57,
+              "profit_factor": 9.853875,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 13159.48,
+            "max_drawdown": 142.61,
+            "profit_factor": 1.530906,
+            "trades": 21786,
+            "wins": 14842
+          },
+          "profitable_tfs": 8,
+          "score": 93.475997476
+        }
+      }
+    },
+    "practical": {
+      "config": {
+        "POINT": 0.01,
+        "SL_POINTS": 350,
+        "TP_POINTS": 5000,
+        "USE_BREAKEVEN": true,
+        "BREAKEVEN_TRIGGER_POINTS": 75,
+        "BREAKEVEN_LOCK_POINTS": 15,
+        "USE_TRAILING": true,
+        "TRAIL_TRIGGER_POINTS": 125,
+        "TRAIL_DISTANCE_POINTS": 75,
+        "TRAIL_STEP_POINTS": 5,
+        "SWING_BARS": 1,
+        "BOS_CONFIRM_COUNT": 1,
+        "MAX_BARS_LOOKBACK": 500,
+        "ONE_TRADE_PER_CYCLE": true,
+        "ENTER_ON_BOS_CONFIRM": true,
+        "USE_FIB_OB_FILTER": false,
+        "OB_SEARCH_MAX_BARS": 5,
+        "ENABLE_OB_RETEST_ENTRY": true,
+        "OB_MIN_BARS_BEFORE_RETEST": 2,
+        "MIN_LEG_POINTS": 200,
+        "OB_MAX_BARS_VALID": 0,
+        "OB_PREFER_DEEPER_MAX_POINTS": 100,
+        "MAX_OPEN_POSITIONS": 1,
+        "USE_LIQUIDITY_SWEEP": true,
+        "SWEEP_VALID_BARS": 15,
+        "SESSION_START_HOUR": 0,
+        "SESSION_END_HOUR": 24,
+        "REQUIRE_LIQUIDITY_SWEEP": false,
+        "STRICT_ONE_ENTRY_PER_LEG": false,
+        "USE_ATR_STOPS": false,
+        "ATR_PERIOD": 14,
+        "ATR_SL_MULT": 1.5,
+        "ATR_BUFFER_MULT": 0.25,
+        "ATR_MIN_SL_POINTS": 120,
+        "ATR_MAX_SL_POINTS": 600,
+        "ATR_RR": 3.0,
+        "MAX_SPREAD_POINTS": 0,
+        "SLIPPAGE_POINTS": 0,
+        "COMMISSION_PER_LOT_USD": 0.0
+      },
+      "scenarios": {
+        "full_base": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 7770.57,
+              "max_drawdown": 60.15,
+              "profit_factor": 1.568736,
+              "trades": 15535,
+              "wins": 11634
+            },
+            "M5": {
+              "net_profit": 6316.68,
+              "max_drawdown": 24.5,
+              "profit_factor": 2.907083,
+              "trades": 3904,
+              "wins": 2963
+            },
+            "M15": {
+              "net_profit": 3674.4,
+              "max_drawdown": 22.48,
+              "profit_factor": 4.148343,
+              "trades": 1248,
+              "wins": 914
+            },
+            "M30": {
+              "net_profit": 2573.7,
+              "max_drawdown": 23.65,
+              "profit_factor": 4.658422,
+              "trades": 624,
+              "wins": 423
+            },
+            "H1": {
+              "net_profit": 1632.29,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.429181,
+              "trades": 362,
+              "wins": 226
+            },
+            "H4": {
+              "net_profit": 568.47,
+              "max_drawdown": 17.5,
+              "profit_factor": 7.015556,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 281.68,
+              "max_drawdown": 11.28,
+              "profit_factor": 8.316364,
+              "trades": 28,
+              "wins": 17
+            },
+            "D1": {
+              "net_profit": 190.61,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.076667,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 23008.4,
+            "max_drawdown": 43.62,
+            "profit_factor": 2.181391,
+            "trades": 21787,
+            "wins": 16230
+          },
+          "profitable_tfs": 8,
+          "score": 528.673635947
+        },
+        "first_half": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-04-07 09:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 5628.38,
+              "max_drawdown": 60.15,
+              "profit_factor": 1.800234,
+              "trades": 7972,
+              "wins": 5966
+            },
+            "M5": {
+              "net_profit": 3355.93,
+              "max_drawdown": 24.5,
+              "profit_factor": 3.075803,
+              "trades": 1793,
+              "wins": 1331
+            },
+            "M15": {
+              "net_profit": 1894.03,
+              "max_drawdown": 22.48,
+              "profit_factor": 4.279706,
+              "trades": 596,
+              "wins": 431
+            },
+            "M30": {
+              "net_profit": 1343.21,
+              "max_drawdown": 23.65,
+              "profit_factor": 4.620512,
+              "trades": 314,
+              "wins": 208
+            },
+            "H1": {
+              "net_profit": 890.91,
+              "max_drawdown": 14.0,
+              "profit_factor": 4.856753,
+              "trades": 179,
+              "wins": 113
+            },
+            "H4": {
+              "net_profit": 346.9,
+              "max_drawdown": 17.5,
+              "profit_factor": 10.01039,
+              "trades": 28,
+              "wins": 17
+            },
+            "H12": {
+              "net_profit": 116.89,
+              "max_drawdown": 3.5,
+              "profit_factor": 9.349286,
+              "trades": 11,
+              "wins": 7
+            },
+            "D1": {
+              "net_profit": 18.46,
+              "max_drawdown": 3.5,
+              "profit_factor": 2.758095,
+              "trades": 5,
+              "wins": 2
+            }
+          },
+          "combined": {
+            "net_profit": 13594.71,
+            "max_drawdown": 41.21,
+            "profit_factor": 2.374229,
+            "trades": 10898,
+            "wins": 8075
+          },
+          "profitable_tfs": 8,
+          "score": 331.088619267
+        },
+        "second_half_oos": {
+          "period": {
+            "start_bkk": "2026-04-07 09:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 2142.19,
+              "max_drawdown": 55.44,
+              "profit_factor": 1.323132,
+              "trades": 7563,
+              "wins": 5668
+            },
+            "M5": {
+              "net_profit": 2960.75,
+              "max_drawdown": 21.92,
+              "profit_factor": 2.746209,
+              "trades": 2111,
+              "wins": 1632
+            },
+            "M15": {
+              "net_profit": 1780.37,
+              "max_drawdown": 16.5,
+              "profit_factor": 4.019675,
+              "trades": 652,
+              "wins": 483
+            },
+            "M30": {
+              "net_profit": 1230.49,
+              "max_drawdown": 14.0,
+              "profit_factor": 4.700722,
+              "trades": 310,
+              "wins": 215
+            },
+            "H1": {
+              "net_profit": 741.38,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.026041,
+              "trades": 183,
+              "wins": 113
+            },
+            "H4": {
+              "net_profit": 221.57,
+              "max_drawdown": 10.5,
+              "profit_factor": 4.956607,
+              "trades": 42,
+              "wins": 26
+            },
+            "H12": {
+              "net_profit": 164.79,
+              "max_drawdown": 11.28,
+              "profit_factor": 7.726122,
+              "trades": 17,
+              "wins": 10
+            },
+            "D1": {
+              "net_profit": 172.15,
+              "max_drawdown": 3.5,
+              "profit_factor": 17.395238,
+              "trades": 11,
+              "wins": 8
+            }
+          },
+          "combined": {
+            "net_profit": 9413.69,
+            "max_drawdown": 43.62,
+            "profit_factor": 1.982324,
+            "trades": 10889,
+            "wins": 8155
+          },
+          "profitable_tfs": 8,
+          "score": 217.01132508
+        },
+        "spread_30": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.3,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 5923.41,
+              "max_drawdown": 103.3,
+              "profit_factor": 1.398552,
+              "trades": 15522,
+              "wins": 11278
+            },
+            "M5": {
+              "net_profit": 5741.92,
+              "max_drawdown": 28.17,
+              "profit_factor": 2.595226,
+              "trades": 3905,
+              "wins": 2882
+            },
+            "M15": {
+              "net_profit": 3436.17,
+              "max_drawdown": 22.88,
+              "profit_factor": 3.745883,
+              "trades": 1248,
+              "wins": 890
+            },
+            "M30": {
+              "net_profit": 2454.33,
+              "max_drawdown": 23.85,
+              "profit_factor": 4.339224,
+              "trades": 624,
+              "wins": 414
+            },
+            "H1": {
+              "net_profit": 1570.57,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.205245,
+              "trades": 362,
+              "wins": 222
+            },
+            "H4": {
+              "net_profit": 564.57,
+              "max_drawdown": 17.5,
+              "profit_factor": 6.974286,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 276.53,
+              "max_drawdown": 11.38,
+              "profit_factor": 7.584048,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 189.71,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.03381,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 20157.21,
+            "max_drawdown": 56.75,
+            "profit_factor": 1.955514,
+            "trades": 21775,
+            "wins": 15755
+          },
+          "profitable_tfs": 8,
+          "score": 356.393127753
+        },
+        "spread_40": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.4,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 4027.64,
+              "max_drawdown": 196.85,
+              "profit_factor": 1.251498,
+              "trades": 15499,
+              "wins": 10924
+            },
+            "M5": {
+              "net_profit": 5127.02,
+              "max_drawdown": 31.62,
+              "profit_factor": 2.302577,
+              "trades": 3904,
+              "wins": 2783
+            },
+            "M15": {
+              "net_profit": 3187.32,
+              "max_drawdown": 23.28,
+              "profit_factor": 3.392542,
+              "trades": 1248,
+              "wins": 867
+            },
+            "M30": {
+              "net_profit": 2307.39,
+              "max_drawdown": 24.05,
+              "profit_factor": 3.99661,
+              "trades": 624,
+              "wins": 404
+            },
+            "H1": {
+              "net_profit": 1498.8,
+              "max_drawdown": 18.69,
+              "profit_factor": 3.97381,
+              "trades": 362,
+              "wins": 218
+            },
+            "H4": {
+              "net_profit": 556.48,
+              "max_drawdown": 17.5,
+              "profit_factor": 6.678367,
+              "trades": 70,
+              "wins": 42
+            },
+            "H12": {
+              "net_profit": 275.03,
+              "max_drawdown": 11.48,
+              "profit_factor": 7.548333,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 188.81,
+              "max_drawdown": 3.5,
+              "profit_factor": 9.990952,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 17168.49,
+            "max_drawdown": 69.66,
+            "profit_factor": 1.755727,
+            "trades": 21751,
+            "wins": 15264
+          },
+          "profitable_tfs": 8,
+          "score": 247.66124031
+        },
+        "spread_50": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.5,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 2252.85,
+              "max_drawdown": 572.61,
+              "profit_factor": 1.13118,
+              "trades": 15527,
+              "wins": 10624
+            },
+            "M5": {
+              "net_profit": 4582.42,
+              "max_drawdown": 36.31,
+              "profit_factor": 2.094048,
+              "trades": 3907,
+              "wins": 2715
+            },
+            "M15": {
+              "net_profit": 2920.23,
+              "max_drawdown": 23.68,
+              "profit_factor": 3.021634,
+              "trades": 1249,
+              "wins": 836
+            },
+            "M30": {
+              "net_profit": 2222.05,
+              "max_drawdown": 24.57,
+              "profit_factor": 3.748361,
+              "trades": 624,
+              "wins": 393
+            },
+            "H1": {
+              "net_profit": 1428.71,
+              "max_drawdown": 18.79,
+              "profit_factor": 3.758127,
+              "trades": 362,
+              "wins": 214
+            },
+            "H4": {
+              "net_profit": 549.13,
+              "max_drawdown": 17.5,
+              "profit_factor": 6.410148,
+              "trades": 70,
+              "wins": 41
+            },
+            "H12": {
+              "net_profit": 273.53,
+              "max_drawdown": 11.58,
+              "profit_factor": 7.512619,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 187.91,
+              "max_drawdown": 3.5,
+              "profit_factor": 9.948095,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 14416.83,
+            "max_drawdown": 115.94,
+            "profit_factor": 1.593342,
+            "trades": 21783,
+            "wins": 14849
+          },
+          "profitable_tfs": 8,
+          "score": 125.547334828
+        },
+        "slippage_10": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 10,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 5925.94,
+              "max_drawdown": 105.62,
+              "profit_factor": 1.39891,
+              "trades": 15521,
+              "wins": 11279
+            },
+            "M5": {
+              "net_profit": 5741.92,
+              "max_drawdown": 28.17,
+              "profit_factor": 2.595226,
+              "trades": 3905,
+              "wins": 2882
+            },
+            "M15": {
+              "net_profit": 3439.82,
+              "max_drawdown": 22.88,
+              "profit_factor": 3.756509,
+              "trades": 1248,
+              "wins": 891
+            },
+            "M30": {
+              "net_profit": 2454.33,
+              "max_drawdown": 23.85,
+              "profit_factor": 4.339224,
+              "trades": 624,
+              "wins": 414
+            },
+            "H1": {
+              "net_profit": 1570.57,
+              "max_drawdown": 17.5,
+              "profit_factor": 4.205245,
+              "trades": 362,
+              "wins": 222
+            },
+            "H4": {
+              "net_profit": 564.57,
+              "max_drawdown": 17.5,
+              "profit_factor": 6.974286,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 276.53,
+              "max_drawdown": 11.38,
+              "profit_factor": 7.584048,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 189.71,
+              "max_drawdown": 3.5,
+              "profit_factor": 10.03381,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 20163.39,
+            "max_drawdown": 56.75,
+            "profit_factor": 1.956283,
+            "trades": 21774,
+            "wins": 15757
+          },
+          "profitable_tfs": 8,
+          "score": 356.502026432
+        },
+        "slippage_20": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 20,
+          "commission_per_lot_usd": 0.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 4038.38,
+              "max_drawdown": 196.87,
+              "profit_factor": 1.252224,
+              "trades": 15497,
+              "wins": 10923
+            },
+            "M5": {
+              "net_profit": 5131.02,
+              "max_drawdown": 31.62,
+              "profit_factor": 2.304753,
+              "trades": 3904,
+              "wins": 2784
+            },
+            "M15": {
+              "net_profit": 3187.32,
+              "max_drawdown": 23.28,
+              "profit_factor": 3.392542,
+              "trades": 1248,
+              "wins": 867
+            },
+            "M30": {
+              "net_profit": 2307.39,
+              "max_drawdown": 24.05,
+              "profit_factor": 3.99661,
+              "trades": 624,
+              "wins": 404
+            },
+            "H1": {
+              "net_profit": 1498.8,
+              "max_drawdown": 18.69,
+              "profit_factor": 3.97381,
+              "trades": 362,
+              "wins": 218
+            },
+            "H4": {
+              "net_profit": 556.48,
+              "max_drawdown": 17.5,
+              "profit_factor": 6.678367,
+              "trades": 70,
+              "wins": 42
+            },
+            "H12": {
+              "net_profit": 275.03,
+              "max_drawdown": 11.48,
+              "profit_factor": 7.548333,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 188.81,
+              "max_drawdown": 3.5,
+              "profit_factor": 9.990952,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 17183.23,
+            "max_drawdown": 69.66,
+            "profit_factor": 1.756609,
+            "trades": 21749,
+            "wins": 15264
+          },
+          "profitable_tfs": 8,
+          "score": 247.872839506
+        },
+        "commission_7": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.2,
+          "slippage_points": 0,
+          "commission_per_lot_usd": 7.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 6683.12,
+              "max_drawdown": 75.99,
+              "profit_factor": 1.479549,
+              "trades": 15535,
+              "wins": 11626
+            },
+            "M5": {
+              "net_profit": 6043.4,
+              "max_drawdown": 25.04,
+              "profit_factor": 2.788999,
+              "trades": 3904,
+              "wins": 2963
+            },
+            "M15": {
+              "net_profit": 3587.04,
+              "max_drawdown": 23.53,
+              "profit_factor": 4.013129,
+              "trades": 1248,
+              "wins": 914
+            },
+            "M30": {
+              "net_profit": 2530.02,
+              "max_drawdown": 24.35,
+              "profit_factor": 4.525816,
+              "trades": 624,
+              "wins": 423
+            },
+            "H1": {
+              "net_profit": 1606.95,
+              "max_drawdown": 17.85,
+              "profit_factor": 4.30975,
+              "trades": 362,
+              "wins": 226
+            },
+            "H4": {
+              "net_profit": 563.57,
+              "max_drawdown": 17.85,
+              "profit_factor": 6.846768,
+              "trades": 70,
+              "wins": 43
+            },
+            "H12": {
+              "net_profit": 279.72,
+              "max_drawdown": 11.63,
+              "profit_factor": 8.122995,
+              "trades": 28,
+              "wins": 17
+            },
+            "D1": {
+              "net_profit": 189.49,
+              "max_drawdown": 3.57,
+              "profit_factor": 9.846405,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 21483.31,
+            "max_drawdown": 50.06,
+            "profit_factor": 2.081466,
+            "trades": 21787,
+            "wins": 16222
+          },
+          "profitable_tfs": 8,
+          "score": 430.351218538
+        },
+        "adverse_costs": {
+          "period": {
+            "start_bkk": "2025-10-06 21:57:03",
+            "end_bkk": "2026-10-06 21:57:03"
+          },
+          "spread": 0.4,
+          "slippage_points": 10,
+          "commission_per_lot_usd": 7.0,
+          "per_tf": {
+            "M1": {
+              "net_profit": 1165.96,
+              "max_drawdown": 1079.15,
+              "profit_factor": 1.066561,
+              "trades": 15527,
+              "wins": 10616
+            },
+            "M5": {
+              "net_profit": 4308.93,
+              "max_drawdown": 39.53,
+              "profit_factor": 2.008652,
+              "trades": 3907,
+              "wins": 2714
+            },
+            "M15": {
+              "net_profit": 2832.8,
+              "max_drawdown": 24.73,
+              "profit_factor": 2.922628,
+              "trades": 1249,
+              "wins": 836
+            },
+            "M30": {
+              "net_profit": 2178.37,
+              "max_drawdown": 25.27,
+              "profit_factor": 3.641505,
+              "trades": 624,
+              "wins": 393
+            },
+            "H1": {
+              "net_profit": 1403.37,
+              "max_drawdown": 19.28,
+              "profit_factor": 3.656087,
+              "trades": 362,
+              "wins": 214
+            },
+            "H4": {
+              "net_profit": 544.23,
+              "max_drawdown": 17.85,
+              "profit_factor": 6.256737,
+              "trades": 70,
+              "wins": 41
+            },
+            "H12": {
+              "net_profit": 271.57,
+              "max_drawdown": 11.93,
+              "profit_factor": 7.339169,
+              "trades": 28,
+              "wins": 16
+            },
+            "D1": {
+              "net_profit": 186.79,
+              "max_drawdown": 3.57,
+              "profit_factor": 9.720355,
+              "trades": 16,
+              "wins": 10
+            }
+          },
+          "combined": {
+            "net_profit": 12892.02,
+            "max_drawdown": 142.61,
+            "profit_factor": 1.520191,
+            "trades": 21783,
+            "wins": 14840
+          },
+          "profitable_tfs": 8,
+          "score": 91.600532922
+        }
+      }
+    }
+  }
+}

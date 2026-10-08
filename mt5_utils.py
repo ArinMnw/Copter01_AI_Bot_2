@@ -1,3 +1,4 @@
+from strategy_ids import normalize_sid
 import re
 import time
 import os
@@ -7,6 +8,15 @@ from config import *
 _MT5_CONNECTED = False
 _MT5_CONNECTED_CHECK_TS = 0.0
 _MT5_CONNECT_CACHE_SEC = 30.0
+
+
+def _sid_in_config_skip(sid, config_name: str) -> bool:
+    """Compare strategy ids robustly across int/float/string metadata."""
+    sid_text = str(normalize_sid(sid)).strip()
+    try:
+        return any(str(value).strip() == sid_text for value in getattr(config, config_name, ()))
+    except Exception:
+        return False
 
 
 def _mt5_terminal_path_matches(mt5_path: str) -> bool:
@@ -44,6 +54,8 @@ def _resolve_risk_volume(base_volume: float, signal: str, entry: float, sl: floa
     clamp: [volume_min, min(RISK_MAX_LOT, volume_max)] และ snap ตาม volume_step
     """
     try:
+        if _sid_in_config_skip(sid, "RISK_PERCENT_SKIP_SIDS"):
+            return float(base_volume)
         is_compounding = getattr(config, "RISK_PERCENT_ENABLED", False)
         risk_pct = float(getattr(config, "RISK_PERCENT", 2.0))
         max_lot = float(getattr(config, "RISK_MAX_LOT", 100.0))
@@ -116,7 +128,10 @@ def _scale_out_resolve_volume(base_volume: float, sid="", direction: str = "",
       - scaled_volume = 4 × base_volume
     """
     try:
-        if str(sid) in ("13", "17") or str(sid).startswith("20.") or str(sid) == "21":
+        if (_sid_in_config_skip(sid, "SCALE_OUT_SKIP_SIDS")
+                or str(sid) in ("13", "17")
+                or str(sid).startswith("20.")
+                or str(sid) == "21"):
             return float(base_volume), []
         if not config.SCALE_OUT_ENABLED or base_volume <= 0:
             return float(base_volume), []
@@ -289,7 +304,9 @@ def _is_s20_14_comment(comment: str) -> bool:
     s20_14_merge.py) — ไม่รวม strategy S20.x อื่นที่หน้าตาคล้ายกัน"""
     if not comment:
         return False
-    if "_s20.14-" in comment:
+    # case-insensitive: comment รูปแบบใหม่ (2026-09-23) พิมพ์ "S20.14-" ตัวใหญ่ แต่ order เก่าที่ยังค้าง
+    # อยู่ก่อนแก้อาจยังเป็น "s20.14-" ตัวเล็ก เช็คทั้งสองแบบกันตกหล่นระหว่างเปลี่ยนผ่าน
+    if "_s20.14-" in comment.lower():
         return True
     if "_S20." in comment:
         digits = comment.split("_S20.", 1)[1].split("_", 1)[0]
@@ -515,6 +532,42 @@ def _pattern_comment_code(pattern: str, sid="") -> str:
     return ""
 
 
+# sid (string) -> group number ของ S20.14 family (รวม group 20 ที่ต้องใช้ "20.1402" แทน
+# "20.1420" เพราะ float ตัด trailing zero ทิ้ง 20.1420==20.142 ชนกับ group 2 — ดู config.py)
+_S20_14_SID_GROUP = {
+    "20.141": 1, "20.142": 2, "20.143": 3, "20.144": 4, "20.145": 5, "20.146": 6,
+    "20.147": 7, "20.148": 8, "20.149": 9, "20.1410": 10, "20.1411": 11, "20.1412": 12,
+    "20.1413": 13, "20.1414": 14, "20.1415": 15, "20.1416": 16, "20.1417": 17,
+    "20.1418": 18, "20.1419": 19, "20.1402": 20, "20.1421": 21, "20.1422": 22,
+    "20.1423": 23, "20.1424": 24,
+}
+# ชุด sid (float) ครบทั้ง 24 group — ใช้เช็คว่า sid นี้เป็นตระกูล S20.14 หรือไม่
+# (ครบกว่า s20_14_merge.S20_14_GROUP_SID ที่มีแค่ group ที่รองรับ merge)
+S20_14_ALL_SIDS = {float(k) for k in _S20_14_SID_GROUP}
+# (mode, target) -> round label ที่ตรงกับ config.S20_14_GROUP_ROUND (ดู quant-verification-v2)
+_S20_14_ROUND_LABEL = {
+    ("S20.14.23", "SL_ONLY"): "R1",
+    ("S20.13.23", "SL_ONLY"): "R2",
+    ("S20.14.23", "BOTH"): "R3",
+    ("S20.13.23", "BOTH"): "R4",
+}
+
+
+def _s20_14_round_suffix(sid, tf: str = "", pattern: str = "") -> str:
+    """คืน "_R1".."_R4" ถ้า sid เป็นกลุ่ม S20.14 และคู่ (pattern, tf) นี้มีอยู่ใน config.S20_14_GROUP_COMBOS
+    2026-09-23 v2: เปลี่ยนจาก lookup ตาม group เดียว (S20_14_GROUP_ROUND เดิม) มาเป็นคู่ (pattern, tf) ตรงๆ
+    เพราะแต่ละคู่ใน top-10 ของกลุ่มเดียวกันมาจากคนละ round กัน (ไม่มี suffix สำหรับ group 23 ตามที่สั่งไม่ให้แตะ)"""
+    group_num = _S20_14_SID_GROUP.get(str(sid or ""))
+    if group_num is None:
+        return ""
+    combos = getattr(config, "S20_14_GROUP_COMBOS", {})
+    mode_target = combos.get(group_num, {}).get((pattern, tf))
+    if not mode_target:
+        return ""
+    label = _S20_14_ROUND_LABEL.get(tuple(mode_target))
+    return f"_{label}" if label else ""
+
+
 def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str = "",
                          parallel_tfs: list = None, parallel_patterns: list = None,
                          order_index=None) -> str:
@@ -524,7 +577,7 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
     # ด้านล่างทั้งหมด ใช้ comment สั้นๆ ที่ parse_merge_comment() อ่านกลับได้ตรง
     if pattern and str(pattern).startswith("S20_14_MERGE:"):
         labels = str(pattern).split(":", 1)[1]
-        return f"{tf}_s20.14-{labels}"[:28]
+        return f"{tf}_S20.14-{labels}"[:28]
     # S10 MTF: ถ้า pattern มี "MTF [HTF→LTF]" ให้แทน tf เป็น "[HTF_LTF]"
     tf_label = tf
     if pattern and str(sid or "") == "10":
@@ -544,7 +597,10 @@ def _build_order_comment(tf: str = "", sid="", pattern: str = "", fallback: str 
                 ltf_tf = parts[1].strip()
                 if htf_tf and ltf_tf and htf_tf.isalnum() and ltf_tf.isalnum():
                     tf_label = f"[{htf_tf}_{ltf_tf}]"
-    base = f"{tf_label}_S{sid}" if tf_label and sid else (f"{tf_label}" if tf_label else fallback)
+    sid = normalize_sid(sid)
+    sid_label = str(sid).upper() if isinstance(sid, str) else f"S{sid}"
+    base = f"{tf_label}_{sid_label}" if tf_label and sid else (f"{tf_label}" if tf_label else fallback)
+    base = f"{base}{_s20_14_round_suffix(sid, tf, pattern)}"[:28]
     code = _pattern_comment_code(pattern, sid)
     if not code:
         return base
@@ -912,7 +968,13 @@ def open_order_stop(signal, volume, sl, tp, entry_price, tf="", sid="", pattern=
         "sl":           sl,
         "tp":           tp,
         "deviation":    20,
-        "magic":        int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
+        "magic":        int(
+            (getattr(config, "EA2_1_MAGIC_NUMBER", 550021) or 550021)
+            if str(sid) == str(getattr(config, "EA2_1_SID", "ea2.1"))
+            else (getattr(config, "EA2_MAGIC_NUMBER", 550011) or 550011)
+            if str(sid) == str(getattr(config, "EA2_SID", "ea2"))
+            else (getattr(config, "MAGIC_NUMBER", 234001) or 234001)
+        ),
         "comment":      _build_order_comment(tf, sid, pattern, "Strategy4_Stop"),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_RETURN,
@@ -1012,7 +1074,9 @@ def open_order(signal, volume, sl, tp, entry_price=None, tf="", sid="", pattern=
 
     try:
         import config
-        if getattr(config, "ML_SCORING_ENABLED", False) and str(sid).isdigit() and int(sid) >= 80:
+        if (getattr(config, "ML_SCORING_ENABLED", False)
+                and not _sid_in_config_skip(sid, "ML_SCORING_SKIP_SIDS")
+                and str(sid).isdigit() and int(sid) >= 80):
             import ml_scoring
             from datetime import datetime, timezone, timedelta
             time_bkk = datetime.now(timezone(timedelta(hours=7)))
@@ -1192,7 +1256,9 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     
     try:
         import config
-        if getattr(config, "ML_SCORING_ENABLED", False) and str(sid).isdigit() and int(sid) >= 80:
+        if (getattr(config, "ML_SCORING_ENABLED", False)
+                and not _sid_in_config_skip(sid, "ML_SCORING_SKIP_SIDS")
+                and str(sid).isdigit() and int(sid) >= 80):
             import ml_scoring
             from datetime import datetime, timezone, timedelta
             time_bkk = datetime.now(timezone(timedelta(hours=7)))
@@ -1275,7 +1341,7 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
     if _guard_err:
         return {"success": False, "skipped": True, "error": f"🛡️ Symbol guard: {_guard_err}"}
 
-    r = mt5.order_send({
+    request = {
         "action":       mt5.TRADE_ACTION_DEAL,
         "symbol":       target_sym,
         "volume":       send_volume,
@@ -1284,11 +1350,18 @@ def open_order_market(signal, volume, sl, tp, tf="", sid="", pattern="", order_i
         "sl":           sl,
         "tp":           tp,
         "deviation":    20,
-        "magic":        int(getattr(config, "MAGIC_NUMBER", 234001) or 234001),
+        "magic":        int(
+            (getattr(config, "EA2_1_MAGIC_NUMBER", 550021) or 550021)
+            if str(sid) == str(getattr(config, "EA2_1_SID", "ea2.1"))
+            else (getattr(config, "EA2_MAGIC_NUMBER", 550011) or 550011)
+            if str(sid) == str(getattr(config, "EA2_SID", "ea2"))
+            else (getattr(config, "MAGIC_NUMBER", 234001) or 234001)
+        ),
         "comment":      _build_order_comment(tf, sid, pattern, "Strategy_Market", order_index=order_index),
         "type_time":    mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_FOK,
-    })
+    }
+    r = mt5.order_send(request)
     if r is None:
         err = mt5.last_error()
         return {"success": False, "error": f"order_send returned None — {err}"}

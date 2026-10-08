@@ -1,5 +1,6 @@
 from config import *
 import config
+from strategy_ids import normalize_sid, ea_comment_meta
 import re
 import inspect
 import os
@@ -1065,6 +1066,9 @@ def _parse_bot_comment(comment: str):
     """Parse comment like M1_S2, H4_S3, M1_S6i_buy -> (tf, sid)."""
     if not comment:
         return None, None
+    ea_meta = ea_comment_meta(comment)
+    if ea_meta:
+        return ea_meta
     if str(comment).startswith("DEMO-"):
         parts = str(comment).split("-")
         tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
@@ -1537,17 +1541,16 @@ async def check_s20_escape(app):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ── S20 Standalone Pending Order Expiry Manager (11 Strategies Only) ────────
+# ── S20 Standalone Pending Order Expiry Manager (8 Non-Redundant Strategies) ────────
 # ─────────────────────────────────────────────────────────────────────────────
 S20_11_STRATEGIES = (
-    20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28,
-    20.301, 20.302, 20.303, 20.304
+    20.18, 20.19, 20.20, 20.21, 20.22, 20.24, 20.28, 20.304
 )
 
 async def check_s20_pending_expiry(app):
     """
-    Standalone Expiry Manager สำหรับ 11 กลยุทธ์ S20 เท่านั้น:
-    (S20.18, S20.19, S20.20, S20.21, S20.22, S20.24, S20.28, S20.301, S20.302, S20.303, S20.304)
+    Standalone Expiry Manager สำหรับ 8 กลยุทธ์ S20 หลัก (ไม่ซ้ำ):
+    (S20.18, S20.19, S20.20, S20.21, S20.22, S20.24, S20.28, S20.304)
 
     ตรวจสอบ Pending Orders ที่ค้างเกินระยะเวลา cancel_bars (หรือเวลาสูงสุด max_wait_sec จาก time_setup)
     แล้วยกเลิก Order ทันทีแบบ Standalone 100% โดยไม่ขึ้นกับ Trend Check หรือ Config Gate อื่น
@@ -1567,7 +1570,7 @@ async def check_s20_pending_expiry(app):
         ticket = int(order.ticket)
 
         # Resolve SID
-        sid = position_sid.get(ticket)
+        sid = normalize_sid(position_sid.get(ticket))
         if sid is None:
             _pend = pending_order_tf.get(ticket)
             if isinstance(_pend, dict):
@@ -1674,6 +1677,15 @@ async def check_scale_out_partial(app):
     _query_dt = time.perf_counter() - _t0
 
     for tk, st in list(config.scale_out_state.items()):
+        sid_str = str(st.get("sid", "") or "").strip()
+        scale_out_skip = {
+            str(value).strip()
+            for value in getattr(config, "SCALE_OUT_SKIP_SIDS", ())
+        }
+        if sid_str in scale_out_skip:
+            # State เก่าจากก่อนตั้ง standalone ต้องไม่กลับมาปิดบางส่วนภายหลัง
+            config.scale_out_state.pop(tk, None)
+            continue
         # ข้ามถ้ายังเป็น pending (รอ fill)
         if tk not in pos_by_ticket:
             continue
@@ -1683,7 +1695,6 @@ async def check_scale_out_partial(app):
         per_tp    = float(st.get("per_tp_volume", 0.01))
         distances = st.get("tp_distances", [])
         step      = int(st.get("step", 0))
-        sid_str   = str(st.get("sid", "") or "")
 
         if step >= len(distances):
             continue
@@ -1830,6 +1841,15 @@ def scale_out_cleanup_on_disable() -> dict:
     pending_by_ticket = {int(o.ticket): o for o in pending_orders}
 
     for tk, st in list(config.scale_out_state.items()):
+        sid_str = str(st.get("sid", "") or "").strip()
+        if sid_str in {
+            str(value).strip()
+            for value in getattr(config, "SCALE_OUT_SKIP_SIDS", ())
+        }:
+            # Standalone strategy: clear stale TSO metadata only; never close
+            # or recreate its broker order when the global toggle changes.
+            config.scale_out_state.pop(tk, None)
+            continue
         direction = st.get("direction", "BUY")
         base_vol  = float(st.get("base_volume", 0.01))
 
@@ -2021,7 +2041,7 @@ async def _close_linked_s11_for_tf(app, tf_name: str, trigger_reason: str) -> No
     for order in orders:
         if getattr(order, "magic", 0) >= 990000: continue
         ticket = int(order.ticket)
-        if int(position_sid.get(ticket, 0) or 0) != 11:
+        if normalize_sid(position_sid.get(ticket, 0)) != 11:
             continue
         if str(position_tf.get(ticket, "")) != str(tf_name):
             continue
@@ -2050,7 +2070,7 @@ async def _close_linked_s11_for_tf(app, tf_name: str, trigger_reason: str) -> No
     for pos in positions:
         if getattr(pos, "magic", 0) >= 990000: continue
         ticket = int(pos.ticket)
-        if int(position_sid.get(ticket, 0) or 0) != 11:
+        if normalize_sid(position_sid.get(ticket, 0)) != 11:
             continue
         if str(position_tf.get(ticket, "")) != str(tf_name):
             continue
@@ -2163,7 +2183,7 @@ def s2s3_chain_try_join(new_ticket: int, tf_name: str, signal: str) -> None:
         if t == new_ticket:
             continue
         info = pending_order_tf.get(t)
-        if not isinstance(info, dict) or int(info.get("sid", 0) or 0) not in (2, 3):
+        if not isinstance(info, dict) or normalize_sid(info.get("sid", 0)) not in (2, 3):
             continue
         if info.get("tf") != tf_name or str(info.get("signal", "")).upper() != signal:
             continue
@@ -2345,7 +2365,7 @@ async def check_s1_zone_rules(app):
         if getattr(order, "magic", 0) >= 990000: continue
         ticket = int(order.ticket)
         info = pending_order_tf.get(ticket)
-        if not isinstance(info, dict) or int(info.get("sid", 0) or 0) != 1:
+        if not isinstance(info, dict) or normalize_sid(info.get("sid", 0)) != 1:
             continue
         zone_meta = info.get("s1_zone_meta") or {}
         if not zone_meta.get("enabled"):
@@ -2592,7 +2612,7 @@ async def check_s1_rejection_entry(app):
     for pos in positions:
         if getattr(pos, "magic", 0) >= 990000: continue
         ticket = int(pos.ticket)
-        if int(position_sid.get(ticket, 0) or 0) != 1:
+        if normalize_sid(position_sid.get(ticket, 0)) != 1:
             continue
         if ticket in _s1_rejection_checked:
             continue
@@ -2671,7 +2691,7 @@ async def check_s1_forward_confirm_rules(app):
         if getattr(order, "magic", 0) >= 990000: continue
         ticket = int(order.ticket)
         info = pending_order_tf.get(ticket)
-        if not isinstance(info, dict) or int(info.get("sid", 0) or 0) != 1:
+        if not isinstance(info, dict) or normalize_sid(info.get("sid", 0)) != 1:
             continue
         forward_meta = info.get("s1_forward_meta") or {}
         if not forward_meta.get("enabled") or forward_meta.get("confirmed"):
@@ -2785,7 +2805,7 @@ async def check_s1_forward_confirm_rules(app):
 async def _cancel_s10_sibling_orders(app, filled_ticket: int, filled_info: dict, source_ticket: int | None = None) -> None:
     if not isinstance(filled_info, dict):
         return
-    if int(filled_info.get("sid", 0) or 0) != 10:
+    if normalize_sid(filled_info.get("sid", 0)) != 10:
         return
     sibling_tickets = [int(t) for t in (filled_info.get("s10_sibling_tickets") or []) if int(t) > 0]
     if not sibling_tickets:
@@ -3358,15 +3378,18 @@ def _resolve_pos_sid(ticket, comment: str = ""):
     """
     sid = position_sid.get(ticket)
     if sid is not None:
-        return sid
+        return normalize_sid(sid)
     _p = pending_order_tf.get(ticket)
     if isinstance(_p, dict) and _p.get("sid") is not None:
-        return _p.get("sid")
+        return normalize_sid(_p.get("sid"))
     _t = getattr(config, "tracked_positions", {}) or {}
     _info = _t.get(ticket) or _t.get(str(ticket))
     if isinstance(_info, dict) and _info.get("sid") is not None:
-        return _info.get("sid")
+        return normalize_sid(_info.get("sid"))
     comment_text = str(comment or "")
+    ea_meta = ea_comment_meta(comment_text)
+    if ea_meta:
+        return ea_meta[1]
     if comment_text.startswith("DEMO-") or re.match(r"^(M\d+|H\d+|D\d+)-(?:P13|P16|AF\d+|LTS\d+|LTS_AHR\d*|LTS_AUS\d*|LTS_AHF|LTS_AP34|LTS_AVB|LTS_AVENGERS_[A-Z_]+|LTS_EVOLUTION9|LTS_SCREEN13|LTS_WINRATE5|LTS_ROLLOVER[A-Z_]*|S4\d\d)-", comment_text):
         return 21
     m = _SID_COMMENT_RE.search(comment_text)
@@ -3586,7 +3609,7 @@ async def check_limit_fill_notify(app):
         ticket = pos.ticket
         if ticket in _fill_notified:
             continue
-        sid = position_sid.get(ticket)
+        sid = normalize_sid(position_sid.get(ticket))
         if sid in (12, 13):
             _fill_notified[ticket] = True   # mark to skip future calls
             continue
@@ -4347,7 +4370,7 @@ async def check_pending_trend_approach(app):
             continue
 
         # Resolve SID
-        sid = position_sid.get(ticket)
+        sid = normalize_sid(position_sid.get(ticket))
         if sid is None:
             _pend = pending_order_tf.get(ticket)
             if isinstance(_pend, dict):
@@ -5947,6 +5970,139 @@ async def check_entry_candle_quality(app):
 
 
 # -------------------------------------------------------------
+async def check_ea2_trail(app):
+    """Dedicated EA2 fixed-point BE/trailing matching the source MQ5.
+
+    No in-memory phase is required: every cycle derives the best SL from the
+    broker position and current price, so restart/disconnect recovery is
+    automatic. Failed modifications are naturally retried on the next cycle.
+    """
+    ea2_sid = config.EA2_SID
+    if not active_strategies.get(ea2_sid, False):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if positions is None:
+        log_error("EA2_TRAIL", "positions_get returned None", sid=ea2_sid)
+        return
+    info = mt5.symbol_info(SYMBOL)
+    tick = mt5.symbol_info_tick(SYMBOL)
+    if info is None or tick is None:
+        return
+    point = float(getattr(info, "point", 0.01) or 0.01)
+    digits = int(getattr(info, "digits", 2) or 2)
+    use_be = bool(getattr(config, "EA2_USE_BREAKEVEN", True))
+    be_trigger = float(getattr(config, "EA2_BREAKEVEN_TRIGGER_POINTS", 150)) * point
+    be_lock = float(getattr(config, "EA2_BREAKEVEN_LOCK_POINTS", 10)) * point
+    use_trail = bool(getattr(config, "EA2_USE_TRAILING", True))
+    trail_trigger = float(getattr(config, "EA2_TRAIL_TRIGGER_POINTS", 200)) * point
+    trail_distance = float(getattr(config, "EA2_TRAIL_DISTANCE_POINTS", 300)) * point
+    step = float(getattr(config, "EA2_TRAIL_STEP_POINTS", 10)) * point
+
+    for pos in positions:
+        ticket = int(pos.ticket)
+        sid = normalize_sid(position_sid.get(ticket))
+        ea2_magic = int(getattr(config, "EA2_MAGIC_NUMBER", 550011) or 550011)
+        if (sid != ea2_sid and (
+                int(getattr(pos, "magic", 0) or 0) == ea2_magic
+                or (ea_comment_meta(getattr(pos, "comment", "")) or (None, None))[1] == ea2_sid
+        )):
+            sid = ea2_sid
+            position_sid[ticket] = ea2_sid
+            position_tf.setdefault(ticket, "M1")
+            position_pattern.setdefault(ticket, "EA2_OB_RETEST")
+            save_runtime_state()
+            log_event("EA2_RECONCILE", "restored position metadata", ticket=ticket, sid=ea2_sid, tf="M1")
+        if sid != ea2_sid:
+            continue
+        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+        price = float(tick.bid if is_buy else tick.ask)
+        entry = float(pos.price_open)
+        profit_distance = price - entry if is_buy else entry - price
+        old_sl = float(pos.sl or 0.0)
+        candidate = old_sl
+        if use_be and profit_distance >= be_trigger:
+            be = entry + (be_lock if is_buy else -be_lock)
+            candidate = max(candidate, be) if is_buy else (min(candidate, be) if candidate > 0 else be)
+        if use_trail and profit_distance >= trail_trigger:
+            trail = price - trail_distance if is_buy else price + trail_distance
+            candidate = max(candidate, trail) if is_buy else (min(candidate, trail) if candidate > 0 else trail)
+        if candidate <= 0:
+            continue
+        if is_buy:
+            improved = candidate > old_sl + step
+        else:
+            improved = old_sl <= 0 or candidate < old_sl - step
+        candidate = round(candidate, digits)
+        if improved and _modify_sl(pos, candidate):
+            log_event(
+                "EA2_TRAIL", "SL updated", ticket=ticket, sid=ea2_sid,
+                old_sl=old_sl, new_sl=candidate,
+            )
+
+
+async def check_ea2_1_trail(app):
+    """Restart-safe fixed-point breakeven/trailing for EA2.1 positions."""
+    sid_target = config.EA2_1_SID
+    if not active_strategies.get(sid_target, False):
+        return
+    positions = mt5.positions_get(symbol=SYMBOL)
+    if positions is None:
+        log_error("EA2_1_TRAIL", "positions_get returned None", sid=sid_target)
+        return
+    info = mt5.symbol_info(SYMBOL)
+    tick = mt5.symbol_info_tick(SYMBOL)
+    if info is None or tick is None:
+        return
+    point = float(getattr(info, "point", 0.01) or 0.01)
+    digits = int(getattr(info, "digits", 2) or 2)
+    use_be = bool(getattr(config, "EA2_1_USE_BREAKEVEN", True))
+    be_trigger = float(getattr(config, "EA2_1_BREAKEVEN_TRIGGER_POINTS", 75)) * point
+    be_lock = float(getattr(config, "EA2_1_BREAKEVEN_LOCK_POINTS", 25)) * point
+    use_trail = bool(getattr(config, "EA2_1_USE_TRAILING", True))
+    trail_trigger = float(getattr(config, "EA2_1_TRAIL_TRIGGER_POINTS", 100)) * point
+    trail_distance = float(getattr(config, "EA2_1_TRAIL_DISTANCE_POINTS", 75)) * point
+    step = float(getattr(config, "EA2_1_TRAIL_STEP_POINTS", 5)) * point
+    magic = int(getattr(config, "EA2_1_MAGIC_NUMBER", 550021) or 550021)
+
+    for pos in positions:
+        ticket = int(pos.ticket)
+        sid = normalize_sid(position_sid.get(ticket))
+        comment = str(getattr(pos, "comment", "")).upper()
+        if sid != sid_target and (
+                int(getattr(pos, "magic", 0) or 0) == magic
+                or (ea_comment_meta(comment) or (None, None))[1] == sid_target
+        ):
+            sid = sid_target
+            position_sid[ticket] = sid_target
+            position_tf.setdefault(ticket, "M5")
+            position_pattern.setdefault(ticket, "EA2_1_M5_M15")
+            save_runtime_state()
+            log_event("EA2_1_RECONCILE", "restored position metadata", ticket=ticket,
+                      sid=sid_target, tf="M5")
+        if sid != sid_target:
+            continue
+        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+        price = float(tick.bid if is_buy else tick.ask)
+        entry = float(pos.price_open)
+        profit_distance = price - entry if is_buy else entry - price
+        old_sl = float(pos.sl or 0.0)
+        candidate = old_sl
+        if use_be and profit_distance >= be_trigger:
+            be = entry + (be_lock if is_buy else -be_lock)
+            candidate = max(candidate, be) if is_buy else (min(candidate, be) if candidate > 0 else be)
+        if use_trail and profit_distance >= trail_trigger:
+            trail = price - trail_distance if is_buy else price + trail_distance
+            candidate = max(candidate, trail) if is_buy else (min(candidate, trail) if candidate > 0 else trail)
+        if candidate <= 0:
+            continue
+        improved = candidate > old_sl + step if is_buy else old_sl <= 0 or candidate < old_sl - step
+        candidate = round(candidate, digits)
+        if improved and _modify_sl(pos, candidate):
+            log_event("EA2_1_TRAIL", "SL updated", ticket=ticket, sid=sid_target,
+                      old_sl=old_sl, new_sl=candidate)
+
+
+# -------------------------------------------------------------
 async def check_engulf_trail_sl(app):
     """
     Trail SL by TF group.
@@ -6730,7 +6886,7 @@ _s20_inst_trail_state: dict = {}  # {ticket: {"risk": float, "stage_idx": int, "
 
 async def check_s20_institutional_trail(app):
     """
-    Multi-stage ratchet trailing for S20.301, S20.302, S20.303, S20.304
+    Multi-stage ratchet trailing for S20.301-304 (make_stages) และทุก sid ใน 48_New_God_S20 ที่ส่ง stages มากับออเดอร์
     Monitors live price across all traded symbols and locks SL progressively at each R-multiple.
     """
     positions = mt5.positions_get()
@@ -6738,13 +6894,36 @@ async def check_s20_institutional_trail(app):
         return
     for pos in positions:
         ticket = pos.ticket
-        sid = position_sid.get(ticket)
+        sid = normalize_sid(position_sid.get(ticket))
         if sid is None:
             _, sid, _ = _infer_position_meta_from_comment(pos)
             if sid is not None:
                 position_sid[ticket] = sid
-        if sid not in (20.301, 20.302, 20.303, 20.304):
-            continue
+        # 20.3006 = S20.300 v2 (โซน+M5 confirm) — backtest ที่ validate (walk-forward/sensitivity) ใช้
+        # ratchet 55-stage + BE@0.8R แบบไม่มีสวิตช์ปิดอยู่แล้ว (run_simulation ไม่มี flag ให้ปิด)
+        # จึงให้ไม้กลุ่มนี้ ratchet เสมอเหมือน 301-304 ไม่ขึ้นกับ S20_NEW_GOD_RATCHET_ENABLED ของกลุ่ม 1 เดิม
+        _fixed_ratchet = sid in (20.301, 20.302, 20.303, 20.304, 20.3006)
+        _pend_meta = pending_order_tf.get(ticket) or {}
+        _ratchet_stages, _ratchet_be = None, 0.0
+        if not _fixed_ratchet:
+            # กลุ่มใหม่ของ 48_New_God_S20: ใช้ stages/be_r ที่ detector ส่งมาและ scanner เก็บไว้ใน pending_order_tf
+            # ถ้าไม้เปิดก่อน wire (ไม่มี stages ใน pending info) ให้ fallback ไปค่าที่ผูกกับ detector ใน hub
+            if not getattr(config, "S20_NEW_GOD_RATCHET_ENABLED", False):
+                continue
+            if sid not in config._s20_institutional_variants:
+                continue
+            if isinstance(_pend_meta, dict) and "stages" in _pend_meta:
+                _ratchet_stages = [(float(_t), float(_l)) for _t, _l in (_pend_meta.get("stages") or [])]
+                _ratchet_be = float(_pend_meta.get("be_r") or 0.0)
+            else:
+                try:
+                    import s20_institutional_hub as _hub
+                    _rc = getattr(_hub.DISPATCHER.get(sid), "ratchet", None)
+                except Exception:
+                    _rc = None
+                if not _rc:
+                    continue
+                _ratchet_stages, _ratchet_be = [(float(_t), float(_l)) for _t, _l in _rc[0]], float(_rc[1])
 
         sym = pos.symbol
         tick = mt5.symbol_info_tick(sym)
@@ -6785,7 +6964,8 @@ async def check_s20_institutional_trail(app):
         # state flag แยก เพราะเงื่อนไข pos.sl ฝั่งตรงข้าม entry การันตีไม่ยิงซ้ำเมื่อ lock แล้ว)
         be_target = round(entry, digits)
         be_locked = (pos.sl >= be_target) if pos_type == "BUY" else (0 < pos.sl <= be_target)
-        if cur_r >= 0.8 and not be_locked:
+        _be_r = 0.8 if _fixed_ratchet else _ratchet_be
+        if _be_r > 0 and cur_r >= _be_r and not be_locked:
             if _modify_sl(pos, be_target):
                 sig_e = "🟢" if pos_type == "BUY" else "🔴"
                 clean_sym = sym.replace(".iux", "")
@@ -6795,11 +6975,14 @@ async def check_s20_institutional_trail(app):
                     f"SL: `{pos.sl}` -> `{be_target}` (entry)"
                 ))
 
-        try:
-            from strategy.run_master_s20_marathon_201_to_300 import make_stages
-            stages = make_stages(56 if sid == 20.303 else 55)
-        except Exception:
-            stages = [(1.5, 1.0), (2.4, 2.0), (3.0, 2.8)]
+        if _fixed_ratchet:
+            try:
+                from strategy.run_master_s20_marathon_201_to_300 import make_stages
+                stages = make_stages(56 if sid == 20.303 else 55)
+            except Exception:
+                stages = [(1.5, 1.0), (2.4, 2.0), (3.0, 2.8)]
+        else:
+            stages = _ratchet_stages
 
         best_idx = -1
         best_trig = 0.0
@@ -7711,7 +7894,7 @@ def _pdfiboplus_process(ticket: int, order, info: dict, combined: bool = False) 
         return "wait", []
 
     tf          = info.get("tf", "")
-    _order_sid  = int(info.get("sid", 0) or 0)
+    _order_sid  = normalize_sid(info.get("sid", 0))
     order_price = float(order.price_open)
     sig_e   = _pending_order_icon(order)
     ot_name = _pending_order_type_name(order)
@@ -9142,7 +9325,7 @@ async def check_s14_engulf_exits(app):
         if getattr(pos, "magic", 0) >= 990000: continue
         ticket = int(pos.ticket)
         # Check if the position belongs to S14 engulf or sweep
-        sid = position_sid.get(ticket)
+        sid = normalize_sid(position_sid.get(ticket))
         pattern = position_pattern.get(ticket) or ""
         
         # If not tracked in memory, try parsing comment

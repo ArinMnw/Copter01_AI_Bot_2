@@ -14,6 +14,11 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 import bisect
+import bisect as _bi
+# Rule #2: สัญญาณรู้ได้เมื่อแท่งปิดแล้ว (bar_open + tf_secs) จึงเริ่มหา fill หลังแท่งปิด; ตั้ง LEGACY_FILL_FROM_BAR_OPEN=1 เพื่อรันแบบเดิมเทียบ
+_LEGACY_FILL = bool(__import__("os").environ.get("LEGACY_FILL_FROM_BAR_OPEN"))
+TF_SECS_FIX = {} if _LEGACY_FILL else {"M1": 60, "M5": 300, "M12": 720, "M15": 900, "M20": 1200, "M30": 1800, "H1": 3600, "H2": 7200, "H3": 10800, "H4": 14400, "H12": 43200, "D1": 86400}
+FILL_BISECT = _bi.bisect_right if _LEGACY_FILL else _bi.bisect_left
 from datetime import datetime, timedelta, timezone
 import os
 import sys
@@ -107,11 +112,11 @@ def main():
         last_exit_time = 0
 
         for s in setups:
-            sig_time = s["time"]
+            sig_time = s["time"] + TF_SECS_FIX.get(s["tf"], 0)
             if sig_time < last_exit_time + 900:  # 15-min dedup
                 continue
 
-            m5_start = bisect.bisect_right(m5_times, sig_time)
+            m5_start = FILL_BISECT(m5_times, sig_time)
             if m5_start >= m5_len:
                 continue
 
@@ -127,7 +132,7 @@ def main():
 
             filled = False
             fill_m5 = 0
-            for k in range(m5_start, min(m5_start + 24, m5_len)):
+            for k in range(m5_start, min(m5_start + int(os.environ.get("FILL_WAIT_M5", "24")), m5_len)):
                 m_b = m5_gold[k]
                 if sig == "BUY" and m_b['low'] <= entry:
                     filled = True
@@ -161,7 +166,7 @@ def main():
                     # STRICT PESSIMISTIC: SL FIRST!
                     if b['low'] <= current_sl:
                         if lock_active:
-                            outcome = "WIN"
+                            outcome = "TRAIL_TP"
                             trade_pnl = (locked_sl - entry) * point_val
                         elif be_active:
                             outcome = "BE"
@@ -173,7 +178,7 @@ def main():
 
                     # TP check only if SL not touched
                     if b['high'] >= tp:
-                        outcome = "WIN"
+                        outcome = "FULL_TP"
                         trade_pnl = abs(tp - entry) * point_val
                         break
 
@@ -185,10 +190,25 @@ def main():
                         be_active = True
                         current_sl = entry
 
+                    # Rule #5 (pessimistic completeness): recheck SAME bar's low against the
+                    # just-updated SL (a stage/BE trigger from this bar's high must not ignore
+                    # a retracement to the new SL within the same bar).
+                    if b['low'] <= current_sl:
+                        if lock_active:
+                            outcome = "TRAIL_TP"
+                            trade_pnl = (locked_sl - entry) * point_val
+                        elif be_active:
+                            outcome = "BE"
+                            trade_pnl = 0.0
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = -abs(entry - current_sl) * point_val
+                        break
+
                 else: # SELL
                     if b['high'] >= current_sl:
                         if lock_active:
-                            outcome = "WIN"
+                            outcome = "TRAIL_TP"
                             trade_pnl = (entry - locked_sl) * point_val
                         elif be_active:
                             outcome = "BE"
@@ -199,7 +219,7 @@ def main():
                         break
 
                     if b['low'] <= tp:
-                        outcome = "WIN"
+                        outcome = "FULL_TP"
                         trade_pnl = abs(entry - tp) * point_val
                         break
 
@@ -210,15 +230,30 @@ def main():
                         be_active = True
                         current_sl = entry
 
+                    # Rule #5 (pessimistic completeness): recheck SAME bar's high against the
+                    # just-updated SL.
+                    if b['high'] >= current_sl:
+                        if lock_active:
+                            outcome = "TRAIL_TP"
+                            trade_pnl = (entry - locked_sl) * point_val
+                        elif be_active:
+                            outcome = "BE"
+                            trade_pnl = 0.0
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = -abs(current_sl - entry) * point_val
+                        break
+
             if outcome is None:
                 last_b = m5_gold[min(fill_m5 + 288, m5_len - 1)]
                 close_p = last_b['close']
                 trade_pnl = (close_p - entry) * point_val if sig == "BUY" else (entry - close_p) * point_val
-                outcome = "WIN" if trade_pnl > 0.05 else ("LOSS" if trade_pnl < -0.05 else "BE")
+                outcome = "TIMEOUT_WIN" if trade_pnl > 0.05 else ("TIMEOUT_LOSS" if trade_pnl < -0.05 else "BE")
 
+            trade_pnl -= 0.27 * point_val  # Rule #8: realistic spread ($0.20) + commission ($0.07/0.01-lot) friction cost
             last_exit_time = exit_time
 
-            if outcome == "WIN":
+            if outcome in ("FULL_TP", "TRAIL_TP", "TIMEOUT_WIN"):
                 wins += 1
             elif outcome == "LOSS":
                 losses += 1

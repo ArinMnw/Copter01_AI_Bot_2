@@ -80,8 +80,8 @@ def compute_indicators_df(gold_rates, silver_rates=None):
     df['asian_low_raw'] = np.where(asian_mask, df['low'], np.nan)
     day_asian_high = df.groupby('date')['asian_high_raw'].transform('max')
     day_asian_low = df.groupby('date')['asian_low_raw'].transform('min')
-    df['asian_high'] = day_asian_high
-    df['asian_low'] = day_asian_low
+    df['asian_high'] = np.where(df['hour'] >= 8, day_asian_high, np.nan)
+    df['asian_low'] = np.where(df['hour'] >= 8, day_asian_low, np.nan)
 
     # Previous Day High / Low (Shifted by 1 day so today only sees yesterday!)
     day_highs = df.groupby('date')['high'].max()

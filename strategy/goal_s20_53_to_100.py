@@ -15,6 +15,11 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 import bisect
+import bisect as _bi
+# Rule #2: สัญญาณรู้ได้เมื่อแท่งปิดแล้ว (bar_open + tf_secs) จึงเริ่มหา fill หลังแท่งปิด; ตั้ง LEGACY_FILL_FROM_BAR_OPEN=1 เพื่อรันแบบเดิมเทียบ
+_LEGACY_FILL = bool(__import__("os").environ.get("LEGACY_FILL_FROM_BAR_OPEN"))
+TF_SECS_FIX = {} if _LEGACY_FILL else {"M1": 60, "M5": 300, "M12": 720, "M15": 900, "M20": 1200, "M30": 1800, "H1": 3600, "H2": 7200, "H3": 10800, "H4": 14400, "H12": 43200, "D1": 86400}
+FILL_BISECT = _bi.bisect_right if _LEGACY_FILL else _bi.bisect_left
 from datetime import datetime, timedelta, timezone
 import os, sys
 
@@ -108,8 +113,8 @@ def compute_indicators(rates, use_london=True, use_ny=True, use_ny_pm=True, fvg_
     asian_mask = (df['hour'] >= 0) & (df['hour'] < 8)
     df['asian_high_raw'] = np.where(asian_mask, df['high'], np.nan)
     df['asian_low_raw'] = np.where(asian_mask, df['low'], np.nan)
-    df['asian_high'] = df.groupby('date')['asian_high_raw'].transform('max')
-    df['asian_low'] = df.groupby('date')['asian_low_raw'].transform('min')
+    df['asian_high'] = np.where(df['hour'] >= 8, df.groupby('date')['asian_high_raw'].transform('max'), np.nan)
+    df['asian_low'] = np.where(df['hour'] >= 8, df.groupby('date')['asian_low_raw'].transform('min'), np.nan)
 
     # London Session (08:00 - 13:00 UTC)
     if use_london:
@@ -173,7 +178,7 @@ def compute_indicators(rates, use_london=True, use_ny=True, use_ny_pm=True, fvg_
 
 def extract_setups(df, tf_label, min_vol=1.17, min_wick=0.30, retest_depth=0.124, sl_mult=0.20, hours=(0, 22),
                    use_pyh=True, use_ldn=True, use_ny=True, use_ny_pm=True, use_fvg=True, use_fibo=True, use_vp=True,
-                   crt_momentum=0.45, rsi_bounds=(68.0, 32.0)):
+                   crt_momentum=0.45, rsi_bounds=(68.0, 32.0), sl_floor=0.22):
     setups = []
     h_start, h_end = hours
     rsi_buy_max, rsi_sell_min = rsi_bounds
@@ -277,7 +282,7 @@ def extract_setups(df, tf_label, min_vol=1.17, min_wick=0.30, retest_depth=0.124
         if not sig:
             continue
 
-        sl_buf = max(sl_mult * atr, 0.22)
+        sl_buf = max(sl_mult * atr, sl_floor)
         if sig == "BUY":
             sl = round(cur['low'] - sl_buf, 2)
             entry = round(cur['low'] + (retest_depth * cur['lower_wick']), 2)
@@ -302,7 +307,8 @@ def extract_setups(df, tf_label, min_vol=1.17, min_wick=0.30, retest_depth=0.124
         })
     return setups
 
-def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
+def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None, spread=0.27):
+    # spread=0.27 = $0.20 realistic spread + $0.07/0.01-lot commission (Rule #8)
     if stages is None:
         stages = [
             (1.5, 1.0), (2.4, 2.0), (3.0, 2.8), (3.5, 3.3), (3.8, 3.5),
@@ -316,17 +322,18 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
 
     busy_until = 0
     trades = 0; wins = 0; bes = 0; losses = 0
+    full_tp = 0; trail_tp = 0; timeout_win = 0  # Rule #11: transparent outcome breakdown
     total_pnl = 0.0
     monthly_stats = {}
     trade_records = []
     peak = 0.0; max_dd = 0.0
 
     for s in combined:
-        s_time = s['time']
+        s_time = s["time"] + TF_SECS_FIX.get(s["tf"], 0)
         if s_time < busy_until:
             continue
 
-        m5_start = bisect.bisect_right(m5_times, s_time)
+        m5_start = FILL_BISECT(m5_times, s_time)
         if m5_start >= m5_len:
             continue
 
@@ -345,7 +352,7 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
             stage_levels.append((t_price, s_price))
 
         filled = False; fill_m5 = 0
-        for k in range(m5_start, min(m5_start + 24, m5_len)):
+        for k in range(m5_start, min(m5_start + int(os.environ.get("FILL_WAIT_M5", "24")), m5_len)):
             m_b = m5_gold[k]
             if sig == "BUY" and m_b['low'] <= entry:
                 filled = True; fill_m5 = k; break
@@ -375,7 +382,7 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
                 # PESSIMISTIC SL-FIRST EVALUATION
                 if b['low'] <= current_sl:
                     if active_stage_idx >= 0:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"  # Rule #11: ratchet-locked partial win, not full target
                         trade_pnl = (stage_levels[active_stage_idx][1] - entry) * point_val
                     elif be_active:
                         outcome = "BE"; trade_pnl = 0.0
@@ -385,7 +392,7 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
 
                 # TP Evaluation
                 if b['high'] >= tp:
-                    outcome = "WIN"; trade_pnl = (tp - entry) * point_val
+                    outcome = "FULL_TP"; trade_pnl = (tp - entry) * point_val
                     break
 
                 # Trailing Ratchet Locks Activation
@@ -401,11 +408,22 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
                     be_active = True
                     current_sl = max(current_sl, entry)
 
+                # Rule #5 (pessimistic completeness): the bar's high just justified moving
+                # the SL up — must recheck the SAME bar's low against the NEW SL, since we
+                # cannot know whether price hit the high before or after retracing down.
+                if b['low'] <= current_sl:
+                    if active_stage_idx >= 0:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (current_sl - entry) * point_val
+                    elif be_active:
+                        outcome = "BE"; trade_pnl = 0.0
+                    break
+
             else:  # SELL
                 # PESSIMISTIC SL-FIRST EVALUATION
                 if b['high'] >= current_sl:
                     if active_stage_idx >= 0:
-                        outcome = "WIN"
+                        outcome = "TRAIL_TP"  # Rule #11: ratchet-locked partial win, not full target
                         trade_pnl = (entry - stage_levels[active_stage_idx][1]) * point_val
                     elif be_active:
                         outcome = "BE"; trade_pnl = 0.0
@@ -415,7 +433,7 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
 
                 # TP Evaluation
                 if b['low'] <= tp:
-                    outcome = "WIN"; trade_pnl = (entry - tp) * point_val
+                    outcome = "FULL_TP"; trade_pnl = (entry - tp) * point_val
                     break
 
                 # Trailing Ratchet Locks Activation
@@ -431,18 +449,33 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
                     be_active = True
                     current_sl = min(current_sl, entry)
 
+                # Rule #5 (pessimistic completeness): the bar's low just justified moving
+                # the SL down — must recheck the SAME bar's high against the NEW SL.
+                if b['high'] >= current_sl:
+                    if active_stage_idx >= 0:
+                        outcome = "TRAIL_TP"
+                        trade_pnl = (entry - current_sl) * point_val
+                    elif be_active:
+                        outcome = "BE"; trade_pnl = 0.0
+                    break
+
         if outcome is None:
             final_b = m5_gold[min(fill_m5 + 288, m5_len - 1)]
             final_c = final_b['close']
             exit_time = final_b['time']
             pnl_pts = (final_c - entry) if sig == "BUY" else (entry - final_c)
             trade_pnl = pnl_pts * point_val
-            if trade_pnl > 0.05: outcome = "WIN"
-            elif trade_pnl < -0.05: outcome = "LOSS"
+            if trade_pnl > 0.05: outcome = "TIMEOUT_WIN"
+            elif trade_pnl < -0.05: outcome = "TIMEOUT_LOSS"
             else: outcome = "BE"
 
+        # Rule #8: Realistic spread ($0.20) + commission ($0.07/0.01-lot) friction cost, deducted once per round-trip trade
+        trade_pnl -= spread * point_val
+
         busy_until = exit_time
-        if outcome == "WIN": wins += 1
+        if outcome == "FULL_TP": wins += 1; full_tp += 1
+        elif outcome == "TRAIL_TP": wins += 1; trail_tp += 1
+        elif outcome == "TIMEOUT_WIN": wins += 1; timeout_win += 1
         elif outcome == "BE": bes += 1
         else: losses += 1
 
@@ -454,7 +487,7 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
         if month_key not in monthly_stats:
             monthly_stats[month_key] = {"trades": 0, "wins": 0, "bes": 0, "losses": 0, "pnl": 0.0}
         monthly_stats[month_key]["trades"] += 1
-        if outcome == "WIN": monthly_stats[month_key]["wins"] += 1
+        if outcome in ("FULL_TP", "TRAIL_TP", "TIMEOUT_WIN"): monthly_stats[month_key]["wins"] += 1
         elif outcome == "BE": monthly_stats[month_key]["bes"] += 1
         else: monthly_stats[month_key]["losses"] += 1
         monthly_stats[month_key]["pnl"] += trade_pnl
@@ -481,6 +514,9 @@ def run_simulation(m5_gold, m5_times, combined, tp_r=6.90, stages=None):
     return {
         "trades": trades,
         "wins": wins,
+        "full_tp": full_tp,
+        "trail_tp": trail_tp,
+        "timeout_win": timeout_win,
         "bes": bes,
         "losses": losses,
         "wr": win_rate,

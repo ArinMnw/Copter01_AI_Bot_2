@@ -8,6 +8,24 @@ __pycache__/
 *.tmp
 *.bak
 bot_state.json.tmp
+# 2026-10-08: ตัด bot_state.json ออกจาก git tracking ทั้งหมด (root + ทุก profile) —
+# เหตุการณ์จริง: session อื่น git add -A ไปโดนไฟล์ runtime นี้ของ 2 profiles ทำ
+# active_strategies ถูก stage เป็น deleted โดยไม่มีใครตั้งใจ (กู้คืนจาก git ได้ทันเพราะ
+# ยังไม่ commit แต่ไม่ควรเกิดเหตุแบบนี้ได้อีก) ไฟล์นี้เปลี่ยนตลอดเวลาระหว่างบอทรันอยู่แล้ว
+# ไม่เหมาะจะ track ใน git ตั้งแต่ต้น
+/bot_state.json
+profiles/**/bot_state.json
+mq5_strategy/ea2/ea2_live_state.json
+mq5_strategy/ea2/ea2_live_state.json.tmp
+/ea2_live_state.json
+/ea2_live_state.json.tmp
+profiles/**/ea2_live_state.json
+profiles/**/ea2_live_state.json.tmp
+# Legacy name remains ignored while pre-migration bot processes are still live.
+/s435_live_state.json
+/s435_live_state.json.tmp
+profiles/**/s435_live_state.json
+profiles/**/s435_live_state.json.tmp
 bot_heartbeat.txt
 
 *.ex5
@@ -33,6 +51,10 @@ strategy/demo_portfolio/excel/
 
 
 # local MT5/profile runtime files
+ea2_1_live_state.json
+ea2_1_live_state.json.tmp
+profiles/**/ea2_1_live_state.json
+profiles/**/ea2_1_live_state.json.tmp
 profiles/*
 !profiles/**/
 profiles/**/*
@@ -41,7 +63,6 @@ profiles/**/*
 !profiles/**/run/*.bat
 !profiles/**/logs/**
 !profiles/**/*.log
-!profiles/**/bot_state.json
 !profiles/**/bot_heartbeat.txt
 !profiles/**/*heartbeat*.txt
 !profiles/**/*stall*.log
@@ -49,3 +70,6 @@ profiles/**/*
 !profiles/**/*supervisor*.log
 profiles/**/logs/old_logs/
 profiles/**/*.archiving
+
+# S20.140-299 campaign bar cache (regenerate ได้)
+strategy/s20_gen/.cache/

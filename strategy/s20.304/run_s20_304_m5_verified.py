@@ -15,6 +15,13 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 import MetaTrader5 as mt5
+import json as _json
+
+# Tuning hook (opt-in ผ่าน env var เดียวกับ backtest_s20_unified.py) — ไม่ตั้ง = ค่าเดิมทุกประการ
+try:
+    _S20_ENTRY_TUNE = _json.loads(os.environ.get("S20_ENTRY_TUNE_PARAMS", "{}"))
+except Exception:
+    _S20_ENTRY_TUNE = {}
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
@@ -110,7 +117,9 @@ def extract_setups_for_symbol(symbol, dfs, digits, point):
         if tf in ("M1", "M5", "M12") or df_tf is None or len(df_tf) == 0:
             continue
         for cur in df_tf.to_dict('records'):
-            if pd.isna(cur['atr']) or cur['atr'] <= min_atr or cur['range'] < 0.40 * cur['atr'] or cur['vol_ratio'] < 1.20:
+            _range_mult = float(_S20_ENTRY_TUNE.get("range_mult", 0.40))
+            _min_vol_ratio = float(_S20_ENTRY_TUNE.get("min_vol_ratio", 1.20))
+            if pd.isna(cur['atr']) or cur['atr'] <= min_atr or cur['range'] < _range_mult * cur['atr'] or cur['vol_ratio'] < _min_vol_ratio:
                 continue
 
             swept_low = (cur['low'] <= cur['swing_low_12']) or (cur['low'] <= cur['asian_low']) or \
@@ -150,9 +159,9 @@ def extract_setups_for_symbol(symbol, dfs, digits, point):
                   ("SELL" if ((swept_high or ob_mitigated_bear or bpr_tap_bear or is_abs_sell or ifvg_sell or bb_sell) and has_wick_sell and closed_low) else None)
 
             if sig:
-                sl_mult = 0.30
+                sl_mult = float(_S20_ENTRY_TUNE.get("sl_mult", 0.30))
                 sl_buf = max(sl_mult * cur['atr'], max(min_sl_buf, 0.40 if "XAU" in sym_upper else min_sl_buf))
-                active_depth = 0.35
+                active_depth = float(_S20_ENTRY_TUNE.get("active_depth", 0.35))
 
                 entry = round(cur['low'] + (active_depth * cur['lower_wick']), digits) if sig == "BUY" else round(cur['high'] - (active_depth * cur['upper_wick']), digits)
                 sl = round(cur['low'] - sl_buf, digits) if sig == "BUY" else round(cur['high'] + sl_buf, digits)
@@ -161,7 +170,10 @@ def extract_setups_for_symbol(symbol, dfs, digits, point):
                 _min_risk = 30 * (10 ** -digits)  # 30 pips equivalent: XAU(d=2)=0.30, JPY(d=3)=0.030, EUR(d=5)=0.0003
                 if risk > _min_risk:
                     bar_dur = TF_SECONDS.get(tf, 300)
-                    setup_time = int(cur['time'])  # Causal bar armed
+                    # Checklist ข้อ 2 (Bar Close Execution Integrity): สัญญาณคำนวณจาก OHLC ทั้งแท่ง
+                    # (close, wick ฯลฯ) ต้องรู้ได้ก็ต่อเมื่อแท่งปิดแล้วเท่านั้น เดิมใช้เวลาเปิดแท่งตรงๆ
+                    # ทำให้ simulate_strategy_trades หา fill ในแท่งที่ก่อสัญญาณเอง (magic fill)
+                    setup_time = int(cur['time']) + bar_dur  # Causal: armed only after bar closes
                     setups.append({
                         "time": setup_time,
                         "signal": sig,

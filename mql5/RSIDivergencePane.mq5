@@ -290,6 +290,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+   ObjectDelete(0, "RSI_Label_Value_Right");
    ClearDivergenceObjects();
    if(g_rsi_handle != INVALID_HANDLE)
       IndicatorRelease(g_rsi_handle);
@@ -450,6 +451,39 @@ int OnCalculate(const int rates_total,
 
    // ลบ divergence object ที่ไม่อยู่ใน valid set รอบนี้ (orphan จาก rounds ก่อน)
    DeleteOrphanDivergenceLines();
+
+   //--- Highlight current value on the top right
+   if(rates_total > 0)
+     {
+      // g_rsi_buffer is AS_SERIES, index 0 is the newest bar
+      double current_val = g_rsi_buffer[0];
+      
+      int current_subwindow = GetPaneWindow();
+      
+      if(current_subwindow >= 0)
+        {
+         string obj_name = "RSI_Label_Value_Right";
+         if(ObjectFind(0, obj_name) != current_subwindow)
+           {
+            ObjectDelete(0, obj_name);
+            ObjectCreate(0, obj_name, OBJ_LABEL, current_subwindow, 0, 0);
+            ObjectSetInteger(0, obj_name, OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+            ObjectSetInteger(0, obj_name, OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
+            ObjectSetInteger(0, obj_name, OBJPROP_XDISTANCE, 15);
+            ObjectSetInteger(0, obj_name, OBJPROP_YDISTANCE, 15);
+            ObjectSetInteger(0, obj_name, OBJPROP_SELECTABLE, false);
+            ObjectSetInteger(0, obj_name, OBJPROP_HIDDEN, true);
+            ObjectSetString(0, obj_name, OBJPROP_FONT, "Arial");
+            ObjectSetInteger(0, obj_name, OBJPROP_FONTSIZE, 12);
+            ObjectSetInteger(0, obj_name, OBJPROP_BACK, false);
+           }
+         
+         string text_val = "RSI: " + DoubleToString(current_val, 2);
+         ObjectSetString(0, obj_name, OBJPROP_TEXT, text_val);
+         ObjectSetInteger(0, obj_name, OBJPROP_COLOR, InpRsiColor);
+         ChartRedraw(0);
+        }
+     }
 
    return(rates_total);
   }

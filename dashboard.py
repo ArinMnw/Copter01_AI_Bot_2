@@ -461,8 +461,8 @@ ACCOUNT_LABELS = {
     "demo-exness-433881786": "🟢 Demo • Exness 786 — P18 + S101/102/105/106/111",
     "demo-exness-416273786": "🟢 Demo • Exness 786b — LTS_AUS3",
     "demo-exness-414252716": "🟢 Demo • Exness 716 — LTS_AHR3",
-    "demo-exness-434237129": "🟢 Demo • Exness 129 — S20 Institutional Suite (11 Strats)",
-    "demo-exness-434238722": "🟢 Demo • Exness 722 — 15 ML Groups",
+    "demo-exness-434237129": "🟢 Demo • Exness 129 — 48_New_God_S20 (48 Strats)",
+    "demo-exness-434238722": "🟢 Demo • Exness 722 — S20.14 24 Group with Round v2",
 }
 RUN_PS1 = os.path.join(ROOT_DIR, "run_supervised.ps1")
 STOP_PS1 = os.path.join(ROOT_DIR, "stop_supervised.ps1")
@@ -573,6 +573,58 @@ def _account_mt5_path(acc_dir):
 # ดึงเฉพาะประวัติเทรด/P&L แบบ read-only ด้วยการ login ตรง (ไม่ Start/Stop บอทจากที่นี่)
 REMOTE_VIEW_ACCOUNTS = {"real-vtmarket-26575165"}
 
+# Magic number ของ EA ภายนอกที่รันคู่อยู่บนบางบัญชี ไม่ใช่บอทของเราเลย — convention ของบอทเรา
+# เองใช้ 99XXXX เสมอ (990000+strategy_id) หรือ 234000/234001 (MAGIC_NUMBER ใน profile.env), และ
+# EA .mq5 ของเราเอง (ichimoku/OCC/ZigZagPA ใน mql5/) ใช้ 2026081X-2026081Y — ตัวเลขนอก pattern
+# พวกนี้ = EA แปลกปลอม ยืนยันจาก comment ฝั่ง entry deal จริงทุกตัว + cross-check กับ Terminal
+# journal log (ไฟล์ "expert <ชื่อ>.ex5 loaded/removed") ว่า EA ไหนกำลังรันอยู่ช่วงเวลานั้นจริง:
+#   9997/9998/9999        = "NP SmartHedge Pro v1.7" (IUX 2461, 3587, 3586)
+#   111101 ("OrderFlow M30 BUY/SELL") = "OrderFlow EA" (IUX 2460, เจอ 2026-10-07 ผ่าน pending orders)
+#   170017/180017/180117   = "AAM_V17_GOD / AAM_V18_GOD" (comment GOD|BREAK, TOP20|<pair>, บางทีก็ DEVIL|BREAK ปนมาที่ magic เดียวกัน — น่าจะเป็น sub-strategy ของ EA ตระกูลเดียวกัน)
+#   180167                 = "AAM_V18_DEVIL" (comment DEVIL-PB|DEVIL_PULLBACK_READY)
+#   55555                  = "Auto Bots Star Series" (ตรงกับไฟล์ "Auto Bots [[ Star Series ]]-Full Moon V2.4.1.ex5")
+#   20260520               = "Thirakorn For YCY" (comment BREAKOUT_60/MEAN_REV_60, ยืนยันช่วงเวลารันตรงกับ journal log)
+#   26032532               = "Thirakorn Yed Everyday" (comment BREAKOUT_6X, ยืนยันช่วงเวลารันตรงกับ journal log)
+#   123456 ("AAAAAAAAAAAAAAAA") = EA ทดสอบที่ระบุชื่อไม่ได้ (log ย้อนไปไม่ถึง 2026-07-14)
+#   (IUX 4448 "Main" — เจอทั้งหมดนี้ 2026-10-07, เป็นบัญชีทดสอบ EA หลายตัว คนละตัวกับบัญชี live)
+# ⚠️ magic=20260809 (ichimoku_EA.mq5 ของเราเอง InpMagic default) อย่าใส่ตรงนี้ — ไม่ใช่ EA แปลกปลอม
+FOREIGN_EA_MAGIC_LABELS = {
+    9997: "NP SmartHedge Pro",
+    9998: "NP SmartHedge Pro",
+    9999: "NP SmartHedge Pro",
+    111101: "OrderFlow EA",
+    170017: "AAM V17/V18 GOD",
+    180017: "AAM V17/V18 GOD",
+    180117: "AAM V17/V18 GOD",
+    180167: "AAM V18 DEVIL",
+    55555: "Auto Bots Star Series",
+    20260520: "Thirakorn For YCY",
+    26032532: "Thirakorn Yed Everyday",
+    123456: "Unknown Test EA",
+}
+FOREIGN_EA_MAGIC_NUMBERS = set(FOREIGN_EA_MAGIC_LABELS)
+FOREIGN_EA_LABEL = "EA ภายนอก"  # fallback label ใช้ตอนยังไม่รู้ magic ที่แท้จริงของกลุ่ม
+
+
+def _foreign_ea_labels_for(magics):
+    """คืน label ของ EA ภายนอกแบบรวม (join ด้วย '/') จาก magic number ที่พบจริงในข้อมูล —
+    รองรับบัญชีที่มี EA ภายนอกมากกว่า 1 ตัวพร้อมกัน"""
+    labels = sorted({FOREIGN_EA_MAGIC_LABELS.get(m, f"Unknown EA (magic {m})") for m in magics})
+    return " / ".join(labels) if labels else FOREIGN_EA_LABEL
+
+
+def _summarize_ea_comments(comments, magic, top_n=2):
+    """สรุปรูปแบบ comment (ฝั่งเข้าไม้) ของ EA ภายนอก 1 magic — normalize ตัวเลขในทุก comment เป็น
+    '#' ก่อนเสมอ (เช่น 'BREAKOUT_60'/'BREAKOUT_67' กลายเป็น 'BREAKOUT_#' ตัวเดียวกัน, 'V2.4.1' กลายเป็น
+    'V#.#.#') แล้วนับความถี่ของรูปแบบที่ได้ เพื่อให้เห็นโครงสร้าง/สไตล์ที่แท้จริงของ comment ที่ EA
+    ใช้ซ้ำๆ แทนที่จะเห็นแค่ตัวเลข/สัญลักษณ์ที่เปลี่ยนไปในแต่ละไม้ — คืนเป็น 'pattern1 / pattern2 (magic)'"""
+    comments = [c for c in comments if c]
+    if not comments:
+        return f"(ไม่มี comment) ({magic})"
+    norm_cnt = Counter(re.sub(r'\d+', '#', c) for c in comments)
+    parts = [c for c, n in norm_cnt.most_common(top_n)]
+    return f"{' / '.join(parts)} ({magic})"
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _account_credentials(acc_dir):
@@ -600,14 +652,16 @@ def _account_credentials(acc_dir):
 
 
 def _mt5_connect(acc_key, acc_dir, mt5_path, acc_status_state):
-    """เชื่อมต่อ MT5: บัญชีที่รันในเครื่องนี้ใช้ attach ปกติ, บัญชีใน REMOTE_VIEW_ACCOUNTS ที่นี่ไม่ได้รัน (OFF/STALE) ให้ login ตรงด้วย credentials แทน (read-only, ไม่กระทบบอทจริงที่รันอยู่เครื่องอื่น)"""
-    if acc_status_state in ("LIVE", "LAGGING"):
-        return os.path.exists(mt5_path) and mt5.initialize(path=mt5_path)
+    """เชื่อมต่อ MT5: บัญชีที่รันในเครื่องนี้ใช้ attach ปกติ, บัญชีใน REMOTE_VIEW_ACCOUNTS ที่นี่ไม่ได้รัน (OFF/STALE) ให้ login ตรงด้วย credentials แทน (read-only, ไม่กระทบบอทจริงที่รันอยู่เครื่องอื่น)
+    บัญชี local ที่บอทเราปิดอยู่ (OFF/STALE แต่ไม่ใช่ remote) ก็ยัง attach ตรงได้เหมือนกัน — เผื่อ
+    terminal ยังเปิดค้างอยู่เอง หรือมี EA ตัวอื่นรันอยู่ (เช่น NP SmartHedge Pro บน 3586) ถ้า terminal
+    ปิดอยู่จริง mt5.initialize(path=...) จะเปิดขึ้นมาใหม่ให้เอง (พี่ยืนยันแล้วว่ายอมรับได้)"""
     if acc_key in REMOTE_VIEW_ACCOUNTS and os.path.exists(mt5_path):
         creds = _account_credentials(acc_dir)
         if creds:
             return mt5.initialize(path=mt5_path, login=creds["login"], password=creds["password"], server=creds["server"])
-    return False
+        return False
+    return os.path.exists(mt5_path) and mt5.initialize(path=mt5_path)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -626,9 +680,9 @@ PORTFOLIO_BACKTEST_SCRIPT = os.path.join(ROOT_DIR, "strategy", "demo_portfolio",
 # ⚠️ S20.1419 ไม่รวม — ไฟล์ v38_standalone_group19.py มี group_id=24 ผิด (บั๊กจริงในซอร์ส เทียบกับ
 # S20.1424 แทนที่จะเป็น S20.1419) ยังใช้ compare ไม่ได้ถูกต้องจนกว่าจะแก้ต้นทาง
 S20_14_GROUP_MAP = {
-    "S20.141": 1, "S20.142": 2, "S20.145": 5, "S20.149": 9,
+    "S20.141": 1, "S20.142": 2, "S20.143": 3, "S20.144": 4, "S20.145": 5, "S20.146": 6, "S20.149": 9,
     "S20.1412": 12, "S20.1413": 13, "S20.1414": 14, "S20.1416": 16,
-    "S20.1418": 18, "S20.1421": 21, "S20.1422": 22, "S20.1423": 23, "S20.1424": 24,
+    "S20.1418": 18, "S20.1402": 20, "S20.1421": 21, "S20.1422": 22, "S20.1423": 23, "S20.1424": 24,
 }
 S20_14_GROUP_SCRIPT_DIR = os.path.join(ROOT_DIR, "strategy", "s20.14.1", "backtest-sim")
 
@@ -666,7 +720,7 @@ ACCOUNT_BACKTEST_STRATEGIES = {
     "demo-exness-416273786": ["LTS_AUS3"],
     "demo-exness-414252716": ["LTS_AHR3"],
     "demo-exness-434237129": ["S20_ALL", "S20_301", "S20_302", "S20_303", "S20_304"],
-    "demo-exness-434238722": ["S20_ALL", "20.141", "20.142", "20.145", "20.147", "20.148", "20.1410", "20.1411", "20.1412", "20.1413", "20.1415", "20.1417", "20.1418", "20.1422", "20.1423", "20.1424"],
+    "demo-exness-434238722": ["S20_ALL", "20.141", "20.142", "20.143", "20.144", "20.145", "20.146", "20.147", "20.148", "20.149", "20.1410", "20.1411", "20.1412", "20.1413", "20.1414", "20.1415", "20.1416", "20.1417", "20.1418", "20.1419", "20.1402", "20.1421", "20.1422", "20.1423", "20.1424"],
 }
 
 # รายชื่อกลยุทธ์/พอร์ตทั้งหมดที่มี --compare รองรับแล้ว (ตรวจสอบโค้ดจริงแล้ว 2026-09) — ไม่ผูกกับบัญชีที่เลือก
@@ -2176,6 +2230,18 @@ def _format_dd_cell(max_dd, dd_pct):
     return f"-${max_dd:,.2f} ({dd_pct:.1f}%)" if max_dd > 0 else "$0.00 (0.0%)"
 
 
+def _calc_rr(entry_price, close_price, sl, direction):
+    """คำนวณ R:R จริงของไม้ (reward ที่ได้จริง ÷ risk ที่ตั้งใจไว้ตอนเปิด) — ต้องมี sl จาก
+    load_position_sl_map มาด้วย ไม่งั้นคืน None (แสดง "—" แทนเดาค่า)"""
+    if not sl or not entry_price or sl == entry_price:
+        return None
+    risk = abs(entry_price - sl)
+    if risk <= 0:
+        return None
+    reward = (close_price - entry_price) if direction == 'BUY' else (entry_price - close_price)
+    return round(reward / risk, 2)
+
+
 # ─────────────────────────────────────────────────────────────
 #  MT5 DATA PIPELINE (LIVE TERMINAL & HISTORICAL TRADES)
 # ─────────────────────────────────────────────────────────────
@@ -2200,6 +2266,8 @@ def _deals_to_df(history_deals):
     pos_entry_price_map = dict(zip(in_deals['position_id'], in_deals['price']))
     dir_series = in_deals['type'].map({0: 'BUY', 1: 'SELL'}).fillna('OTHER')
     pos_direction_map = dict(zip(in_deals['position_id'], dir_series))
+    pos_entry_magic_map = dict(zip(in_deals['position_id'], in_deals['magic']))
+    pos_entry_comment_map = dict(zip(in_deals['position_id'], in_deals['comment']))
 
     df = df[df['entry'] == mt5.DEAL_ENTRY_OUT].copy()
     df['strategy'] = df['position_id'].map(pos_strategy_map)
@@ -2207,6 +2275,14 @@ def _deals_to_df(history_deals):
     df['entry_time'] = df['position_id'].map(pos_entry_time_map)
     df['entry_price'] = df['position_id'].map(pos_entry_price_map)
     df['direction'] = df['position_id'].map(pos_direction_map).fillna('UNKNOWN')
+    # ใช้ magic ตอน "เปิด" ไม้เป็นหลักในการระบุ EA เจ้าของ (ไม่ใช้ magic ของฝั่งปิด เพราะเจอจริง
+    # ว่า position ที่ถูก force-close บางตัว exit deal บันทึก magic=0 ทับของเดิม ทำให้หลุดรอดการ
+    # กรอง EA ภายนอกไปได้ — ดู FOREIGN_EA_MAGIC_NUMBERS ใน dashboard.py)
+    df['entry_magic'] = df['position_id'].map(pos_entry_magic_map).fillna(df['magic'])
+    # comment ตอน "เปิด" ไม้ — comment ฝั่งปิดส่วนใหญ่เป็น auto-comment ของ broker เอง (เช่น '[sl 4393.94]'
+    # หรือว่างเปล่า) ไม่ใช่ comment ที่ EA ตั้งไว้ตอนเข้าไม้ (เช่น 'BREAKOUT_60', 'TOP20|EURGBP.iux|ev1')
+    # ซึ่งเป็นสิ่งที่บอกรูปแบบ/สไตล์การเทรดของ EA จริงๆ ต้องใช้ comment ฝั่งเข้าเท่านั้น
+    df['entry_comment'] = df['position_id'].map(pos_entry_comment_map).fillna(df['comment'])
 
     df['duration_sec'] = (df['time'] - df['entry_time']).dt.total_seconds().fillna(0).clip(lower=0)
 
@@ -2292,12 +2368,48 @@ def load_mt5_history(acc_key, acc_dir, acc_status_state, mt5_path, days=30):
 
 @st.cache_data(ttl=120)
 def load_month_history(acc_key, acc_dir, acc_status_state, mt5_path, year, month):
+    """ดึงประวัติเทรดของเดือนที่เลือก — fetch ย้อนไปก่อนต้นเดือน 30 วัน (fetch_buffer) เพื่อให้
+    _deals_to_df() หา DEAL_ENTRY_IN ของไม้ที่เปิดข้ามเดือน (เปิดเดือนก่อน ปิดเดือนนี้) เจอด้วย —
+    ไม่งั้น pos_strategy_map จะไม่มี entry ให้ map แล้ว fallback ไปใช้ comment ปิดไม้เอง (เช่น
+    "[tp 4320.69]") เป็นชื่อ strategy ผิดๆ (เจอบั๊กจริงจากพี่ที่ profile 3587 — เปิดไม้ 31 ส.ค.
+    ปิด 2 ก.ย. หลุดจากช่วง fetch เดือนกันยาที่เริ่มนับ 1 ก.ย. พอดี) — กรองกลับให้เหลือเฉพาะไม้ที่
+    "ปิด" ในเดือนนี้เหมือนพฤติกรรมเดิมหลัง map strategy เสร็จแล้ว"""
     if not _mt5_connect(acc_key, acc_dir, mt5_path, acc_status_state):
         return pd.DataFrame()
     start = datetime(year, month, 1, tzinfo=BKK)
     end = datetime(year + 1, 1, 1, tzinfo=BKK) if month == 12 else datetime(year, month + 1, 1, tzinfo=BKK)
     end = min(end, datetime.now(BKK) + timedelta(days=1))
-    return _deals_to_df(mt5.history_deals_get(start, end))
+    fetch_start = start - timedelta(days=30)
+    df = _deals_to_df(mt5.history_deals_get(fetch_start, end))
+    if df.empty:
+        return df
+    start_naive = start.replace(tzinfo=None)
+    end_naive = end.replace(tzinfo=None)
+    return df[(df['time'] >= start_naive) & (df['time'] < end_naive)].copy()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def load_position_sl_map(acc_key, acc_dir, acc_status_state, mt5_path, year, month):
+    """ดึง SL ตอนเปิดไม้จาก order history เพื่อคำนวณ R:R จริงใน Trade Journal — deal history
+    (history_deals_get) ไม่มี field sl ติดมาด้วย ต้อง join ผ่าน position_id กับ order ตอนเปิดไม้
+    แทน (history_orders_get คืน sl ณ ตอนวางออเดอร์ ซึ่งคือ risk ที่ตั้งใจไว้จริง — ต่อให้ภายหลัง
+    trailing stop ขยับ SL เข้าใกล้ entry ก็ไม่กระทบค่านี้ เพราะ modify SL ไม่สร้าง order ใหม่)
+    fetch ย้อนไปก่อนต้นเดือน 30 วันเหมือน load_month_history เพื่อจับไม้ที่เปิดข้ามเดือนด้วย"""
+    if not _mt5_connect(acc_key, acc_dir, mt5_path, acc_status_state):
+        return {}
+    start = datetime(year, month, 1, tzinfo=BKK) - timedelta(days=30)
+    end = datetime(year + 1, 1, 1, tzinfo=BKK) if month == 12 else datetime(year, month + 1, 1, tzinfo=BKK)
+    end = min(end, datetime.now(BKK) + timedelta(days=1))
+    orders = mt5.history_orders_get(start, end)
+    if not orders:
+        return {}
+    sl_map = {}
+    for o in orders:
+        pos_id = getattr(o, "position_id", None)
+        sl = getattr(o, "sl", 0.0)
+        if pos_id and sl and pos_id not in sl_map:
+            sl_map[pos_id] = float(sl)
+    return sl_map
 
 
 @st.cache_data(ttl=10)
@@ -2713,6 +2825,7 @@ with st.sidebar:
         calculate_overview_breakdowns.clear()
         load_mt5_history.clear()
         load_month_history.clear()
+        load_position_sl_map.clear()
         load_live_terminal_data.clear()
         calculate_quant_metrics.clear()
         load_log_events.clear()
@@ -2958,6 +3071,7 @@ if view_mode.startswith("🏦"):
         tab_quant,
         tab_calendar,
         tab_strat,
+        tab_alltime,
         tab_backtest,
         tab_health,
     ) = st.tabs([
@@ -2968,6 +3082,7 @@ if view_mode.startswith("🏦"):
         "📈 Quant Edge",
         "📅 P&L Calendar",
         "🏆 Strategies & Portfolios",
+        "🗂️ All-Time Summary",
         "🧪 Backtest",
         "🩺 Health & Logs",
     ])
@@ -3268,11 +3383,11 @@ if view_mode.startswith("🏦"):
                         f"</div>"
                         f"<div style='display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);'>"
                         f"<span>🔴 Max Loss Exposure (ถ้าชน SL):</span>"
-                        f"<span style='color:#fb7185;font-weight:800;'>-${actual_dollar_loss:,.2f} ({actual_dollar_loss/ps_bal*100:.2f}%)</span>"
+                        f"<span style='color:#fb7185;font-weight:800;'>-${actual_dollar_loss:,.2f} ({(actual_dollar_loss/ps_bal*100 if ps_bal > 0 else 0.0):.2f}%)</span>"
                         f"</div>"
                         f"<div style='display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);'>"
                         f"<span>🟢 Potential Profit (ถ้าชน TP):</span>"
-                        f"<span style='color:#34d399;font-weight:800;'>+${actual_dollar_gain:,.2f} ({actual_dollar_gain/ps_bal*100:.2f}%)</span>"
+                        f"<span style='color:#34d399;font-weight:800;'>+${actual_dollar_gain:,.2f} ({(actual_dollar_gain/ps_bal*100 if ps_bal > 0 else 0.0):.2f}%)</span>"
                         f"</div>"
                         f"<div style='font-size:12px;color:#cbd5e1;margin-top:8px;'>"
                         f"💡 <b>สถิติ R:R สถาบัน:</b> อัตราส่วน <b style='color:{rr_color};'>1 : {rr_ratio:.2f}</b> ต้องการ Win Rate เพียง <b>{be_win_rate:.1f}%</b> ก็สามารถสร้างความได้เปรียบเชิงสถิติ (Positive Expectancy) ในระยะยาวได้"
@@ -4353,9 +4468,14 @@ if view_mode.startswith("🏦"):
     with tab_calendar:
         st.markdown(f"### 📅 TradeZella-Grade P&L Calendar — {sel_acc['label']}")
 
-        if acc_status["state"] not in ("LIVE", "LAGGING") and sel_key not in REMOTE_VIEW_ACCOUNTS:
-            st.warning("บัญชีนี้ไม่ได้รัน MT5 — กรุณาเริ่มรันบอทก่อนเพื่อดึงข้อมูลปฏิทิน")
+        if not os.path.exists(sel_mt5_path):
+            st.warning("บัญชีนี้ไม่พบ MT5 terminal ที่ path ที่ตั้งไว้ — ตรวจสอบ profile.env")
         else:
+            # บัญชี local ที่บอทเราปิดอยู่ (OFF/STALE) ยังดึงได้ตามปกติ — _mt5_connect() จะ attach
+            # terminal ที่เปิดค้างอยู่ หรือเปิดขึ้นมาใหม่ให้เอง (พี่ยืนยันแล้วว่ายอมรับได้ เพื่อดึง
+            # ไม้ของ EA อื่น เช่น NP SmartHedge Pro ที่รันอยู่แยกจากบอทเราบนบัญชีเดียวกัน)
+            if acc_status["state"] not in ("LIVE", "LAGGING") and sel_key not in REMOTE_VIEW_ACCOUNTS:
+                st.caption("ℹ️ บอทเราไม่ได้รันอยู่บนบัญชีนี้ — กำลังเชื่อมต่อ MT5 ตรง (อาจเปิด terminal ขึ้นมาใหม่) เพื่อดึงประวัติเทรด/EA อื่นที่อาจรันอยู่")
             if "cal_year" not in st.session_state:
                 _now = datetime.now(BKK)
                 st.session_state.cal_year = _now.year
@@ -4410,6 +4530,18 @@ if view_mode.startswith("🏦"):
                 cal_prog_holder.empty()
             else:
                 df_month = load_month_history(sel_key, sel_acc["dir"], acc_status["state"], sel_mt5_path, cal_year, cal_month)
+
+            # แยกไม้ของ EA ภายนอก (NP SmartHedge Pro) ออกจากสถิติของบอทเราทั้งหมดในหน้านี้ —
+            # ไม่ลบทิ้ง แค่แยกเก็บไว้โชว์สรุปรายวันต่างหากด้านล่าง (ไม่ย่อยรายไม้ตามที่พี่ขอ)
+            # ใช้ entry_magic (magic ตอนเปิดไม้) ไม่ใช่ magic เฉยๆ (= magic ตอนปิด) เพราะเจอจริงว่า
+            # บาง position ของ EA นี้โดน force-close แล้ว exit deal รีเซ็ต magic เป็น 0 หลุดการกรอง
+            _magic_col = 'entry_magic' if 'entry_magic' in df_month.columns else 'magic'
+            if not df_month.empty and _magic_col in df_month.columns:
+                _is_foreign_ea = df_month[_magic_col].isin(FOREIGN_EA_MAGIC_NUMBERS)
+                df_ea_month = df_month[_is_foreign_ea].copy()
+                df_month = df_month[~_is_foreign_ea].copy()
+            else:
+                df_ea_month = df_month.iloc[0:0].copy() if not df_month.empty else df_month
 
             trade_cnt_txt = f"{len(df_month):,} ไม้" if not df_month.empty else "ไม่มีประวัติเทรด"
             st.markdown(
@@ -4485,6 +4617,40 @@ if view_mode.startswith("🏦"):
             html.append('</div>')
             st.markdown("".join(html), unsafe_allow_html=True)
 
+            if not df_ea_month.empty:
+                st.markdown("---")
+                _ea_month_magic_col = 'entry_magic' if 'entry_magic' in df_ea_month.columns else 'magic'
+                _ea_month_label = _foreign_ea_labels_for(df_ea_month[_ea_month_magic_col].unique())
+                with st.expander(f"📎 ไม้จาก EA ภายนอก ({_ea_month_label}) — สรุปรายวัน (แยกออกจากสถิติบอทเราด้านบนแล้ว)", expanded=True):
+                    st.caption(f"ไม้ที่มี magic number {sorted(df_ea_month[_ea_month_magic_col].unique())} ไม่ใช่บอทของเรา ไม่ถูกรวมในปฏิทิน/สถิติ strategy ด้านบนเลย — สรุปให้ดูแบบรวมรายวันเท่านั้น ไม่ย่อยรายไม้")
+                    _ea_g = df_ea_month.copy()
+                    _ea_g['date'] = _ea_g['time'].dt.date
+                    _ea_daily_rows = []
+                    for (d, m), grp in _ea_g.groupby(['date', _ea_month_magic_col]):
+                        wins = int((grp['net'] > 0).sum())
+                        losses = int((grp['net'] <= 0).sum())
+                        trades_cnt = len(grp)
+                        _ea_daily_rows.append({
+                            "date": d,
+                            "EA": _foreign_ea_labels_for([m]),
+                            "Trades": trades_cnt,
+                            "Win": wins,
+                            "Lose": losses,
+                            "Win%": round(wins / trades_cnt * 100, 1) if trades_cnt else 0.0,
+                            "net": grp['net'].sum(),
+                            "Comment": _summarize_ea_comments(grp['entry_comment'].tolist(), m),
+                        })
+                    _ea_daily = pd.DataFrame(_ea_daily_rows).sort_values('date', ascending=False)
+                    _ea_daily['Net P/L'] = _ea_daily['net'].round(2)
+                    _ea_daily_display = _ea_daily[['date', 'EA', 'Trades', 'Win', 'Lose', 'Win%', 'Net P/L', 'Comment']].rename(columns={'date': 'Date'})
+                    ea_month_total = _ea_daily['net'].sum()
+                    st.metric(f"{_ea_month_label} — รวมทั้งเดือน", f"${ea_month_total:,.2f}", f"{int(_ea_daily['Trades'].sum())} ไม้")
+                    st.dataframe(
+                        _ea_daily_display.style.map(_style_pnl_cell, subset=["Net P/L"]).format("{:.1f}", subset=["Win%"]).format("{:.2f}", subset=["Net P/L"]),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
             if not df_month.empty:
                 st.markdown("---")
                 st.markdown("#### 🔍 Interactive Day Inspector (Trade Journal)")
@@ -4510,12 +4676,20 @@ if view_mode.startswith("🏦"):
                     dj3.metric("Day Win Rate", f"{dj_wr:.1f}%")
                     dj4.metric("Best Trade", f"${day_deals['net'].max():+,.2f}")
 
+                    sl_map = load_position_sl_map(sel_key, sel_acc["dir"], acc_status["state"], sel_mt5_path, cal_year, cal_month)
+
                     journal_rows = []
                     for _, r in day_deals.iterrows():
                         d_badge = f"<span class='badge-buy'>{r.get('direction','BUY')}</span>" if r.get('direction') == 'BUY' else f"<span class='badge-sell'>{r.get('direction','SELL')}</span>"
                         net_c = "#34d399" if r['net'] > 0 else ("#fb7185" if r['net'] < 0 else "#94a3b8")
                         dur_s = r.get('duration_sec', 0)
                         dur_str = f"{int(dur_s // 60)}m {int(dur_s % 60)}s" if dur_s < 3600 else f"{int(dur_s // 3600)}h {int((dur_s % 3600) // 60)}m"
+                        rr = _calc_rr(r.get('entry_price', 0), r['price'], sl_map.get(r.get('position_id')), r.get('direction'))
+                        if rr is None:
+                            rr_txt, rr_c = "—", "#475569"
+                        else:
+                            rr_txt = f"{rr:+.2f}R"
+                            rr_c = "#34d399" if rr > 0 else ("#fb7185" if rr < 0 else "#94a3b8")
                         journal_rows.append(
                             f"<tr>"
                             f"<td><b>{r['time'].strftime('%H:%M:%S')}</b></td>"
@@ -4528,6 +4702,7 @@ if view_mode.startswith("🏦"):
                             f"<td style='color:{net_c};font-weight:700;'>${r['net']:+,.2f}</td>"
                             f"<td>{dur_str}</td>"
                             f"<td><span class='badge-tag'>{html_escape.escape(str(r['strategy']))}</span></td>"
+                            f"<td style='color:{rr_c};font-weight:700;'>{rr_txt}</td>"
                             f"</tr>"
                         )
 
@@ -4536,7 +4711,7 @@ if view_mode.startswith("🏦"):
                         f"<table class='pro-table'>"
                         f"<thead><tr>"
                         f"<th>Time</th><th>Position</th><th>Type</th><th>Symbol</th><th>Lots</th>"
-                        f"<th>Open</th><th>Close</th><th>Net P/L</th><th>Duration</th><th>Strategy</th>"
+                        f"<th>Open</th><th>Close</th><th>Net P/L</th><th>Duration</th><th>Strategy</th><th>R:R</th>"
                         f"</tr></thead>"
                         f"<tbody>{''.join(journal_rows)}</tbody>"
                         f"</table></div>"
@@ -4990,6 +5165,112 @@ if view_mode.startswith("🏦"):
                         unsafe_allow_html=True
                     )
 
+
+
+    # =============================================================
+    #  TAB: 🗂️ ALL-TIME SUMMARY (ทั้งบัญชี ไม่ผูกกับเดือน/preset ที่เลือก)
+    # =============================================================
+    with tab_alltime:
+        st.markdown(f"### 🗂️ All-Time Summary — {sel_acc['label']}")
+        st.caption("สรุปผลรวมทั้งบัญชีตั้งแต่เริ่มเทรด ไม่ผูกกับเดือนที่เลือกใน P&L Calendar หรือ History Window preset ด้านบน — ดึงย้อนหลังสูงสุด 10 ปีเสมอ")
+
+        with st.spinner("🗂️ กำลังดึงประวัติเทรดทั้งหมดของบัญชี..."):
+            df_alltime = load_mt5_history(sel_key, sel_acc["dir"], acc_status["state"], sel_mt5_path, days=3650)
+
+        if df_alltime.empty:
+            st.info("ไม่พบประวัติเทรดของบัญชีนี้ (หรือยังเชื่อมต่อ MT5 ไม่ได้)")
+        else:
+            _at_magic_col = 'entry_magic' if 'entry_magic' in df_alltime.columns else 'magic'
+            _at_is_foreign_ea = df_alltime[_at_magic_col].isin(FOREIGN_EA_MAGIC_NUMBERS)
+            df_ea_alltime = df_alltime[_at_is_foreign_ea].copy()
+            df_bot_alltime = df_alltime[~_at_is_foreign_ea].copy()
+
+            _at_ea_label = _foreign_ea_labels_for(df_ea_alltime[_at_magic_col].unique()) if not df_ea_alltime.empty else FOREIGN_EA_LABEL
+
+            at_c1, at_c2, at_c3 = st.columns(3)
+            at_c1.metric("รวมทั้งหมด (ทุกไม้)", f"{len(df_alltime):,} ไม้")
+            at_c2.metric("ไม้ของบอทเรา", f"{len(df_bot_alltime):,} ไม้", f"${df_bot_alltime['net'].sum():,.2f}")
+            at_c3.metric(f"ไม้ของ {_at_ea_label}", f"{len(df_ea_alltime):,} ไม้", f"${df_ea_alltime['net'].sum():,.2f}")
+
+            st.markdown("---")
+            st.markdown("#### 🏆 All-Time Strategy Performance")
+            st.caption("เฉพาะไม้ของบอทเรา (ตัด EA ภายนอกออกแล้ว) — ครอบคลุมทุกเดือนที่มีประวัติ")
+
+            if df_bot_alltime.empty:
+                st.info("ไม่พบไม้ของบอทเรา (ทุกไม้เป็นของ EA ภายนอก หรือยังไม่มีประวัติเทรด)")
+            else:
+                dm_at = expand_strategy_combo_rows(df_bot_alltime)
+                at_strat_rows = []
+                for sid, g in dm_at.groupby('strategy'):
+                    w = g[g['net'] > 0]['net']
+                    l = g[g['net'] <= 0]['net']
+                    pf = w.sum() / abs(l.sum()) if l.sum() != 0 else float('inf')
+                    g_max_dd, g_dd_pct = _calc_group_dd(g)
+                    at_strat_rows.append({
+                        "Strategy": sid,
+                        "Trades": f"{len(g)} ({len(w)}W/{len(l)}L)",
+                        "Win%": round((g['net'] > 0).mean() * 100, 1),
+                        "Net P/L": round(g['net'].sum(), 2),
+                        "Avg Win": round(w.mean(), 2) if len(w) else 0.0,
+                        "Avg Loss": round(l.mean(), 2) if len(l) else 0.0,
+                        "Profit Factor": ("∞" if pf == float('inf') else f"{pf:.2f}"),
+                        "DD (DD%)": _format_dd_cell(g_max_dd, g_dd_pct),
+                    })
+                at_strat_df = pd.DataFrame(at_strat_rows).sort_values("Net P/L", ascending=False)
+                st.dataframe(
+                    at_strat_df.style.map(_style_pnl_cell, subset=["Net P/L", "Avg Win", "Avg Loss"])
+                    .format("{:.2f}", subset=["Win%", "Net P/L", "Avg Win", "Avg Loss"]),
+                    use_container_width=True,
+                )
+
+                if 'tf' in dm_at.columns:
+                    with st.expander("📐 แยกตาม Strategy × Timeframe Matrix — All-Time", expanded=False):
+                        try:
+                            dm_at_clean_tf = dm_at.copy()
+                            dm_at_clean_tf['tf'] = dm_at_clean_tf['tf'].fillna('Unknown').astype(str)
+                            at_pnl_pivot = pd.pivot_table(
+                                dm_at_clean_tf, index='strategy', columns='tf', values='net', aggfunc='sum',
+                                fill_value=0, margins=True, margins_name='รวมทั้งหมด',
+                            ).round(2)
+                            at_pnl_pivot = reorder_tf_columns(at_pnl_pivot)
+                            st.dataframe(at_pnl_pivot.style.map(_style_pnl_cell).format("{:.2f}"), use_container_width=True)
+                        except Exception as e:
+                            st.warning(f"ไม่สามารถแสดงตาราง Strategy × Timeframe Matrix ได้: {e}")
+
+            st.markdown("---")
+            st.markdown(f"#### 📎 ไม้จาก EA ภายนอก ({_at_ea_label}) — สรุปรายวัน (All-Time)")
+            st.caption(f"ไม้ที่มี magic number {sorted(df_ea_alltime[_at_magic_col].unique()) if not df_ea_alltime.empty else sorted(FOREIGN_EA_MAGIC_NUMBERS)} ไม่ใช่บอทของเรา แยกออกจากตารางด้านบนทั้งหมด — สรุปแบบรวมรายวันเท่านั้น ไม่ย่อยรายไม้")
+
+            if df_ea_alltime.empty:
+                st.info(f"ไม่พบไม้ของ EA ภายนอกในบัญชีนี้")
+            else:
+                _at_ea_g = df_ea_alltime.copy()
+                _at_ea_g['date'] = _at_ea_g['time'].dt.date
+                _at_ea_daily_rows = []
+                for (d, m), grp in _at_ea_g.groupby(['date', _at_magic_col]):
+                    wins = int((grp['net'] > 0).sum())
+                    losses = int((grp['net'] <= 0).sum())
+                    trades_cnt = len(grp)
+                    _at_ea_daily_rows.append({
+                        "date": d,
+                        "EA": _foreign_ea_labels_for([m]),
+                        "Trades": trades_cnt,
+                        "Win": wins,
+                        "Lose": losses,
+                        "Win%": round(wins / trades_cnt * 100, 1) if trades_cnt else 0.0,
+                        "net": grp['net'].sum(),
+                        "Comment": _summarize_ea_comments(grp['entry_comment'].tolist(), m),
+                    })
+                _at_ea_daily = pd.DataFrame(_at_ea_daily_rows).sort_values('date', ascending=False)
+                _at_ea_daily['Net P/L'] = _at_ea_daily['net'].round(2)
+                _at_ea_daily_display = _at_ea_daily[['date', 'EA', 'Trades', 'Win', 'Lose', 'Win%', 'Net P/L', 'Comment']].rename(columns={'date': 'Date'})
+                ea_at_total = _at_ea_daily['net'].sum()
+                st.metric(f"{_at_ea_label} — รวมทั้งหมด (All-Time)", f"${ea_at_total:,.2f}", f"{int(_at_ea_daily['Trades'].sum())} ไม้")
+                st.dataframe(
+                    _at_ea_daily_display.style.map(_style_pnl_cell, subset=["Net P/L"]).format("{:.1f}", subset=["Win%"]).format("{:.2f}", subset=["Net P/L"]),
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
 
     # =============================================================

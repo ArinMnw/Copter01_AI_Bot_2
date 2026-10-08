@@ -529,6 +529,12 @@ BACKTEST_ANCHORED_PORTFOLIOS = {
     # เห็นแค่ 17 ไม้ (0 matched) และ P&L กลับทิศกันสิ้นเชิง (live -$5,014 vs backtest +$6,517)
     # เพราะ live ไม่ได้ closed-bar-only + shared-cooldown เหมือนพี่น้องรุ่นแรก
     "LTS_AUS2", "LTS_AHR2", "LTS_AUS3", "LTS_AHR3",
+    # 2026-09-22: LTS_AVENGERS_BASE ตกหล่นจาก set นี้เหมือนกัน (พี่น้องร่วมตระกูล ULTRA_SAFE/
+    # HIGH_RISK/P34/HIGH_FREQ อยู่ในนี้หมดแล้ว แต่ BASE เองไม่เคยถูกเพิ่ม) ทำให้ order จริงเข้าด้วย
+    # anchor_sl_tp=False (ค่า default) — SL/TP เลื่อนตามส่วนต่างราคาจริงตอนกดส่ง order กับราคา
+    # ตอน detect สัญญาณ ทำให้ไม่ตรงกับที่ backtest คำนวณไว้ (สังเกตว่า order ออกมา "TP/SL เพี้ยน")
+    # เพิ่มเข้า set นี้ให้ _demo_scan_af_ladder ส่ง anchor_sl_tp=True ให้ตรงกับพี่น้องตัวอื่น
+    "LTS_AVENGERS_BASE",
 }
 
 

@@ -102,7 +102,7 @@ def run_hybrid_backtest(days=365, symbol="XAUUSD.iux", total_lot=0.02, tf_name="
         future = rates[i + 1:]
         filled = False
         fill_idx = 0
-        for f_idx, f_bar in enumerate(future[:5]):
+        for f_idx, f_bar in enumerate(future[:int(os.environ.get("FILL_WAIT_BARS", "5"))]):
             if sig == "BUY" and f_bar['low'] <= entry:
                 filled = True
                 fill_idx = f_idx
@@ -119,7 +119,7 @@ def run_hybrid_backtest(days=365, symbol="XAUUSD.iux", total_lot=0.02, tf_name="
         entry_time = datetime.fromtimestamp(future[fill_idx]['time'], tz=timezone.utc)
         month_key = entry_time.strftime("%Y-%m")
 
-        active = future[fill_idx:]
+        active = future[fill_idx + 1:]  # Rule 5: Start trailing from NEXT bar (no same-bar lookahead)
         tp1_hit = False
         tp2_hit = False
         be_active = False
@@ -128,73 +128,106 @@ def run_hybrid_backtest(days=365, symbol="XAUUSD.iux", total_lot=0.02, tf_name="
         bars_held = 0
         outcome = None
 
+        spread_pts = 0.22  # Rule #8: 15pt Spread ($0.15) + Commission ($0.07/0.01-lot) = 0.22
         for bar in active:
             bars_held += 1
             if sig == "BUY":
-                # Check BE activation before TP1
-                if not be_active and bar['high'] >= be_trig:
-                    be_active = True
-                    runner_sl = entry
+                # 1. MANDATORY RULE 4: Check SL FIRST (Pessimistic)
+                if bar['low'] <= runner_sl:
+                    if not tp1_hit:
+                        if be_active:
+                            outcome = "BE"
+                            trade_pnl = -spread_pts * (point_val_scalp + point_val_runner)
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = (-abs(entry - runner_sl) - spread_pts) * (point_val_scalp + point_val_runner)
+                    else:
+                        outcome = "SCALP_WIN"
+                        trade_pnl += (0.30 - spread_pts) * point_val_runner
+                    break
 
-                # Check TP1
+                # 2. Check TP2 (Runner)
+                if tp1_hit and not tp2_hit and bar['high'] >= tp2:
+                    tp2_hit = True
+                    trade_pnl += (abs(tp2 - entry) - spread_pts) * point_val_runner
+                    outcome = "FULL_WIN"
+                    break
+
+                # 3. Check TP1
                 if not tp1_hit and bar['high'] >= tp1:
                     tp1_hit = True
                     be_active = True
                     runner_sl = entry + 0.30  # lock breakeven + slight profit buffer
-                    trade_pnl += abs(tp1 - entry) * point_val_scalp
+                    trade_pnl += (abs(tp1 - entry) - spread_pts) * point_val_scalp
 
-                # Check TP2 (Runner)
-                if tp1_hit and not tp2_hit and bar['high'] >= tp2:
-                    tp2_hit = True
-                    trade_pnl += abs(tp2 - entry) * point_val_runner
-                    outcome = "FULL_WIN"
-                    break
-
-                # Check SL
-                if bar['low'] <= runner_sl:
-                    if not tp1_hit:
-                        # Full stopout
-                        if be_active:
-                            outcome = "BE"
-                            trade_pnl = 0.0
-                        else:
-                            outcome = "LOSS"
-                            trade_pnl = -abs(entry - runner_sl) * (point_val_scalp + point_val_runner)
-                    else:
-                        # TP1 was secured, runner stopped at BE
-                        outcome = "SCALP_WIN"
-                        # Runner exited at BE (+0.30)
-                        trade_pnl += 0.30 * point_val_runner
-                    break
-
-            elif sig == "SELL":
-                if not be_active and bar['low'] <= be_trig:
+                # 4. Check BE activation
+                if not be_active and bar['high'] >= be_trig:
                     be_active = True
                     runner_sl = entry
 
-                if not tp1_hit and bar['low'] <= tp1:
-                    tp1_hit = True
-                    be_active = True
-                    runner_sl = entry - 0.30
-                    trade_pnl += abs(entry - tp1) * point_val_scalp
-
-                if tp1_hit and not tp2_hit and bar['low'] <= tp2:
-                    tp2_hit = True
-                    trade_pnl += abs(entry - tp2) * point_val_runner
-                    outcome = "FULL_WIN"
+                # Rule #5 (pessimistic completeness): recheck SAME bar's low against the
+                # just-updated runner_sl (TP1/BE trigger from this bar's high must not ignore
+                # a retracement to the new SL within the same bar).
+                if bar['low'] <= runner_sl:
+                    if not tp1_hit:
+                        if be_active:
+                            outcome = "BE"
+                            trade_pnl = -spread_pts * (point_val_scalp + point_val_runner)
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = (-abs(entry - runner_sl) - spread_pts) * (point_val_scalp + point_val_runner)
+                    else:
+                        outcome = "SCALP_WIN"
+                        trade_pnl += (0.30 - spread_pts) * point_val_runner
                     break
 
+            elif sig == "SELL":
+                # 1. MANDATORY RULE 4: Check SL FIRST (Pessimistic)
                 if bar['high'] >= runner_sl:
                     if not tp1_hit:
                         if be_active:
                             outcome = "BE"
-                            trade_pnl = 0.0
+                            trade_pnl = -spread_pts * (point_val_scalp + point_val_runner)
                         else:
                             outcome = "LOSS"
-                            trade_pnl = -abs(runner_sl - entry) * (point_val_scalp + point_val_runner)
+                            trade_pnl = (-abs(runner_sl - entry) - spread_pts) * (point_val_scalp + point_val_runner)
                     else:
                         outcome = "SCALP_WIN"
-                        trade_pnl += 0.30 * point_val_runner
+                        trade_pnl += (0.30 - spread_pts) * point_val_runner
+                    break
+
+                # 2. Check TP2 (Runner)
+                if tp1_hit and not tp2_hit and bar['low'] <= tp2:
+                    tp2_hit = True
+                    trade_pnl += (abs(entry - tp2) - spread_pts) * point_val_runner
+                    outcome = "FULL_WIN"
+                    break
+
+                # 3. Check TP1
+                if not tp1_hit and bar['low'] <= tp1:
+                    tp1_hit = True
+                    be_active = True
+                    runner_sl = entry - 0.30
+                    trade_pnl += (abs(entry - tp1) - spread_pts) * point_val_scalp
+
+                # 4. Check BE activation
+                if not be_active and bar['low'] <= be_trig:
+                    be_active = True
+                    runner_sl = entry
+
+                # Rule #5 (pessimistic completeness): recheck SAME bar's high against the
+                # just-updated runner_sl.
+                if bar['high'] >= runner_sl:
+                    if not tp1_hit:
+                        if be_active:
+                            outcome = "BE"
+                            trade_pnl = -spread_pts * (point_val_scalp + point_val_runner)
+                        else:
+                            outcome = "LOSS"
+                            trade_pnl = (-abs(runner_sl - entry) - spread_pts) * (point_val_scalp + point_val_runner)
+                    else:
+                        outcome = "SCALP_WIN"
+                        trade_pnl += (0.30 - spread_pts) * point_val_runner
                     break
 
         trades += 1

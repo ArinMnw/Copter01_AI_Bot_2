@@ -69,6 +69,16 @@ class SnappingList(list):
             
         super().append(order)
 
+
+# --- Checklist ข้อ 13: Broker Pending Capacity Cap (Exness = 1024 คำสั่ง, ตาม profile 8722) ---
+# ก่อนหน้านี้ backtest ปล่อยให้ pending_orders โตได้ไม่จำกัด ไม่มีแบบจำลองเพดานโบรกเกอร์เลย
+# พฤติกรรม eviction ให้ตรงกับ live (_evict_oldest_s20_14_pending ใน mt5_utils.py): ตัดตัวเก่าสุดทิ้ง
+# ก่อนเพื่อเปิดที่ว่างให้ order ใหม่ (2026-09-23) — validated แล้วว่าไม่กระทบ backtest ระดับกลุ่มเดียว
+def _enforce_pending_cap(pending_orders, cap=1024):
+    while len(pending_orders) >= cap:
+        pending_orders.pop(0)
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -419,7 +429,9 @@ if __name__ == '__main__':
             # 0. Check pending limit orders
             for p in pending_orders[:]:
                 p['Bars_Waited'] += 1
-                max_bars_map = {"M1": 10080, "M5": 2016, "M15": 672, "M30": 336, "H1": 168, "H4": 42, "H12": 14, "D1": 7}
+                # Checklist #10 fix (2026-09-23): TF-proportional expiry จริง แทนที่จะเป็น 168 ชม. เท่ากันหมด
+                # M1-M30 = รอสัมบูรณ์ 30 นาที, H1/H4 = รอ 1 แท่งของ TF นั้น, H12/D1 = รอ 2 แท่ง (กันตึงไป)
+                max_bars_map = {"M1": 30, "M5": 6, "M15": 2, "M30": 1, "H1": 1, "H4": 1, "H12": 2, "D1": 2}
                 if p['Bars_Waited'] > max_bars_map.get(tf_str, 168): # Expire after 168 hours (1 week)
                     pending_orders.remove(p)
                     continue
@@ -474,9 +486,10 @@ if __name__ == '__main__':
                     if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
                         tp = _tpsl_res["tp"]
                 # ------------------------------
-                open_trades.append({
+                _enforce_pending_cap(pending_orders, 1024)
+                pending_orders.append({
                     "Pattern": "GapSweep", "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
-                    "Type": "SELL", "Limit_Price": round(row.weekly_open, 2), "Entry": round(row.weekly_open, 2), "SL": round(sl, 2), "TP": round(tp, 2),
+                    "Type": "SELL", "Limit_Price": round(row.weekly_open, 2), "Entry": 0.0, "SL": round(sl, 2), "TP": round(tp, 2),
                     "be_trig": row.weekly_open - (row.atr * 6 * 0.4), "be_act": False,
                     "RSI": round(row.rsi, 2), "ATR": round(row.atr, 2), "Lot": compound,
                     "dist_sma50": round(row.dist_sma50, 2), "dist_sma200": round(row.dist_sma200, 2),
@@ -506,9 +519,10 @@ if __name__ == '__main__':
                     if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
                         tp = _tpsl_res["tp"]
                 # ------------------------------
-                open_trades.append({
+                _enforce_pending_cap(pending_orders, 1024)
+                pending_orders.append({
                     "Pattern": "GapSweep", "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
-                    "Type": "BUY", "Limit_Price": round(row.weekly_open, 2), "Entry": round(row.weekly_open, 2), "SL": round(sl, 2), "TP": round(tp, 2),
+                    "Type": "BUY", "Limit_Price": round(row.weekly_open, 2), "Entry": 0.0, "SL": round(sl, 2), "TP": round(tp, 2),
                     "be_trig": row.weekly_open + (row.atr * 6 * 0.4), "be_act": False,
                     "RSI": round(row.rsi, 2), "ATR": round(row.atr, 2), "Lot": compound,
                     "dist_sma50": round(row.dist_sma50, 2), "dist_sma200": round(row.dist_sma200, 2),
@@ -532,7 +546,7 @@ if __name__ == '__main__':
                 if t['Type'] == 'BUY':
                     if row.low <= t['SL']:
                         t['Reason'] = 'BE' if t.get('be_act') else 'SL'
-                        t['P&L'] = 0.0 if t.get('be_act') else (t['SL'] - t['Entry']) * 100 * t['Lot']
+                        t['P&L'] = 0.0 if t.get('be_act') else ((t['SL'] - slip_offset) - t['Entry']) * 100 * t['Lot']
                         t['CloseTime (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
                         trades_list.append(t)
                         open_trades.remove(t)
@@ -549,7 +563,7 @@ if __name__ == '__main__':
                 elif t['Type'] == 'SELL':
                     if (row.high + spread_price) >= t['SL']:
                         t['Reason'] = 'BE' if t.get('be_act') else 'SL'
-                        t['P&L'] = 0.0 if t.get('be_act') else (t['Entry'] - t['SL']) * 100 * t['Lot']
+                        t['P&L'] = 0.0 if t.get('be_act') else (t['Entry'] - (t['SL'] + slip_offset)) * 100 * t['Lot']
                         t['CloseTime (BKK)'] = row.time_dt.strftime('%Y-%m-%d %H:%M')
                         trades_list.append(t)
                         open_trades.remove(t)
@@ -701,6 +715,7 @@ if __name__ == '__main__':
                     if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
                         tp = _tpsl_res["tp"]
                 # ------------------------------
+                _enforce_pending_cap(pending_orders, 1024)
                 pending_orders.append({
                     "Pattern": combined_pat, "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
                     "Type": "BUY", "Limit_Price": round(limit_price, 2), "Entry": 0.0, "SL": round(sl, 2), "TP": round(tp, 2),
@@ -828,6 +843,7 @@ if __name__ == '__main__':
                     if _tpsl_target in ["TP_ONLY", "BOTH"] and _tpsl_res["tp"] != 0:
                         tp = _tpsl_res["tp"]
                 # ------------------------------
+                _enforce_pending_cap(pending_orders, 1024)
                 pending_orders.append({
                     "Pattern": combined_pat, "TF": tf_str, "Time (BKK)": row.time_dt.strftime('%Y-%m-%d %H:%M'),
                     "Type": "SELL", "Limit_Price": round(limit_price, 2), "Entry": 0.0, "SL": round(sl, 2), "TP": round(tp, 2),

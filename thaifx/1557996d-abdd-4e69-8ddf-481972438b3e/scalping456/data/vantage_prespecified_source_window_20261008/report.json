@@ -1,0 +1,163 @@
+{
+  "source_rows": 35462,
+  "source_sha256": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1",
+  "original_replay_report_sha256": "188b072fbe506e6139e16cabc395fd285b2be1d4514f04c4d1aab4a88463a8e0",
+  "script_sha256": "6e8f40ff063c55ca1a1e1d68b937cf1d556c1e8fbc0cc2ed8535073f417f3329",
+  "source_window_start_inferred_utc": "2026-08-23T22:05:02+00:00",
+  "source_window_end_exclusive_inferred_utc": "2026-10-08T01:17:56+00:00",
+  "selection": "exclude only predictions closed before source start or opening after source end; retain boundary-active positions; no refit/no state resets",
+  "all_symbols_scored": true,
+  "parameter_selection": "old prespecified benchmarks, not unseen holdout",
+  "source_feed_identity_verified": false,
+  "full_source_clone_complete": false,
+  "models": [
+    {
+      "model": "fixed100_a40_d30_level",
+      "immutable_prediction_sha256": "0720d2e8479d717cffa2041b441e39c9ceb86e7f187af8eb2a03db9f49380770",
+      "predictions_including_warmup": 62354,
+      "outside_window_predictions": 5530,
+      "cohorts": {
+        "fixed_other": {
+          "source_orders": 33,
+          "exact": 0
+        },
+        "fixed_tp": {
+          "source_orders": 4076,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_orders": 143,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_orders": 87,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_orders": 31123,
+          "exact": 17
+        }
+      },
+      "source_orders": 35462,
+      "predicted_orders": 56824,
+      "exact_all_observable_fields": 17,
+      "missing": 35445,
+      "extra": 56807,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false
+    },
+    {
+      "model": "fixed100_a40_d30_quote",
+      "immutable_prediction_sha256": "a664cb8618c630efaad3325960b3219d4436bf79f024b2b6f36fbdd757d23fb2",
+      "predictions_including_warmup": 61841,
+      "outside_window_predictions": 5462,
+      "cohorts": {
+        "fixed_other": {
+          "source_orders": 33,
+          "exact": 0
+        },
+        "fixed_tp": {
+          "source_orders": 4076,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_orders": 143,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_orders": 87,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_orders": 31123,
+          "exact": 2
+        }
+      },
+      "source_orders": 35462,
+      "predicted_orders": 56379,
+      "exact_all_observable_fields": 2,
+      "missing": 35460,
+      "extra": 56377,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false
+    },
+    {
+      "model": "momentum10s50_a40_d30_level",
+      "immutable_prediction_sha256": "3f93d21fa233e3b9a864c00c2fd4d79137e3e4c87ef7ab5c02df8fb4515439f8",
+      "predictions_including_warmup": 123036,
+      "outside_window_predictions": 10962,
+      "cohorts": {
+        "fixed_other": {
+          "source_orders": 33,
+          "exact": 0
+        },
+        "fixed_tp": {
+          "source_orders": 4076,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_orders": 143,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_orders": 87,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_orders": 31123,
+          "exact": 9
+        }
+      },
+      "source_orders": 35462,
+      "predicted_orders": 112074,
+      "exact_all_observable_fields": 9,
+      "missing": 35453,
+      "extra": 112065,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false
+    },
+    {
+      "model": "rolling100_a40_d30_level",
+      "immutable_prediction_sha256": "fa6e0847bf49bd5bc98e5e46e6c65d02131c64441bbe94cfb8ee979175efde58",
+      "predictions_including_warmup": 72092,
+      "outside_window_predictions": 6401,
+      "cohorts": {
+        "fixed_other": {
+          "source_orders": 33,
+          "exact": 0
+        },
+        "fixed_tp": {
+          "source_orders": 4076,
+          "exact": 0
+        },
+        "fixed_trial": {
+          "source_orders": 143,
+          "exact": 0
+        },
+        "xau_other": {
+          "source_orders": 87,
+          "exact": 0
+        },
+        "xau_sl": {
+          "source_orders": 31123,
+          "exact": 9
+        }
+      },
+      "source_orders": 35462,
+      "predicted_orders": 65691,
+      "exact_all_observable_fields": 9,
+      "missing": 35453,
+      "extra": 65682,
+      "unknown_source_close_behavior": 108,
+      "timing_tolerance_seconds": 0,
+      "source_field_precision_only": true,
+      "complete": false
+    }
+  ]
+}

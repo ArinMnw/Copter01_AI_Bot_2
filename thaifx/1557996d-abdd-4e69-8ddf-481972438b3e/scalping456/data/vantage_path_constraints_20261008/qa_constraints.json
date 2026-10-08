@@ -1,0 +1,659 @@
+{
+  "created_utc": "2026-10-08T14:28:53.849752+00:00",
+  "script_sha256": "03bad41cc9489de5930cbed42d048a92750598b16556dce3b5320bf3b0d07db1",
+  "path_report_sha256": "c2d5da6bb2d648ba1536d35505bbcdf6b11b3d22923d09bc53c523a2030e97ac",
+  "source_rows_verified": 35462,
+  "unique_tickets_verified": 35462,
+  "missing_or_extra_source_rows": 0,
+  "full_clone_complete": false,
+  "phase_counts": {
+    "chronological_validation_not_unseen:fixed_other": {
+      "source_rows": 26,
+      "interior_quotes_available": 26,
+      "gaps_over60s": 16
+    },
+    "chronological_validation_not_unseen:fixed_tp": {
+      "source_rows": 2089,
+      "interior_quotes_available": 2088,
+      "gaps_over60s": 17
+    },
+    "chronological_validation_not_unseen:xau_other": {
+      "source_rows": 20,
+      "interior_quotes_available": 20,
+      "gaps_over60s": 4,
+      "nominal_plus10pct_at_least5s_early": 18
+    },
+    "chronological_validation_not_unseen:xau_sl": {
+      "source_rows": 8973,
+      "interior_quotes_available": 8868,
+      "gaps_over60s": 7,
+      "nominal_plus10pct_at_least5s_early": 282
+    },
+    "cross_split_not_parameter_selection:fixed_tp": {
+      "source_rows": 4,
+      "interior_quotes_available": 4,
+      "gaps_over60s": 0
+    },
+    "development_closed_before_split:fixed_other": {
+      "source_rows": 7,
+      "interior_quotes_available": 7,
+      "gaps_over60s": 0
+    },
+    "development_closed_before_split:fixed_tp": {
+      "source_rows": 1983,
+      "interior_quotes_available": 1983,
+      "gaps_over60s": 18
+    },
+    "development_closed_before_split:fixed_trial": {
+      "source_rows": 143,
+      "interior_quotes_available": 143,
+      "gaps_over60s": 2,
+      "nominal_plus10pct_at_least5s_early": 1,
+      "implied_distance_equal2_8_at_feed_resolution": 110,
+      "loss_below_minus2_8_price": 33
+    },
+    "development_closed_before_split:xau_other": {
+      "source_rows": 67,
+      "interior_quotes_available": 67,
+      "gaps_over60s": 3,
+      "nominal_plus10pct_at_least5s_early": 59
+    },
+    "development_closed_before_split:xau_sl": {
+      "source_rows": 22150,
+      "interior_quotes_available": 21831,
+      "gaps_over60s": 4,
+      "nominal_plus10pct_at_least5s_early": 243
+    }
+  },
+  "implied_distance_mode_counts_not_recovered_parameters": {
+    "chronological_validation_not_unseen:xau_sl:nominal_loss": [
+      [
+        "0.94",
+        64
+      ],
+      [
+        "0.92",
+        57
+      ],
+      [
+        "0.86",
+        55
+      ],
+      [
+        "0.88",
+        54
+      ],
+      [
+        "0.91",
+        53
+      ],
+      [
+        "1.12",
+        53
+      ],
+      [
+        "1.01",
+        52
+      ],
+      [
+        "0.89",
+        52
+      ],
+      [
+        "1.02",
+        51
+      ],
+      [
+        "1.06",
+        51
+      ],
+      [
+        "0.96",
+        51
+      ],
+      [
+        "0.95",
+        49
+      ]
+    ],
+    "chronological_validation_not_unseen:xau_sl:other_loss": [
+      [
+        "0.63",
+        4
+      ],
+      [
+        "0.67",
+        4
+      ],
+      [
+        "0.75",
+        3
+      ],
+      [
+        "0.30",
+        3
+      ],
+      [
+        "1.00",
+        2
+      ],
+      [
+        "0.59",
+        2
+      ],
+      [
+        "1.26",
+        2
+      ],
+      [
+        "0.64",
+        2
+      ],
+      [
+        "1.18",
+        2
+      ],
+      [
+        "2.86",
+        2
+      ],
+      [
+        "0.52",
+        2
+      ],
+      [
+        "1.60",
+        2
+      ]
+    ],
+    "chronological_validation_not_unseen:xau_sl:positive": [
+      [
+        "0.16",
+        653
+      ],
+      [
+        "0.15",
+        606
+      ],
+      [
+        "0.17",
+        553
+      ],
+      [
+        "0.18",
+        439
+      ],
+      [
+        "0.19",
+        381
+      ],
+      [
+        "0.20",
+        301
+      ],
+      [
+        "0.21",
+        278
+      ],
+      [
+        "0.14",
+        278
+      ],
+      [
+        "0.22",
+        236
+      ],
+      [
+        "0.23",
+        200
+      ],
+      [
+        "0.25",
+        182
+      ],
+      [
+        "0.24",
+        178
+      ]
+    ],
+    "chronological_validation_not_unseen:xau_sl:zero": [
+      [
+        "0.15",
+        6
+      ],
+      [
+        "0.17",
+        6
+      ],
+      [
+        "0.16",
+        4
+      ],
+      [
+        "0.18",
+        4
+      ],
+      [
+        "0.14",
+        3
+      ],
+      [
+        "0.19",
+        3
+      ],
+      [
+        "0.20",
+        2
+      ],
+      [
+        "0.35",
+        2
+      ],
+      [
+        "0.21",
+        2
+      ],
+      [
+        "0.41",
+        1
+      ],
+      [
+        "0.71",
+        1
+      ],
+      [
+        "0.82",
+        1
+      ]
+    ],
+    "development_closed_before_split:fixed_trial:nominal_loss": [
+      [
+        "9.188",
+        1
+      ],
+      [
+        "9.293",
+        1
+      ],
+      [
+        "9.805",
+        1
+      ],
+      [
+        "10.992",
+        1
+      ],
+      [
+        "10.707",
+        1
+      ],
+      [
+        "10.474",
+        1
+      ],
+      [
+        "9.609",
+        1
+      ],
+      [
+        "10.697",
+        1
+      ],
+      [
+        "10.900",
+        1
+      ],
+      [
+        "10.630",
+        1
+      ],
+      [
+        "10.089",
+        1
+      ],
+      [
+        "11.881",
+        1
+      ]
+    ],
+    "development_closed_before_split:fixed_trial:other_loss": [
+      [
+        "2.800",
+        38
+      ],
+      [
+        "3.126",
+        1
+      ],
+      [
+        "3.280",
+        1
+      ],
+      [
+        "5.241",
+        1
+      ],
+      [
+        "3.309",
+        1
+      ],
+      [
+        "3.056",
+        1
+      ],
+      [
+        "2.921",
+        1
+      ]
+    ],
+    "development_closed_before_split:fixed_trial:positive": [
+      [
+        "2.800",
+        72
+      ]
+    ],
+    "development_closed_before_split:xau_sl:nominal_loss": [
+      [
+        "0.88",
+        141
+      ],
+      [
+        "0.96",
+        136
+      ],
+      [
+        "0.91",
+        136
+      ],
+      [
+        "0.99",
+        136
+      ],
+      [
+        "0.94",
+        134
+      ],
+      [
+        "0.89",
+        134
+      ],
+      [
+        "1.03",
+        129
+      ],
+      [
+        "0.93",
+        129
+      ],
+      [
+        "0.98",
+        128
+      ],
+      [
+        "0.97",
+        128
+      ],
+      [
+        "0.92",
+        125
+      ],
+      [
+        "1.07",
+        124
+      ]
+    ],
+    "development_closed_before_split:xau_sl:other_loss": [
+      [
+        "1.29",
+        5
+      ],
+      [
+        "1.12",
+        5
+      ],
+      [
+        "1.49",
+        4
+      ],
+      [
+        "2.19",
+        4
+      ],
+      [
+        "1.19",
+        4
+      ],
+      [
+        "0.77",
+        3
+      ],
+      [
+        "2.62",
+        3
+      ],
+      [
+        "1.52",
+        3
+      ],
+      [
+        "0.91",
+        3
+      ],
+      [
+        "1.14",
+        3
+      ],
+      [
+        "0.97",
+        3
+      ],
+      [
+        "0.72",
+        3
+      ]
+    ],
+    "development_closed_before_split:xau_sl:positive": [
+      [
+        "0.16",
+        1512
+      ],
+      [
+        "0.15",
+        1363
+      ],
+      [
+        "0.17",
+        1343
+      ],
+      [
+        "0.18",
+        1182
+      ],
+      [
+        "0.19",
+        1008
+      ],
+      [
+        "0.20",
+        820
+      ],
+      [
+        "0.21",
+        676
+      ],
+      [
+        "0.22",
+        631
+      ],
+      [
+        "0.14",
+        630
+      ],
+      [
+        "0.23",
+        557
+      ],
+      [
+        "0.24",
+        472
+      ],
+      [
+        "0.25",
+        409
+      ]
+    ],
+    "development_closed_before_split:xau_sl:zero": [
+      [
+        "0.15",
+        13
+      ],
+      [
+        "0.20",
+        11
+      ],
+      [
+        "0.16",
+        10
+      ],
+      [
+        "0.18",
+        9
+      ],
+      [
+        "0.17",
+        9
+      ],
+      [
+        "0.19",
+        8
+      ],
+      [
+        "0.24",
+        5
+      ],
+      [
+        "0.23",
+        4
+      ],
+      [
+        "0.27",
+        4
+      ],
+      [
+        "0.22",
+        4
+      ],
+      [
+        "0.33",
+        3
+      ],
+      [
+        "0.25",
+        3
+      ]
+    ]
+  },
+  "closeby": {
+    "source_rows_retained": 12,
+    "interior_quotes_available": 12
+  },
+  "worst_xau_sl_path": {
+    "ticket": 1645015941,
+    "symbol": "XAUUSD+",
+    "cohort": "xau_sl",
+    "source_open_raw": "2026-09-17T14:49:04+00:00",
+    "source_close_raw": "2026-09-18T19:33:34+00:00",
+    "source_volume": "10",
+    "source_pips": "-5037",
+    "source_comment": "[sl 4381.82]",
+    "holding_seconds": 103470.0,
+    "interior_start_inferred_ms": 1789645745000,
+    "interior_end_exclusive_inferred_ms": 1789749214000,
+    "interior_quotes": 835261,
+    "quote_side": "ask",
+    "gaps_over60s_intersecting_interior": 1,
+    "mfe_price_observed": 0.6999999999998181,
+    "mae_price_observed": -68.30000000000018,
+    "implied_peak_minus_close_price_observed": 51.06999999999971,
+    "source_feed_identity_verified": false,
+    "not_a_prediction_or_goal_success_metric": true,
+    "initial_stop_benchmark": {
+      "distance_price": 1,
+      "strict_beyond_nominal": {
+        "first_inferred_ms": 1789645783737,
+        "lead_before_reported_close_seconds": 103430.263,
+        "at_least5s_early": true
+      },
+      "strict_beyond_nominal_plus10pct": {
+        "first_inferred_ms": 1789645789244,
+        "lead_before_reported_close_seconds": 103424.756,
+        "at_least5s_early": true
+      }
+    },
+    "ratchet_barrier_benchmark": {
+      "activation_price": 0.4,
+      "distance_price": 0.3,
+      "first_violation_inferred_ms": 1789645763183,
+      "gain_barrier_price": 0.3999999999998181,
+      "at_least5s_before_reported_close": true,
+      "not_a_source_seeded_exit_signal": true
+    },
+    "final_reported_tp_witness": null
+  },
+  "lot_segment_counts": {
+    "XAUUSD+": 7,
+    "FixedVol20": 3145
+  },
+  "xau_lot_segments_observed_not_settings": [
+    {
+      "volume": "0.01",
+      "first_open_raw": "2026-08-24T01:05:02+00:00",
+      "last_open_raw": "2026-08-31T08:11:46+00:00",
+      "orders": 7312,
+      "not_proven_EA_parameter_change": true
+    },
+    {
+      "volume": "1",
+      "first_open_raw": "2026-08-31T08:13:28+00:00",
+      "last_open_raw": "2026-08-31T23:41:21+00:00",
+      "orders": 948,
+      "not_proven_EA_parameter_change": true
+    },
+    {
+      "volume": "0.01",
+      "first_open_raw": "2026-09-01T02:59:50+00:00",
+      "last_open_raw": "2026-09-01T05:05:37+00:00",
+      "orders": 173,
+      "not_proven_EA_parameter_change": true
+    },
+    {
+      "volume": "1",
+      "first_open_raw": "2026-09-01T05:06:01+00:00",
+      "last_open_raw": "2026-09-01T16:37:13+00:00",
+      "orders": 962,
+      "not_proven_EA_parameter_change": true
+    },
+    {
+      "volume": "10",
+      "first_open_raw": "2026-09-01T16:37:24+00:00",
+      "last_open_raw": "2026-09-30T15:25:38+00:00",
+      "orders": 17510,
+      "not_proven_EA_parameter_change": true
+    },
+    {
+      "volume": "0.4",
+      "first_open_raw": "2026-09-30T15:25:45+00:00",
+      "last_open_raw": "2026-09-30T15:25:45+00:00",
+      "orders": 1,
+      "not_proven_EA_parameter_change": true
+    },
+    {
+      "volume": "10",
+      "first_open_raw": "2026-09-30T15:26:07+00:00",
+      "last_open_raw": "2026-10-08T01:07:31+00:00",
+      "orders": 4304,
+      "not_proven_EA_parameter_change": true
+    }
+  ],
+  "sparse_public_equity_not_used_for_live_risk_sizing": true
+}

@@ -1,0 +1,210 @@
+{
+  "reconciliation": {
+    "raw_rows": 35462,
+    "normalized_rows": 35462,
+    "jsonl_rows": 35462,
+    "raw_unique_tickets": 35462,
+    "raw_unique_ids": 35462,
+    "issue_count": 0,
+    "issues": [],
+    "exact_population_and_values_reconciled": true,
+    "utc_offset_status": "inferred_from_cross_broker_price_alignment_not_officially_confirmed",
+    "web_display_status": "derived_raw_plus_7h_not_independently_captured_for_every_row"
+  },
+  "source_file_sha256": {
+    "orders_35462.csv": "acd58dfdedb97124541728947ca933543e0b84d0fef3357a132567dc5c962283",
+    "orders_35462.jsonl": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1",
+    "orders_35462_normalized.csv": "94d724f176bfe3d96766c7d4c7c5d93a57f669051517ef04773828746caa13bc"
+  },
+  "all_orders_accounted_for": 35462,
+  "classification": {
+    "fixedvol_other_exit": 33,
+    "fixedvol_sl_trial": 143,
+    "fixedvol_tp_basket": 4076,
+    "xau_other_exit": 87,
+    "xau_sl_core": 31123
+  },
+  "classification_sum": 35462,
+  "gross_profit_decimal": "3159742.5899999999999971",
+  "xau_core_previous_core_only": {
+    "available": 31122,
+    "eligible_nonoverlap_gap_under_600s": 30996,
+    "matching_direction": 30750,
+    "mismatching_direction": 246,
+    "direction_accuracy_pct": 99.206349,
+    "overlapping_adjacent_pair": 16,
+    "gap_600s_or_more": 110,
+    "abs_distance_points": {
+      "count": 30996,
+      "p10": 92.0,
+      "p25": 101.0,
+      "median": 108.0,
+      "p75": 118.0,
+      "p90": 137.0
+    }
+  },
+  "xau_core_previous_all_xau_opened": {
+    "available": 31122,
+    "eligible_nonoverlap_gap_under_600s": 30994,
+    "matching_direction": 30751,
+    "mismatching_direction": 243,
+    "direction_accuracy_pct": 99.215977,
+    "overlapping_adjacent_pair": 31,
+    "gap_600s_or_more": 97,
+    "abs_distance_points": {
+      "count": 30994,
+      "p10": 92.0,
+      "p25": 101.0,
+      "median": 108.0,
+      "p75": 118.0,
+      "p90": 137.0
+    }
+  },
+  "xau_core_latest_completed_xau": {
+    "available": 31122,
+    "eligible_nonoverlap_gap_under_600s": 31025,
+    "matching_direction": 30782,
+    "mismatching_direction": 243,
+    "direction_accuracy_pct": 99.216761,
+    "overlapping_adjacent_pair": 0,
+    "gap_600s_or_more": 97,
+    "abs_distance_points": {
+      "count": 31025,
+      "p10": 92.0,
+      "p25": 101.0,
+      "median": 108.0,
+      "p75": 118.0,
+      "p90": 137.0
+    }
+  },
+  "predecessor_changed_core_orders": 68,
+  "old_core_only_direction_mismatches_resolved": 8,
+  "resolved_tickets": [
+    "1503149526",
+    "1503190963",
+    "1506365687",
+    "1510530548",
+    "1513007642",
+    "1517535180",
+    "1522981858",
+    "1663542567"
+  ],
+  "xau_core_opens_with_active_same_symbol": 268,
+  "xau_core_close_open_second_ties": 18,
+  "by_predecessor_category": {
+    "xau_sl_core": {
+      "available": 31054,
+      "eligible_nonoverlap_gap_under_600s": 30943,
+      "matching_direction": 30708,
+      "mismatching_direction": 235,
+      "direction_accuracy_pct": 99.240539,
+      "overlapping_adjacent_pair": 16,
+      "gap_600s_or_more": 95,
+      "abs_distance_points": {
+        "count": 30943,
+        "p10": 92.0,
+        "p25": 101.0,
+        "median": 108.0,
+        "p75": 118.0,
+        "p90": 137.0
+      }
+    },
+    "xau_other_exit": {
+      "available": 68,
+      "eligible_nonoverlap_gap_under_600s": 51,
+      "matching_direction": 43,
+      "mismatching_direction": 8,
+      "direction_accuracy_pct": 84.313725,
+      "overlapping_adjacent_pair": 15,
+      "gap_600s_or_more": 2,
+      "abs_distance_points": {
+        "count": 51,
+        "p10": 27.0,
+        "p25": 70.0,
+        "median": 121.0,
+        "p75": 291.5,
+        "p90": 665.0
+      }
+    }
+  },
+  "by_side_pair": {
+    "sell_to_buy": {
+      "available": 7885,
+      "eligible_nonoverlap_gap_under_600s": 7844,
+      "matching_direction": 7794,
+      "mismatching_direction": 50,
+      "direction_accuracy_pct": 99.36257,
+      "overlapping_adjacent_pair": 16,
+      "gap_600s_or_more": 25,
+      "abs_distance_points": {
+        "count": 7844,
+        "p10": 99.0,
+        "p25": 102.0,
+        "median": 108.0,
+        "p75": 126.0,
+        "p90": 141.0
+      }
+    },
+    "buy_to_sell": {
+      "available": 7889,
+      "eligible_nonoverlap_gap_under_600s": 7858,
+      "matching_direction": 7839,
+      "mismatching_direction": 19,
+      "direction_accuracy_pct": 99.758208,
+      "overlapping_adjacent_pair": 15,
+      "gap_600s_or_more": 16,
+      "abs_distance_points": {
+        "count": 7858,
+        "p10": 99.0,
+        "p25": 102.0,
+        "median": 108.0,
+        "p75": 126.0,
+        "p90": 142.0
+      }
+    },
+    "sell_to_sell": {
+      "available": 7663,
+      "eligible_nonoverlap_gap_under_600s": 7632,
+      "matching_direction": 7584,
+      "mismatching_direction": 48,
+      "direction_accuracy_pct": 99.371069,
+      "overlapping_adjacent_pair": 0,
+      "gap_600s_or_more": 31,
+      "abs_distance_points": {
+        "count": 7632,
+        "p10": 86.0,
+        "p25": 100.0,
+        "median": 108.0,
+        "p75": 113.0,
+        "p90": 134.0
+      }
+    },
+    "buy_to_buy": {
+      "available": 7685,
+      "eligible_nonoverlap_gap_under_600s": 7660,
+      "matching_direction": 7534,
+      "mismatching_direction": 126,
+      "direction_accuracy_pct": 98.355091,
+      "overlapping_adjacent_pair": 0,
+      "gap_600s_or_more": 25,
+      "abs_distance_points": {
+        "count": 7660,
+        "p10": 83.0,
+        "p25": 98.0,
+        "median": 108.0,
+        "p75": 113.0,
+        "p90": 134.0
+      }
+    }
+  },
+  "core_loss_orders": 8251,
+  "core_loss_exact_minus_100_points": 7879,
+  "full_causal_clone_verified_orders": 0,
+  "full_clone_complete": false,
+  "remaining": [
+    "Source broker ticks and bid/ask not present",
+    "No causal one-to-one replay has passed for all source orders",
+    "Manual actions/settings/session state not in closed ledger",
+    "FixedVol20 trial and unusual exits must not be dropped"
+  ]
+}

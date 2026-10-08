@@ -1,0 +1,5069 @@
+{
+  "method": "greedy coordinate search; every trial is a 365-day backtest on all 8 TFs",
+  "selection": "combined chronological net/max-drawdown plus profitable-TF breadth",
+  "period": {
+    "start_bkk": "2025-10-06 21:57:03",
+    "end_bkk": "2026-10-06 21:57:03"
+  },
+  "spread": 0.2,
+  "lot": 0.01,
+  "trials": [
+    {
+      "id": 1,
+      "pass": 1,
+      "parameter": "BREAKEVEN_LOCK_POINTS",
+      "value": 0,
+      "base_value": 10,
+      "elapsed_sec": 58.148,
+      "per_tf": {
+        "M1": {
+          "net_profit": 397.35,
+          "max_drawdown": 207.21,
+          "profit_factor": 1.101838,
+          "trades": 4420,
+          "wins": 1225
+        },
+        "M5": {
+          "net_profit": 707.45,
+          "max_drawdown": 36.43,
+          "profit_factor": 2.077986,
+          "trades": 825,
+          "wins": 339
+        },
+        "M15": {
+          "net_profit": 478.33,
+          "max_drawdown": 14.63,
+          "profit_factor": 3.657389,
+          "trades": 241,
+          "wins": 136
+        },
+        "M30": {
+          "net_profit": 146.82,
+          "max_drawdown": 26.08,
+          "profit_factor": 1.873929,
+          "trades": 125,
+          "wins": 58
+        },
+        "H1": {
+          "net_profit": 30.2,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.235938,
+          "trades": 59,
+          "wins": 23
+        },
+        "H4": {
+          "net_profit": 32.07,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.6725,
+          "trades": 13,
+          "wins": 7
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 1806.86,
+        "max_drawdown": 113.26,
+        "profit_factor": 1.357507,
+        "trades": 5688,
+        "wins": 1791
+      },
+      "profitable_tfs": 7,
+      "score": 17.003205015
+    },
+    {
+      "id": 2,
+      "pass": 1,
+      "parameter": "BREAKEVEN_LOCK_POINTS",
+      "value": 25,
+      "base_value": 10,
+      "elapsed_sec": 66.848,
+      "per_tf": {
+        "M1": {
+          "net_profit": 608.91,
+          "max_drawdown": 157.03,
+          "profit_factor": 1.156123,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 770.37,
+          "max_drawdown": 31.99,
+          "profit_factor": 2.173987,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 492.3,
+          "max_drawdown": 13.57,
+          "profit_factor": 3.735,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 153.16,
+          "max_drawdown": 25.49,
+          "profit_factor": 1.911667,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 31.2,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.24375,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 32.82,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.735,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2103.4,
+        "max_drawdown": 66.38,
+        "profit_factor": 1.416317,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 32.737255197
+    },
+    {
+      "id": 5,
+      "pass": 1,
+      "parameter": "USE_TRAILING",
+      "value": false,
+      "base_value": true,
+      "elapsed_sec": 77.225,
+      "per_tf": {
+        "M1": {
+          "net_profit": 524.42,
+          "max_drawdown": 128.89,
+          "profit_factor": 1.134874,
+          "trades": 4398,
+          "wins": 3423
+        },
+        "M5": {
+          "net_profit": 581.21,
+          "max_drawdown": 38.0,
+          "profit_factor": 1.885721,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 385.75,
+          "max_drawdown": 18.0,
+          "profit_factor": 3.143056,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 116.0,
+          "max_drawdown": 37.5,
+          "profit_factor": 1.690476,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": -4.25,
+          "max_drawdown": 29.75,
+          "profit_factor": 0.966797,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 19.75,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.645833,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 2.5,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.3125,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 1625.38,
+        "max_drawdown": 100.22,
+        "profit_factor": 1.32247,
+        "trades": 5666,
+        "wins": 4402
+      },
+      "profitable_tfs": 6,
+      "score": 16.868120136
+    },
+    {
+      "id": 6,
+      "pass": 1,
+      "parameter": "TRAIL_TRIGGER_POINTS",
+      "value": 100,
+      "base_value": 200,
+      "elapsed_sec": 92.653,
+      "per_tf": {
+        "M1": {
+          "net_profit": 608.91,
+          "max_drawdown": 157.03,
+          "profit_factor": 1.156123,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 770.37,
+          "max_drawdown": 31.99,
+          "profit_factor": 2.173987,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 492.3,
+          "max_drawdown": 13.57,
+          "profit_factor": 3.735,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 153.16,
+          "max_drawdown": 25.49,
+          "profit_factor": 1.911667,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 31.2,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.24375,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 32.82,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.735,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2103.4,
+        "max_drawdown": 66.38,
+        "profit_factor": 1.416317,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 32.737255197
+    },
+    {
+      "id": 7,
+      "pass": 1,
+      "parameter": "TRAIL_TRIGGER_POINTS",
+      "value": 150,
+      "base_value": 200,
+      "elapsed_sec": 74.63,
+      "per_tf": {
+        "M1": {
+          "net_profit": 608.91,
+          "max_drawdown": 157.03,
+          "profit_factor": 1.156123,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 770.37,
+          "max_drawdown": 31.99,
+          "profit_factor": 2.173987,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 492.3,
+          "max_drawdown": 13.57,
+          "profit_factor": 3.735,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 153.16,
+          "max_drawdown": 25.49,
+          "profit_factor": 1.911667,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 31.2,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.24375,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 32.82,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.735,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2103.4,
+        "max_drawdown": 66.38,
+        "profit_factor": 1.416317,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 32.737255197
+    },
+    {
+      "id": 8,
+      "pass": 1,
+      "parameter": "TRAIL_TRIGGER_POINTS",
+      "value": 250,
+      "base_value": 200,
+      "elapsed_sec": 92.661,
+      "per_tf": {
+        "M1": {
+          "net_profit": 608.91,
+          "max_drawdown": 157.03,
+          "profit_factor": 1.156123,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 770.37,
+          "max_drawdown": 31.99,
+          "profit_factor": 2.173987,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 492.3,
+          "max_drawdown": 13.57,
+          "profit_factor": 3.735,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 153.16,
+          "max_drawdown": 25.49,
+          "profit_factor": 1.911667,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 31.2,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.24375,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 32.82,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.735,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2103.4,
+        "max_drawdown": 66.38,
+        "profit_factor": 1.416317,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 32.737255197
+    },
+    {
+      "id": 9,
+      "pass": 1,
+      "parameter": "TRAIL_TRIGGER_POINTS",
+      "value": 300,
+      "base_value": 200,
+      "elapsed_sec": 97.204,
+      "per_tf": {
+        "M1": {
+          "net_profit": 608.91,
+          "max_drawdown": 157.03,
+          "profit_factor": 1.156123,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 770.37,
+          "max_drawdown": 31.99,
+          "profit_factor": 2.173987,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 492.3,
+          "max_drawdown": 13.57,
+          "profit_factor": 3.735,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 153.16,
+          "max_drawdown": 25.49,
+          "profit_factor": 1.911667,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 31.2,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.24375,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 32.82,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.735,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2103.4,
+        "max_drawdown": 66.38,
+        "profit_factor": 1.416317,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 32.737255197
+    },
+    {
+      "id": 10,
+      "pass": 1,
+      "parameter": "TRAIL_TRIGGER_POINTS",
+      "value": 400,
+      "base_value": 200,
+      "elapsed_sec": 75.969,
+      "per_tf": {
+        "M1": {
+          "net_profit": 594.7,
+          "max_drawdown": 155.16,
+          "profit_factor": 1.152479,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 776.79,
+          "max_drawdown": 32.1,
+          "profit_factor": 2.18377,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 488.4,
+          "max_drawdown": 13.57,
+          "profit_factor": 3.713333,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 151.07,
+          "max_drawdown": 25.73,
+          "profit_factor": 1.899226,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 31.19,
+          "max_drawdown": 24.59,
+          "profit_factor": 1.243672,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 32.82,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.735,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 14.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.83,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2089.61,
+        "max_drawdown": 72.33,
+        "profit_factor": 1.413588,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 29.939948846
+    },
+    {
+      "id": 11,
+      "pass": 1,
+      "parameter": "TRAIL_DISTANCE_POINTS",
+      "value": 100,
+      "base_value": 300,
+      "elapsed_sec": 52.346,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1143.54,
+          "max_drawdown": 61.17,
+          "profit_factor": 1.2932,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 1098.1,
+          "max_drawdown": 28.98,
+          "profit_factor": 2.673423,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 680.71,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.781722,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 230.25,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.370536,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 50.04,
+          "max_drawdown": 22.59,
+          "profit_factor": 1.390937,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 42.51,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.5425,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 18.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.33,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 3263.79,
+        "max_drawdown": 51.54,
+        "profit_factor": 1.645988,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 64.375378347
+    },
+    {
+      "id": 12,
+      "pass": 1,
+      "parameter": "TRAIL_DISTANCE_POINTS",
+      "value": 150,
+      "base_value": 300,
+      "elapsed_sec": 61.251,
+      "per_tf": {
+        "M1": {
+          "net_profit": 926.67,
+          "max_drawdown": 116.02,
+          "profit_factor": 1.237596,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 1013.39,
+          "max_drawdown": 22.37,
+          "profit_factor": 2.544331,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 618.77,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.437611,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 205.1,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.220833,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 43.04,
+          "max_drawdown": 23.09,
+          "profit_factor": 1.33625,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 40.01,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.334167,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 17.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.205,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2864.62,
+        "max_drawdown": 56.99,
+        "profit_factor": 1.566982,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 51.315309703
+    },
+    {
+      "id": 13,
+      "pass": 1,
+      "parameter": "TRAIL_DISTANCE_POINTS",
+      "value": 200,
+      "base_value": 300,
+      "elapsed_sec": 43.993,
+      "per_tf": {
+        "M1": {
+          "net_profit": 794.96,
+          "max_drawdown": 159.78,
+          "profit_factor": 1.203825,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 911.79,
+          "max_drawdown": 26.89,
+          "profit_factor": 2.3895,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 565.23,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.140167,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 190.24,
+          "max_drawdown": 20.38,
+          "profit_factor": 2.132381,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 36.32,
+          "max_drawdown": 23.59,
+          "profit_factor": 1.28375,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 37.51,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.125833,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 16.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.08,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2552.69,
+        "max_drawdown": 60.39,
+        "profit_factor": 1.505243,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 43.320077827
+    },
+    {
+      "id": 14,
+      "pass": 1,
+      "parameter": "TRAIL_DISTANCE_POINTS",
+      "value": 400,
+      "base_value": 300,
+      "elapsed_sec": 41.614,
+      "per_tf": {
+        "M1": {
+          "net_profit": 523.32,
+          "max_drawdown": 141.74,
+          "profit_factor": 1.134315,
+          "trades": 4413,
+          "wins": 3437
+        },
+        "M5": {
+          "net_profit": 731.24,
+          "max_drawdown": 37.1,
+          "profit_factor": 2.114355,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 448.07,
+          "max_drawdown": 14.25,
+          "profit_factor": 3.489278,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 135.4,
+          "max_drawdown": 28.73,
+          "profit_factor": 1.805952,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 21.19,
+          "max_drawdown": 25.59,
+          "profit_factor": 1.165547,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 29.06,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.421667,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 12.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.58,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 1900.92,
+        "max_drawdown": 90.29,
+        "profit_factor": 1.376539,
+        "trades": 5681,
+        "wins": 4416
+      },
+      "profitable_tfs": 7,
+      "score": 22.103494296
+    },
+    {
+      "id": 15,
+      "pass": 1,
+      "parameter": "TRAIL_DISTANCE_POINTS",
+      "value": 500,
+      "base_value": 300,
+      "elapsed_sec": 56.589,
+      "per_tf": {
+        "M1": {
+          "net_profit": 459.75,
+          "max_drawdown": 117.47,
+          "profit_factor": 1.118,
+          "trades": 4409,
+          "wins": 3433
+        },
+        "M5": {
+          "net_profit": 643.58,
+          "max_drawdown": 41.9,
+          "profit_factor": 1.980768,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 412.87,
+          "max_drawdown": 15.67,
+          "profit_factor": 3.293722,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 123.0,
+          "max_drawdown": 31.73,
+          "profit_factor": 1.732143,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 12.47,
+          "max_drawdown": 26.59,
+          "profit_factor": 1.097422,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 26.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.235833,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 10.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.33,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 1689.14,
+        "max_drawdown": 94.4,
+        "profit_factor": 1.334589,
+        "trades": 5677,
+        "wins": 4412
+      },
+      "profitable_tfs": 7,
+      "score": 18.943432203
+    },
+    {
+      "id": 16,
+      "pass": 1,
+      "parameter": "TRAIL_STEP_POINTS",
+      "value": 5,
+      "base_value": 10,
+      "elapsed_sec": 58.822,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1145.39,
+          "max_drawdown": 61.09,
+          "profit_factor": 1.293675,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 1098.17,
+          "max_drawdown": 28.98,
+          "profit_factor": 2.673529,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 680.8,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.782222,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 230.25,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.370536,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 50.04,
+          "max_drawdown": 22.59,
+          "profit_factor": 1.390937,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 42.51,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.5425,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 18.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.33,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 3265.8,
+        "max_drawdown": 51.54,
+        "profit_factor": 1.646386,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 64.414377183
+    },
+    {
+      "id": 17,
+      "pass": 1,
+      "parameter": "TRAIL_STEP_POINTS",
+      "value": 25,
+      "base_value": 10,
+      "elapsed_sec": 57.305,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1138.73,
+          "max_drawdown": 60.62,
+          "profit_factor": 1.291967,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 1096.91,
+          "max_drawdown": 28.98,
+          "profit_factor": 2.671609,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 680.71,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.781722,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 230.25,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.370536,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 50.04,
+          "max_drawdown": 22.59,
+          "profit_factor": 1.390937,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 42.51,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.5425,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 18.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.33,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 3257.79,
+        "max_drawdown": 51.54,
+        "profit_factor": 1.6448,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 64.258963912
+    },
+    {
+      "id": 18,
+      "pass": 1,
+      "parameter": "TRAIL_STEP_POINTS",
+      "value": 50,
+      "base_value": 10,
+      "elapsed_sec": 51.961,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1116.49,
+          "max_drawdown": 61.06,
+          "profit_factor": 1.286265,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 1095.24,
+          "max_drawdown": 29.28,
+          "profit_factor": 2.669064,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 680.71,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.781722,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 230.25,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.370536,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 50.04,
+          "max_drawdown": 22.59,
+          "profit_factor": 1.390937,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 42.51,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.5425,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 18.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.33,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 3233.88,
+        "max_drawdown": 51.54,
+        "profit_factor": 1.640068,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 63.795052386
+    },
+    {
+      "id": 19,
+      "pass": 1,
+      "parameter": "TRAIL_STEP_POINTS",
+      "value": 100,
+      "base_value": 10,
+      "elapsed_sec": 55.486,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1085.11,
+          "max_drawdown": 73.21,
+          "profit_factor": 1.278219,
+          "trades": 4420,
+          "wins": 3443
+        },
+        "M5": {
+          "net_profit": 1083.71,
+          "max_drawdown": 29.28,
+          "profit_factor": 2.651493,
+          "trades": 825,
+          "wins": 660
+        },
+        "M15": {
+          "net_profit": 680.71,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.781722,
+          "trades": 241,
+          "wins": 196
+        },
+        "M30": {
+          "net_profit": 230.25,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.370536,
+          "trades": 125,
+          "wins": 83
+        },
+        "H1": {
+          "net_profit": 50.04,
+          "max_drawdown": 22.59,
+          "profit_factor": 1.390937,
+          "trades": 59,
+          "wins": 27
+        },
+        "H4": {
+          "net_profit": 42.51,
+          "max_drawdown": 8.0,
+          "profit_factor": 4.5425,
+          "trades": 13,
+          "wins": 10
+        },
+        "H12": {
+          "net_profit": 18.64,
+          "max_drawdown": 8.0,
+          "profit_factor": 3.33,
+          "trades": 5,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 3190.97,
+        "max_drawdown": 52.09,
+        "profit_factor": 1.631575,
+        "trades": 5688,
+        "wins": 4422
+      },
+      "profitable_tfs": 7,
+      "score": 62.308782876
+    },
+    {
+      "id": 20,
+      "pass": 1,
+      "parameter": "SWING_BARS",
+      "value": 1,
+      "base_value": 2,
+      "elapsed_sec": 69.745,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 21,
+      "pass": 1,
+      "parameter": "SWING_BARS",
+      "value": 3,
+      "base_value": 2,
+      "elapsed_sec": 38.365,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1017.67,
+          "max_drawdown": 70.5,
+          "profit_factor": 1.34803,
+          "trades": 3427,
+          "wins": 2694
+        },
+        "M5": {
+          "net_profit": 886.64,
+          "max_drawdown": 15.25,
+          "profit_factor": 2.745354,
+          "trades": 645,
+          "wins": 518
+        },
+        "M15": {
+          "net_profit": 519.25,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.018895,
+          "trades": 201,
+          "wins": 158
+        },
+        "M30": {
+          "net_profit": 161.92,
+          "max_drawdown": 18.1,
+          "profit_factor": 2.349333,
+          "trades": 91,
+          "wins": 61
+        },
+        "H1": {
+          "net_profit": 58.38,
+          "max_drawdown": 26.54,
+          "profit_factor": 1.52125,
+          "trades": 56,
+          "wins": 28
+        },
+        "H4": {
+          "net_profit": 36.5,
+          "max_drawdown": 4.0,
+          "profit_factor": 5.5625,
+          "trades": 9,
+          "wins": 7
+        },
+        "H12": {
+          "net_profit": -4.19,
+          "max_drawdown": 12.0,
+          "profit_factor": 0.650833,
+          "trades": 4,
+          "wins": 1
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2676.17,
+        "max_drawdown": 57.06,
+        "profit_factor": 1.694011,
+        "trades": 4433,
+        "wins": 3467
+      },
+      "profitable_tfs": 6,
+      "score": 47.550981423
+    },
+    {
+      "id": 22,
+      "pass": 1,
+      "parameter": "SWING_BARS",
+      "value": 4,
+      "base_value": 2,
+      "elapsed_sec": 41.886,
+      "per_tf": {
+        "M1": {
+          "net_profit": 813.15,
+          "max_drawdown": 51.65,
+          "profit_factor": 1.3388,
+          "trades": 2709,
+          "wins": 2107
+        },
+        "M5": {
+          "net_profit": 620.0,
+          "max_drawdown": 14.43,
+          "profit_factor": 2.371681,
+          "trades": 527,
+          "wins": 414
+        },
+        "M15": {
+          "net_profit": 473.04,
+          "max_drawdown": 12.0,
+          "profit_factor": 4.814839,
+          "trades": 162,
+          "wins": 131
+        },
+        "M30": {
+          "net_profit": 122.7,
+          "max_drawdown": 24.22,
+          "profit_factor": 2.057759,
+          "trades": 83,
+          "wins": 54
+        },
+        "H1": {
+          "net_profit": 69.34,
+          "max_drawdown": 20.54,
+          "profit_factor": 1.912368,
+          "trades": 43,
+          "wins": 24
+        },
+        "H4": {
+          "net_profit": 40.5,
+          "max_drawdown": 4.0,
+          "profit_factor": 11.125,
+          "trades": 8,
+          "wins": 7
+        },
+        "H12": {
+          "net_profit": -4.19,
+          "max_drawdown": 12.0,
+          "profit_factor": 0.650833,
+          "trades": 4,
+          "wins": 1
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 2134.54,
+        "max_drawdown": 48.62,
+        "profit_factor": 1.670377,
+        "trades": 3536,
+        "wins": 2738
+      },
+      "profitable_tfs": 6,
+      "score": 44.552509255
+    },
+    {
+      "id": 23,
+      "pass": 1,
+      "parameter": "SWING_BARS",
+      "value": 5,
+      "base_value": 2,
+      "elapsed_sec": 52.945,
+      "per_tf": {
+        "M1": {
+          "net_profit": 646.32,
+          "max_drawdown": 55.36,
+          "profit_factor": 1.31806,
+          "trades": 2215,
+          "wins": 1706
+        },
+        "M5": {
+          "net_profit": 538.74,
+          "max_drawdown": 14.92,
+          "profit_factor": 2.463967,
+          "trades": 431,
+          "wins": 339
+        },
+        "M15": {
+          "net_profit": 436.38,
+          "max_drawdown": 11.25,
+          "profit_factor": 6.45475,
+          "trades": 136,
+          "wins": 116
+        },
+        "M30": {
+          "net_profit": 123.65,
+          "max_drawdown": 15.75,
+          "profit_factor": 2.2365,
+          "trades": 74,
+          "wins": 49
+        },
+        "H1": {
+          "net_profit": 53.96,
+          "max_drawdown": 20.54,
+          "profit_factor": 1.793529,
+          "trades": 37,
+          "wins": 20
+        },
+        "H4": {
+          "net_profit": 36.77,
+          "max_drawdown": 4.0,
+          "profit_factor": 10.1925,
+          "trades": 6,
+          "wins": 5
+        },
+        "H12": {
+          "net_profit": -0.19,
+          "max_drawdown": 8.0,
+          "profit_factor": 0.97625,
+          "trades": 3,
+          "wins": 1
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 1835.63,
+        "max_drawdown": 44.34,
+        "profit_factor": 1.690068,
+        "trades": 2902,
+        "wins": 2236
+      },
+      "profitable_tfs": 6,
+      "score": 42.048962562
+    },
+    {
+      "id": 24,
+      "pass": 1,
+      "parameter": "BOS_CONFIRM_COUNT",
+      "value": 2,
+      "base_value": 1,
+      "elapsed_sec": 62.188,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 25,
+      "pass": 1,
+      "parameter": "BOS_CONFIRM_COUNT",
+      "value": 3,
+      "base_value": 1,
+      "elapsed_sec": 56.255,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 26,
+      "pass": 1,
+      "parameter": "MAX_BARS_LOOKBACK",
+      "value": 200,
+      "base_value": 500,
+      "elapsed_sec": 15.722,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 27,
+      "pass": 1,
+      "parameter": "MAX_BARS_LOOKBACK",
+      "value": 300,
+      "base_value": 500,
+      "elapsed_sec": 13.992,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 28,
+      "pass": 1,
+      "parameter": "MAX_BARS_LOOKBACK",
+      "value": 750,
+      "base_value": 500,
+      "elapsed_sec": 13.934,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 29,
+      "pass": 1,
+      "parameter": "MAX_BARS_LOOKBACK",
+      "value": 1000,
+      "base_value": 500,
+      "elapsed_sec": 13.772,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1694.33,
+          "max_drawdown": 73.44,
+          "profit_factor": 1.300618,
+          "trades": 6363,
+          "wins": 4953
+        },
+        "M5": {
+          "net_profit": 1599.64,
+          "max_drawdown": 25.75,
+          "profit_factor": 2.63864,
+          "trades": 1203,
+          "wins": 958
+        },
+        "M15": {
+          "net_profit": 908.99,
+          "max_drawdown": 19.75,
+          "profit_factor": 4.112979,
+          "trades": 354,
+          "wins": 281
+        },
+        "M30": {
+          "net_profit": 344.92,
+          "max_drawdown": 20.43,
+          "profit_factor": 2.486724,
+          "trades": 175,
+          "wins": 117
+        },
+        "H1": {
+          "net_profit": 133.17,
+          "max_drawdown": 29.69,
+          "profit_factor": 1.792679,
+          "trades": 89,
+          "wins": 47
+        },
+        "H4": {
+          "net_profit": 34.71,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.239643,
+          "trades": 19,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 18.83,
+          "max_drawdown": 8.0,
+          "profit_factor": 1.9415,
+          "trades": 9,
+          "wins": 4
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 4734.59,
+        "max_drawdown": 50.94,
+        "profit_factor": 1.643955,
+        "trades": 8212,
+        "wins": 6372
+      },
+      "profitable_tfs": 7,
+      "score": 93.994444444
+    },
+    {
+      "id": 30,
+      "pass": 1,
+      "parameter": "ENTER_ON_BOS_CONFIRM",
+      "value": true,
+      "base_value": false,
+      "elapsed_sec": 14.343,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2964.33,
+          "max_drawdown": 152.57,
+          "profit_factor": 1.293255,
+          "trades": 11239,
+          "wins": 8711
+        },
+        "M5": {
+          "net_profit": 2728.16,
+          "max_drawdown": 22.1,
+          "profit_factor": 2.549915,
+          "trades": 2116,
+          "wins": 1675
+        },
+        "M15": {
+          "net_profit": 1425.4,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.40777,
+          "trades": 636,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 636.28,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.71043,
+          "trades": 309,
+          "wins": 216
+        },
+        "H1": {
+          "net_profit": 307.97,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.099893,
+          "trades": 161,
+          "wins": 91
+        },
+        "H4": {
+          "net_profit": 64.32,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.072,
+          "trades": 35,
+          "wins": 20
+        },
+        "H12": {
+          "net_profit": 22.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.634167,
+          "trades": 15,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8149.29,
+        "max_drawdown": 57.73,
+        "profit_factor": 1.61697,
+        "trades": 14511,
+        "wins": 11207
+      },
+      "profitable_tfs": 7,
+      "score": 142.212134072
+    },
+    {
+      "id": 31,
+      "pass": 1,
+      "parameter": "ONE_TRADE_PER_CYCLE",
+      "value": false,
+      "base_value": true,
+      "elapsed_sec": 13.91,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2964.33,
+          "max_drawdown": 152.57,
+          "profit_factor": 1.293255,
+          "trades": 11239,
+          "wins": 8711
+        },
+        "M5": {
+          "net_profit": 2728.16,
+          "max_drawdown": 22.1,
+          "profit_factor": 2.549915,
+          "trades": 2116,
+          "wins": 1675
+        },
+        "M15": {
+          "net_profit": 1425.4,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.40777,
+          "trades": 636,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 636.28,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.71043,
+          "trades": 309,
+          "wins": 216
+        },
+        "H1": {
+          "net_profit": 307.97,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.099893,
+          "trades": 161,
+          "wins": 91
+        },
+        "H4": {
+          "net_profit": 64.32,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.072,
+          "trades": 35,
+          "wins": 20
+        },
+        "H12": {
+          "net_profit": 22.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.634167,
+          "trades": 15,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8149.29,
+        "max_drawdown": 57.73,
+        "profit_factor": 1.61697,
+        "trades": 14511,
+        "wins": 11207
+      },
+      "profitable_tfs": 7,
+      "score": 142.212134072
+    },
+    {
+      "id": 32,
+      "pass": 1,
+      "parameter": "USE_FIB_OB_FILTER",
+      "value": false,
+      "base_value": true,
+      "elapsed_sec": 13.728,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2972.1,
+          "max_drawdown": 155.19,
+          "profit_factor": 1.290791,
+          "trades": 11344,
+          "wins": 8787
+        },
+        "M5": {
+          "net_profit": 2766.99,
+          "max_drawdown": 22.74,
+          "profit_factor": 2.561331,
+          "trades": 2133,
+          "wins": 1689
+        },
+        "M15": {
+          "net_profit": 1413.61,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.340414,
+          "trades": 639,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 622.28,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.655,
+          "trades": 309,
+          "wins": 215
+        },
+        "H1": {
+          "net_profit": 316.87,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.131679,
+          "trades": 162,
+          "wins": 92
+        },
+        "H4": {
+          "net_profit": 64.32,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.072,
+          "trades": 35,
+          "wins": 20
+        },
+        "H12": {
+          "net_profit": 22.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.634167,
+          "trades": 15,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8179.0,
+        "max_drawdown": 57.73,
+        "profit_factor": 1.612708,
+        "trades": 14637,
+        "wins": 11297
+      },
+      "profitable_tfs": 7,
+      "score": 142.726771176
+    },
+    {
+      "id": 33,
+      "pass": 1,
+      "parameter": "OB_SEARCH_MAX_BARS",
+      "value": 5,
+      "base_value": 20,
+      "elapsed_sec": 13.468,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2905.07,
+          "max_drawdown": 136.56,
+          "profit_factor": 1.287952,
+          "trades": 11188,
+          "wins": 8664
+        },
+        "M5": {
+          "net_profit": 2639.26,
+          "max_drawdown": 22.74,
+          "profit_factor": 2.53803,
+          "trades": 2047,
+          "wins": 1618
+        },
+        "M15": {
+          "net_profit": 1388.21,
+          "max_drawdown": 26.83,
+          "profit_factor": 3.344949,
+          "trades": 636,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 613.02,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.630372,
+          "trades": 307,
+          "wins": 213
+        },
+        "H1": {
+          "net_profit": 314.87,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.15761,
+          "trades": 159,
+          "wins": 91
+        },
+        "H4": {
+          "net_profit": 50.59,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.26475,
+          "trades": 25,
+          "wins": 15
+        },
+        "H12": {
+          "net_profit": 30.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.101071,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 7941.85,
+        "max_drawdown": 55.45,
+        "profit_factor": 1.605659,
+        "trades": 14375,
+        "wins": 11095
+      },
+      "profitable_tfs": 7,
+      "score": 144.275428314
+    },
+    {
+      "id": 34,
+      "pass": 1,
+      "parameter": "OB_SEARCH_MAX_BARS",
+      "value": 10,
+      "base_value": 20,
+      "elapsed_sec": 13.518,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2973.58,
+          "max_drawdown": 155.19,
+          "profit_factor": 1.290936,
+          "trades": 11346,
+          "wins": 8789
+        },
+        "M5": {
+          "net_profit": 2765.02,
+          "max_drawdown": 22.74,
+          "profit_factor": 2.560219,
+          "trades": 2131,
+          "wins": 1687
+        },
+        "M15": {
+          "net_profit": 1413.61,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.340414,
+          "trades": 639,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 622.28,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.655,
+          "trades": 309,
+          "wins": 215
+        },
+        "H1": {
+          "net_profit": 316.87,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.131679,
+          "trades": 162,
+          "wins": 92
+        },
+        "H4": {
+          "net_profit": 64.32,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.072,
+          "trades": 35,
+          "wins": 20
+        },
+        "H12": {
+          "net_profit": 22.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.634167,
+          "trades": 15,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8178.51,
+        "max_drawdown": 57.73,
+        "profit_factor": 1.612671,
+        "trades": 14637,
+        "wins": 11297
+      },
+      "profitable_tfs": 7,
+      "score": 142.718283388
+    },
+    {
+      "id": 35,
+      "pass": 1,
+      "parameter": "OB_SEARCH_MAX_BARS",
+      "value": 30,
+      "base_value": 20,
+      "elapsed_sec": 13.597,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2972.1,
+          "max_drawdown": 155.19,
+          "profit_factor": 1.290791,
+          "trades": 11344,
+          "wins": 8787
+        },
+        "M5": {
+          "net_profit": 2766.99,
+          "max_drawdown": 22.74,
+          "profit_factor": 2.561331,
+          "trades": 2133,
+          "wins": 1689
+        },
+        "M15": {
+          "net_profit": 1413.61,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.340414,
+          "trades": 639,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 622.28,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.655,
+          "trades": 309,
+          "wins": 215
+        },
+        "H1": {
+          "net_profit": 316.87,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.131679,
+          "trades": 162,
+          "wins": 92
+        },
+        "H4": {
+          "net_profit": 64.32,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.072,
+          "trades": 35,
+          "wins": 20
+        },
+        "H12": {
+          "net_profit": 22.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.634167,
+          "trades": 15,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8179.0,
+        "max_drawdown": 57.73,
+        "profit_factor": 1.612708,
+        "trades": 14637,
+        "wins": 11297
+      },
+      "profitable_tfs": 7,
+      "score": 142.726771176
+    },
+    {
+      "id": 36,
+      "pass": 1,
+      "parameter": "OB_SEARCH_MAX_BARS",
+      "value": 50,
+      "base_value": 20,
+      "elapsed_sec": 13.779,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2972.1,
+          "max_drawdown": 155.19,
+          "profit_factor": 1.290791,
+          "trades": 11344,
+          "wins": 8787
+        },
+        "M5": {
+          "net_profit": 2766.99,
+          "max_drawdown": 22.74,
+          "profit_factor": 2.561331,
+          "trades": 2133,
+          "wins": 1689
+        },
+        "M15": {
+          "net_profit": 1413.61,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.340414,
+          "trades": 639,
+          "wins": 488
+        },
+        "M30": {
+          "net_profit": 622.28,
+          "max_drawdown": 19.26,
+          "profit_factor": 2.655,
+          "trades": 309,
+          "wins": 215
+        },
+        "H1": {
+          "net_profit": 316.87,
+          "max_drawdown": 31.67,
+          "profit_factor": 2.131679,
+          "trades": 162,
+          "wins": 92
+        },
+        "H4": {
+          "net_profit": 64.32,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.072,
+          "trades": 35,
+          "wins": 20
+        },
+        "H12": {
+          "net_profit": 22.83,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.634167,
+          "trades": 15,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8179.0,
+        "max_drawdown": 57.73,
+        "profit_factor": 1.612708,
+        "trades": 14637,
+        "wins": 11297
+      },
+      "profitable_tfs": 7,
+      "score": 142.726771176
+    },
+    {
+      "id": 37,
+      "pass": 1,
+      "parameter": "ENABLE_OB_RETEST_ENTRY",
+      "value": false,
+      "base_value": true,
+      "elapsed_sec": 8.394,
+      "per_tf": {
+        "M1": {
+          "net_profit": 1269.34,
+          "max_drawdown": 147.6,
+          "profit_factor": 1.27424,
+          "trades": 5059,
+          "wins": 3901
+        },
+        "M5": {
+          "net_profit": 1139.19,
+          "max_drawdown": 24.41,
+          "profit_factor": 2.491086,
+          "trades": 893,
+          "wins": 702
+        },
+        "M15": {
+          "net_profit": 527.81,
+          "max_drawdown": 19.5,
+          "profit_factor": 2.783142,
+          "trades": 283,
+          "wins": 209
+        },
+        "M30": {
+          "net_profit": 271.81,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.887569,
+          "trades": 134,
+          "wins": 98
+        },
+        "H1": {
+          "net_profit": 187.7,
+          "max_drawdown": 16.06,
+          "profit_factor": 2.737963,
+          "trades": 72,
+          "wins": 45
+        },
+        "H4": {
+          "net_profit": 25.61,
+          "max_drawdown": 7.75,
+          "profit_factor": 2.600625,
+          "trades": 10,
+          "wins": 6
+        },
+        "H12": {
+          "net_profit": 4.0,
+          "max_drawdown": 12.0,
+          "profit_factor": 1.25,
+          "trades": 6,
+          "wins": 2
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 3425.46,
+        "max_drawdown": 84.51,
+        "profit_factor": 1.573531,
+        "trades": 6457,
+        "wins": 4963
+      },
+      "profitable_tfs": 7,
+      "score": 41.583191338
+    },
+    {
+      "id": 38,
+      "pass": 1,
+      "parameter": "OB_MIN_BARS_BEFORE_RETEST",
+      "value": 1,
+      "base_value": 3,
+      "elapsed_sec": 13.453,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2903.89,
+          "max_drawdown": 180.93,
+          "profit_factor": 1.271569,
+          "trades": 11706,
+          "wins": 9031
+        },
+        "M5": {
+          "net_profit": 2717.44,
+          "max_drawdown": 28.02,
+          "profit_factor": 2.473666,
+          "trades": 2147,
+          "wins": 1686
+        },
+        "M15": {
+          "net_profit": 1440.84,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.294331,
+          "trades": 676,
+          "wins": 519
+        },
+        "M30": {
+          "net_profit": 720.48,
+          "max_drawdown": 23.75,
+          "profit_factor": 2.957826,
+          "trades": 319,
+          "wins": 227
+        },
+        "H1": {
+          "net_profit": 352.21,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.29489,
+          "trades": 169,
+          "wins": 101
+        },
+        "H4": {
+          "net_profit": 66.15,
+          "max_drawdown": 12.0,
+          "profit_factor": 3.067188,
+          "trades": 22,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 20.83,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.743929,
+          "trades": 12,
+          "wins": 5
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8221.84,
+        "max_drawdown": 74.21,
+        "profit_factor": 1.592992,
+        "trades": 15051,
+        "wins": 11583
+      },
+      "profitable_tfs": 7,
+      "score": 111.841537529
+    },
+    {
+      "id": 39,
+      "pass": 1,
+      "parameter": "OB_MIN_BARS_BEFORE_RETEST",
+      "value": 2,
+      "base_value": 3,
+      "elapsed_sec": 13.596,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3041.47,
+          "max_drawdown": 132.97,
+          "profit_factor": 1.293897,
+          "trades": 11480,
+          "wins": 8891
+        },
+        "M5": {
+          "net_profit": 2785.42,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.597144,
+          "trades": 2116,
+          "wins": 1680
+        },
+        "M15": {
+          "net_profit": 1450.57,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.417617,
+          "trades": 658,
+          "wins": 508
+        },
+        "M30": {
+          "net_profit": 693.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.807187,
+          "trades": 316,
+          "wins": 220
+        },
+        "H1": {
+          "net_profit": 355.1,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.409127,
+          "trades": 163,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8405.69,
+        "max_drawdown": 58.1,
+        "profit_factor": 1.627629,
+        "trades": 14769,
+        "wins": 11419
+      },
+      "profitable_tfs": 7,
+      "score": 145.726247849
+    },
+    {
+      "id": 40,
+      "pass": 1,
+      "parameter": "OB_MIN_BARS_BEFORE_RETEST",
+      "value": 5,
+      "base_value": 3,
+      "elapsed_sec": 13.508,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2990.53,
+          "max_drawdown": 157.84,
+          "profit_factor": 1.316768,
+          "trades": 10581,
+          "wins": 8219
+        },
+        "M5": {
+          "net_profit": 2358.02,
+          "max_drawdown": 28.96,
+          "profit_factor": 2.410299,
+          "trades": 1939,
+          "wins": 1521
+        },
+        "M15": {
+          "net_profit": 1361.13,
+          "max_drawdown": 22.83,
+          "profit_factor": 3.330702,
+          "trades": 603,
+          "wins": 457
+        },
+        "M30": {
+          "net_profit": 615.67,
+          "max_drawdown": 19.51,
+          "profit_factor": 2.923969,
+          "trades": 287,
+          "wins": 207
+        },
+        "H1": {
+          "net_profit": 290.44,
+          "max_drawdown": 27.0,
+          "profit_factor": 2.171129,
+          "trades": 150,
+          "wins": 88
+        },
+        "H4": {
+          "net_profit": 59.12,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.343636,
+          "trades": 28,
+          "wins": 17
+        },
+        "H12": {
+          "net_profit": 30.83,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.101071,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 7705.74,
+        "max_drawdown": 77.84,
+        "profit_factor": 1.624617,
+        "trades": 13601,
+        "wins": 10515
+      },
+      "profitable_tfs": 7,
+      "score": 100.044604317
+    },
+    {
+      "id": 41,
+      "pass": 1,
+      "parameter": "OB_MIN_BARS_BEFORE_RETEST",
+      "value": 8,
+      "base_value": 3,
+      "elapsed_sec": 13.419,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2379.27,
+          "max_drawdown": 196.9,
+          "profit_factor": 1.264816,
+          "trades": 9920,
+          "wins": 7672
+        },
+        "M5": {
+          "net_profit": 2210.51,
+          "max_drawdown": 34.25,
+          "profit_factor": 2.378123,
+          "trades": 1825,
+          "wins": 1424
+        },
+        "M15": {
+          "net_profit": 1090.0,
+          "max_drawdown": 22.85,
+          "profit_factor": 2.974638,
+          "trades": 553,
+          "wins": 415
+        },
+        "M30": {
+          "net_profit": 547.15,
+          "max_drawdown": 19.51,
+          "profit_factor": 2.899826,
+          "trades": 269,
+          "wins": 197
+        },
+        "H1": {
+          "net_profit": 197.32,
+          "max_drawdown": 25.0,
+          "profit_factor": 1.822167,
+          "trades": 136,
+          "wins": 76
+        },
+        "H4": {
+          "net_profit": 46.13,
+          "max_drawdown": 8.0,
+          "profit_factor": 2.6475,
+          "trades": 21,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 6.0,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.25,
+          "trades": 9,
+          "wins": 3
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 6476.38,
+        "max_drawdown": 59.09,
+        "profit_factor": 1.552563,
+        "trades": 12733,
+        "wins": 9801
+      },
+      "profitable_tfs": 7,
+      "score": 110.651963107
+    },
+    {
+      "id": 42,
+      "pass": 1,
+      "parameter": "MIN_LEG_POINTS",
+      "value": 0,
+      "base_value": 100,
+      "elapsed_sec": 13.351,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3181.34,
+          "max_drawdown": 129.74,
+          "profit_factor": 1.295314,
+          "trades": 11978,
+          "wins": 9283
+        },
+        "M5": {
+          "net_profit": 2806.68,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.601986,
+          "trades": 2128,
+          "wins": 1690
+        },
+        "M15": {
+          "net_profit": 1487.03,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.46197,
+          "trades": 664,
+          "wins": 513
+        },
+        "M30": {
+          "net_profit": 693.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.807187,
+          "trades": 316,
+          "wins": 220
+        },
+        "H1": {
+          "net_profit": 355.1,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.409127,
+          "trades": 163,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8603.28,
+        "max_drawdown": 64.14,
+        "profit_factor": 1.62213,
+        "trades": 15285,
+        "wins": 11826
+      },
+      "profitable_tfs": 7,
+      "score": 135.182834425
+    },
+    {
+      "id": 43,
+      "pass": 1,
+      "parameter": "MIN_LEG_POINTS",
+      "value": 50,
+      "base_value": 100,
+      "elapsed_sec": 13.527,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3218.94,
+          "max_drawdown": 131.9,
+          "profit_factor": 1.301152,
+          "trades": 11909,
+          "wins": 9235
+        },
+        "M5": {
+          "net_profit": 2785.67,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.597288,
+          "trades": 2117,
+          "wins": 1681
+        },
+        "M15": {
+          "net_profit": 1450.57,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.417617,
+          "trades": 658,
+          "wins": 508
+        },
+        "M30": {
+          "net_profit": 693.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.807187,
+          "trades": 316,
+          "wins": 220
+        },
+        "H1": {
+          "net_profit": 355.1,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.409127,
+          "trades": 163,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8583.41,
+        "max_drawdown": 64.14,
+        "profit_factor": 1.625033,
+        "trades": 15199,
+        "wins": 11764
+      },
+      "profitable_tfs": 7,
+      "score": 134.873043343
+    },
+    {
+      "id": 44,
+      "pass": 1,
+      "parameter": "MIN_LEG_POINTS",
+      "value": 150,
+      "base_value": 100,
+      "elapsed_sec": 13.346,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2991.72,
+          "max_drawdown": 94.71,
+          "profit_factor": 1.321941,
+          "trades": 10267,
+          "wins": 7942
+        },
+        "M5": {
+          "net_profit": 2777.07,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.610829,
+          "trades": 2100,
+          "wins": 1669
+        },
+        "M15": {
+          "net_profit": 1451.76,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.435839,
+          "trades": 655,
+          "wins": 506
+        },
+        "M30": {
+          "net_profit": 693.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.807187,
+          "trades": 316,
+          "wins": 220
+        },
+        "H1": {
+          "net_profit": 355.1,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.409127,
+          "trades": 163,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8348.78,
+        "max_drawdown": 59.69,
+        "profit_factor": 1.678059,
+        "trades": 13537,
+        "wins": 10457
+      },
+      "profitable_tfs": 7,
+      "score": 140.918989781
+    },
+    {
+      "id": 45,
+      "pass": 1,
+      "parameter": "MIN_LEG_POINTS",
+      "value": 200,
+      "base_value": 100,
+      "elapsed_sec": 13.13,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3061.18,
+          "max_drawdown": 72.54,
+          "profit_factor": 1.393034,
+          "trades": 8667,
+          "wins": 6718
+        },
+        "M5": {
+          "net_profit": 2801.57,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.66364,
+          "trades": 2071,
+          "wins": 1650
+        },
+        "M15": {
+          "net_profit": 1442.68,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.436959,
+          "trades": 650,
+          "wins": 502
+        },
+        "M30": {
+          "net_profit": 693.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.807187,
+          "trades": 316,
+          "wins": 220
+        },
+        "H1": {
+          "net_profit": 355.1,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.409127,
+          "trades": 163,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8433.66,
+        "max_drawdown": 42.84,
+        "profit_factor": 1.783464,
+        "trades": 11903,
+        "wins": 9210
+      },
+      "profitable_tfs": 7,
+      "score": 197.914145658
+    },
+    {
+      "id": 46,
+      "pass": 1,
+      "parameter": "MIN_LEG_POINTS",
+      "value": 300,
+      "base_value": 100,
+      "elapsed_sec": 13.443,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2546.16,
+          "max_drawdown": 70.37,
+          "profit_factor": 1.483596,
+          "trades": 5829,
+          "wins": 4513
+        },
+        "M5": {
+          "net_profit": 2647.06,
+          "max_drawdown": 21.82,
+          "profit_factor": 2.714417,
+          "trades": 1919,
+          "wins": 1533
+        },
+        "M15": {
+          "net_profit": 1436.64,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.426757,
+          "trades": 649,
+          "wins": 501
+        },
+        "M30": {
+          "net_profit": 693.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.807187,
+          "trades": 316,
+          "wins": 220
+        },
+        "H1": {
+          "net_profit": 355.1,
+          "max_drawdown": 23.0,
+          "profit_factor": 2.409127,
+          "trades": 163,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 7758.09,
+        "max_drawdown": 42.31,
+        "profit_factor": 1.957664,
+        "trades": 8912,
+        "wins": 6887
+      },
+      "profitable_tfs": 7,
+      "score": 184.413034744
+    },
+    {
+      "id": 47,
+      "pass": 1,
+      "parameter": "OB_MAX_BARS_VALID",
+      "value": 20,
+      "base_value": 50,
+      "elapsed_sec": 13.171,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2881.62,
+          "max_drawdown": 80.21,
+          "profit_factor": 1.401755,
+          "trades": 7988,
+          "wins": 6193
+        },
+        "M5": {
+          "net_profit": 2639.67,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.727533,
+          "trades": 1905,
+          "wins": 1523
+        },
+        "M15": {
+          "net_profit": 1359.27,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.613981,
+          "trades": 593,
+          "wins": 463
+        },
+        "M30": {
+          "net_profit": 687.3,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.997965,
+          "trades": 289,
+          "wins": 203
+        },
+        "H1": {
+          "net_profit": 380.88,
+          "max_drawdown": 19.0,
+          "profit_factor": 2.796604,
+          "trades": 150,
+          "wins": 97
+        },
+        "H4": {
+          "net_profit": 42.05,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.314062,
+          "trades": 20,
+          "wins": 12
+        },
+        "H12": {
+          "net_profit": 15.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.538571,
+          "trades": 12,
+          "wins": 5
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8005.87,
+        "max_drawdown": 46.33,
+        "profit_factor": 1.813888,
+        "trades": 10957,
+        "wins": 8496
+      },
+      "profitable_tfs": 7,
+      "score": 173.850992877
+    },
+    {
+      "id": 48,
+      "pass": 1,
+      "parameter": "OB_MAX_BARS_VALID",
+      "value": 35,
+      "base_value": 50,
+      "elapsed_sec": 13.291,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2981.58,
+          "max_drawdown": 80.82,
+          "profit_factor": 1.395405,
+          "trades": 8408,
+          "wins": 6521
+        },
+        "M5": {
+          "net_profit": 2780.52,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.750957,
+          "trades": 2001,
+          "wins": 1604
+        },
+        "M15": {
+          "net_profit": 1413.72,
+          "max_drawdown": 31.08,
+          "profit_factor": 3.542662,
+          "trades": 625,
+          "wins": 486
+        },
+        "M30": {
+          "net_profit": 685.92,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.863913,
+          "trades": 303,
+          "wins": 211
+        },
+        "H1": {
+          "net_profit": 383.1,
+          "max_drawdown": 19.0,
+          "profit_factor": 2.710268,
+          "trades": 156,
+          "wins": 100
+        },
+        "H4": {
+          "net_profit": 44.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.224722,
+          "trades": 22,
+          "wins": 13
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8314.01,
+        "max_drawdown": 47.53,
+        "profit_factor": 1.804018,
+        "trades": 11528,
+        "wins": 8941
+      },
+      "profitable_tfs": 7,
+      "score": 175.971312855
+    },
+    {
+      "id": 49,
+      "pass": 1,
+      "parameter": "OB_MAX_BARS_VALID",
+      "value": 75,
+      "base_value": 50,
+      "elapsed_sec": 13.503,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3272.49,
+          "max_drawdown": 72.87,
+          "profit_factor": 1.408419,
+          "trades": 8965,
+          "wins": 6960
+        },
+        "M5": {
+          "net_profit": 2895.04,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.641179,
+          "trades": 2158,
+          "wins": 1717
+        },
+        "M15": {
+          "net_profit": 1512.41,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.471258,
+          "trades": 680,
+          "wins": 527
+        },
+        "M30": {
+          "net_profit": 702.25,
+          "max_drawdown": 19.21,
+          "profit_factor": 2.721201,
+          "trades": 330,
+          "wins": 228
+        },
+        "H1": {
+          "net_profit": 379.03,
+          "max_drawdown": 27.2,
+          "profit_factor": 2.414291,
+          "trades": 175,
+          "wins": 108
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8840.39,
+        "max_drawdown": 45.12,
+        "profit_factor": 1.794386,
+        "trades": 12344,
+        "wins": 9560
+      },
+      "profitable_tfs": 7,
+      "score": 196.980629433
+    },
+    {
+      "id": 50,
+      "pass": 1,
+      "parameter": "OB_MAX_BARS_VALID",
+      "value": 100,
+      "base_value": 50,
+      "elapsed_sec": 13.85,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3397.55,
+          "max_drawdown": 79.79,
+          "profit_factor": 1.4141,
+          "trades": 9188,
+          "wins": 7135
+        },
+        "M5": {
+          "net_profit": 3038.54,
+          "max_drawdown": 25.82,
+          "profit_factor": 2.688078,
+          "trades": 2215,
+          "wins": 1765
+        },
+        "M15": {
+          "net_profit": 1572.68,
+          "max_drawdown": 30.83,
+          "profit_factor": 3.504268,
+          "trades": 702,
+          "wins": 545
+        },
+        "M30": {
+          "net_profit": 702.68,
+          "max_drawdown": 19.21,
+          "profit_factor": 2.689135,
+          "trades": 333,
+          "wins": 229
+        },
+        "H1": {
+          "net_profit": 422.9,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.532246,
+          "trades": 185,
+          "wins": 116
+        },
+        "H4": {
+          "net_profit": 54.09,
+          "max_drawdown": 12.0,
+          "profit_factor": 2.5025,
+          "trades": 23,
+          "wins": 14
+        },
+        "H12": {
+          "net_profit": 25.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 1.895714,
+          "trades": 13,
+          "wins": 6
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 9213.52,
+        "max_drawdown": 44.59,
+        "profit_factor": 1.809008,
+        "trades": 12659,
+        "wins": 9810
+      },
+      "profitable_tfs": 7,
+      "score": 207.677494954
+    },
+    {
+      "id": 51,
+      "pass": 1,
+      "parameter": "OB_MAX_BARS_VALID",
+      "value": 0,
+      "base_value": 50,
+      "elapsed_sec": 16.287,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4100.77,
+          "max_drawdown": 92.41,
+          "profit_factor": 1.41667,
+          "trades": 11021,
+          "wins": 8558
+        },
+        "M5": {
+          "net_profit": 3631.33,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.609632,
+          "trades": 2685,
+          "wins": 2121
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 961.36,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.892441,
+          "trades": 421,
+          "wins": 294
+        },
+        "H1": {
+          "net_profit": 588.63,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.862753,
+          "trades": 225,
+          "wins": 146
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11330.31,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.820694,
+        "trades": 15262,
+        "wins": 11808
+      },
+      "profitable_tfs": 7,
+      "score": 225.991631924
+    },
+    {
+      "id": 52,
+      "pass": 1,
+      "parameter": "OB_PREFER_DEEPER_MAX_POINTS",
+      "value": 0,
+      "base_value": 300,
+      "elapsed_sec": 16.425,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4102.73,
+          "max_drawdown": 92.41,
+          "profit_factor": 1.416869,
+          "trades": 11021,
+          "wins": 8558
+        },
+        "M5": {
+          "net_profit": 3629.71,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.608914,
+          "trades": 2685,
+          "wins": 2121
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 961.36,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.892441,
+          "trades": 421,
+          "wins": 294
+        },
+        "H1": {
+          "net_profit": 588.63,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.862753,
+          "trades": 225,
+          "wins": 146
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11330.65,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.820718,
+        "trades": 15262,
+        "wins": 11808
+      },
+      "profitable_tfs": 7,
+      "score": 225.998381973
+    },
+    {
+      "id": 53,
+      "pass": 1,
+      "parameter": "OB_PREFER_DEEPER_MAX_POINTS",
+      "value": 100,
+      "base_value": 300,
+      "elapsed_sec": 16.007,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4103.82,
+          "max_drawdown": 92.41,
+          "profit_factor": 1.41698,
+          "trades": 11021,
+          "wins": 8558
+        },
+        "M5": {
+          "net_profit": 3631.33,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.609632,
+          "trades": 2685,
+          "wins": 2121
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 961.36,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.892441,
+          "trades": 421,
+          "wins": 294
+        },
+        "H1": {
+          "net_profit": 588.63,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.862753,
+          "trades": 225,
+          "wins": 146
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11333.36,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.820915,
+        "trades": 15262,
+        "wins": 11808
+      },
+      "profitable_tfs": 7,
+      "score": 226.05218384
+    },
+    {
+      "id": 54,
+      "pass": 1,
+      "parameter": "OB_PREFER_DEEPER_MAX_POINTS",
+      "value": 200,
+      "base_value": 300,
+      "elapsed_sec": 16.378,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4100.77,
+          "max_drawdown": 92.41,
+          "profit_factor": 1.41667,
+          "trades": 11021,
+          "wins": 8558
+        },
+        "M5": {
+          "net_profit": 3631.33,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.609632,
+          "trades": 2685,
+          "wins": 2121
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 961.36,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.892441,
+          "trades": 421,
+          "wins": 294
+        },
+        "H1": {
+          "net_profit": 588.63,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.862753,
+          "trades": 225,
+          "wins": 146
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11330.31,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.820694,
+        "trades": 15262,
+        "wins": 11808
+      },
+      "profitable_tfs": 7,
+      "score": 225.991631924
+    },
+    {
+      "id": 55,
+      "pass": 1,
+      "parameter": "OB_PREFER_DEEPER_MAX_POINTS",
+      "value": 500,
+      "base_value": 300,
+      "elapsed_sec": 15.726,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4097.02,
+          "max_drawdown": 92.41,
+          "profit_factor": 1.41612,
+          "trades": 11023,
+          "wins": 8559
+        },
+        "M5": {
+          "net_profit": 3631.33,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.609632,
+          "trades": 2685,
+          "wins": 2121
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 961.36,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.892441,
+          "trades": 421,
+          "wins": 294
+        },
+        "H1": {
+          "net_profit": 588.63,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.862753,
+          "trades": 225,
+          "wins": 146
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11326.56,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.820185,
+        "trades": 15264,
+        "wins": 11809
+      },
+      "profitable_tfs": 7,
+      "score": 225.917182847
+    },
+    {
+      "id": 56,
+      "pass": 1,
+      "parameter": "MAX_OPEN_POSITIONS",
+      "value": 1,
+      "base_value": 2,
+      "elapsed_sec": 16.462,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3819.13,
+          "max_drawdown": 62.07,
+          "profit_factor": 1.442758,
+          "trades": 9670,
+          "wins": 7511
+        },
+        "M5": {
+          "net_profit": 3429.7,
+          "max_drawdown": 29.17,
+          "profit_factor": 2.630086,
+          "trades": 2518,
+          "wins": 1992
+        },
+        "M15": {
+          "net_profit": 1947.33,
+          "max_drawdown": 23.55,
+          "profit_factor": 3.631527,
+          "trades": 828,
+          "wins": 643
+        },
+        "M30": {
+          "net_profit": 915.6,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.891736,
+          "trades": 401,
+          "wins": 280
+        },
+        "H1": {
+          "net_profit": 555.48,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.803506,
+          "trades": 217,
+          "wins": 140
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 29.82,
+          "max_drawdown": 20.0,
+          "profit_factor": 1.931875,
+          "trades": 15,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 10752.49,
+        "max_drawdown": 45.68,
+        "profit_factor": 1.871228,
+        "trades": 13677,
+        "wins": 10589
+      },
+      "profitable_tfs": 7,
+      "score": 236.437259194
+    },
+    {
+      "id": 57,
+      "pass": 1,
+      "parameter": "MAX_OPEN_POSITIONS",
+      "value": 3,
+      "base_value": 2,
+      "elapsed_sec": 16.004,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4114.77,
+          "max_drawdown": 90.81,
+          "profit_factor": 1.412559,
+          "trades": 11150,
+          "wins": 8654
+        },
+        "M5": {
+          "net_profit": 3657.78,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.604289,
+          "trades": 2700,
+          "wins": 2130
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 983.36,
+          "max_drawdown": 28.0,
+          "profit_factor": 2.905736,
+          "trades": 426,
+          "wins": 297
+        },
+        "H1": {
+          "net_profit": 590.22,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.844437,
+          "trades": 227,
+          "wins": 147
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11394.35,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.81541,
+        "trades": 15413,
+        "wins": 11917
+      },
+      "profitable_tfs": 7,
+      "score": 227.263023625
+    },
+    {
+      "id": 58,
+      "pass": 1,
+      "parameter": "MAX_OPEN_POSITIONS",
+      "value": 4,
+      "base_value": 2,
+      "elapsed_sec": 16.334,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4117.26,
+          "max_drawdown": 90.81,
+          "profit_factor": 1.412313,
+          "trades": 11159,
+          "wins": 8660
+        },
+        "M5": {
+          "net_profit": 3660.59,
+          "max_drawdown": 41.17,
+          "profit_factor": 2.60271,
+          "trades": 2702,
+          "wins": 2131
+        },
+        "M15": {
+          "net_profit": 1974.97,
+          "max_drawdown": 24.0,
+          "profit_factor": 3.493649,
+          "trades": 864,
+          "wins": 666
+        },
+        "M30": {
+          "net_profit": 993.36,
+          "max_drawdown": 28.0,
+          "profit_factor": 2.925116,
+          "trades": 427,
+          "wins": 298
+        },
+        "H1": {
+          "net_profit": 595.81,
+          "max_drawdown": 24.0,
+          "profit_factor": 2.861906,
+          "trades": 228,
+          "wins": 148
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 17.82,
+          "max_drawdown": 28.0,
+          "profit_factor": 1.405,
+          "trades": 18,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 11415.24,
+        "max_drawdown": 50.37,
+        "profit_factor": 1.815971,
+        "trades": 15426,
+        "wins": 11926
+      },
+      "profitable_tfs": 7,
+      "score": 227.677754616
+    },
+    {
+      "id": 59,
+      "pass": 1,
+      "parameter": "SESSION_START_HOUR",
+      "value": 0,
+      "base_value": 8,
+      "elapsed_sec": 15.997,
+      "per_tf": {
+        "M1": {
+          "net_profit": 5255.36,
+          "max_drawdown": 65.82,
+          "profit_factor": 1.435125,
+          "trades": 13389,
+          "wins": 10374
+        },
+        "M5": {
+          "net_profit": 4437.03,
+          "max_drawdown": 28.65,
+          "profit_factor": 2.479138,
+          "trades": 3482,
+          "wins": 2741
+        },
+        "M15": {
+          "net_profit": 2407.27,
+          "max_drawdown": 23.76,
+          "profit_factor": 3.331293,
+          "trades": 1101,
+          "wins": 842
+        },
+        "M30": {
+          "net_profit": 1254.53,
+          "max_drawdown": 21.02,
+          "profit_factor": 2.948028,
+          "trades": 538,
+          "wins": 377
+        },
+        "H1": {
+          "net_profit": 759.15,
+          "max_drawdown": 24.86,
+          "profit_factor": 2.679535,
+          "trades": 318,
+          "wins": 205
+        },
+        "H4": {
+          "net_profit": 98.4,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.118182,
+          "trades": 51,
+          "wins": 29
+        },
+        "H12": {
+          "net_profit": 100.54,
+          "max_drawdown": 13.53,
+          "profit_factor": 3.285,
+          "trades": 28,
+          "wins": 17
+        },
+        "D1": {
+          "net_profit": 59.01,
+          "max_drawdown": 4.0,
+          "profit_factor": 3.45875,
+          "trades": 16,
+          "wins": 10
+        }
+      },
+      "combined": {
+        "net_profit": 14371.29,
+        "max_drawdown": 51.93,
+        "profit_factor": 1.827737,
+        "trades": 18923,
+        "wins": 14595
+      },
+      "profitable_tfs": 8,
+      "score": 277.943500867
+    },
+    {
+      "id": 60,
+      "pass": 1,
+      "parameter": "SESSION_START_HOUR",
+      "value": 6,
+      "base_value": 8,
+      "elapsed_sec": 16.173,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4215.07,
+          "max_drawdown": 75.17,
+          "profit_factor": 1.438617,
+          "trades": 10648,
+          "wins": 8243
+        },
+        "M5": {
+          "net_profit": 3790.87,
+          "max_drawdown": 31.17,
+          "profit_factor": 2.62003,
+          "trades": 2810,
+          "wins": 2225
+        },
+        "M15": {
+          "net_profit": 2109.03,
+          "max_drawdown": 26.31,
+          "profit_factor": 3.51075,
+          "trades": 915,
+          "wins": 705
+        },
+        "M30": {
+          "net_profit": 1021.94,
+          "max_drawdown": 17.08,
+          "profit_factor": 2.892481,
+          "trades": 449,
+          "wins": 314
+        },
+        "H1": {
+          "net_profit": 609.41,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.711826,
+          "trades": 248,
+          "wins": 159
+        },
+        "H4": {
+          "net_profit": 73.47,
+          "max_drawdown": 19.68,
+          "profit_factor": 2.080441,
+          "trades": 40,
+          "wins": 23
+        },
+        "H12": {
+          "net_profit": 100.54,
+          "max_drawdown": 13.53,
+          "profit_factor": 3.285,
+          "trades": 28,
+          "wins": 17
+        },
+        "D1": {
+          "net_profit": 59.01,
+          "max_drawdown": 4.0,
+          "profit_factor": 3.45875,
+          "trades": 16,
+          "wins": 10
+        }
+      },
+      "combined": {
+        "net_profit": 11979.34,
+        "max_drawdown": 58.84,
+        "profit_factor": 1.866692,
+        "trades": 15154,
+        "wins": 11696
+      },
+      "profitable_tfs": 8,
+      "score": 204.791774303
+    },
+    {
+      "id": 61,
+      "pass": 1,
+      "parameter": "SESSION_START_HOUR",
+      "value": 10,
+      "base_value": 8,
+      "elapsed_sec": 16.388,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2919.05,
+          "max_drawdown": 58.67,
+          "profit_factor": 1.408044,
+          "trades": 8070,
+          "wins": 6279
+        },
+        "M5": {
+          "net_profit": 2611.26,
+          "max_drawdown": 29.03,
+          "profit_factor": 2.470304,
+          "trades": 2093,
+          "wins": 1649
+        },
+        "M15": {
+          "net_profit": 1636.39,
+          "max_drawdown": 20.81,
+          "profit_factor": 3.860822,
+          "trades": 693,
+          "wins": 550
+        },
+        "M30": {
+          "net_profit": 807.49,
+          "max_drawdown": 20.0,
+          "profit_factor": 3.08116,
+          "trades": 336,
+          "wins": 239
+        },
+        "H1": {
+          "net_profit": 482.96,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.829394,
+          "trades": 188,
+          "wins": 122
+        },
+        "H4": {
+          "net_profit": 55.43,
+          "max_drawdown": 19.75,
+          "profit_factor": 2.154792,
+          "trades": 28,
+          "wins": 16
+        },
+        "H12": {
+          "net_profit": 29.82,
+          "max_drawdown": 20.0,
+          "profit_factor": 1.931875,
+          "trades": 15,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 8542.4,
+        "max_drawdown": 44.74,
+        "profit_factor": 1.834727,
+        "trades": 11423,
+        "wins": 8862
+      },
+      "profitable_tfs": 7,
+      "score": 191.984286992
+    },
+    {
+      "id": 62,
+      "pass": 1,
+      "parameter": "SESSION_START_HOUR",
+      "value": 12,
+      "base_value": 8,
+      "elapsed_sec": 15.937,
+      "per_tf": {
+        "M1": {
+          "net_profit": 2568.9,
+          "max_drawdown": 91.0,
+          "profit_factor": 1.411041,
+          "trades": 6961,
+          "wins": 5396
+        },
+        "M5": {
+          "net_profit": 2318.6,
+          "max_drawdown": 28.65,
+          "profit_factor": 2.467468,
+          "trades": 1814,
+          "wins": 1419
+        },
+        "M15": {
+          "net_profit": 1415.5,
+          "max_drawdown": 20.0,
+          "profit_factor": 3.764648,
+          "trades": 598,
+          "wins": 470
+        },
+        "M30": {
+          "net_profit": 769.7,
+          "max_drawdown": 20.0,
+          "profit_factor": 3.405312,
+          "trades": 290,
+          "wins": 210
+        },
+        "H1": {
+          "net_profit": 379.49,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.635733,
+          "trades": 156,
+          "wins": 98
+        },
+        "H4": {
+          "net_profit": -5.5,
+          "max_drawdown": 19.75,
+          "profit_factor": 0.847222,
+          "trades": 14,
+          "wins": 5
+        },
+        "H12": {
+          "net_profit": 29.82,
+          "max_drawdown": 20.0,
+          "profit_factor": 1.931875,
+          "trades": 15,
+          "wins": 7
+        },
+        "D1": {
+          "net_profit": 0,
+          "max_drawdown": 0.0,
+          "profit_factor": null,
+          "trades": 0,
+          "wins": 0
+        }
+      },
+      "combined": {
+        "net_profit": 7476.51,
+        "max_drawdown": 46.3,
+        "profit_factor": 1.83427,
+        "trades": 9848,
+        "wins": 7605
+      },
+      "profitable_tfs": 6,
+      "score": 162.129697624
+    },
+    {
+      "id": 63,
+      "pass": 1,
+      "parameter": "SESSION_END_HOUR",
+      "value": 18,
+      "base_value": 22,
+      "elapsed_sec": 16.627,
+      "per_tf": {
+        "M1": {
+          "net_profit": 3754.78,
+          "max_drawdown": 79.59,
+          "profit_factor": 1.406354,
+          "trades": 10320,
+          "wins": 8016
+        },
+        "M5": {
+          "net_profit": 3284.32,
+          "max_drawdown": 25.62,
+          "profit_factor": 2.474283,
+          "trades": 2643,
+          "wins": 2095
+        },
+        "M15": {
+          "net_profit": 1759.08,
+          "max_drawdown": 16.0,
+          "profit_factor": 3.325011,
+          "trades": 828,
+          "wins": 638
+        },
+        "M30": {
+          "net_profit": 834.7,
+          "max_drawdown": 17.85,
+          "profit_factor": 2.580871,
+          "trades": 415,
+          "wins": 283
+        },
+        "H1": {
+          "net_profit": 643.34,
+          "max_drawdown": 26.86,
+          "profit_factor": 2.807135,
+          "trades": 259,
+          "wins": 170
+        },
+        "H4": {
+          "net_profit": 88.15,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.296324,
+          "trades": 42,
+          "wins": 25
+        },
+        "H12": {
+          "net_profit": 70.72,
+          "max_drawdown": 4.0,
+          "profit_factor": 6.893333,
+          "trades": 13,
+          "wins": 10
+        },
+        "D1": {
+          "net_profit": 59.01,
+          "max_drawdown": 4.0,
+          "profit_factor": 3.45875,
+          "trades": 16,
+          "wins": 10
+        }
+      },
+      "combined": {
+        "net_profit": 10494.1,
+        "max_drawdown": 61.14,
+        "profit_factor": 1.794255,
+        "trades": 14536,
+        "wins": 11247
+      },
+      "profitable_tfs": 8,
+      "score": 172.840497219
+    },
+    {
+      "id": 64,
+      "pass": 1,
+      "parameter": "SESSION_END_HOUR",
+      "value": 20,
+      "base_value": 22,
+      "elapsed_sec": 15.748,
+      "per_tf": {
+        "M1": {
+          "net_profit": 4156.29,
+          "max_drawdown": 77.35,
+          "profit_factor": 1.40361,
+          "trades": 11437,
+          "wins": 8868
+        },
+        "M5": {
+          "net_profit": 3654.56,
+          "max_drawdown": 28.0,
+          "profit_factor": 2.436688,
+          "trades": 3002,
+          "wins": 2375
+        },
+        "M15": {
+          "net_profit": 1934.83,
+          "max_drawdown": 18.73,
+          "profit_factor": 3.290851,
+          "trades": 933,
+          "wins": 721
+        },
+        "M30": {
+          "net_profit": 976.6,
+          "max_drawdown": 16.0,
+          "profit_factor": 2.769203,
+          "trades": 455,
+          "wins": 317
+        },
+        "H1": {
+          "net_profit": 699.43,
+          "max_drawdown": 24.93,
+          "profit_factor": 2.880188,
+          "trades": 276,
+          "wins": 183
+        },
+        "H4": {
+          "net_profit": 98.4,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.118182,
+          "trades": 51,
+          "wins": 29
+        },
+        "H12": {
+          "net_profit": 100.54,
+          "max_drawdown": 13.53,
+          "profit_factor": 3.285,
+          "trades": 28,
+          "wins": 17
+        },
+        "D1": {
+          "net_profit": 59.01,
+          "max_drawdown": 4.0,
+          "profit_factor": 3.45875,
+          "trades": 16,
+          "wins": 10
+        }
+      },
+      "combined": {
+        "net_profit": 11679.66,
+        "max_drawdown": 58.88,
+        "profit_factor": 1.790977,
+        "trades": 16198,
+        "wins": 12520
+      },
+      "profitable_tfs": 8,
+      "score": 199.563790761
+    },
+    {
+      "id": 65,
+      "pass": 1,
+      "parameter": "SESSION_END_HOUR",
+      "value": 24,
+      "base_value": 22,
+      "elapsed_sec": 16.197,
+      "per_tf": {
+        "M1": {
+          "net_profit": 6043.4,
+          "max_drawdown": 79.4,
+          "profit_factor": 1.438273,
+          "trades": 15172,
+          "wins": 11728
+        },
+        "M5": {
+          "net_profit": 5027.35,
+          "max_drawdown": 28.68,
+          "profit_factor": 2.469788,
+          "trades": 3884,
+          "wins": 3037
+        },
+        "M15": {
+          "net_profit": 2746.1,
+          "max_drawdown": 20.21,
+          "profit_factor": 3.302635,
+          "trades": 1248,
+          "wins": 949
+        },
+        "M30": {
+          "net_profit": 1578.53,
+          "max_drawdown": 21.02,
+          "profit_factor": 3.133149,
+          "trades": 625,
+          "wins": 440
+        },
+        "H1": {
+          "net_profit": 886.65,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.731738,
+          "trades": 362,
+          "wins": 234
+        },
+        "H4": {
+          "net_profit": 182.36,
+          "max_drawdown": 20.0,
+          "profit_factor": 2.688519,
+          "trades": 70,
+          "wins": 43
+        },
+        "H12": {
+          "net_profit": 100.54,
+          "max_drawdown": 13.53,
+          "profit_factor": 3.285,
+          "trades": 28,
+          "wins": 17
+        },
+        "D1": {
+          "net_profit": 59.01,
+          "max_drawdown": 4.0,
+          "profit_factor": 3.45875,
+          "trades": 16,
+          "wins": 10
+        }
+      },
+      "combined": {
+        "net_profit": 16623.94,
+        "max_drawdown": 52.89,
+        "profit_factor": 1.838316,
+        "trades": 21405,
+        "wins": 16458
+      },
+      "profitable_tfs": 8,
+      "score": 315.511590093
+    }
+  ],
+  "baseline": {
+    "config": {
+      "POINT": 0.01,
+      "SL_POINTS": 400,
+      "TP_POINTS": 1000,
+      "USE_BREAKEVEN": true,
+      "BREAKEVEN_TRIGGER_POINTS": 75,
+      "BREAKEVEN_LOCK_POINTS": 10,
+      "USE_TRAILING": true,
+      "TRAIL_TRIGGER_POINTS": 200,
+      "TRAIL_DISTANCE_POINTS": 300,
+      "TRAIL_STEP_POINTS": 10,
+      "SWING_BARS": 2,
+      "BOS_CONFIRM_COUNT": 1,
+      "MAX_BARS_LOOKBACK": 500,
+      "ONE_TRADE_PER_CYCLE": true,
+      "ENTER_ON_BOS_CONFIRM": false,
+      "USE_FIB_OB_FILTER": true,
+      "OB_SEARCH_MAX_BARS": 20,
+      "ENABLE_OB_RETEST_ENTRY": true,
+      "OB_MIN_BARS_BEFORE_RETEST": 3,
+      "MIN_LEG_POINTS": 100,
+      "OB_MAX_BARS_VALID": 50,
+      "OB_PREFER_DEEPER_MAX_POINTS": 300,
+      "MAX_OPEN_POSITIONS": 2,
+      "USE_LIQUIDITY_SWEEP": true,
+      "SWEEP_VALID_BARS": 15,
+      "SESSION_START_HOUR": 8,
+      "SESSION_END_HOUR": 22,
+      "REQUIRE_LIQUIDITY_SWEEP": false,
+      "STRICT_ONE_ENTRY_PER_LEG": false,
+      "USE_ATR_STOPS": false,
+      "ATR_PERIOD": 14,
+      "ATR_SL_MULT": 1.5,
+      "ATR_BUFFER_MULT": 0.25,
+      "ATR_MIN_SL_POINTS": 120,
+      "ATR_MAX_SL_POINTS": 600,
+      "ATR_RR": 3.0,
+      "MAX_SPREAD_POINTS": 0,
+      "SLIPPAGE_POINTS": 0,
+      "COMMISSION_PER_LOT_USD": 0.0
+    },
+    "per_tf": {
+      "M1": {
+        "net_profit": 448.57,
+        "max_drawdown": 198.16,
+        "profit_factor": 1.115,
+        "trades": 4420,
+        "wins": 3436
+      },
+      "M5": {
+        "net_profit": 720.29,
+        "max_drawdown": 34.73,
+        "profit_factor": 2.097668,
+        "trades": 825,
+        "wins": 660
+      },
+      "M15": {
+        "net_profit": 484.5,
+        "max_drawdown": 14.23,
+        "profit_factor": 3.691667,
+        "trades": 241,
+        "wins": 196
+      },
+      "M30": {
+        "net_profit": 149.32,
+        "max_drawdown": 25.88,
+        "profit_factor": 1.88881,
+        "trades": 125,
+        "wins": 83
+      },
+      "H1": {
+        "net_profit": 30.6,
+        "max_drawdown": 24.59,
+        "profit_factor": 1.239062,
+        "trades": 59,
+        "wins": 27
+      },
+      "H4": {
+        "net_profit": 32.37,
+        "max_drawdown": 8.0,
+        "profit_factor": 3.6975,
+        "trades": 13,
+        "wins": 10
+      },
+      "H12": {
+        "net_profit": 14.64,
+        "max_drawdown": 8.0,
+        "profit_factor": 2.83,
+        "trades": 5,
+        "wins": 3
+      },
+      "D1": {
+        "net_profit": 0,
+        "max_drawdown": 0.0,
+        "profit_factor": null,
+        "trades": 0,
+        "wins": 0
+      }
+    },
+    "combined": {
+      "net_profit": 1880.29,
+      "max_drawdown": 104.49,
+      "profit_factor": 1.372127,
+      "trades": 5688,
+      "wins": 4415
+    },
+    "profitable_tfs": 7,
+    "score": 19.044927744
+  },
+  "current_best": {
+    "config": {
+      "POINT": 0.01,
+      "SL_POINTS": 400,
+      "TP_POINTS": 1000,
+      "USE_BREAKEVEN": true,
+      "BREAKEVEN_TRIGGER_POINTS": 75,
+      "BREAKEVEN_LOCK_POINTS": 25,
+      "USE_TRAILING": true,
+      "TRAIL_TRIGGER_POINTS": 200,
+      "TRAIL_DISTANCE_POINTS": 100,
+      "TRAIL_STEP_POINTS": 5,
+      "SWING_BARS": 1,
+      "BOS_CONFIRM_COUNT": 1,
+      "MAX_BARS_LOOKBACK": 500,
+      "ONE_TRADE_PER_CYCLE": true,
+      "ENTER_ON_BOS_CONFIRM": true,
+      "USE_FIB_OB_FILTER": false,
+      "OB_SEARCH_MAX_BARS": 5,
+      "ENABLE_OB_RETEST_ENTRY": true,
+      "OB_MIN_BARS_BEFORE_RETEST": 2,
+      "MIN_LEG_POINTS": 200,
+      "OB_MAX_BARS_VALID": 0,
+      "OB_PREFER_DEEPER_MAX_POINTS": 100,
+      "MAX_OPEN_POSITIONS": 1,
+      "USE_LIQUIDITY_SWEEP": true,
+      "SWEEP_VALID_BARS": 15,
+      "SESSION_START_HOUR": 0,
+      "SESSION_END_HOUR": 22,
+      "REQUIRE_LIQUIDITY_SWEEP": false,
+      "STRICT_ONE_ENTRY_PER_LEG": false,
+      "USE_ATR_STOPS": false,
+      "ATR_PERIOD": 14,
+      "ATR_SL_MULT": 1.5,
+      "ATR_BUFFER_MULT": 0.25,
+      "ATR_MIN_SL_POINTS": 120,
+      "ATR_MAX_SL_POINTS": 600,
+      "ATR_RR": 3.0,
+      "MAX_SPREAD_POINTS": 0,
+      "SLIPPAGE_POINTS": 0,
+      "COMMISSION_PER_LOT_USD": 0.0
+    },
+    "per_tf": {
+      "M1": {
+        "net_profit": 5255.36,
+        "max_drawdown": 65.82,
+        "profit_factor": 1.435125,
+        "trades": 13389,
+        "wins": 10374
+      },
+      "M5": {
+        "net_profit": 4437.03,
+        "max_drawdown": 28.65,
+        "profit_factor": 2.479138,
+        "trades": 3482,
+        "wins": 2741
+      },
+      "M15": {
+        "net_profit": 2407.27,
+        "max_drawdown": 23.76,
+        "profit_factor": 3.331293,
+        "trades": 1101,
+        "wins": 842
+      },
+      "M30": {
+        "net_profit": 1254.53,
+        "max_drawdown": 21.02,
+        "profit_factor": 2.948028,
+        "trades": 538,
+        "wins": 377
+      },
+      "H1": {
+        "net_profit": 759.15,
+        "max_drawdown": 24.86,
+        "profit_factor": 2.679535,
+        "trades": 318,
+        "wins": 205
+      },
+      "H4": {
+        "net_profit": 98.4,
+        "max_drawdown": 20.0,
+        "profit_factor": 2.118182,
+        "trades": 51,
+        "wins": 29
+      },
+      "H12": {
+        "net_profit": 100.54,
+        "max_drawdown": 13.53,
+        "profit_factor": 3.285,
+        "trades": 28,
+        "wins": 17
+      },
+      "D1": {
+        "net_profit": 59.01,
+        "max_drawdown": 4.0,
+        "profit_factor": 3.45875,
+        "trades": 16,
+        "wins": 10
+      }
+    },
+    "combined": {
+      "net_profit": 14371.29,
+      "max_drawdown": 51.93,
+      "profit_factor": 1.827737,
+      "trades": 18923,
+      "wins": 14595
+    },
+    "profitable_tfs": 8,
+    "score": 277.943500867
+  },
+  "best": {
+    "config": {
+      "POINT": 0.01,
+      "SL_POINTS": 400,
+      "TP_POINTS": 1000,
+      "USE_BREAKEVEN": true,
+      "BREAKEVEN_TRIGGER_POINTS": 75,
+      "BREAKEVEN_LOCK_POINTS": 25,
+      "USE_TRAILING": true,
+      "TRAIL_TRIGGER_POINTS": 200,
+      "TRAIL_DISTANCE_POINTS": 100,
+      "TRAIL_STEP_POINTS": 5,
+      "SWING_BARS": 1,
+      "BOS_CONFIRM_COUNT": 1,
+      "MAX_BARS_LOOKBACK": 500,
+      "ONE_TRADE_PER_CYCLE": true,
+      "ENTER_ON_BOS_CONFIRM": true,
+      "USE_FIB_OB_FILTER": false,
+      "OB_SEARCH_MAX_BARS": 5,
+      "ENABLE_OB_RETEST_ENTRY": true,
+      "OB_MIN_BARS_BEFORE_RETEST": 2,
+      "MIN_LEG_POINTS": 200,
+      "OB_MAX_BARS_VALID": 0,
+      "OB_PREFER_DEEPER_MAX_POINTS": 100,
+      "MAX_OPEN_POSITIONS": 1,
+      "USE_LIQUIDITY_SWEEP": true,
+      "SWEEP_VALID_BARS": 15,
+      "SESSION_START_HOUR": 0,
+      "SESSION_END_HOUR": 24,
+      "REQUIRE_LIQUIDITY_SWEEP": false,
+      "STRICT_ONE_ENTRY_PER_LEG": false,
+      "USE_ATR_STOPS": false,
+      "ATR_PERIOD": 14,
+      "ATR_SL_MULT": 1.5,
+      "ATR_BUFFER_MULT": 0.25,
+      "ATR_MIN_SL_POINTS": 120,
+      "ATR_MAX_SL_POINTS": 600,
+      "ATR_RR": 3.0,
+      "MAX_SPREAD_POINTS": 0,
+      "SLIPPAGE_POINTS": 0,
+      "COMMISSION_PER_LOT_USD": 0.0
+    },
+    "per_tf": {
+      "M1": {
+        "net_profit": 6043.4,
+        "max_drawdown": 79.4,
+        "profit_factor": 1.438273,
+        "trades": 15172,
+        "wins": 11728
+      },
+      "M5": {
+        "net_profit": 5027.35,
+        "max_drawdown": 28.68,
+        "profit_factor": 2.469788,
+        "trades": 3884,
+        "wins": 3037
+      },
+      "M15": {
+        "net_profit": 2746.1,
+        "max_drawdown": 20.21,
+        "profit_factor": 3.302635,
+        "trades": 1248,
+        "wins": 949
+      },
+      "M30": {
+        "net_profit": 1578.53,
+        "max_drawdown": 21.02,
+        "profit_factor": 3.133149,
+        "trades": 625,
+        "wins": 440
+      },
+      "H1": {
+        "net_profit": 886.65,
+        "max_drawdown": 20.0,
+        "profit_factor": 2.731738,
+        "trades": 362,
+        "wins": 234
+      },
+      "H4": {
+        "net_profit": 182.36,
+        "max_drawdown": 20.0,
+        "profit_factor": 2.688519,
+        "trades": 70,
+        "wins": 43
+      },
+      "H12": {
+        "net_profit": 100.54,
+        "max_drawdown": 13.53,
+        "profit_factor": 3.285,
+        "trades": 28,
+        "wins": 17
+      },
+      "D1": {
+        "net_profit": 59.01,
+        "max_drawdown": 4.0,
+        "profit_factor": 3.45875,
+        "trades": 16,
+        "wins": 10
+      }
+    },
+    "combined": {
+      "net_profit": 16623.94,
+      "max_drawdown": 52.89,
+      "profit_factor": 1.838316,
+      "trades": 21405,
+      "wins": 16458
+    },
+    "profitable_tfs": 8,
+    "score": 315.511590093
+  },
+  "elapsed_sec": 2083.988,
+  "trial_count": 65
+}

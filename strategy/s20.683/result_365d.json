@@ -1,0 +1,440 @@
+{
+ "sid": "20.683",
+ "name": "S20.237 x S20.143 (VETO)",
+ "concept": "Elder Impulse (B) VETOED by FRAMA Cross (A)",
+ "period_bkk": [
+  "2025-10-05 12:12",
+  "2026-10-05 12:12"
+ ],
+ "params": {
+  "sl_atr": 1.5,
+  "rr": 1.5,
+  "max_hold": 24,
+  "be_r": 1.0
+ },
+ "spread_floor": 0.24,
+ "tf": {
+  "M1": {
+   "days": 103.0,
+   "n": 4380,
+   "net": -404.3,
+   "pf": 0.944,
+   "wr": 33.3,
+   "dd": 523.82,
+   "avg": -0.092,
+   "outcomes": {
+    "FULL_TP": 1354,
+    "BE": 694,
+    "SL": 2172,
+    "TIME": 160
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 3167,
+    "net": -112.27,
+    "pf": 0.978,
+    "wr": 33.7,
+    "dd": 436.79,
+    "avg": -0.035,
+    "outcomes": {
+     "FULL_TP": 992,
+     "BE": 509,
+     "SL": 1547,
+     "TIME": 119
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 1213,
+    "net": -292.03,
+    "pf": 0.862,
+    "wr": 32.2,
+    "dd": 325.83,
+    "avg": -0.241,
+    "outcomes": {
+     "SL": 625,
+     "FULL_TP": 362,
+     "BE": 185,
+     "TIME": 41
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -629.29,
+    "median": -497.22,
+    "pct_pos": 0.0
+   },
+   "audit": null,
+   "null": null,
+   "signals": 13065,
+   "verdict": "FAIL"
+  },
+  "M5": {
+   "days": 365.0,
+   "n": 3202,
+   "net": 340.13,
+   "pf": 1.024,
+   "wr": 36.4,
+   "dd": 666.54,
+   "avg": 0.106,
+   "outcomes": {
+    "FULL_TP": 1024,
+    "SL": 1502,
+    "BE": 468,
+    "TIME": 208
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 2308,
+    "net": 93.44,
+    "pf": 1.008,
+    "wr": 35.9,
+    "dd": 666.54,
+    "avg": 0.04,
+    "outcomes": {
+     "FULL_TP": 721,
+     "SL": 1102,
+     "BE": 329,
+     "TIME": 156
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 894,
+    "net": 246.69,
+    "pf": 1.081,
+    "wr": 37.6,
+    "dd": 345.43,
+    "avg": 0.276,
+    "outcomes": {
+     "FULL_TP": 303,
+     "SL": 400,
+     "BE": 139,
+     "TIME": 52
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -179.04,
+    "median": 131.93,
+    "pct_pos": 76.0
+   },
+   "audit": null,
+   "null": {
+    "p": 0.005,
+    "null_avg_p95": -0.014,
+    "mine_avg": 0.106
+   },
+   "signals": 9268,
+   "verdict": "WEAK"
+  },
+  "M15": {
+   "days": 365.0,
+   "n": 951,
+   "net": -687.08,
+   "pf": 0.914,
+   "wr": 34.4,
+   "dd": 1121.6,
+   "avg": -0.722,
+   "outcomes": {
+    "FULL_TP": 291,
+    "SL": 461,
+    "BE": 147,
+    "TIME": 52
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 665,
+    "net": -926.09,
+    "pf": 0.853,
+    "wr": 32.5,
+    "dd": 973.53,
+    "avg": -1.393,
+    "outcomes": {
+     "FULL_TP": 194,
+     "SL": 335,
+     "BE": 103,
+     "TIME": 33
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 286,
+    "net": 239.01,
+    "pf": 1.141,
+    "wr": 38.8,
+    "dd": 169.36,
+    "avg": 0.836,
+    "outcomes": {
+     "SL": 126,
+     "BE": 44,
+     "FULL_TP": 97,
+     "TIME": 19
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -918.89,
+    "median": -626.08,
+    "pct_pos": 0.0
+   },
+   "audit": {
+    "cuts": 12,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 2829,
+   "verdict": "FAIL"
+  },
+  "M30": {
+   "days": 365.0,
+   "n": 497,
+   "net": -288.15,
+   "pf": 0.95,
+   "wr": 33.6,
+   "dd": 638.58,
+   "avg": -0.58,
+   "outcomes": {
+    "FULL_TP": 148,
+    "SL": 236,
+    "TIME": 35,
+    "BE": 78
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 321,
+    "net": -126.32,
+    "pf": 0.97,
+    "wr": 34.9,
+    "dd": 614.77,
+    "avg": -0.394,
+    "outcomes": {
+     "FULL_TP": 98,
+     "SL": 153,
+     "TIME": 22,
+     "BE": 48
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 176,
+    "net": -161.83,
+    "pf": 0.899,
+    "wr": 31.2,
+    "dd": 338.35,
+    "avg": -0.919,
+    "outcomes": {
+     "SL": 83,
+     "FULL_TP": 50,
+     "BE": 30,
+     "TIME": 13
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -538.72,
+    "median": -227.71,
+    "pct_pos": 9.0
+   },
+   "audit": null,
+   "null": null,
+   "signals": 1606,
+   "verdict": "FAIL"
+  },
+  "H1": {
+   "days": 365.0,
+   "n": 229,
+   "net": 383.57,
+   "pf": 1.116,
+   "wr": 38.4,
+   "dd": 366.99,
+   "avg": 1.675,
+   "outcomes": {
+    "BE": 39,
+    "FULL_TP": 75,
+    "TIME": 25,
+    "SL": 90
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 151,
+    "net": 320.35,
+    "pf": 1.134,
+    "wr": 41.1,
+    "dd": 303.87,
+    "avg": 2.122,
+    "outcomes": {
+     "BE": 24,
+     "FULL_TP": 51,
+     "TIME": 18,
+     "SL": 58
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 78,
+    "net": 63.22,
+    "pf": 1.069,
+    "wr": 33.3,
+    "dd": 251.32,
+    "avg": 0.811,
+    "outcomes": {
+     "SL": 32,
+     "FULL_TP": 24,
+     "BE": 15,
+     "TIME": 7
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": 236.33,
+    "median": 471.33,
+    "pct_pos": 100.0
+   },
+   "audit": {
+    "cuts": 12,
+    "mismatch": 0
+   },
+   "null": {
+    "p": 0.225,
+    "null_avg_p95": 3.533,
+    "mine_avg": 1.675
+   },
+   "signals": 712,
+   "verdict": "WEAK"
+  },
+  "H4": {
+   "days": 365.0,
+   "n": 56,
+   "net": -399.97,
+   "pf": 0.754,
+   "wr": 28.6,
+   "dd": 577.07,
+   "avg": -7.142,
+   "outcomes": {
+    "SL": 25,
+    "FULL_TP": 12,
+    "TIME": 9,
+    "BE": 10
+   },
+   "worst_weekend_gap_r": -0.9,
+   "is": {
+    "n": 36,
+    "net": -408.08,
+    "pf": 0.624,
+    "wr": 22.2,
+    "dd": 432.25,
+    "avg": -11.336,
+    "outcomes": {
+     "SL": 15,
+     "FULL_TP": 7,
+     "TIME": 5,
+     "BE": 9
+    },
+    "worst_weekend_gap_r": -0.106
+   },
+   "oos": {
+    "n": 20,
+    "net": 8.11,
+    "pf": 1.015,
+    "wr": 40.0,
+    "dd": 232.73,
+    "avg": 0.406,
+    "outcomes": {
+     "FULL_TP": 5,
+     "SL": 10,
+     "TIME": 4,
+     "BE": 1
+    },
+    "worst_weekend_gap_r": -0.9
+   },
+   "mc": {
+    "p5": -598.7,
+    "median": -330.79,
+    "pct_pos": 0.0
+   },
+   "audit": {
+    "cuts": 12,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 221,
+   "verdict": "FAIL"
+  },
+  "D1": {
+   "days": 365.0,
+   "n": 8,
+   "net": -267.92,
+   "pf": 0.594,
+   "wr": 25.0,
+   "dd": 445.65,
+   "avg": -33.49,
+   "outcomes": {
+    "FULL_TP": 2,
+    "SL": 4,
+    "BE": 1,
+    "TIME": 1
+   },
+   "worst_weekend_gap_r": -0.263,
+   "is": {
+    "n": 6,
+    "net": 10.35,
+    "pf": 1.027,
+    "wr": 33.3,
+    "dd": 382.41,
+    "avg": 1.725,
+    "outcomes": {
+     "FULL_TP": 2,
+     "SL": 2,
+     "BE": 1,
+     "TIME": 1
+    },
+    "worst_weekend_gap_r": -0.263
+   },
+   "oos": {
+    "n": 2,
+    "net": -278.27,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 278.27,
+    "avg": -139.135,
+    "outcomes": {
+     "SL": 2
+    },
+    "worst_weekend_gap_r": -0.125
+   },
+   "mc": {
+    "p5": -482.95,
+    "median": -267.92,
+    "pct_pos": 4.7
+   },
+   "audit": null,
+   "null": null,
+   "signals": 30,
+   "verdict": "FAIL"
+  }
+ },
+ "data_snapshot_utc": "2026-10-05 05:12:41",
+ "total": {
+  "n": 9323,
+  "net": -1323.72,
+  "pf": 0.968,
+  "wr": 34.5,
+  "dd": 2242.64,
+  "avg": -0.142,
+  "outcomes": {
+   "FULL_TP": 2906,
+   "BE": 1437,
+   "SL": 4490,
+   "TIME": 490
+  },
+  "worst_weekend_gap_r": -0.9
+ },
+ "pass_tfs": [],
+ "lookahead_ok": true,
+ "uniqueness": {
+  "max_jaccard": 0.328,
+  "with": "S20.143",
+  "unique": true
+ }
+}

@@ -1,4 +1,5 @@
 import re, os
+from strategy_ids import ea_comment_meta
 from datetime import datetime, timedelta, timezone
 from config import *
 from mt5_utils import connect_mt5, open_order, get_existing_tp
@@ -514,6 +515,10 @@ def _parse_comment(comment: str) -> tuple[str, str, str]:
     """แยก tf_name, sid, pattern จาก comment ของ order/position"""
     if not comment:
         return "", "", ""
+    ea_meta = ea_comment_meta(comment)
+    if ea_meta:
+        parts = comment.split("_", 2)
+        return ea_meta[0], ea_meta[1], parts[2] if len(parts) > 2 else ""
     m_sid = re.search(r'_?S(\d+)', comment)
     if m_sid:
         sid = m_sid.group(1)
@@ -691,7 +696,7 @@ def _fetch_candle_block(ticket: int, all_lines: list) -> str:
 
         lines = [
             f"🕐 {oc_time_str[:10]} {oc_time_str[11:16]}",
-            f"📊 Timeframe: {tf_name}" + (f" | S{sid}" if sid else ""),
+            f"📊 Timeframe: {tf_name}" + (f" | {str(sid).upper() if str(sid).startswith('ea2') else f'S{sid}'}" if sid else ""),
             "",
         ]
 
@@ -835,7 +840,7 @@ async def handle_btn_order(update, context):
             f"{e} *{t}* {p.volume}lot @ `{p.price_open}`\n"
             f"🛑`{p.sl}` 🎯`{p.tp}` | {pe}`{p.profit:.2f}` USD\n"
             f"🔖 `#{p.ticket}`"
-            + (f" | S{sid}" if sid else "")
+            + (f" | {str(sid).upper() if str(sid).startswith('ea2') else f'S{sid}'}" if sid else "")
             + (f" | {tf}" if tf else "")
             + "\n"
             + (f"📝 {pattern}\n" if pattern else "")

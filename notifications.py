@@ -1,3 +1,4 @@
+from strategy_ids import normalize_sid, ea_comment_meta
 import re
 import config as _config
 from bot_log import log_event, log_error
@@ -18,6 +19,9 @@ def _parse_bot_comment(comment: str):
     """
     if not comment:
         return None, None
+    ea_meta = ea_comment_meta(comment)
+    if ea_meta:
+        return ea_meta
     if str(comment).startswith("DEMO-"):
         parts = str(comment).split("-")
         tf = parts[1] if len(parts) > 1 and re.match(r"^(M\d+|H\d+|D\d+)$", parts[1]) else None
@@ -506,7 +510,7 @@ async def check_sl_tp_hits(app):
 
         # ── S1 swing mode: S1 ปิดแล้ว (SL/TP/manual) → ปิด S11 ที่ ref TF เดียวกันด้วย ──
         try:
-            if int(sid_label or 0) == 1 and tf_label and getattr(_config, "S1_ZONE_MODE", "") == "swing":
+            if normalize_sid(sid_label) == 1 and tf_label and getattr(_config, "S1_ZONE_MODE", "") == "swing":
                 from trailing import _close_linked_s11_for_tf
                 await _close_linked_s11_for_tf(app, tf_label, f"S1 closed by {close_type} [{tf_label}]")
         except Exception:
