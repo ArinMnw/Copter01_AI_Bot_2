@@ -1781,10 +1781,14 @@ MANAGED_PORTFOLIOS = {
     # SWING_TFS จะตั้ง wk=path.n-1 คือ "ถือข้ามสัปดาห์ได้ไม่ต้องบังคับปิด" — ตรงข้ามกับที่
     # เข้าใจตอนแรก) ดังนั้น leg M5/M15/M30/H1 ต้องบังคับปิดก่อน weekend, มีแค่ H4 เท่านั้น
     # ในกลุ่มนี้ (S20.255/732/701) ที่ปล่อยถือข้ามสัปดาห์ได้ตรงตาม backtest
+    # be_tf: engine.py checklist #5 อนุญาตเลื่อน SL ไป BE ได้ "ตั้งแต่แท่งถัดไปเท่านั้น"
+    # (กัน lookahead) ดู block "1) breakeven" ใน _manage_open_positions — ใส่ไว้เฉพาะกลุ่ม
+    # นี้ พอร์ตเดิม (LTS_ROLLOVER*) ไม่มี key นี้เลยยังเลื่อนทันทีแบบเดิมไม่เปลี่ยนพฤติกรรม
     **{leg["key"]: {"be_rr": (leg["be_r"] if leg["be_r"] > 0 else None), "pyramid_r": None,
                     "pyramid_frac": 1.0, "pyramid_legs": None,
                     "max_hold_bars": leg["max_hold"], "max_hold_tf": leg["tf"],
-                    "weekend_force_close": leg["tf"] not in ("H4", "D1")}
+                    "weekend_force_close": leg["tf"] not in ("H4", "D1"),
+                    "be_tf": leg["tf"]}
        for leg in S20GEN.S20GEN_DEFS.values() if leg["enabled"]},
 }
 
@@ -1867,27 +1871,58 @@ async def _manage_open_positions(app, portfolio_name: str):
                 continue  # ปิดไปแล้ว (หรือพยายามปิดแล้ว) ข้าม BE/max_hold/pyramid รอบนี้
 
         # ── 1) breakeven ────────────────────────────────────────────────
-        if be_rr and not record.get("be_done") and progress >= risk * float(be_rr):
-            try:
-                res = mt5.order_send({
-                    "action": mt5.TRADE_ACTION_SLTP,
-                    "position": pos.ticket,
-                    "symbol": symbol,
-                    "sl": round(entry, price_digits),
-                    "tp": float(pos.tp),
-                })
-                if res is not None and res.retcode == mt5.TRADE_RETCODE_DONE:
-                    record["be_done"] = True
-                    dirty = True
-                    log_event("DEMO_PORTFOLIO_BE",
-                              f"{record.get('leg')} ticket={pos.ticket} SL->BE {entry:.2f} "
-                              f"(+{progress / risk:.2f}R)")
+        # be_tf (เฉพาะกลุ่มที่ตั้งไว้ — ตอนนี้คือ S20-Gen Forward Demo): engine.py
+        # checklist #5 อนุญาตให้เลื่อน SL ไป BE ได้ "ตั้งแต่แท่งถัดไปจากแท่งที่กำไรถึง
+        # เกณฑ์ก่อนเท่านั้น" (กัน lookahead — ไม้ที่กำไรถึงเกณฑ์กลางแท่งเดียวกันไม่ได้
+        # เลื่อนทันที) พอร์ตที่ไม่ได้ตั้ง be_tf (LTS_ROLLOVER* เดิม) ยังเลื่อนทันทีแบบเดิม
+        # ทุกอย่าง ไม่เปลี่ยนพฤติกรรม
+        be_tf = rules.get("be_tf")
+        do_move = False
+        if be_rr and not record.get("be_done"):
+            if not be_tf:
+                # พอร์ตเดิม (LTS_ROLLOVER*) ไม่มี be_tf — เลื่อนทันทีแบบเดิมทุกอย่าง
+                do_move = progress >= risk * float(be_rr)
+            else:
+                armed_ts = record.get("be_armed_bar_ts")
+                if armed_ts is None:
+                    # ยังไม่ armed — เช็คว่าตอนนี้กำไรถึงเกณฑ์หรือยัง (เทียบกับ be_bar
+                    # ของ backtest) ถ้าถึง จดแท่งนี้ไว้ก่อน ยังไม่เลื่อนจริงรอบนี้
+                    if progress >= risk * float(be_rr):
+                        tf_sec = S20GEN.TF_SEC.get(be_tf)
+                        latest = _fetch_bars(be_tf, 2) if tf_sec else None
+                        cur_bar_ts = int(latest[-1]["time"]) if latest is not None else None
+                        if cur_bar_ts is not None:
+                            record["be_armed_bar_ts"] = cur_bar_ts
+                            dirty = True
                 else:
-                    log_error("DEMO_PORTFOLIO",
-                              f"BE modify failed ticket={pos.ticket}: "
-                              f"{getattr(res, 'retcode', None)} {getattr(res, 'comment', '')}")
-            except Exception as e:
-                log_error("DEMO_PORTFOLIO", f"BE error ticket={pos.ticket}: {type(e).__name__}: {e}")
+                    # armed แล้ว (เทียบกับ be_bar+1 ของ backtest) — เลื่อนทันทีที่ข้ามไป
+                    # แท่งใหม่ โดยไม่ต้องเช็ค progress ปัจจุบันซ้ำ (backtest ก็ไม่เช็คซ้ำ
+                    # เหมือนกัน เลื่อนแน่นอนตั้งแต่แท่งถัดไปแม้ราคาจะย่อกลับมาแล้วก็ตาม)
+                    tf_sec = S20GEN.TF_SEC.get(be_tf)
+                    latest = _fetch_bars(be_tf, 2) if tf_sec else None
+                    cur_bar_ts = int(latest[-1]["time"]) if latest is not None else None
+                    do_move = cur_bar_ts is not None and cur_bar_ts > armed_ts
+            if do_move:
+                try:
+                    res = mt5.order_send({
+                        "action": mt5.TRADE_ACTION_SLTP,
+                        "position": pos.ticket,
+                        "symbol": symbol,
+                        "sl": round(entry, price_digits),
+                        "tp": float(pos.tp),
+                    })
+                    if res is not None and res.retcode == mt5.TRADE_RETCODE_DONE:
+                        record["be_done"] = True
+                        dirty = True
+                        log_event("DEMO_PORTFOLIO_BE",
+                                  f"{record.get('leg')} ticket={pos.ticket} SL->BE {entry:.{price_digits}f} "
+                                  f"(+{progress / risk:.2f}R)")
+                    else:
+                        log_error("DEMO_PORTFOLIO",
+                                  f"BE modify failed ticket={pos.ticket}: "
+                                  f"{getattr(res, 'retcode', None)} {getattr(res, 'comment', '')}")
+                except Exception as e:
+                    log_error("DEMO_PORTFOLIO", f"BE error ticket={pos.ticket}: {type(e).__name__}: {e}")
 
         # ── 1.5) max_hold time exit (เฉพาะพอร์ตที่ตั้ง max_hold_bars/max_hold_tf ไว้ — ตอนนี้
         # มีแค่กลุ่ม S20-Gen Forward Demo) — ปิดที่ตลาดถ้าถือไม้เกิน N แท่งของ TF ตัวเองไม่ถึง
