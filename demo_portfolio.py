@@ -75,6 +75,7 @@ from strategy_af import (
     apply_af_filters,
 )
 from strategy_lts import LTS_PORTFOLIO_LEGS, LTS_STRATEGIES, detect_lts
+import strategy_s20gen_live as S20GEN
 
 from bot_log import log_event, log_error
 
@@ -87,6 +88,7 @@ STATE_FILE = os.path.join(
 MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โดยสิ้นเชิง — P13=990013, P16=990016
 AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
 LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890, LTS999=992999
+S20GEN_MAGIC_BASE = 993000  # S20G_<sid>_<tf> -> 993000 + idx คงที่ (ดู strategy_s20gen_live.py)
 # LTS_AVENGERS_* ใช้ชื่อไม่ใช่เลข — เลี่ยง int() parse fail ใน _portfolio_magic()
 # ตั้ง magic ต่ำกว่า LTS44 (992044) เพื่อไม่ชนกับ LTS ตัวเลขใดๆ ที่มีอยู่/จะมีในอนาคต
 _LTS_NAMED_MAGIC = {
@@ -368,6 +370,9 @@ PORTFOLIO_DISPLAY_NAME = {
     "S434": "📊 S434 Breakout Probability",
     "LTS_EVOLUTION9": "🧬 LTS_EVOLUTION9",
     "LTS_SCREEN13": "📐 LTS_SCREEN13",
+    **{leg["key"]: (f'🧪 S20.{leg["sid"]} {leg["name"][:28]} ({leg["tf"]})' if leg["cat"] == "WINNER"
+                    else f'🧫 S20.{leg["sid"]} {leg["name"][:28]} ({leg["tf"]})')
+       for leg in S20GEN.S20GEN_DEFS.values() if leg["enabled"]},
 }
 PORTFOLIO_ORDER = (
     "P13", "P16", "P18",
@@ -381,7 +386,7 @@ PORTFOLIO_ORDER = (
     # กรอง active_names จาก PORTFOLIO_ORDER เท่านั้น ทำให้ต่อให้ DEMO_PORTFOLIO_ACTIVE=True ก็ไม่เคย
     # ถูกสแกน/เทรดจริงเลยสักครั้งตั้งแต่สร้างมา (ไม่มีใครกดเปิดจน 2026-08-10 ถึงเจอ)
     "LTS_EVOLUTION9", "LTS_SCREEN13",
-)
+) + tuple(S20GEN.S20GEN_ENABLED_KEYS)
 
 DEMO_GROUPS = {
     "AF": {"title": "🎯 AF Auto-Ladder", "keys": ["AF22", "AF34", "AF47"]},
@@ -392,6 +397,7 @@ DEMO_GROUPS = {
     "432": {"title": "🧭 S432 Path Forecast", "keys": ["S432"]},
     "433": {"title": "🌟 S433 AI Gold Star", "keys": ["S433"]},
     "434": {"title": "📊 S434 Breakout Probability", "keys": ["S434"]},
+    "S20G": {"title": "🧪 S20-Gen Forward Demo (64)", "keys": list(S20GEN.S20GEN_ENABLED_KEYS)},
 }
 
 
@@ -406,6 +412,8 @@ def _portfolio_magic(portfolio_name: str) -> int:
         return LTS_MAGIC_BASE + int(portfolio_name.replace("LTS", ""))
     if portfolio_name.startswith("AF"):
         return AF_MAGIC_BASE + int(portfolio_name[2:])
+    if portfolio_name.startswith("S20G_"):
+        return S20GEN_MAGIC_BASE + S20GEN.S20GEN_DEFS[portfolio_name]["idx"]
     return MAGIC_BASE + int(portfolio_name[1:])
 
 
@@ -894,6 +902,118 @@ async def _demo_scan_af(app, portfolio_name: str):
             await app.bot.send_message(
                 chat_id=config.MY_USER_ID,
                 text=f"⚠️ Demo Portfolio {leg_id} order failed: {result.get('error')}",
+            )
+        except Exception:
+            pass
+
+
+async def _demo_scan_s20gen(app, portfolio_name: str):
+    """สแกน 1 leg ของกลุ่ม S20-Gen Forward Demo (ดู strategy_s20gen_live.py) — ต่าง
+    จาก _demo_scan_af ตรงที่ไม่มี af_filters/raw_cooldown (ไม่จำเป็นสำหรับกลุ่มนี้) และ
+    SL/TP คำนวณจาก ATR สดๆ ตอนตรวจสัญญาณ ไม่ใช่จาก cfg ที่ตั้งไว้ล่วงหน้า"""
+    leg = S20GEN.S20GEN_DEFS[portfolio_name]
+    sid, tf = leg["sid"], leg["tf"]
+    magic = _portfolio_magic(portfolio_name)
+    state = _load_state()
+
+    bars = _fetch_bars(tf, 400)
+    if bars is None:
+        log_error("DEMO_PORTFOLIO", f"{portfolio_name}: fetch {tf} bars failed")
+        return
+
+    entry_ts = int(bars[-1]["time"])
+    if state["last_signal_ts"].get(portfolio_name) == entry_ts:
+        return  # cooldown เดียวกับ backtest MIN_GAP_BARS=1 — ห้ามยิงซ้ำแท่งเดียวกัน
+
+    symbol = _demo_symbol()
+    tick = mt5.symbol_info_tick(symbol)
+    info = mt5.symbol_info(symbol)
+    current_spread = 0.0
+    if tick and info:
+        current_spread = max(0.0, float(tick.ask) - float(tick.bid))
+    # digits จริงของ symbol (XAUUSDm บน Exness = 3 ไม่ใช่ 2 — ใช้แทน hardcode .2f
+    # เพื่อไม่ให้ log/Telegram แสดงราคาเสีย precision หลักที่ 3 ที่ backtest validate ไว้)
+    price_digits = int(getattr(info, "digits", 2) or 2) if info else 2
+
+    try:
+        res = S20GEN.detect_s20gen(sid, bars, tf, sl_atr=leg["sl_atr"], current_spread=current_spread)
+    except Exception as e:
+        log_error("DEMO_PORTFOLIO", f"{portfolio_name} detect error: {type(e).__name__}: {e}")
+        return
+
+    if res.get("signal") not in ("BUY", "SELL"):
+        return
+
+    state["last_signal_ts"][portfolio_name] = entry_ts
+
+    open_count = _count_open_positions(magic, portfolio_name, tf)
+    max_pos_per_leg = config.demo_portfolio_max_pos_per_leg(portfolio_name)
+    if open_count >= max_pos_per_leg:
+        _save_state(state)
+        log_event("DEMO_PORTFOLIO_SKIP",
+                  f"{portfolio_name} {res['signal']} skipped — {open_count} positions already open "
+                  f"(cap={max_pos_per_leg})")
+        return
+
+    sig = res["signal"]
+    dist = float(res["dist"])
+    tick_price = tick.ask if sig == "BUY" else tick.bid
+    if sig == "BUY":
+        sl, tp = tick_price - dist, tick_price + leg["rr"] * dist
+    else:
+        sl, tp = tick_price + dist, tick_price - leg["rr"] * dist
+
+    comment = _demo_comment(portfolio_name, tf)
+    volume = MIN_LOT  # ชุดทดสอบ forward demo — lot คงที่เล็กสุดเสมอ ไม่ผูกกับ balance/weight
+    result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, anchor_sl_tp=True)
+    sl = result.get("sl", sl)
+    tp = result.get("tp", tp)
+
+    if result.get("success") and result.get("ticket"):
+        try:
+            from trailing import position_sid
+            position_sid[result["ticket"]] = 21
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+
+    trade_log = {
+        "ts": _now_bkk().isoformat(),
+        "entry_bar_ts": int(res["entry_bar_ts"]),
+        "leg": portfolio_name,
+        "label": PORTFOLIO_DISPLAY_NAME.get(portfolio_name, portfolio_name),
+        "signal": sig,
+        "sl": sl,
+        "tp": tp,
+        "success": result.get("success"),
+        "ticket": result.get("ticket"),
+        "error": result.get("error"),
+        "volume": volume,
+        "tf": tf,
+        "sid": sid,
+        "doc": f"S20.{sid} {leg['name']} ({leg['cat']})",
+    }
+    state["trades"].append(trade_log)
+    state["trades"] = state["trades"][-1500:]
+    _save_state(state)
+
+    log_event("DEMO_PORTFOLIO_SIGNAL",
+              f"{portfolio_name} {sig} lot={volume:.2f} sl={sl} tp={tp} "
+              f"success={result.get('success')} ticket={result.get('ticket')} err={result.get('error')}")
+
+    if app is not None and result.get("success"):
+        try:
+            msg = (f"🧪 *{PORTFOLIO_DISPLAY_NAME.get(portfolio_name, portfolio_name)}*\n"
+                   f"{'🟢 BUY' if sig=='BUY' else '🔴 SELL'} @ market lot `{volume:.2f}`\n"
+                   f"SL `{sl:.{price_digits}f}` TP `{tp:.{price_digits}f}`\n"
+                   f"Ticket: `{result.get('ticket')}`")
+            await app.bot.send_message(chat_id=config.MY_USER_ID, text=msg, parse_mode="Markdown")
+        except Exception:
+            pass
+    elif app is not None and not result.get("success"):
+        try:
+            await app.bot.send_message(
+                chat_id=config.MY_USER_ID,
+                text=f"⚠️ S20-Gen {portfolio_name} order failed: {result.get('error')}",
             )
         except Exception:
             pass
@@ -1446,6 +1566,9 @@ async def demo_scan(app, portfolio_name: str):
     if portfolio_name in AF_PORTFOLIO_LEGS or portfolio_name.startswith("LTS"):
         await _demo_scan_af_ladder(app, portfolio_name)
         return
+    if portfolio_name in S20GEN.S20GEN_DEFS:
+        await _demo_scan_s20gen(app, portfolio_name)
+        return
 
     state = _load_state()
     keys = PORTFOLIOS[portfolio_name]
@@ -1648,6 +1771,21 @@ MANAGED_PORTFOLIOS = {
     # S304 ยังไม่ได้ทดสอบ pyramid — เปิดแค่ BE ไว้ก่อน
     "LTS_ROLLOVER_HTF_MAX": {"be_rr": 1.0, "pyramid_r": None, "pyramid_frac": 1.0,
                              "pyramid_legs": ("S304",)},
+    # S20-Gen Forward Demo: max_hold_bars/max_hold_tf เปิด time-based exit ใน
+    # _manage_open_positions() (ส่วน "1.5) max_hold time exit" ด้านล่าง) — ตรงกับที่
+    # strategy/s20_gen/engine.py backtest ไว้ (ปิดไม้ถ้าถือเกิน N แท่งไม่ถึง SL/TP);
+    # be_rr=None ของตัวที่ be_r=0.0 ใน META หมายถึง backtest ตัวนั้นไม่ได้ใช้ breakeven
+    #
+    # weekend_force_close: engine.py checklist #17 บังคับปิดไม้ก่อน weekend gap เฉพาะ TF
+    # ที่ไม่ใช่ SWING_TFS=("H4","D1") เท่านั้น (ดู engine.py Path.__init__: ถ้า tf อยู่ใน
+    # SWING_TFS จะตั้ง wk=path.n-1 คือ "ถือข้ามสัปดาห์ได้ไม่ต้องบังคับปิด" — ตรงข้ามกับที่
+    # เข้าใจตอนแรก) ดังนั้น leg M5/M15/M30/H1 ต้องบังคับปิดก่อน weekend, มีแค่ H4 เท่านั้น
+    # ในกลุ่มนี้ (S20.255/732/701) ที่ปล่อยถือข้ามสัปดาห์ได้ตรงตาม backtest
+    **{leg["key"]: {"be_rr": (leg["be_r"] if leg["be_r"] > 0 else None), "pyramid_r": None,
+                    "pyramid_frac": 1.0, "pyramid_legs": None,
+                    "max_hold_bars": leg["max_hold"], "max_hold_tf": leg["tf"],
+                    "weekend_force_close": leg["tf"] not in ("H4", "D1")}
+       for leg in S20GEN.S20GEN_DEFS.values() if leg["enabled"]},
 }
 
 
@@ -1670,7 +1808,7 @@ async def _manage_open_positions(app, portfolio_name: str):
         return
     be_rr = rules.get("be_rr")
     pyramid_r = rules.get("pyramid_r")
-    if not be_rr and not pyramid_r:
+    if not be_rr and not pyramid_r and not rules.get("max_hold_bars") and not rules.get("weekend_force_close"):
         return
 
     magic = _portfolio_magic(portfolio_name)
@@ -1684,6 +1822,11 @@ async def _manage_open_positions(app, portfolio_name: str):
     tick = mt5.symbol_info_tick(symbol)
     if not tick:
         return
+    # digits ของ symbol จริง (XAUUSDm บน Exness-MT5Trail7 = 3 ไม่ใช่ 2 — เช็คจาก
+    # strategy/s20_gen/.cache/meta.json ที่ backtest ใช้สร้างผล) ใช้แทน round(x, 2)
+    # ที่ hardcode ไว้เดิม ไม่งั้นค่าที่ปัดจะเสีย precision หลักที่ 3 ทุกครั้งที่เลื่อน SL
+    _sym_info = mt5.symbol_info(symbol)
+    price_digits = int(getattr(_sym_info, "digits", 2) or 2)
     dirty = False
 
     for pos in positions:
@@ -1700,6 +1843,29 @@ async def _manage_open_positions(app, portfolio_name: str):
         price = float(tick.bid if is_buy else tick.ask)
         progress = (price - entry) if is_buy else (entry - price)
 
+        # ── 0) weekend force-close (เฉพาะพอร์ตที่ตั้ง weekend_force_close=True — ตอนนี้
+        # คือ S20-Gen Forward Demo เฉพาะ TF ที่ไม่ใช่ H4/D1) — engine.py บังคับปิดไม้ก่อน
+        # weekend gap สำหรับ TF เหล่านี้เสมอ (checklist #17) ไม่งั้น live จะเจอความเสี่ยง
+        # gap ข้ามสัปดาห์ที่ backtest ไม่เคยจำลองไว้เลยสำหรับ TF นี้ — cutoff ใช้ศุกร์ 21:00
+        # BKK (เผื่อ buffer ~1 ชม. ก่อนตลาดปิดจริงที่ราวๆ ศุกร์ 21:55-22:00 BKK ตามที่เช็ค
+        # จาก gap จริงของข้อมูล M5 ที่แคชไว้)
+        if rules.get("weekend_force_close"):
+            _now = _now_bkk()
+            if _now.weekday() == 4 and _now.hour >= 21:
+                try:
+                    from trailing import _close_position
+                    pos_type = "BUY" if is_buy else "SELL"
+                    ok, close_price = _close_position(pos, pos_type, f"S20G-WKND-{pos.ticket}")
+                    if ok:
+                        dirty = True
+                        log_event("DEMO_PORTFOLIO_WEEKEND_EXIT",
+                                  f"{record.get('leg')} ticket={pos.ticket} ปิดก่อน weekend ที่ {close_price:.{price_digits}f}")
+                    else:
+                        log_error("DEMO_PORTFOLIO", f"weekend-close failed ticket={pos.ticket}")
+                except Exception as e:
+                    log_error("DEMO_PORTFOLIO", f"weekend-close error ticket={pos.ticket}: {type(e).__name__}: {e}")
+                continue  # ปิดไปแล้ว (หรือพยายามปิดแล้ว) ข้าม BE/max_hold/pyramid รอบนี้
+
         # ── 1) breakeven ────────────────────────────────────────────────
         if be_rr and not record.get("be_done") and progress >= risk * float(be_rr):
             try:
@@ -1707,7 +1873,7 @@ async def _manage_open_positions(app, portfolio_name: str):
                     "action": mt5.TRADE_ACTION_SLTP,
                     "position": pos.ticket,
                     "symbol": symbol,
-                    "sl": round(entry, 2),
+                    "sl": round(entry, price_digits),
                     "tp": float(pos.tp),
                 })
                 if res is not None and res.retcode == mt5.TRADE_RETCODE_DONE:
@@ -1722,6 +1888,37 @@ async def _manage_open_positions(app, portfolio_name: str):
                               f"{getattr(res, 'retcode', None)} {getattr(res, 'comment', '')}")
             except Exception as e:
                 log_error("DEMO_PORTFOLIO", f"BE error ticket={pos.ticket}: {type(e).__name__}: {e}")
+
+        # ── 1.5) max_hold time exit (เฉพาะพอร์ตที่ตั้ง max_hold_bars/max_hold_tf ไว้ — ตอนนี้
+        # มีแค่กลุ่ม S20-Gen Forward Demo) — ปิดที่ตลาดถ้าถือไม้เกิน N แท่งของ TF ตัวเองไม่ถึง
+        # SL/TP เลย ตรงกับที่ strategy/s20_gen/engine.py backtest ไว้ (outcome="TIME")
+        max_hold_bars = rules.get("max_hold_bars")
+        max_hold_tf = rules.get("max_hold_tf")
+        if max_hold_bars and max_hold_tf and not record.get("closed_by_time"):
+            entry_bar_ts = record.get("entry_bar_ts")
+            tf_sec = S20GEN.TF_SEC.get(max_hold_tf)
+            if entry_bar_ts and tf_sec:
+                latest = _fetch_bars(max_hold_tf, 2)
+                if latest is not None:
+                    bars_elapsed = (int(latest[-1]["time"]) - int(entry_bar_ts)) / tf_sec
+                    if bars_elapsed >= max_hold_bars:
+                        try:
+                            from trailing import _close_position
+                            pos_type = "BUY" if is_buy else "SELL"
+                            ok, close_price = _close_position(pos, pos_type, f"S20G-TIME-{pos.ticket}")
+                            if ok:
+                                record["closed_by_time"] = True
+                                dirty = True
+                                log_event("DEMO_PORTFOLIO_TIME_EXIT",
+                                          f"{record.get('leg')} ticket={pos.ticket} ปิดที่ {close_price:.{price_digits}f} "
+                                          f"(ถือ {bars_elapsed:.1f}/{max_hold_bars} แท่ง {max_hold_tf})")
+                            else:
+                                log_error("DEMO_PORTFOLIO",
+                                          f"time-exit close failed ticket={pos.ticket}")
+                        except Exception as e:
+                            log_error("DEMO_PORTFOLIO",
+                                      f"time-exit error ticket={pos.ticket}: {type(e).__name__}: {e}")
+                continue  # ปิดด้วย time-exit แล้ว หรือยังไม่ครบแท่ง — ข้าม pyramid รอบนี้
 
         # ── 2) pyramid (เฉพาะขาที่ระบุใน pyramid_legs) ───────────────────
         legs_filter = rules.get("pyramid_legs")
@@ -1738,7 +1935,7 @@ async def _manage_open_positions(app, portfolio_name: str):
                 volume = max(MIN_LOT, volume)
                 add = _place_market_order(
                     "BUY" if is_buy else "SELL",
-                    round(entry, 2),          # SL ไม้เติม = ราคาเปิดไม้แรก
+                    round(entry, price_digits),  # SL ไม้เติม = ราคาเปิดไม้แรก
                     float(pos.tp),            # เป้าเดียวกับไม้แรก
                     _demo_comment(f"{record.get('leg')}-PYR", ""),
                     magic,
@@ -1782,8 +1979,14 @@ async def _manage_open_positions(app, portfolio_name: str):
 
 async def demo_scan_job(app):
     """เรียกจาก scheduler ใน main.py ทุก DEMO_PORTFOLIO_SCAN_INTERVAL นาที — no-op ถ้าไม่มี
-    portfolio ไหน active เลย"""
-    active_names = [name for name in PORTFOLIO_ORDER if config.DEMO_PORTFOLIO_ACTIVE.get(name, False)]
+    portfolio ไหน active เลย
+
+    กลุ่ม S20-Gen Forward Demo (S20G_*) ถูกตัดออกจาก active_names ตรงนี้โดยเจตนา — มันมี
+    scheduler job แยกที่ไวกว่า (demo_scan_job_s20gen, ดู main.py) เพราะหลาย leg เป็น TF M5
+    การสแกนแค่ทุก 5 นาทีเท่ากับ TF ของมันเองทำให้ตรวจสัญญาณช้าไปได้เกือบ 1 แท่งเต็ม
+    ราคาที่เข้าจริงจะห่างจาก "open แท่งถัดไป" ที่ backtest ใช้มากเกินไป"""
+    active_names = [name for name in PORTFOLIO_ORDER
+                     if config.DEMO_PORTFOLIO_ACTIVE.get(name, False) and name not in S20GEN.S20GEN_DEFS]
     if not active_names:
         return
     symbol = _demo_symbol()
@@ -1803,6 +2006,29 @@ async def demo_scan_job(app):
         except Exception as e:
             log_error("DEMO_PORTFOLIO", f"{name} scan error: {type(e).__name__}: {e}")
     log_event("DEMO_PORTFOLIO_SCAN", f"{symbol} done active={','.join(active_names)}")
+
+
+async def demo_scan_job_s20gen(app):
+    """เหมือน demo_scan_job() แต่เฉพาะกลุ่ม S20-Gen Forward Demo — เรียกจาก scheduler
+    ใน main.py ทุก config.S20GEN_SCAN_INTERVAL_SEC วินาที (ถี่กว่า DEMO_PORTFOLIO_SCAN_INTERVAL
+    ปกติที่ 5 นาที) เพื่อให้ leg TF M5/M15 ตรวจสัญญาณได้ใกล้เคียง "open แท่งถัดไป" ที่
+    backtest ใช้มากขึ้น — no-op ถ้าไม่มี S20G_* ตัวไหน active เลย"""
+    active_names = [name for name in S20GEN.S20GEN_ENABLED_KEYS if config.DEMO_PORTFOLIO_ACTIVE.get(name, False)]
+    if not active_names:
+        return
+    symbol = _demo_symbol()
+    market_open, reason = _demo_market_open(symbol)
+    if not market_open:
+        return
+    for name in active_names:
+        try:
+            await _manage_open_positions(app, name)
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"{name} manage error: {type(e).__name__}: {e}")
+        try:
+            await demo_scan(app, name)
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"{name} scan error: {type(e).__name__}: {e}")
 
 
 def _fetch_leg_pnl(portfolio_name: str):

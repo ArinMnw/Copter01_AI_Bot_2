@@ -253,7 +253,8 @@ def main():
     async def run_demo_portfolio_scan():
         """P13 (Champion) / P16 (Max-Yield Blend) — ระบบทดสอบแยกอิสระจากบอทหลัก
         (ดู demo_portfolio.py) ไม่แตะ active_strategies/scanner.py/trailing.py state ใดๆ
-        no-op ถ้าไม่มี portfolio ไหน active (default ปิดทั้งคู่)"""
+        no-op ถ้าไม่มี portfolio ไหน active (default ปิดทั้งคู่) — กลุ่ม S20-Gen Forward
+        Demo (S20G_*) ไม่ได้สแกนที่นี่ ดู run_s20gen_fast_scan() ด้านล่างแทน"""
         try:
             if _is_lts_aus_fast_scan_profile():
                 return
@@ -263,6 +264,20 @@ def main():
             config.last_scan_ts = _time.time()
         except Exception as e:
             await _tg_error(app, "run_demo_portfolio_scan", e)
+
+    async def run_s20gen_fast_scan():
+        """กลุ่ม S20-Gen Forward Demo (64 ตัว, ดู strategy_s20gen_live.py) — สแกนถี่กว่า
+        DEMO_PORTFOLIO_SCAN_INTERVAL ปกติ (ทุก config.S20GEN_SCAN_INTERVAL_SEC วินาที แทนที่
+        จะเป็นทุก 5 นาที) เพราะหลาย leg เป็น TF M5 การสแกนห่างเท่า TF ตัวเองทำให้ตรวจสัญญาณ
+        ช้าไปเกือบ 1 แท่ง ราคาที่เข้าจริงจะห่างจาก "open แท่งถัดไป" ที่ backtest ใช้มากเกินไป"""
+        try:
+            if _is_lts_aus_fast_scan_profile():
+                return
+            import demo_portfolio
+            await demo_portfolio.demo_scan_job_s20gen(app)
+            config.last_scan_ts = _time.time()
+        except Exception as e:
+            await _tg_error(app, "run_s20gen_fast_scan", e)
 
     async def run_lts_aus_fast_scan():
         """Fast scan for LTS_AVENGERS_ULTRA_SAFE so MT5 open time can match backtest within seconds."""
@@ -743,6 +758,19 @@ def main():
         max_instances=1,
         coalesce=True,
         next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(max(1, config.DEMO_PORTFOLIO_SCAN_INTERVAL * 60)))
+    )
+
+    # S20-Gen Forward Demo (64 ตัว) — scan job แยกที่ไวกว่า (ดู run_s20gen_fast_scan()
+    # ด้านบน) no-op เองถ้าไม่มี S20G_* ตัวไหน active (ดู demo_scan_job_s20gen)
+    scheduler.add_job(
+        run_s20gen_fast_scan,
+        'interval',
+        seconds=config.S20GEN_SCAN_INTERVAL_SEC,
+        id="s20gen_fast_scan_job",
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=10,
+        next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(config.S20GEN_SCAN_INTERVAL_SEC))
     )
 
     scheduler.add_job(

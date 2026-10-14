@@ -2248,6 +2248,75 @@ DEMO_PORTFOLIO_ACTIVE = {
     "LTS_AHR2": False,
     "LTS_AUS3": False,
     "LTS_AHR3": False,
+    # ── S20-Gen Forward Demo (64 ตัว, final_gate WINNER/BORDERLINE จากแคมเปญ s20_gen
+    # S20.140-1519 ที่ยังไม่เคย forward demo — ดู strategy_s20gen_live.py +
+    # strategy/backtest-summary/S20_forward_demo_shortlist_62.md) เปิดทีเดียวทั้งกลุ่มได้
+    # ด้วย profile.env: DEMO_PORTFOLIO_ACTIVE=S20GEN (ไม่ต้องพิมพ์ทีละตัว — ดู env-override
+    # ด้านล่างที่ขยาย "S20GEN" เป็นทุก key ในกลุ่มนี้ให้)
+    "S20G_194_M5": False,
+    "S20G_143_M5": False,
+    "S20G_242_M5": False,
+    "S20G_194_H1": False,
+    "S20G_685_M5": False,
+    "S20G_242_M30": False,
+    "S20G_194_M30": False,
+    "S20G_210_M30": False,
+    "S20G_277_M30": False,
+    "S20G_255_H4": False,
+    "S20G_168_M30": False,
+    "S20G_751_M5": False,
+    "S20G_648_M30": False,
+    "S20G_689_H1": False,
+    "S20G_237_M15": False,
+    "S20G_339_M30": False,
+    "S20G_148_M30": False,
+    "S20G_637_M30": False,
+    "S20G_732_H4": False,
+    "S20G_512_M30": False,
+    "S20G_422_M15": False,
+    "S20G_937_H1": False,
+    "S20G_1092_M30": False,
+    "S20G_854_H1": False,
+    "S20G_888_M30": False,
+    "S20G_708_M15": False,
+    "S20G_778_M15": False,
+    "S20G_471_M15": False,
+    "S20G_1118_M30": False,
+    "S20G_1185_M5": False,
+    "S20G_1475_M15": False,
+    "S20G_1474_M15": False,
+    "S20G_161_H1": False,
+    "S20G_950_M5": False,
+    "S20G_356_M5": False,
+    "S20G_1378_M5": False,
+    "S20G_342_M5": False,
+    "S20G_1062_M15": False,
+    "S20G_724_M15": False,
+    "S20G_1186_M5": False,
+    "S20G_1499_M15": False,
+    "S20G_1244_M5": False,
+    "S20G_1453_M5": False,
+    "S20G_1509_M15": False,
+    "S20G_1519_M5": False,
+    "S20G_614_M5": False,
+    "S20G_795_H1": False,
+    "S20G_701_H4": False,
+    "S20G_690_M15": False,
+    "S20G_705_M30": False,
+    "S20G_679_M15": False,
+    "S20G_837_H1": False,
+    "S20G_774_M15": False,
+    "S20G_935_M30": False,
+    "S20G_857_H1": False,
+    "S20G_1315_M5": False,
+    "S20G_379_M30": False,
+    "S20G_1149_M30": False,
+    "S20G_1505_M15": False,
+    "S20G_1253_M15": False,
+    "S20G_1454_M5": False,
+    "S20G_1265_M15": False,
+    "S20G_1463_M30": False,
+    "S20G_1427_M5": False,
 }
 
 # ── LTS Supervisor (backtest-driven live order, strategy/demo_portfolio/backtest-sim/
@@ -2273,6 +2342,12 @@ _demo_portfolio_active_env = os.getenv("DEMO_PORTFOLIO_ACTIVE")
 DEMO_PORTFOLIO_ACTIVE_ENV_OVERRIDE = _demo_portfolio_active_env is not None
 if _demo_portfolio_active_env is not None:
     _items = [s.strip().upper() for s in _demo_portfolio_active_env.split(",") if s.strip()]
+    if "S20GEN" in _items:
+        # เปิดกลุ่ม S20-Gen Forward Demo ทั้งหมดทีเดียวโดยไม่ต้องพิมพ์ 64 ชื่อ — ขยายเป็น
+        # ทุก key จริงที่ตรงกับ S20G_* ใน DEMO_PORTFOLIO_ACTIVE ด้านบน (import แบบขี้เกียจ
+        # กัน import cycle ตอน config.py โหลดครั้งแรก)
+        import strategy_s20gen_live as _s20gen_live
+        _items = [x for x in _items if x != "S20GEN"] + list(_s20gen_live.S20GEN_ENABLED_KEYS)
     if _items and _items != ["ALL"]:
         for _name in DEMO_PORTFOLIO_ACTIVE:
             DEMO_PORTFOLIO_ACTIVE[_name] = False
@@ -2293,6 +2368,13 @@ if _demo_portfolio_active_env is not None:
 DEMO_PORTFOLIO_SYMBOL = "XAUUSD"                       # P13/P16/AF trade XAU only; ignore runtime BTC switch
 DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"                # Telegram detail tab: XAUUSD or BTCUSD
 DEMO_PORTFOLIO_SCAN_INTERVAL = 5                       # นาที (เท่ากับ SCAN_INTERVAL เดิม)
+S20GEN_SCAN_INTERVAL_SEC = 60                           # วินาที — กลุ่ม S20-Gen Forward Demo
+                                                        # สแกนถี่กว่าปกติ (ไม่ใช้ DEMO_PORTFOLIO_
+                                                        # SCAN_INTERVAL 5 นาทีร่วมกับพอร์ตอื่น)
+                                                        # เพราะหลาย leg เป็น TF M5 — สแกนทุก 5
+                                                        # นาทีเท่ากับความยาวแท่งเอง ตรวจสัญญาณช้า
+                                                        # ได้เกือบ 1 แท่งเต็ม ราคาเข้าจริงห่างจาก
+                                                        # "open แท่งถัดไป" ที่ backtest ใช้มากเกินไป
 DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg เดียวซ้อนกันจนบัญชีเล็กโดน
                                                         # margin หมด (เจอจริง 2026-07-02: leg D/K
                                                         # ยิงไม้ใหม่ทุกแท่งช่วงเทรนด์แรง จนออเดอร์อื่น
@@ -2324,6 +2406,25 @@ DEMO_PORTFOLIO_MAX_POS_PER_LEG = 3                     # กันไม้ leg 
 DEMO_PORTFOLIO_MAX_POS_PER_LEG_OVERRIDE = {
     "S420-J_M1": 1, "S420-J_M30": 1, "S421-O_M1": 1, "S421-O_M30": 1,
     "S420": 2, "S421": 2, "S427": 1, "S429": 1,
+    # S20-Gen Forward Demo: cap=1 ทุกตัว ตรงกับ lockout "1 position ต่อ TF" ที่
+    # strategy/s20_gen/engine.py ใช้จำลองตอน backtest (checklist #12) — ถ้าไม่ล็อกไว้
+    # แบบนี้ live จะเทรดได้มากกว่าที่ backtest validate ไว้
+    "S20G_194_M5": 1, "S20G_143_M5": 1, "S20G_242_M5": 1, "S20G_194_H1": 1,
+    "S20G_685_M5": 1, "S20G_242_M30": 1, "S20G_194_M30": 1, "S20G_210_M30": 1,
+    "S20G_277_M30": 1, "S20G_255_H4": 1, "S20G_168_M30": 1, "S20G_751_M5": 1,
+    "S20G_648_M30": 1, "S20G_689_H1": 1, "S20G_237_M15": 1, "S20G_339_M30": 1,
+    "S20G_148_M30": 1, "S20G_637_M30": 1, "S20G_732_H4": 1, "S20G_512_M30": 1,
+    "S20G_422_M15": 1, "S20G_937_H1": 1, "S20G_1092_M30": 1, "S20G_854_H1": 1,
+    "S20G_888_M30": 1, "S20G_708_M15": 1, "S20G_778_M15": 1, "S20G_471_M15": 1,
+    "S20G_1118_M30": 1, "S20G_1185_M5": 1, "S20G_1475_M15": 1, "S20G_1474_M15": 1,
+    "S20G_161_H1": 1, "S20G_950_M5": 1, "S20G_356_M5": 1, "S20G_1378_M5": 1,
+    "S20G_342_M5": 1, "S20G_1062_M15": 1, "S20G_724_M15": 1, "S20G_1186_M5": 1,
+    "S20G_1499_M15": 1, "S20G_1244_M5": 1, "S20G_1453_M5": 1, "S20G_1509_M15": 1,
+    "S20G_1519_M5": 1, "S20G_614_M5": 1, "S20G_795_H1": 1, "S20G_701_H4": 1,
+    "S20G_690_M15": 1, "S20G_705_M30": 1, "S20G_679_M15": 1, "S20G_837_H1": 1,
+    "S20G_774_M15": 1, "S20G_935_M30": 1, "S20G_857_H1": 1, "S20G_1315_M5": 1,
+    "S20G_379_M30": 1, "S20G_1149_M30": 1, "S20G_1505_M15": 1, "S20G_1253_M15": 1,
+    "S20G_1454_M5": 1, "S20G_1265_M15": 1, "S20G_1463_M30": 1, "S20G_1427_M5": 1,
 }
 # 2026-08-18: บัญชี demo-iux-2101183587 (login=2101183587) แตกจาก $2,600 กว่า
 # เหลือ $0.42 ในคืนเดียว — ต้นตอ: S427 ตั้ง BALANCE_LOT_ENABLED=true (lot ผูกกับ
