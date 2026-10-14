@@ -2885,6 +2885,14 @@ def _write_state_to_disk(state: dict) -> None:
         tmp_path = STATE_FILE + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
+        # เก็บสำเนาไฟล์เดิมไว้ก่อนเขียนทับ (bot_state.json.bak) — ถ้าไฟล์ใหม่เสีย/อ่านไม่ออก
+        # (เช่น encoding ผิดจากเครื่องมือภายนอก) ยังมีไฟล์ล่าสุดที่ยังโหลดได้สำเร็จให้กู้คืนได้
+        try:
+            if os.path.exists(STATE_FILE):
+                import shutil as _shutil
+                _shutil.copyfile(STATE_FILE, STATE_FILE + ".bak")
+        except Exception:
+            pass
         last_error = None
         for attempt in range(5):
             try:
@@ -3269,6 +3277,11 @@ def restore_runtime_state():
             ticket: normalize_sid(sid) for ticket, sid in state.get("position_sid", {}).items()
         }
     except Exception as e:
+        try:
+            from bot_log import log_error as _lerr
+            _lerr("RESTORE_STATE_FAILED", f"อ่าน {STATE_FILE} ไม่สำเร็จ ({type(e).__name__}: {e}) — state ทั้งหมดจะเริ่มจาก default แทน เช็คว่าไฟล์เสีย/encoding ผิดหรือไม่ (มี {STATE_FILE}.bak สำรองไว้ล่าสุด)")
+        except Exception:
+            pass
         return {"restored": False, "reason": f"load error: {e}"}
 
     try:
@@ -4026,6 +4039,11 @@ def restore_runtime_state():
             "trail_state": len(_trail_state),
         }
     except Exception as e:
+        try:
+            from bot_log import log_error as _lerr
+            _lerr("RESTORE_STATE_FAILED", f"restore_runtime_state ล้มเหลวกลางทาง ({type(e).__name__}: {e}) — state บางส่วน/ทั้งหมดจะเป็น default เช็ค {STATE_FILE}.bak ถ้าต้องกู้คืน")
+        except Exception:
+            pass
         return {"restored": False, "reason": f"restore error: {e}"}
 last_traded_candle = 0   # backward compat
 

@@ -1,0 +1,34 @@
+{
+  "created_utc": "2026-10-08T17:43:08.807762+00:00",
+  "code_plan_sha256": {
+    "strategy_scalping456_decoded.py": "f886be24f5609db58e7edc45833e554c8acd4cb8434aa611cef431fc1de3bddb",
+    "decoded_schedule.py": "5b51ce3ad6470dd40acaa817c5cc6271c7982d4975468a507be05c020695a095",
+    "decoded_common.py": "d11ac97572f4a6bc7d49c6875ce1b93335fcb92ae81c314d549e526c5ad13bb8",
+    "replay_decoded.py": "08c7ef725f380664b19e6605478794a1b068f482c3a1018a79e4e06d1db0f5a9",
+    "strict_source_matcher.py": "2efa0e84840f00ccb7035a6ac1fe53565efe84a17e1ede19299691ba2f7057b2",
+    "EXPERIMENT_DECODED_PLAN.md": "71b57211a9c7e50f42f8c6ca3e1458ffb649a757897261572eba552939d74062"
+  },
+  "start_inferred_utc": "2026-08-18T21:00:00+00:00",
+  "end_exclusive_inferred_utc": "2026-10-08T01:17:56+00:00",
+  "gold_params": {
+    "bid_add": 6,
+    "ask_add": -5,
+    "initial_stop": 100,
+    "trail_activation": 20,
+    "trail_distance": 20,
+    "react_ms": 110,
+    "modify_busy_ms": 800,
+    "modify_effect_ms": 400,
+    "place_only_when_flat": true
+  },
+  "fixed_params": {
+    "multiplier": "42/25",
+    "lot_cap_tenths": "1740",
+    "place_delay_ticks": "1"
+  },
+  "regime_schedule_is_ledger_derived_input": true,
+  "method": "continuous_from_first_warmup_tick_no_ledger_actions_no_resets",
+  "source_parse_order": "after predictions",
+  "full_source_clone_complete": false,
+  "artifact_sha256": {}
+}

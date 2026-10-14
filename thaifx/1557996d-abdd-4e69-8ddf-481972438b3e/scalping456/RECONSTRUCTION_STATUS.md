@@ -2,6 +2,21 @@
 
 เป้าหมายเดิม: ทำ strategy ที่สร้างครบทุก 35,462 orders ตรง 100% โดยไม่ lookup tickets หรือใช้ผลลัพธ์อนาคต **ยังไม่ผ่าน** ไม่มีการส่ง trade จริงหรือแก้ production bot
 
+## อัปเดตล่าสุด — 9 ตุลาคม 2026 (decoded mechanics)
+
+ต่อจากงานเดิม ไม่ reuse ผลที่ปฏิเสธไว้ ตรวจ terminal เดิมซ้ำแล้ว: `VantageMarkets-Demo`, demo, USD, leverage 500, build 6230, ยังไม่มี `XAUUSD+` (มี `XAUUSD`, `XAUUSD.crp`, `FixedVol20` hidden) ไม่ส่ง/แก้/ปิด order ไม่เปลี่ยนบัญชี
+
+ถอดได้และวัดได้ (รายละเอียด/ตาราง/คำสั่ง: [`DECODED_MECHANICS_RESULTS.md`](DECODED_MECHANICS_RESULTS.md)): ทอง source feed ≈ demo bid+0.06 / ask−0.05; ทอง entry = BUY/SELL STOP ที่ `ask_src+D`/`bid_src−D` จาก quote หลังไม้ก่อนปิด (D เปลี่ยนเป็นช่วง 1.05/1.00/1.05/1.00/1.10/1.30; EA ทำงานตาม tick) fill ที่ระดับ pending; SL 1.00, trailing ห่างเท่า `trade_stops_level` ของ broker (ทอง 0.20, FixedVol20 2.800 อ่านจาก `symbol_info`) โดย server ปฏิเสธคำขอที่ราคาถอยระหว่างทาง; FixedVol20 feed ตรง tick: engine SL-trial 5–6 ก.ย. (trailing, ตรง 87% ที่ exit), แล้ว stop-entry ±D, grid step 3.0 (แล้ว 15.0), lot ×1.68, TP ถัวเฉลี่ยปัดครึ่งขึ้น ± 3.0/15.0 และช่วงเวลา 6–12 ก.ย. ส่วน 23–26 ส.ค. EA อ่าน quote ช้า/สุ่ม (มัธยฐาน 680 ms)
+
+ผล continuous causal replay (tolerance 0, ทั้ง 35,462 rows): **exact 6,213 (run 10; run 1 = 2,293), missing 29,249, extra 51,418 → ไม่ผ่านเป้า 100%** (QA อิสระ `verify_decoded.py` ผ่านทุก run, research suite 123 tests ผ่าน) mechanics-given-correct-start ได้ทอง 27.8–40.7% ต่อ order และ Fixed 47.2% ต่อ order ซึ่งชี้ว่าเพดานต่ำกว่า 100% เพราะ reference tick/trailing update/SL-TP failure/ปิดมือ ไม่ได้อยู่ใน feed หรือ ledger สาธารณะ — blocker พร้อมหลักฐานและข้อมูลที่ช่วยได้อยู่ใน `DECODED_MECHANICS_RESULTS.md` §9–§11 และ `SOURCE_DATA_REQUIRED.md`
+
+### เพิ่มเติม 9 ตุลาคม 2026 (forward holdout / oracle / Raw ECN)
+
+- **Forward holdout** (order 527 แถวที่ปิดหลัง snapshot, ทำนายก่อน hash ก่อนอ่านแถว): exact 134/527 (ทอง 134/512 = 26.2% เทียบ 25.6% ช่วง E4 ที่ใช้เลือกพารามิเตอร์; Fixed 0/15), extra 738 ส่วนใหญ่ในช่วงที่ EA หยุดและมี position ไม่มี SL ค้าง 12.7 ชม. — ไม่ overfit แต่ไม่ถึง 100% (`DECODED_MECHANICS_RESULTS.md` §13)
+- **Oracle ceiling** (conditional): oracle j ทำให้ entry ตรง 92.7% (E4) แต่ยังเหลือ 18.9% ที่ไม่ตรงแม้ใช้ oracle ทั้ง j และ trailing — ตัวแปรซ่อนที่ทำให้เสียมากสุดคือ tick อ้างอิงของ EA (§14)
+- **Raw ECN / `XAUUSD+`**: พี่เพิ่มบัญชี RAW ECN demo แล้ว — มี `XAUUSD+` จริง; tick = demo `XAUUSD` + (bid +0.06 / ask −0.05) ตรง 99.987% ของ tick ที่ timestamp ตรงกัน; replay ทั้ง 35,462 แถวด้วย `XAUUSD+` ได้ exact 6,207 (เดิม 6,213) → feed ไม่ใช่คอขวด (§15)
+- Watcher forward อ่านเฉพาะหน้าสาธารณะ (read-only) เก็บ order ใหม่ต่อได้เป็น holdout ชุดถัดไป
+
 ## อัปเดตหลังพี่ตั้งค่า Vantage — 8 ตุลาคม 2026
 
 เชื่อมต่อ Demo ที่ระบุได้แล้ว ตรวจ server/account/path และอ่าน FixedVol20 ได้แม้ hidden ไม่เปลี่ยนบัญชี/Market Watch เงื่อนไขเดิมที่ไม่มี Vantage ในเครื่องเปลี่ยนแล้ว ใช้ข้อมูลใหม่ต่อ ไม่ reuse blocked state เดิม

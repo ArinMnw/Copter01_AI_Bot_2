@@ -1,0 +1,93 @@
+{
+  "created_utc": "2026-10-09T02:46:48.482896+00:00",
+  "code_plan_sha256": {
+    "strategy_scalping456_decoded.py": "95eb15e1544070345fcebd139b230a8d9b4391f57836811cc9eb1c421f8a0748",
+    "decoded_schedule.py": "eaeb4f8c42c43759cc6079f49660ca0db22a11f06ba1e0d9a2f423c345165c4b",
+    "decoded_common.py": "d11ac97572f4a6bc7d49c6875ce1b93335fcb92ae81c314d549e526c5ad13bb8",
+    "replay_decoded.py": "0c2c72d569fa23c9499940b81cc15584d24b816c6a4b43607dc4fb8451cb8b7c",
+    "replay_forward.py": "251843b848160e41b2f351bfec97a73179923c7a37279a483a241463844c56e9",
+    "fetch_forward_orders.py": "345c14b4907253680b4e472957fdb03bf1929dee59f9f19f2208fb8392d571f7",
+    "strict_source_matcher.py": "2efa0e84840f00ccb7035a6ac1fe53565efe84a17e1ede19299691ba2f7057b2",
+    "EXPERIMENT_DECODED_PLAN.md": "efd31a7371d23aba30a223b8798acde4bd6506db964eeb211323c63330a221e1"
+  },
+  "horizon_exclusive_inferred_utc": "2026-10-09T02:00:00+00:00",
+  "frozen_last_close_inferred_ms": 1791422275000,
+  "gold_params": {
+    "bid_add": 6,
+    "ask_add": -5,
+    "initial_stop": 100,
+    "trail_activation": 20,
+    "trail_distance": 20,
+    "react_ms": 110,
+    "modify_busy_ms": 800,
+    "modify_effect_ms": 400,
+    "place_only_when_flat": false,
+    "trail_model": "stops_level",
+    "trail_latency_ms": 270,
+    "trail_block_ms": 270,
+    "trail_step": 1,
+    "trail_first_delay_ms": 900,
+    "stops_level": 20
+  },
+  "fixed_params": {
+    "multiplier": "42/25",
+    "lot_cap_tenths": "1740",
+    "place_delay_ticks": "1"
+  },
+  "regimes": "decoded_schedule.py unchanged (last regimes: gold E4, Fixed F2) — inputs assumed unchanged",
+  "method": "continuous_from_first_warmup_tick_no_resets_forward_extension",
+  "artifact_sha256": {
+    "predictions_forward.jsonl": "22fe0d9f2dbd03885ff872711bcff07111c4e27cfd8400e6bf95f7713856c61b",
+    "forward_results.jsonl": "810ea1afb48fa4eb07ce6f1552d03cd2f49c89c60427a466f896334f5913fb54",
+    "extras.jsonl": "7325dca2883c47e6a8520e15045592486bcd5a24741c9310fc5db8a0f9d84974"
+  },
+  "tick_counts": {
+    "gold_old": 23158669,
+    "gold_forward": 450391,
+    "fixed_old": 4314340,
+    "fixed_forward": 88839
+  },
+  "forward_cache_sha256": {
+    "2026-10-08|XAUUSD": "9d6eb0530a7d52be2934d136bdd9ddaad373ea28dc7102e3086d9015753d0b09",
+    "2026-10-09|XAUUSD": "f36d6dc1e5a4a7a3fcdd0a4c54954edfb3c354027f2cfca5f96d0bc94fae3ef3",
+    "2026-10-08|FixedVol20": "fe8dbad4e462e6f953203c3d4c3fbe295c8cf5abda1bca753235e570940ac963",
+    "2026-10-09|FixedVol20": "79af37c1cb096e6e2230eb6109fc66b3b25ec5e9bf610f29f147d49f996ea349"
+  },
+  "forward_predictions": {
+    "XAUUSD+": 850,
+    "FixedVol20": 22
+  },
+  "open_or_unclosed_at_horizon": {
+    "FixedVol20": 3
+  },
+  "forward_source_rows": {
+    "XAUUSD+": 512,
+    "FixedVol20": 15
+  },
+  "forward_files_sha256": {
+    "new_orders_0000.jsonl": "2963eb6b41a1886298973d49966a411b166bb0cf11915d3c4a16e154f44f299f"
+  },
+  "source_orders": 527,
+  "predicted_orders": 872,
+  "exact_all_observable_fields": 134,
+  "missing": 393,
+  "extra": 738,
+  "unknown_source_close_behavior": 1,
+  "timing_tolerance_seconds": 0,
+  "source_field_precision_only": true,
+  "complete": false,
+  "by_symbol": {
+    "FixedVol20": {
+      "source_rows": 15,
+      "exact": 0
+    },
+    "XAUUSD+": {
+      "source_rows": 512,
+      "exact": 134
+    }
+  },
+  "extras_by_symbol": {
+    "XAUUSD+": 716,
+    "FixedVol20": 22
+  }
+}

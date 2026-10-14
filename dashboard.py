@@ -463,6 +463,8 @@ ACCOUNT_LABELS = {
     "demo-exness-414252716": "🟢 Demo • Exness 716 — LTS_AHR3",
     "demo-exness-434237129": "🟢 Demo • Exness 129 — 48_New_God_S20 (48 Strats)",
     "demo-exness-434238722": "🟢 Demo • Exness 722 — S20.14 24 Group with Round v2",
+    "demo-vantage-26253671": "⚪ Demo • Vantage 671 — (ยังไม่มี Telegram token, ไม่มี strategy)",
+    "demo-vantage-26257644": "⚪ Demo • Vantage 644 — (ยังไม่มี Telegram token, ไม่มี strategy)",
 }
 RUN_PS1 = os.path.join(ROOT_DIR, "run_supervised.ps1")
 STOP_PS1 = os.path.join(ROOT_DIR, "stop_supervised.ps1")
@@ -587,6 +589,10 @@ REMOTE_VIEW_ACCOUNTS = {"real-vtmarket-26575165"}
 #   26032532               = "Thirakorn Yed Everyday" (comment BREAKOUT_6X, ยืนยันช่วงเวลารันตรงกับ journal log)
 #   123456 ("AAAAAAAAAAAAAAAA") = EA ทดสอบที่ระบุชื่อไม่ได้ (log ย้อนไปไม่ถึง 2026-07-14)
 #   (IUX 4448 "Main" — เจอทั้งหมดนี้ 2026-10-07, เป็นบัญชีทดสอบ EA หลายตัว คนละตัวกับบัญชี live)
+#   77799 ("OVER LOT OK")  = "Over Lot EA" (Vantage 26253671, เจอ 2026-10-09 — ACTIVE_STRATEGIES=NONE
+#                            ในบัญชีนี้ ไม่ใช่บอทเราแน่ๆ)
+#   888205/888215/888230 ("CHXM M5"/"CHXM M15"/"CHXM M30") = "CHXM EA" (Vantage 26257644, เจอ 2026-10-09
+#                            — ตัวเลข 888XXX ไม่ตรง convention เราเลย, XX ท้ายคือ TF)
 # ⚠️ magic=20260809 (ichimoku_EA.mq5 ของเราเอง InpMagic default) อย่าใส่ตรงนี้ — ไม่ใช่ EA แปลกปลอม
 FOREIGN_EA_MAGIC_LABELS = {
     9997: "NP SmartHedge Pro",
@@ -601,9 +607,22 @@ FOREIGN_EA_MAGIC_LABELS = {
     20260520: "Thirakorn For YCY",
     26032532: "Thirakorn Yed Everyday",
     123456: "Unknown Test EA",
+    77799: "Over Lot EA",
+    888205: "CHXM EA",
+    888215: "CHXM EA",
+    888230: "CHXM EA",
 }
 FOREIGN_EA_MAGIC_NUMBERS = set(FOREIGN_EA_MAGIC_LABELS)
 FOREIGN_EA_LABEL = "EA ภายนอก"  # fallback label ใช้ตอนยังไม่รู้ magic ที่แท้จริงของกลุ่ม
+
+# EA บางตัวแยก magic ตาม timeframe (เช่น CHXM: 888205=M5, 888215=M15, 888230=M30) — ถ้า EA
+# ตัวหนึ่ง (label เดียวกัน) ทุก magic มีอยู่ในนี้ครบ ตารางสรุปรายวันจะ pivot โชว์ 1 แถวต่อวัน
+# พร้อมคอลัมน์ PnL แยกตาม TF แทนการแยกแถวต่อ magic (ตามที่พี่ขอสำหรับ CHXM EA)
+FOREIGN_EA_MAGIC_TF = {
+    888205: "M5",
+    888215: "M15",
+    888230: "M30",
+}
 
 
 def _foreign_ea_labels_for(magics):
@@ -624,6 +643,81 @@ def _summarize_ea_comments(comments, magic, top_n=2):
     norm_cnt = Counter(re.sub(r'\d+', '#', c) for c in comments)
     parts = [c for c, n in norm_cnt.most_common(top_n)]
     return f"{' / '.join(parts)} ({magic})"
+
+
+def _render_ea_daily_tables(df_ea, magic_col, total_label_suffix):
+    """แยกตารางสรุปรายวันของ EA ภายนอกออกเป็นคนละตารางต่อ EA (ห้ามปนกันในตารางเดียว ตามที่พี่ขอ) —
+    1 ตารางต่อ 1 ชื่อ EA (รวม magic ที่ map เป็นชื่อเดียวกัน เช่น AAM V17/V18 GOD มี 3 magic) มี
+    Win/Lose/Win%/Lot/Comment ครบ และโชว์ 'รวม Lot ทั้งหมด' ของ EA ตัวนั้นในเดือน/ช่วงเวลานี้ด้วย —
+    ถ้าทุก magic ของ EA ตัวนั้น map กับ timeframe ได้ครบ (ดู FOREIGN_EA_MAGIC_TF เช่น CHXM: M5/M15/M30)
+    จะ pivot ให้เหลือ 1 แถวต่อวัน พร้อมคอลัมน์ PnL แยกตาม TF แทนการแยกแถวต่อ magic"""
+    labels = sorted({_foreign_ea_labels_for([m]) for m in df_ea[magic_col].unique()})
+    for label in labels:
+        magics_for_label = [m for m in df_ea[magic_col].unique() if _foreign_ea_labels_for([m]) == label]
+        sub = df_ea[df_ea[magic_col].isin(magics_for_label)].copy()
+        sub['date'] = sub['time'].dt.date
+        is_tf_split = all(m in FOREIGN_EA_MAGIC_TF for m in magics_for_label)
+
+        rows = []
+        if is_tf_split:
+            tf_cols_present = sorted({FOREIGN_EA_MAGIC_TF[m] for m in magics_for_label}, key=lambda t: TF_ORDER.index(t) if t in TF_ORDER else 99)
+            sub['tf'] = sub[magic_col].map(FOREIGN_EA_MAGIC_TF)
+            for d, grp in sub.groupby('date'):
+                wins = int((grp['net'] > 0).sum())
+                losses = int((grp['net'] <= 0).sum())
+                trades_cnt = len(grp)
+                winrate = round(wins / trades_cnt * 100, 1) if trades_cnt else 0.0
+                row = {
+                    "date": d,
+                    "Trades": trades_cnt,
+                    "Win/Lose (Win%)": f"{wins}W/{losses}L ({winrate:.1f}%)",
+                    "Lot": round(grp['volume'].sum(), 2),
+                    "net": grp['net'].sum(),
+                    "Comment": _summarize_ea_comments(grp['entry_comment'].tolist(), magics_for_label[0]),
+                }
+                for tf in tf_cols_present:
+                    row[f"PnL {tf}"] = round(grp.loc[grp['tf'] == tf, 'net'].sum(), 2)
+                rows.append(row)
+            pnl_cols = [f"PnL {tf}" for tf in tf_cols_present]
+            col_order = ['date', 'Trades', 'Win/Lose (Win%)', 'Lot'] + pnl_cols + ['Net P/L', 'Comment']
+        else:
+            for (d, m), grp in sub.groupby(['date', magic_col]):
+                wins = int((grp['net'] > 0).sum())
+                losses = int((grp['net'] <= 0).sum())
+                trades_cnt = len(grp)
+                winrate = round(wins / trades_cnt * 100, 1) if trades_cnt else 0.0
+                rows.append({
+                    "date": d,
+                    "Trades": trades_cnt,
+                    "Win/Lose (Win%)": f"{wins}W/{losses}L ({winrate:.1f}%)",
+                    "Lot": round(grp['volume'].sum(), 2),
+                    "net": grp['net'].sum(),
+                    "Comment": _summarize_ea_comments(grp['entry_comment'].tolist(), m),
+                })
+            pnl_cols = []
+            col_order = ['date', 'Trades', 'Win/Lose (Win%)', 'Lot', 'Net P/L', 'Comment']
+
+        daily_df = pd.DataFrame(rows).sort_values('date', ascending=False)
+        daily_df['Net P/L'] = daily_df['net'].round(2)
+        total_net = daily_df['net'].sum()
+        total_trades = int(daily_df['Trades'].sum())
+        total_lot = round(daily_df['Lot'].sum(), 2)
+        total_wins = sum(int(s.split('W/')[0]) for s in daily_df['Win/Lose (Win%)'])
+        total_losses = sum(int(s.split('W/')[1].split('L')[0]) for s in daily_df['Win/Lose (Win%)'])
+        total_winrate = round(total_wins / total_trades * 100, 1) if total_trades else 0.0
+        st.markdown(f"**📎 {label}**")
+        st.metric(
+            f"{label} — {total_label_suffix}", f"${total_net:,.2f}",
+            f"{total_trades} ไม้ | {total_wins}W/{total_losses}L ({total_winrate:.1f}%) | รวม Lot ทั้งหมด {total_lot:.2f}",
+        )
+        display_df = daily_df[col_order].rename(columns={'date': 'Date'})
+        st.dataframe(
+            display_df.style.map(_style_pnl_cell, subset=["Net P/L"] + pnl_cols)
+            .format("{:.2f}", subset=["Net P/L", "Lot"] + pnl_cols),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.markdown("")
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -721,6 +815,8 @@ ACCOUNT_BACKTEST_STRATEGIES = {
     "demo-exness-414252716": ["LTS_AHR3"],
     "demo-exness-434237129": ["S20_ALL", "S20_301", "S20_302", "S20_303", "S20_304"],
     "demo-exness-434238722": ["S20_ALL", "20.141", "20.142", "20.143", "20.144", "20.145", "20.146", "20.147", "20.148", "20.149", "20.1410", "20.1411", "20.1412", "20.1413", "20.1414", "20.1415", "20.1416", "20.1417", "20.1418", "20.1419", "20.1402", "20.1421", "20.1422", "20.1423", "20.1424"],
+    "demo-vantage-26253671": [],
+    "demo-vantage-26257644": [],
 }
 
 # รายชื่อกลยุทธ์/พอร์ตทั้งหมดที่มี --compare รองรับแล้ว (ตรวจสอบโค้ดจริงแล้ว 2026-09) — ไม่ผูกกับบัญชีที่เลือก
@@ -4622,34 +4718,8 @@ if view_mode.startswith("🏦"):
                 _ea_month_magic_col = 'entry_magic' if 'entry_magic' in df_ea_month.columns else 'magic'
                 _ea_month_label = _foreign_ea_labels_for(df_ea_month[_ea_month_magic_col].unique())
                 with st.expander(f"📎 ไม้จาก EA ภายนอก ({_ea_month_label}) — สรุปรายวัน (แยกออกจากสถิติบอทเราด้านบนแล้ว)", expanded=True):
-                    st.caption(f"ไม้ที่มี magic number {sorted(df_ea_month[_ea_month_magic_col].unique())} ไม่ใช่บอทของเรา ไม่ถูกรวมในปฏิทิน/สถิติ strategy ด้านบนเลย — สรุปให้ดูแบบรวมรายวันเท่านั้น ไม่ย่อยรายไม้")
-                    _ea_g = df_ea_month.copy()
-                    _ea_g['date'] = _ea_g['time'].dt.date
-                    _ea_daily_rows = []
-                    for (d, m), grp in _ea_g.groupby(['date', _ea_month_magic_col]):
-                        wins = int((grp['net'] > 0).sum())
-                        losses = int((grp['net'] <= 0).sum())
-                        trades_cnt = len(grp)
-                        _ea_daily_rows.append({
-                            "date": d,
-                            "EA": _foreign_ea_labels_for([m]),
-                            "Trades": trades_cnt,
-                            "Win": wins,
-                            "Lose": losses,
-                            "Win%": round(wins / trades_cnt * 100, 1) if trades_cnt else 0.0,
-                            "net": grp['net'].sum(),
-                            "Comment": _summarize_ea_comments(grp['entry_comment'].tolist(), m),
-                        })
-                    _ea_daily = pd.DataFrame(_ea_daily_rows).sort_values('date', ascending=False)
-                    _ea_daily['Net P/L'] = _ea_daily['net'].round(2)
-                    _ea_daily_display = _ea_daily[['date', 'EA', 'Trades', 'Win', 'Lose', 'Win%', 'Net P/L', 'Comment']].rename(columns={'date': 'Date'})
-                    ea_month_total = _ea_daily['net'].sum()
-                    st.metric(f"{_ea_month_label} — รวมทั้งเดือน", f"${ea_month_total:,.2f}", f"{int(_ea_daily['Trades'].sum())} ไม้")
-                    st.dataframe(
-                        _ea_daily_display.style.map(_style_pnl_cell, subset=["Net P/L"]).format("{:.1f}", subset=["Win%"]).format("{:.2f}", subset=["Net P/L"]),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
+                    st.caption(f"ไม้ที่มี magic number {sorted(df_ea_month[_ea_month_magic_col].unique())} ไม่ใช่บอทของเรา ไม่ถูกรวมในปฏิทิน/สถิติ strategy ด้านบนเลย — สรุปให้ดูแบบรวมรายวันเท่านั้น ไม่ย่อยรายไม้ (แยกตารางคนละ EA ไม่ปนกัน)")
+                    _render_ea_daily_tables(df_ea_month, _ea_month_magic_col, "รวมทั้งเดือน")
 
             if not df_month.empty:
                 st.markdown("---")
@@ -5239,38 +5309,12 @@ if view_mode.startswith("🏦"):
 
             st.markdown("---")
             st.markdown(f"#### 📎 ไม้จาก EA ภายนอก ({_at_ea_label}) — สรุปรายวัน (All-Time)")
-            st.caption(f"ไม้ที่มี magic number {sorted(df_ea_alltime[_at_magic_col].unique()) if not df_ea_alltime.empty else sorted(FOREIGN_EA_MAGIC_NUMBERS)} ไม่ใช่บอทของเรา แยกออกจากตารางด้านบนทั้งหมด — สรุปแบบรวมรายวันเท่านั้น ไม่ย่อยรายไม้")
+            st.caption(f"ไม้ที่มี magic number {sorted(df_ea_alltime[_at_magic_col].unique()) if not df_ea_alltime.empty else sorted(FOREIGN_EA_MAGIC_NUMBERS)} ไม่ใช่บอทของเรา แยกออกจากตารางด้านบนทั้งหมด — สรุปแบบรวมรายวันเท่านั้น ไม่ย่อยรายไม้ (แยกตารางคนละ EA ไม่ปนกัน)")
 
             if df_ea_alltime.empty:
                 st.info(f"ไม่พบไม้ของ EA ภายนอกในบัญชีนี้")
             else:
-                _at_ea_g = df_ea_alltime.copy()
-                _at_ea_g['date'] = _at_ea_g['time'].dt.date
-                _at_ea_daily_rows = []
-                for (d, m), grp in _at_ea_g.groupby(['date', _at_magic_col]):
-                    wins = int((grp['net'] > 0).sum())
-                    losses = int((grp['net'] <= 0).sum())
-                    trades_cnt = len(grp)
-                    _at_ea_daily_rows.append({
-                        "date": d,
-                        "EA": _foreign_ea_labels_for([m]),
-                        "Trades": trades_cnt,
-                        "Win": wins,
-                        "Lose": losses,
-                        "Win%": round(wins / trades_cnt * 100, 1) if trades_cnt else 0.0,
-                        "net": grp['net'].sum(),
-                        "Comment": _summarize_ea_comments(grp['entry_comment'].tolist(), m),
-                    })
-                _at_ea_daily = pd.DataFrame(_at_ea_daily_rows).sort_values('date', ascending=False)
-                _at_ea_daily['Net P/L'] = _at_ea_daily['net'].round(2)
-                _at_ea_daily_display = _at_ea_daily[['date', 'EA', 'Trades', 'Win', 'Lose', 'Win%', 'Net P/L', 'Comment']].rename(columns={'date': 'Date'})
-                ea_at_total = _at_ea_daily['net'].sum()
-                st.metric(f"{_at_ea_label} — รวมทั้งหมด (All-Time)", f"${ea_at_total:,.2f}", f"{int(_at_ea_daily['Trades'].sum())} ไม้")
-                st.dataframe(
-                    _at_ea_daily_display.style.map(_style_pnl_cell, subset=["Net P/L"]).format("{:.1f}", subset=["Win%"]).format("{:.2f}", subset=["Net P/L"]),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                _render_ea_daily_tables(df_ea_alltime, _at_magic_col, "รวมทั้งหมด (All-Time)")
 
 
     # =============================================================

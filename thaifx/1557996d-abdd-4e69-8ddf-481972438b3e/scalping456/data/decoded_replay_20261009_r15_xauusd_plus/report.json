@@ -1,0 +1,162 @@
+{
+  "created_utc": "2026-10-09T03:37:25.865575+00:00",
+  "code_plan_sha256": {
+    "strategy_scalping456_decoded.py": "95eb15e1544070345fcebd139b230a8d9b4391f57836811cc9eb1c421f8a0748",
+    "decoded_schedule.py": "eaeb4f8c42c43759cc6079f49660ca0db22a11f06ba1e0d9a2f423c345165c4b",
+    "decoded_common.py": "50a04448b4dc7d4d9e2c5f781f735539ab93e1df602f8750d472454583e9a6a4",
+    "replay_decoded.py": "eebde2dbd1c5c910c704b31e05ea379cc9e0cfde657fcd35bf7df4287f5b3dd7",
+    "strict_source_matcher.py": "2efa0e84840f00ccb7035a6ac1fe53565efe84a17e1ede19299691ba2f7057b2",
+    "EXPERIMENT_DECODED_PLAN.md": "c1d8e863b10c1893541936f8ca41c2497037f05eae8d8d938ad74171ce924154"
+  },
+  "start_inferred_utc": "2026-08-18T21:00:00+00:00",
+  "end_exclusive_inferred_utc": "2026-10-08T01:17:56+00:00",
+  "gold_feed": "xauusd_plus",
+  "gold_params": {
+    "bid_add": 0,
+    "ask_add": 0,
+    "initial_stop": 100,
+    "trail_activation": 20,
+    "trail_distance": 20,
+    "react_ms": 110,
+    "modify_busy_ms": 800,
+    "modify_effect_ms": 400,
+    "place_only_when_flat": false,
+    "trail_model": "stops_level",
+    "trail_latency_ms": 270,
+    "trail_block_ms": 270,
+    "trail_step": 1,
+    "trail_first_delay_ms": 900,
+    "stops_level": 20
+  },
+  "fixed_params": {
+    "multiplier": "42/25",
+    "lot_cap_tenths": "1740",
+    "place_delay_ticks": "1"
+  },
+  "regime_schedule_is_ledger_derived_input": true,
+  "method": "continuous_from_first_warmup_tick_no_ledger_actions_no_resets",
+  "source_parse_order": "after predictions",
+  "full_source_clone_complete": false,
+  "artifact_sha256": {
+    "predictions.jsonl": "7ae789b5b43ed92c43a1921277ad8555b0478f129ca7437870a5d4a1cae63a32",
+    "all_source_results.jsonl": "69c94e217a1105c2e44b756dfc428571ee11bc35952d2f8a83a080373970aee9",
+    "extras.jsonl": "452f2a60b736f25ff9283494f1e892c876d1408f827efbfb33465334aa238ddf"
+  },
+  "cache_provenance": {
+    "gold_days": 52,
+    "fixed_days": 52
+  },
+  "predictions_including_warmup": {
+    "XAUUSD+": 50288,
+    "FixedVol20": 7311
+  },
+  "source_sha256": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1",
+  "source_orders": 35462,
+  "predicted_orders": 57582,
+  "exact_all_observable_fields": 6207,
+  "missing": 29255,
+  "extra": 51375,
+  "unknown_source_close_behavior": 108,
+  "timing_tolerance_seconds": 0,
+  "source_field_precision_only": true,
+  "complete": false,
+  "predictions_in_source_window": 57582,
+  "by_cohort_era": {
+    "fixed_other|F0a_trail_D5.0_2026-09-05_to_14:51": {
+      "source_rows": 1,
+      "exact": 0
+    },
+    "fixed_other|F0b_trail_D3.0_2026-09-05_to_09-06_04:30": {
+      "source_rows": 1,
+      "exact": 0
+    },
+    "fixed_other|F1_step3_tp3_2026-09-06_to_09-27": {
+      "source_rows": 26,
+      "exact": 0
+    },
+    "fixed_other|F2_step15_tp15_from_2026-09-27": {
+      "source_rows": 5,
+      "exact": 0
+    },
+    "fixed_tp|F1_step3_tp3_2026-09-06_to_09-27": {
+      "source_rows": 3860,
+      "exact": 731
+    },
+    "fixed_tp|F2_step15_tp15_from_2026-09-27": {
+      "source_rows": 216,
+      "exact": 2
+    },
+    "fixed_trial|F0a_trail_D5.0_2026-09-05_to_14:51": {
+      "source_rows": 49,
+      "exact": 14
+    },
+    "fixed_trial|F0b_trail_D3.0_2026-09-05_to_09-06_04:30": {
+      "source_rows": 94,
+      "exact": 58
+    },
+    "xau_other|E0_D1.05_slow_2026-08-23_to_08-26": {
+      "source_rows": 27,
+      "exact": 0
+    },
+    "xau_other|E1_D1.00_2026-08-26_to_08-27": {
+      "source_rows": 5,
+      "exact": 0
+    },
+    "xau_other|E2_D1.05_2026-08-27_to_08-30": {
+      "source_rows": 6,
+      "exact": 0
+    },
+    "xau_other|E3_D1.00_2026-08-30_to_09-30": {
+      "source_rows": 47,
+      "exact": 0
+    },
+    "xau_other|T1_D1.10_2026-09-30": {
+      "source_rows": 2,
+      "exact": 0
+    },
+    "xau_sl|E0_D1.05_slow_2026-08-23_to_08-26": {
+      "source_rows": 2840,
+      "exact": 164
+    },
+    "xau_sl|E1_D1.00_2026-08-26_to_08-27": {
+      "source_rows": 1252,
+      "exact": 200
+    },
+    "xau_sl|E2_D1.05_2026-08-27_to_08-30": {
+      "source_rows": 2457,
+      "exact": 342
+    },
+    "xau_sl|E3_D1.00_2026-08-30_to_09-30": {
+      "source_rows": 20392,
+      "exact": 3656
+    },
+    "xau_sl|E4_D1.30_2026-09-30_to_10-07": {
+      "source_rows": 4059,
+      "exact": 1036
+    },
+    "xau_sl|T1_D1.10_2026-09-30": {
+      "source_rows": 123,
+      "exact": 4
+    }
+  },
+  "extras_by_symbol_era": {
+    "FixedVol20|F0a_trail_D5.0_2026-09-05_to_14:51": 29,
+    "FixedVol20|F0b_trail_D3.0_2026-09-05_to_09-06_04:30": 43,
+    "FixedVol20|F1_step3_tp3_2026-09-06_to_09-27": 6204,
+    "FixedVol20|F2_step15_tp15_from_2026-09-27": 230,
+    "XAUUSD+|E0_D1.05_slow_2026-08-23_to_08-26": 4323,
+    "XAUUSD+|E1_D1.00_2026-08-26_to_08-27": 1254,
+    "XAUUSD+|E2_D1.05_2026-08-27_to_08-30": 3010,
+    "XAUUSD+|E3_D1.00_2026-08-30_to_09-30": 32650,
+    "XAUUSD+|E4_D1.30_2026-09-30_to_10-07": 3444,
+    "XAUUSD+|T1_D1.10_2026-09-30": 188
+  },
+  "development_before_2026-09-21": {
+    "source_rows": 24354,
+    "exact": 4434
+  },
+  "later_not_unseen": {
+    "source_rows": 11108,
+    "exact": 1773
+  }
+}

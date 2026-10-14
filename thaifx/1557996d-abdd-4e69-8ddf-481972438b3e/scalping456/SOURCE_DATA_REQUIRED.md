@@ -26,6 +26,17 @@
 
 ไม่ต้องส่ง password, investor password, token หรือข้อมูล login และไม่ต้องเปิด auto-trade เพื่อเก็บไฟล์เหล่านี้
 
+## Blocker ที่มีหลักฐานเชิงปริมาณ (9 ตุลาคม 2026)
+
+ถอดกฎได้แล้ว (ดู `DECODED_MECHANICS_RESULTS.md`) แต่ 100% ถูกจำกัดด้วยสิ่งที่ feed และ ledger สาธารณะไม่มี: (1) เวลา ms ที่ EA ต้นทางอ่าน quote/ส่ง order/modify SL — reference tick ทองอธิบายได้ 52–61% (j=1) และ Fixed j=1 66% (1 leg) – 93% (≥5 legs) โดยหา predictor ไม่เจอ; (2) trailing update จริง — ใช้กลไก stops-level + trailing step แล้ว stop+วินาทีปิดตรง 57–62% ส่วนที่เหลือคือ latency/feed ที่สุ่ม; (3) tick `XAUUSD+` ต้นทาง — feed demo ตรงเฉพาะ bid+0.06/ask−0.05 ที่ 80–89% ของ stop crossing; (4) position ไม่มี SL/ปิดมือ/close-by/คอมเมนต์ว่าง 120+ แถวไม่มี trigger ใน feed
+
+ข้อมูลที่จะลดความกำกวมได้: history deals/orders ของบัญชีต้นทางที่มี `time_msc` และ Journal ส่ง/modify; tick `XAUUSD+` ของ server ต้นทาง — ไม่ต้องส่ง EA/รหัสผ่าน และไม่ใช่เงื่อนไขให้หยุดทำงานเท่าที่เหลือ; ถ้าไม่มีข้อมูลนี้ ผล replay จะรายงานตามจริงว่าไม่ถึง 100%
+
+### เส้นทางที่ไม่ต้องใช้ข้อมูลจากเจ้าของ EA (9 ตุลาคม 2026)
+
+- **Forward holdout**: order สาธารณะใหม่หลัง snapshot ใช้ทดสอบ engine ที่ล็อกแล้ว (ทอง 26.2% เท่าเดิม) — เก็บต่อด้วย `fetch_forward_orders.py --watch`
+- **Raw ECN demo (ทำแล้ว)**: บัญชี `demo-vantage-26257644` มี `XAUUSD+`; tick ตรงกับ demo `XAUUSD` + offset ที่ใช้อยู่ ผล replay ไม่ดีขึ้น (§15) — ข้อ 1 ด้านบนจึงเหลือเฉพาะ tick ที่ terminal ต้นทางเห็นจริงและเวลา ms ของการส่ง order/modify
+
 ## สิ่งที่จะตรวจเมื่อได้ข้อมูล
 
 - ตรวจ provenance/clock/coverage และ missing periods ก่อน simulation ไม่ถือป้าย `+00:00` เป็น UTC จริงโดยไม่มี alignment check

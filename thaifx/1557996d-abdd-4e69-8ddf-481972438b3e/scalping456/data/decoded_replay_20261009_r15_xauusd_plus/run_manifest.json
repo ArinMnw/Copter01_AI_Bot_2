@@ -1,0 +1,41 @@
+{
+  "created_utc": "2026-10-09T03:37:25.865575+00:00",
+  "code_plan_sha256": {
+    "strategy_scalping456_decoded.py": "95eb15e1544070345fcebd139b230a8d9b4391f57836811cc9eb1c421f8a0748",
+    "decoded_schedule.py": "eaeb4f8c42c43759cc6079f49660ca0db22a11f06ba1e0d9a2f423c345165c4b",
+    "decoded_common.py": "50a04448b4dc7d4d9e2c5f781f735539ab93e1df602f8750d472454583e9a6a4",
+    "replay_decoded.py": "eebde2dbd1c5c910c704b31e05ea379cc9e0cfde657fcd35bf7df4287f5b3dd7",
+    "strict_source_matcher.py": "2efa0e84840f00ccb7035a6ac1fe53565efe84a17e1ede19299691ba2f7057b2",
+    "EXPERIMENT_DECODED_PLAN.md": "c1d8e863b10c1893541936f8ca41c2497037f05eae8d8d938ad74171ce924154"
+  },
+  "start_inferred_utc": "2026-08-18T21:00:00+00:00",
+  "end_exclusive_inferred_utc": "2026-10-08T01:17:56+00:00",
+  "gold_feed": "xauusd_plus",
+  "gold_params": {
+    "bid_add": 0,
+    "ask_add": 0,
+    "initial_stop": 100,
+    "trail_activation": 20,
+    "trail_distance": 20,
+    "react_ms": 110,
+    "modify_busy_ms": 800,
+    "modify_effect_ms": 400,
+    "place_only_when_flat": false,
+    "trail_model": "stops_level",
+    "trail_latency_ms": 270,
+    "trail_block_ms": 270,
+    "trail_step": 1,
+    "trail_first_delay_ms": 900,
+    "stops_level": 20
+  },
+  "fixed_params": {
+    "multiplier": "42/25",
+    "lot_cap_tenths": "1740",
+    "place_delay_ticks": "1"
+  },
+  "regime_schedule_is_ledger_derived_input": true,
+  "method": "continuous_from_first_warmup_tick_no_ledger_actions_no_resets",
+  "source_parse_order": "after predictions",
+  "full_source_clone_complete": false,
+  "artifact_sha256": {}
+}

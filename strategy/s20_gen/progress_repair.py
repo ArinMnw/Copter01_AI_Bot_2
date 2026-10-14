@@ -62,7 +62,7 @@ def main():
 
     new = {"range": old.get("range", [140, 299]), "done": dict(sorted(disk.items(), key=lambda kv: int(kv[0])))}
     new["next"] = (max(int(k) for k in disk) + 1) if disk else new["range"][0]
-    with open(PROGRESS, "w", encoding="utf-8", newline="\n") as f:
+    with open(PROGRESS, "w", encoding="utf-8") as f:
         json.dump(new, f, indent=1, ensure_ascii=False)
     print(f"ซ่อมแล้ว: done={len(new['done'])} entries, next={new['next']}")
 

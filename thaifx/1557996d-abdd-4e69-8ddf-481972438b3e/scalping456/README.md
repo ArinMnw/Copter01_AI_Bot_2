@@ -6,6 +6,7 @@
 
 ## เริ่มอ่านจากตรงไหน
 
+- [`DECODED_MECHANICS_RESULTS.md`](DECODED_MECHANICS_RESULTS.md) — **ล่าสุด 9 ต.ค.**: ถอดกฎทอง/FixedVol20 ได้จริง (feed offset, stop-level entry, trailing 0.20, grid) continuous replay ตรง 6,213/35,462 (17.52%), กลไก stops-level/tick-driven, เพดานจากความสุ่มของ EA และ blocker; §13 forward holdout (ทอง 26.2% เท่าเดิม, 134/527 รวม), §14 oracle ceiling, §15 `XAUUSD+` จริงจาก Raw ECN demo (feed เท่า demo+offset, replay ไม่ดีขึ้น)
 - [`SUMMARY.md`](SUMMARY.md) — บทสรุปสำคัญและคำตอบว่าเทคนิคทำงานอย่างไร
 - [`PROFILE_SNAPSHOT.md`](PROFILE_SNAPSHOT.md) — ตัวเลขที่หน้าเว็บแสดงและข้อควรระวังเรื่อง snapshot
 - [`ORDER_ANALYSIS.md`](ORDER_ANALYSIS.md) — ผลวิเคราะห์จาก closed orders 35,462 รายการ
@@ -25,6 +26,8 @@
 - [`data/README.md`](data/README.md) — data dictionary, วิธีตรวจความครบ และไฟล์ข้อมูลดิบ
 
 ## ไฟล์สำหรับทำซ้ำ
+
+- `strategy_scalping456_decoded.py` / `decoded_schedule.py` / `decoded_common.py` — decoded engines (ทอง pending-stop straddle + Fixed stop-entry grid/SL-trial) และ regime schedule ที่เป็น ledger-derived input; `replay_decoded.py`, `verify_decoded.py`, `diagnose_decoded_conditional.py`, `analyze_decoded_evidence.py`, `analyze_decoded_timing.py`, `analyze_decoded_processing.py`, `analyze_decoded_trial.py`, `diagnose_decoded_oracle.py`, `fetch_forward_orders.py`, `replay_forward.py`, `diagnose_forward_conditional.py`, `vantage_probe_account.py`, `analyze_goldplus_feed.py`, `poll_open_positions.py`, `test_poll_open_positions.py`, `test_decoded.py`, `test_forward.py`, `test_vantage_probe_account.py` (suite รวม 123 tests ผ่าน) — `EXPERIMENT_DECODED_PLAN.md` ล็อกก่อนรัน
 
 - `download_orders.py` — ดึง 1,774 หน้า หน้าละ 20 รายการผ่าน public Next.js server action
 - `analyze_orders.py` — สร้างสถิติและไฟล์ aggregate ใหม่จาก CSV ดิบ

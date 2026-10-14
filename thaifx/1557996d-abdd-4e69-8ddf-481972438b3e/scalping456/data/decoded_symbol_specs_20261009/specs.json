@@ -1,0 +1,65 @@
+{
+  "created_utc": "2026-10-08T18:24:02.538431+00:00",
+  "terminal_check": {
+    "server": "VantageMarkets-Demo",
+    "demo": true,
+    "currency": "USD",
+    "leverage": 500,
+    "build": 6230,
+    "connected": true
+  },
+  "symbols": {
+    "XAUUSD": {
+      "name": "XAUUSD",
+      "digits": 2,
+      "point": 0.01,
+      "spread": 29,
+      "spread_float": true,
+      "trade_stops_level": 20,
+      "trade_freeze_level": 0,
+      "trade_exemode": 2,
+      "filling_mode": 2,
+      "order_mode": 127,
+      "trade_mode": 4,
+      "volume_min": 0.01,
+      "volume_max": 100.0,
+      "volume_step": 0.01,
+      "trade_contract_size": 100.0
+    },
+    "XAUUSD.crp": {
+      "name": "XAUUSD.crp",
+      "digits": 3,
+      "point": 0.001,
+      "spread": 220,
+      "spread_float": true,
+      "trade_stops_level": 0,
+      "trade_freeze_level": 0,
+      "trade_exemode": 2,
+      "filling_mode": 2,
+      "order_mode": 127,
+      "trade_mode": 0,
+      "volume_min": 0.01,
+      "volume_max": 100.0,
+      "volume_step": 0.01,
+      "trade_contract_size": 100.0
+    },
+    "FixedVol20": {
+      "name": "FixedVol20",
+      "digits": 3,
+      "point": 0.001,
+      "spread": 580,
+      "spread_float": true,
+      "trade_stops_level": 2800,
+      "trade_freeze_level": 0,
+      "trade_exemode": 2,
+      "filling_mode": 1,
+      "order_mode": 127,
+      "trade_mode": 4,
+      "volume_min": 0.1,
+      "volume_max": 174.0,
+      "volume_step": 0.1,
+      "trade_contract_size": 1.0
+    }
+  },
+  "note": "read-only symbol_info; no Market Watch change, no trade request; trade_stops_level matches the trailing distances (XAUUSD 20 points=0.20, FixedVol20 2800 points=2.800)"
+}

@@ -9,6 +9,8 @@ Scalping456 มีพฤติกรรมหลักอย่างน้อ�
 
 หน้าเว็บจัดหมวด EA 35,457 ไม้ และ manual 5 ไม้ แต่ประวัติสาธารณะไม่ได้เปิด field `magic` จึงระบุไม่ได้ว่า manual คือ ticket ใด หรือมี EA instances กี่ตัว
 
+**ล่าสุด 9 ต.ค.**: ถอดกฎหลักได้จริง — ทอง = BUY/SELL STOP ±D (D ผู้ใช้ปรับ 1.05/1.00/1.10/1.30)  จาก quote หลังไม้ปิด, SL 1.00, trailing ห่างเท่า stops level ของ broker (0.20) ที่ server ปฏิเสธคำขอเมื่อราคาถอย, source feed ≈ demo ขยับเข้าใน 0.06/0.05; FixedVol20 = stop-entry ±3.0 + grid ×1.68 + TP ถัวเฉลี่ย ± 3.0/15.0 บน feed ที่ตรง tick ทุกตัว แต่ continuous causal replay ตรงเพียง 6,213/35,462 (17.52%) และมีหลักฐานเพดานจากความสุ่มของ EA ต้นทาง ดู `DECODED_MECHANICS_RESULTS.md` (ยังไม่ผ่านเป้า 100%) — forward holdout (order ที่เกิดหลัง snapshot) ให้ทอง 26.2% เท่าเดิม ไม่ overfit แต่ไม่ทะลุเพดาน; oracle ceiling ชี้ว่าตัวแปรซ่อนที่เสียมากสุดคือ tick อ้างอิงที่ EA อ่าน
+
 สถานะล่าสุดอยู่ใน `RECONSTRUCTION_STATUS.md` / `VANTAGE_FEED_REPORT.md`: หลังพี่ตั้งค่า Vantage อ่านทองและ FixedVol20 ได้ เก็บ27,473,009 ticks และตรวจครบ35,462 orders แต่ **ยังไม่จำลองตรงทุก order 100%** 4 benchmarks เดิมบน Vantage ถูกทดสอบต่อเนื่องโดยไม่ reset ตาม ledger; strict matcher เวลา tolerance0 ตรงทุก observable fields ดีที่สุด17 rows / missing35,445 / extra56,807 ใน source window นี่ไม่ใช่ recovered EA และยังต้องทดลอง candle/grid/hedge/session/lot rules เพิ่ม
 
 อัปเดตต่อ: closed-candle5TF/grid/trial38candidates+portfolio2prototypesรันแล้วและทำซ้ำ118data filesเหมือนกันครบ Bestของรอบใหม่Fixed grid3/progressive/rolling/quoteตรง14 (validation0), XAU M1 breakout/levelตรง6; portfolioที่กำหนดไว้ก่อนรันตรง6และ1 ทั้งหมดยังไม่ผ่าน35,462ordersหนึ่งต่อหนึ่ง ไม่ปรับobjectiveเป็นsubset ดู `CANDLE_GRID_RESULTS.md` /tests43ผ่าน

@@ -102,3 +102,25 @@ Downloader ใช้ public Next.js server action ที่หน้าเว็
 
 หน้าเว็บเป็นข้อมูล live และจำนวนอาจเพิ่มขึ้นภายหลัง การ rerun โดยไม่ปรับ `EXPECTED_COUNT` จะตั้งใจ fail เพื่อป้องกันการปน snapshot คนละเวลา
 
+ล่าสุด 9 ตุลาคม 2026 (decoded mechanics):
+
+- `decoded_evidence_20261009/`, `_r2/`, `_r3/`, `_r5/` (+`_r4/`) — ตารางหลักฐาน feed calibration (dev/later), stop-level crossing, placement distance/era, trailing edge/grid, Fixed mechanics; r2 เพิ่มแกน activation strict, r3 เพิ่ม TP rounding/first-leg regime/overlap
+- `decoded_timing_20261009/` — coverage ของดีเลย์การอ่าน quote (dev/later)
+- `decoded_processing_20261009/` — ตระกูลโมเดลเวลาประมวลผล EA (108 แบบ, dev เท่านั้น) ไม่ดีกว่า busy/effect เดิม
+- `decoded_conditional_20261009/`, `_r2/`, `_r3/`, `_r4/` — mechanics-given-observed-start (ไม่ใช่คะแนน replay; r4 = engine สุดท้าย)
+- `decoded_trial_20261009/` — หลักฐาน SL-trial engine ของ FixedVol20 (activation grid, entry distance)
+- `decoded_symbol_specs_20261009/` — `symbol_info` read-only ของ XAUUSD/XAUUSD.crp/FixedVol20 (trade_stops_level 20 และ 2800 points)
+- `decoded_timing_20261009_r2/` — reference tick j vs ดีเลย์คงที่
+- `decoded_replay_20261009/`, `decoded_replay_20261009_r2_flat_only/`, `decoded_replay_20261009_r3_eras/`, `_r4_fixed_trial/`, `_r5_fixed_sessions/`, `_r6_flatten/`, `_r7_stops_level/`, `_r8_next_tick/`, `_r9_confirm/`, `_r10_trail_step/` — continuous replay ทั้ง 35,462 rows: predictions, all_source_results, extras, report.json + SHA-256 (QA: `verify_decoded.py`)
+- `code_snapshots/*_e69b63b6be04|5b51ce3ad647|2f3666519d6d|5647ccff6485` — โค้ด/แผนของ run 1
+- `forward_probe_20261009/`, `forward_watch_20261009/` — order สาธารณะที่ปิดหลัง snapshot (read-only, `first_seen_utc` = เวลา poll; manifest.json เขียนเมื่อ watcher จบ); snapshot `orders_35462.*` ไม่ถูกแก้
+- `vantage_raw_ticks_vantage_{gold,fixed}_fwd1/`, `proxy_ticks_vantage_{gold,fixed}_fwd1/` — tick demo 2026-10-08T01:17:56→2026-10-09T02:00 inferred UTC (raw epoch + normalized − 3 h + sha256)
+- `decoded_forward_20261009/` — forward holdout run 12 (predictions_forward.jsonl, pre_score_manifest.json เขียนก่อนอ่านแถว forward, forward_results.jsonl, extras.jsonl, report.json)
+- `decoded_oracle_20261009/` — oracle ceiling (conditional, ไม่ใช่คะแนน replay)
+- `decoded_forward_conditional_20261009/` — conditional diagnostic บนแถว forward
+- `decoded_replay_20261009_r11_offset_general/` — ยืนยัน place_offset ทั่วไปไม่เปลี่ยนผล (6,213)
+- `vantage_probe_raw_ecn_probe_20261009/`, `vantage_probe_raw_ecn_day_test/`, `vantage_probe_vantage_goldplus_full/` — probe read-only ของ terminal RAW ECN demo (`demo-vantage-26257644`): รายชื่อสัญลักษณ์ XAU*, spec, clock probe, hash ของ export
+- `vantage_raw_ticks_vantage_goldplus_full/`, `proxy_ticks_vantage_goldplus_full/` — tick `XAUUSD+` 2026-08-18T21:00→2026-10-09T02:00 inferred UTC (raw + normalized − 3 h + sha256 ต่อวัน; `*_raw_ecn_day_test` เป็นวันเดียว 2026-09-01)
+- `decoded_goldplus_feed_20261009/` — จุดตัด SL ตรงวินาทีปิด: demo+offset vs `XAUUSD+`
+- `decoded_replay_20261009_r15_xauusd_plus/` — continuous replay ทั้ง 35,462 แถวด้วย `XAUUSD+` ตรง (exact 6,207)
+- `open_positions_watch_20261009/` — บันทึก open positions + `updated_at` ของหน้าสาธารณะ (เฉพาะเมื่อเปลี่ยน + heartbeat; manifest.json เขียนเมื่อรันจบปกติ); ณ 07:46 UTC หน้า stale ตั้งแต่ 01:54:47Z

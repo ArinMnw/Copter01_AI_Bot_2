@@ -1,0 +1,120 @@
+{
+  "created_utc": "2026-10-09T02:50:30.950719+00:00",
+  "source_sha256": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1",
+  "warning": "oracle-ceiling diagnostic; ledger chooses hidden variables; NOT a replay score",
+  "j_values": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "trailing_variants_latency_step_delay": [
+    [
+      270,
+      1,
+      900
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      100,
+      1,
+      900
+    ],
+    [
+      200,
+      1,
+      900
+    ],
+    [
+      400,
+      1,
+      900
+    ],
+    [
+      270,
+      0,
+      900
+    ],
+    [
+      270,
+      1,
+      0
+    ],
+    [
+      270,
+      1,
+      1500
+    ]
+  ],
+  "code_sha256": {
+    "diagnose_decoded_oracle.py": "a1fcf2a6751c5cc8c481dbab30ffe37e6137e771abfdc72631cb15b4bbb66f3a",
+    "diagnose_decoded_conditional.py": "80964acb9506fdae91d4ee8856af3f36cfe36c10df717d702fd6f775de8a1452",
+    "strategy_scalping456_decoded.py": "95eb15e1544070345fcebd139b230a8d9b4391f57836811cc9eb1c421f8a0748",
+    "EXPERIMENT_DECODED_PLAN.md": "2b756f95af09c0f1e05e354870d1b2abc5069719e1bdac1940db49c0eaaa47ce"
+  },
+  "eras": [
+    {
+      "era": "E3_D1.00_dev_2026-09-02_to_09-20",
+      "counts": {
+        "trials": 1487,
+        "baseline_frozen_all_fields": 453,
+        "oracle_j_entry_exact": 1131,
+        "oracle_j_all_fields_frozen_trailing": 675,
+        "oracle_j_and_trailing_all_fields": 822,
+        "entry_unexplained_but_price_side_match_other_second": 175,
+        "entry_unexplained_but_second_side_match_other_price": 118,
+        "no_predecessor_within_300s": 13
+      },
+      "first_j_that_explains_entry": {
+        "0": 338,
+        "1": 655,
+        "2": 63,
+        "3": 46,
+        "4": 29
+      },
+      "first_trailing_variant_that_rescues_exit": {
+        "(270, 1, 0)": 7,
+        "(400, 1, 900)": 59,
+        "(200, 1, 900)": 43,
+        "(0, 0, 0)": 7,
+        "(100, 1, 900)": 12,
+        "(270, 0, 900)": 13,
+        "(270, 1, 1500)": 6
+      }
+    },
+    {
+      "era": "E4_D1.30_2026-10-01_to_10-07",
+      "counts": {
+        "trials": 1464,
+        "baseline_frozen_all_fields": 596,
+        "oracle_j_entry_exact": 1357,
+        "oracle_j_all_fields_frozen_trailing": 1041,
+        "oracle_j_and_trailing_all_fields": 1187,
+        "no_predecessor_within_300s": 36,
+        "entry_unexplained_but_price_side_match_other_second": 78,
+        "entry_unexplained_but_second_side_match_other_price": 28
+      },
+      "first_j_that_explains_entry": {
+        "0": 778,
+        "1": 523,
+        "2": 40,
+        "3": 9,
+        "4": 7
+      },
+      "first_trailing_variant_that_rescues_exit": {
+        "(270, 1, 1500)": 10,
+        "(200, 1, 900)": 27,
+        "(400, 1, 900)": 42,
+        "(100, 1, 900)": 15,
+        "(270, 0, 900)": 6,
+        "(270, 1, 0)": 35,
+        "(0, 0, 0)": 11
+      }
+    }
+  ]
+}

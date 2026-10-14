@@ -1,0 +1,31 @@
+## 1. ตารางสรุปทุกตัวที่ลองในรอบนี้ (รวม FAIL และ DUPLICATE)
+| sid | ตัวแม่ | วิธีผสม | สมมติฐานย่อ | TF ที่ PASS | Net รวม | PF รวม | max Jaccard | ผล |
+|---|---|---|---|---|---|---|---|---|
+| 881 | [339, 265] | FILTER | Combining Inside Bar MACD Continuation B... | - | -451.00 | 0.91 | 0.365 | FAIL |
+| 882 | [339, 399] | CONFIRM | Combining Inside Bar MACD Continuation B... | - | 85.83 | 1.04 | 0.220 | FAIL |
+| 883 | [339, 424] | CONFIRM | Combining Inside Bar MACD Continuation B... | - | -19.80 | 0.19 | 0.038 | FAIL |
+| 884 | [339, 162] | FILTER | Combining Inside Bar MACD Continuation B... | - | 613.70 | 1.18 | 0.285 | FAIL |
+| 885 | [339, 260] | FILTER | Combining Inside Bar MACD Continuation B... | - | -580.48 | 0.82 | 0.379 | FAIL |
+| 886 | [339, 410] | CONFIRM | Combining Inside Bar MACD Continuation B... | - | 79.22 | 1.07 | 0.216 | FAIL |
+| 887 | [339, 186] | FILTER | Combining Inside Bar MACD Continuation B... | - | 719.93 | 1.18 | 0.333 | FAIL |
+| 888 | [339, 266] | FILTER | Combining Inside Bar MACD Continuation B... | M30, H1 | 414.77 | 1.07 | 0.455 | WINNER |
+| 889 | [339, 427] | FILTER | Combining Inside Bar MACD Continuation B... | M30 | 1223.68 | 1.21 | 0.418 | PASS |
+| 890 | - | - | (DUPLICATE / ERROR) | - | - | - | - | FAIL |
+| 891 | [339, 269] | FILTER | Combining Inside Bar MACD Continuation B... | - | -700.03 | 0.83 | 0.261 | FAIL |
+| 892 | [339, 217] | FILTER | Combining Inside Bar MACD Continuation B... | M30 | 140.52 | 1.04 | 0.341 | PASS |
+| 893 | [339, 416] | FILTER | Combining Inside Bar MACD Continuation B... | - | -261.80 | 0.95 | 0.390 | FAIL |
+| 894 | [339, 200] | CONFIRM | Combining Inside Bar MACD Continuation B... | - | 65.88 | 1.02 | 0.333 | FAIL |
+| 895 | [339, 373] | CONFIRM | Combining Inside Bar MACD Continuation B... | - | -415.04 | 0.67 | 0.375 | FAIL |
+| 896 | [339, 247] | FILTER | Combining Inside Bar MACD Continuation B... | - | 841.47 | 1.17 | 0.393 | FAIL |
+
+## 2. ตารางเทียบตัวผสมกับตัวแม่ ต่อ TF (เฉพาะตัว PASS)
+| sid | TF | Parent A (Net/PF/N) | Parent B (Net/PF/N) | Mix (Net/PF/N) |
+|---|---|---|---|---|
+| 888 | M30 | 1256.74/1.83/174 | 37.02/1.16/26 | 796.88/2.56/67 |
+| 888 | H1 | 665.89/1.53/96 | -160.98/0.54/26 | 571.18/2.15/40 |
+| 889 | M30 | 1256.74/1.83/174 | 219.32/1.49/44 | 714.58/2.13/76 |
+| 892 | M30 | 1256.74/1.83/174 | -591.42/0.92/585 | 389.88/2.16/43 |
+
+## 3. สถิติสะสมทั้งแคมเปญ
+จำนวนคู่ที่ลองทั้งหมด: 1274 (อิงจาก mix_log.md)
+รอบนี้ผ่าน (PASS/WINNER): 1 จาก 15 ตัว (sid 881-896)

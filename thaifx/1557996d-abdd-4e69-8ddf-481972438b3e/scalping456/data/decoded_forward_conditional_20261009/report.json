@@ -1,0 +1,79 @@
+{
+  "created_utc": "2026-10-09T02:52:53.287551+00:00",
+  "source_sha256": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1",
+  "warning": "conditional diagnostic on forward rows; not a replay score; no tuning",
+  "resume_instant_ledger_derived": "2026-10-08T10:55:00",
+  "code_sha256": {
+    "diagnose_forward_conditional.py": "f61efdd663d8b34b53a43f0e4444fc3f2da0e600ef165c364155a30c876700e2",
+    "diagnose_decoded_oracle.py": "a1fcf2a6751c5cc8c481dbab30ffe37e6137e771abfdc72631cb15b4bbb66f3a",
+    "strategy_scalping456_decoded.py": "95eb15e1544070345fcebd139b230a8d9b4391f57836811cc9eb1c421f8a0748",
+    "decoded_schedule.py": "eaeb4f8c42c43759cc6079f49660ca0db22a11f06ba1e0d9a2f423c345165c4b"
+  },
+  "gold": {
+    "counts": {
+      "trials": 490,
+      "baseline_frozen_all_fields_j0": 209,
+      "oracle_j_entry_exact": 446,
+      "oracle_j_and_trailing_all_fields": 383,
+      "no_predecessor_within_300s": 20
+    },
+    "first_j_that_explains_entry": {
+      "0": 289,
+      "1": 140,
+      "2": 11,
+      "3": 4,
+      "4": 2
+    }
+  },
+  "fixed": {
+    "totals": {
+      "baskets": 8,
+      "orders": 14,
+      "orders_exact": 4,
+      "baskets_exact": 2,
+      "first_leg_exact": 2
+    },
+    "baskets": [
+      {
+        "legs": 1,
+        "basket_exact": false,
+        "first_leg_exact": false
+      },
+      {
+        "legs": 3,
+        "basket_exact": true,
+        "first_leg_exact": true
+      },
+      {
+        "legs": 1,
+        "basket_exact": true,
+        "first_leg_exact": true
+      },
+      {
+        "legs": 1,
+        "basket_exact": false,
+        "first_leg_exact": false
+      },
+      {
+        "legs": 2,
+        "basket_exact": false,
+        "first_leg_exact": false
+      },
+      {
+        "legs": 1,
+        "basket_exact": false,
+        "first_leg_exact": false
+      },
+      {
+        "legs": 4,
+        "basket_exact": false,
+        "first_leg_exact": false
+      },
+      {
+        "legs": 1,
+        "basket_exact": false,
+        "first_leg_exact": false
+      }
+    ]
+  }
+}

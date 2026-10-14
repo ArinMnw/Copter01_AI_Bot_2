@@ -1,0 +1,376 @@
+{
+ "sid": "20.1023",
+ "name": "Triple MA x CMO Impulse Confirm",
+ "concept": "CONFIRM of two existing causal parent generators",
+ "period_bkk": [
+  "2025-10-13 13:13",
+  "2026-10-13 13:13"
+ ],
+ "params": {
+  "sl_atr": 1.5,
+  "rr": 1.5,
+  "max_hold": 24,
+  "be_r": 1.0
+ },
+ "spread_floor": 0.24,
+ "tf": {
+  "M1": {
+   "days": 102.9,
+   "n": 62,
+   "net": -11.48,
+   "pf": 0.896,
+   "wr": 29.0,
+   "dd": 44.79,
+   "avg": -0.185,
+   "outcomes": {
+    "BE": 11,
+    "FULL_TP": 18,
+    "SL": 32,
+    "TIME": 1
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 39,
+    "net": 27.56,
+    "pf": 1.485,
+    "wr": 35.9,
+    "dd": 12.39,
+    "avg": 0.707,
+    "outcomes": {
+     "BE": 7,
+     "FULL_TP": 14,
+     "SL": 17,
+     "TIME": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 23,
+    "net": -39.04,
+    "pf": 0.266,
+    "wr": 17.4,
+    "dd": 42.17,
+    "avg": -1.697,
+    "outcomes": {
+     "SL": 15,
+     "BE": 4,
+     "FULL_TP": 4
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -29.03,
+    "median": -7.52,
+    "pct_pos": 23.7
+   },
+   "audit": null,
+   "null": null,
+   "signals": 67,
+   "verdict": "FAIL"
+  },
+  "M5": {
+   "days": 365.0,
+   "n": 37,
+   "net": -73.0,
+   "pf": 0.72,
+   "wr": 32.4,
+   "dd": 154.63,
+   "avg": -1.973,
+   "outcomes": {
+    "FULL_TP": 11,
+    "SL": 20,
+    "BE": 5,
+    "TIME": 1
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 28,
+    "net": -23.42,
+    "pf": 0.884,
+    "wr": 39.3,
+    "dd": 124.55,
+    "avg": -0.836,
+    "outcomes": {
+     "FULL_TP": 10,
+     "SL": 12,
+     "BE": 5,
+     "TIME": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 9,
+    "net": -49.58,
+    "pf": 0.154,
+    "wr": 11.1,
+    "dd": 52.63,
+    "avg": -5.509,
+    "outcomes": {
+     "SL": 8,
+     "FULL_TP": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": -115.17,
+    "median": -64.0,
+    "pct_pos": 4.0
+   },
+   "audit": null,
+   "null": null,
+   "signals": 41,
+   "verdict": "FAIL"
+  },
+  "M15": {
+   "days": 365.0,
+   "n": 18,
+   "net": 140.08,
+   "pf": 2.494,
+   "wr": 50.0,
+   "dd": 47.56,
+   "avg": 7.782,
+   "outcomes": {
+    "BE": 2,
+    "SL": 7,
+    "FULL_TP": 9
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 15,
+    "net": 139.11,
+    "pf": 2.95,
+    "wr": 53.3,
+    "dd": 25.16,
+    "avg": 9.274,
+    "outcomes": {
+     "BE": 2,
+     "SL": 5,
+     "FULL_TP": 8
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 3,
+    "net": 0.97,
+    "pf": 1.043,
+    "wr": 33.3,
+    "dd": 22.4,
+    "avg": 0.323,
+    "outcomes": {
+     "SL": 2,
+     "FULL_TP": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "mc": {
+    "p5": 45.49,
+    "median": 119.99,
+    "pct_pos": 99.7
+   },
+   "audit": {
+    "cuts": 12,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 18,
+   "verdict": "WEAK"
+  },
+  "M30": {
+   "days": 365.0,
+   "n": 8,
+   "net": 234.6,
+   "pf": 3.66,
+   "wr": 75.0,
+   "dd": 46.97,
+   "avg": 29.325,
+   "outcomes": {
+    "SL": 2,
+    "FULL_TP": 6
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 8,
+    "net": 234.6,
+    "pf": 3.66,
+    "wr": 75.0,
+    "dd": 46.97,
+    "avg": 29.325,
+    "outcomes": {
+     "SL": 2,
+     "FULL_TP": 6
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "mc": {
+    "p5": 46.8,
+    "median": 229.13,
+    "pct_pos": 99.7
+   },
+   "audit": null,
+   "null": null,
+   "signals": 8,
+   "verdict": "WEAK"
+  },
+  "H1": {
+   "days": 365.0,
+   "n": 6,
+   "net": 30.71,
+   "pf": 1.36,
+   "wr": 33.3,
+   "dd": 54.63,
+   "avg": 5.118,
+   "outcomes": {
+    "BE": 1,
+    "FULL_TP": 1,
+    "SL": 2,
+    "TIME": 2
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 6,
+    "net": 30.71,
+    "pf": 1.36,
+    "wr": 33.3,
+    "dd": 54.63,
+    "avg": 5.118,
+    "outcomes": {
+     "BE": 1,
+     "FULL_TP": 1,
+     "SL": 2,
+     "TIME": 2
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "mc": {
+    "p5": -33.85,
+    "median": 30.71,
+    "pct_pos": 80.3
+   },
+   "audit": {
+    "cuts": 12,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 8,
+   "verdict": "WEAK"
+  },
+  "H4": {
+   "days": 365.0,
+   "n": 0,
+   "net": 0.0,
+   "pf": 0.0,
+   "wr": 0.0,
+   "dd": 0.0,
+   "avg": 0.0,
+   "is": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "oos": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "mc": {
+    "p5": 0.0,
+    "median": 0.0,
+    "pct_pos": 0.0
+   },
+   "audit": {
+    "cuts": 6,
+    "mismatch": 0
+   },
+   "null": null,
+   "signals": 0,
+   "verdict": "NO_TRADE"
+  },
+  "D1": {
+   "days": 365.0,
+   "n": 1,
+   "net": -123.61,
+   "pf": 0.0,
+   "wr": 0.0,
+   "dd": 123.61,
+   "avg": -123.61,
+   "outcomes": {
+    "SL": 1
+   },
+   "worst_weekend_gap_r": 0.0,
+   "is": {
+    "n": 1,
+    "net": -123.61,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 123.61,
+    "avg": -123.61,
+    "outcomes": {
+     "SL": 1
+    },
+    "worst_weekend_gap_r": 0.0
+   },
+   "oos": {
+    "n": 0,
+    "net": 0.0,
+    "pf": 0.0,
+    "wr": 0.0,
+    "dd": 0.0,
+    "avg": 0.0
+   },
+   "mc": {
+    "p5": 0.0,
+    "median": 0.0,
+    "pct_pos": 0.0
+   },
+   "audit": null,
+   "null": null,
+   "signals": 1,
+   "verdict": "FAIL"
+  }
+ },
+ "data_snapshot_utc": "2026-10-13 06:13:56",
+ "total": {
+  "n": 132,
+  "net": 197.3,
+  "pf": 1.259,
+  "wr": 35.6,
+  "dd": 135.18,
+  "avg": 1.495,
+  "outcomes": {
+   "BE": 19,
+   "FULL_TP": 45,
+   "SL": 64,
+   "TIME": 4
+  },
+  "worst_weekend_gap_r": 0.0
+ },
+ "pass_tfs": [],
+ "lookahead_ok": true,
+ "uniqueness": {
+  "max_jaccard": 0.308,
+  "with": "S20.993",
+  "unique": true
+ }
+}

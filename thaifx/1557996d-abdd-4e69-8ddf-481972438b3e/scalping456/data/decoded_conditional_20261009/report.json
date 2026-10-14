@@ -1,0 +1,72 @@
+{
+  "created_utc": "2026-10-08T17:39:22.459591+00:00",
+  "source_sha256": "b8f5f75de07ba335ba607855167b5c77600954561c7c740621a335fa1b9825f1",
+  "code_sha256": {
+    "diagnose_decoded_conditional.py": "38699c3f8bece0961d54f992bce0057dfcbf742bdf45ed23c3a09018236b1251",
+    "strategy_scalping456_decoded.py": "e69b63b6be04b2676aadd1b0bd5971aef3c4ace2cbe4782bd00d3eb0c6033e0b",
+    "decoded_schedule.py": "5b51ce3ad6470dd40acaa817c5cc6271c7982d4975468a507be05c020695a095",
+    "analyze_decoded_evidence.py": "4fc9a297e4c7747484405ee69b63a9a4d1c21c8685a72c2e2a6960bead265a77"
+  },
+  "warning": "conditional diagnostic starting from observed predecessor closes; not a replay score",
+  "gold": {
+    "E3_D1.00_lot10_2026-09-02_to_09-30": {
+      "trials": 1480,
+      "open_second_and_side": 1009,
+      "open_price_and_side": 783,
+      "open_second_price_side": 639,
+      "all_fields": 215,
+      "exit_exact_given_entry_exact": 215,
+      "no_predecessor_within_300s": 20
+    },
+    "E4_D1.30_2026-10-01_to_10-07": {
+      "trials": 1464,
+      "open_second_and_side": 1178,
+      "open_price_and_side": 764,
+      "open_second_price_side": 723,
+      "all_fields": 293,
+      "exit_exact_given_entry_exact": 293,
+      "no_predecessor_within_300s": 36
+    }
+  },
+  "fixed": {
+    "totals": {
+      "baskets": 1520,
+      "orders": 3835,
+      "orders_exact": 1792,
+      "baskets_exact": 820,
+      "first_leg_exact": 1010
+    },
+    "by_real_legs_6_means_6plus": {
+      "1": {
+        "baskets": 739,
+        "baskets_exact": 462,
+        "first_leg_exact": 490
+      },
+      "2": {
+        "baskets": 290,
+        "baskets_exact": 156,
+        "first_leg_exact": 189
+      },
+      "3": {
+        "baskets": 175,
+        "baskets_exact": 86,
+        "first_leg_exact": 115
+      },
+      "4": {
+        "baskets": 110,
+        "baskets_exact": 41,
+        "first_leg_exact": 75
+      },
+      "5": {
+        "baskets": 55,
+        "baskets_exact": 26,
+        "first_leg_exact": 36
+      },
+      "6": {
+        "baskets": 151,
+        "baskets_exact": 49,
+        "first_leg_exact": 105
+      }
+    }
+  }
+}
