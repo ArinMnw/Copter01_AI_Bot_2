@@ -73,3 +73,14 @@ profiles/**/*.archiving
 
 # S20.140-299 campaign bar cache (regenerate ได้)
 strategy/s20_gen/.cache/
+
+# ไฟล์ต้นฉบับที่ใหญ่เกิน 90MB — ใน git เก็บเป็นชิ้นย่อย <ชื่อ>.partNNN แทน (GitHub จำกัด 100MB/ไฟล์)
+# ต่อกลับ: copy /b file.part001+file.part002+... file   (ดู history: split >90MB blobs)
+profiles/demo/demo-exness-434237129/mt5/logs/20261004.log
+profiles/demo/demo-exness-434238722/mt5/logs/20260919.log
+profiles/demo/demo-exness-434238722/mt5/logs/20260921.log
+profiles/demo/demo-exness-434238722/mt5/logs/20260927.log
+profiles/demo/demo-exness-434238722/mt5/logs/20260928.log
+profiles/demo/demo-exness-434238722/mt5/logs/20261005.log
+thaifx/1557996d-abdd-4e69-8ddf-481972438b3e/scalping456/data/causal_predictions_full_period.csv
+thaifx/1557996d-abdd-4e69-8ddf-481972438b3e/scalping456/data/causal_replay_full_period.csv
