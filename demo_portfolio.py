@@ -76,6 +76,7 @@ from strategy_af import (
 )
 from strategy_lts import LTS_PORTFOLIO_LEGS, LTS_STRATEGIES, detect_lts
 import strategy_s20gen_live as S20GEN
+import strategy_indi1_live as INDI1
 
 from bot_log import log_event, log_error
 
@@ -89,6 +90,7 @@ MAGIC_BASE = 990000  # แยกจาก magic=234001 ของ S1-S20 โด�
 AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
 LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890, LTS999=992999
 S20GEN_MAGIC_BASE = 993000  # S20G_<sid>_<tf> -> 993000 + idx คงที่ (ดู strategy_s20gen_live.py)
+INDI1_MAGIC = 994001  # Indi1 (3 เส้น H1 + M5, ดู strategy_indi1_live.py) — ไม่ชน base อื่นข้างบน
 # LTS_AVENGERS_* ใช้ชื่อไม่ใช่เลข — เลี่ยง int() parse fail ใน _portfolio_magic()
 # ตั้ง magic ต่ำกว่า LTS44 (992044) เพื่อไม่ชนกับ LTS ตัวเลขใดๆ ที่มีอยู่/จะมีในอนาคต
 _LTS_NAMED_MAGIC = {
@@ -334,7 +336,8 @@ PORTFOLIOS = {
     "S432": ["S432_M15", "S432_M30", "S432_H1", "S432_H4"],
     "S433": ["S433_H4", "S433_H12"],
     "S434": ["S434_H1", "S434_H4", "S434_H12", "S434_D1"],
-    **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS
+    **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS,
+    "INDI1": [INDI1.INDI1_LEG],
 }
 PORTFOLIO_DISPLAY_NAME = {
     "P13": "🏆 Champion (P13)",
@@ -370,6 +373,7 @@ PORTFOLIO_DISPLAY_NAME = {
     "S434": "📊 S434 Breakout Probability",
     "LTS_EVOLUTION9": "🧬 LTS_EVOLUTION9",
     "LTS_SCREEN13": "📐 LTS_SCREEN13",
+    "INDI1": "📈 INDI1 3-Line H1+M5",
     **{leg["key"]: (f'🧪 S20.{leg["sid"]} {leg["name"][:28]} ({leg["tf"]})' if leg["cat"] == "WINNER"
                     else f'🧫 S20.{leg["sid"]} {leg["name"][:28]} ({leg["tf"]})')
        for leg in S20GEN.S20GEN_DEFS.values() if leg["enabled"]},
@@ -386,6 +390,7 @@ PORTFOLIO_ORDER = (
     # กรอง active_names จาก PORTFOLIO_ORDER เท่านั้น ทำให้ต่อให้ DEMO_PORTFOLIO_ACTIVE=True ก็ไม่เคย
     # ถูกสแกน/เทรดจริงเลยสักครั้งตั้งแต่สร้างมา (ไม่มีใครกดเปิดจน 2026-08-10 ถึงเจอ)
     "LTS_EVOLUTION9", "LTS_SCREEN13",
+    "INDI1",
 ) + tuple(S20GEN.S20GEN_ENABLED_KEYS)
 
 DEMO_GROUPS = {
@@ -398,6 +403,7 @@ DEMO_GROUPS = {
     "433": {"title": "🌟 S433 AI Gold Star", "keys": ["S433"]},
     "434": {"title": "📊 S434 Breakout Probability", "keys": ["S434"]},
     "S20G": {"title": "🧪 S20-Gen Forward Demo (64)", "keys": list(S20GEN.S20GEN_ENABLED_KEYS)},
+    "INDI1": {"title": "📈 INDI1 3-Line H1+M5", "keys": ["INDI1"]},
 }
 
 
@@ -412,6 +418,8 @@ def _portfolio_magic(portfolio_name: str) -> int:
         return LTS_MAGIC_BASE + int(portfolio_name.replace("LTS", ""))
     if portfolio_name.startswith("AF"):
         return AF_MAGIC_BASE + int(portfolio_name[2:])
+    if portfolio_name == "INDI1":
+        return INDI1_MAGIC
     if portfolio_name.startswith("S20G_"):
         return S20GEN_MAGIC_BASE + S20GEN.S20GEN_DEFS[portfolio_name]["idx"]
     return MAGIC_BASE + int(portfolio_name[1:])
@@ -1019,6 +1027,215 @@ async def _demo_scan_s20gen(app, portfolio_name: str):
             pass
 
 
+async def _demo_scan_indi1(app):
+    """สแกนกลยุทธ์ Indi1 (3 เส้น H1 + จังหวะ M5, ดู strategy_indi1_live.py) — ไม่จำกัดไม้ต่อ
+    สัญญาณ H1 (config.INDI1_MAX_ENTRIES_PER_H1=0) แต่มีเพดานฉุกเฉิน INDI1_MAX_OPEN_POSITIONS
+    กันไม้ซ้อนบานเหมือนเหตุการณ์ 3587 เมื่อ 2026-08-18; lot จาก Risk % ของ balance ตามระยะ SL"""
+    portfolio_name = INDI1.INDI1_KEY
+    magic = _portfolio_magic(portfolio_name)
+    state = _load_state()
+
+    m5 = _fetch_bars(INDI1.INDI1_LTF, INDI1.LTF_BARS)
+    h1 = _fetch_bars(INDI1.INDI1_HTF, INDI1.HTF_BARS)
+    if m5 is None or h1 is None or len(m5) < 3:
+        log_error("DEMO_PORTFOLIO", f"{portfolio_name}: fetch bars failed")
+        return
+
+    last_closed_ts = int(m5[-2]["time"])
+    if state["last_raw_signal_ts"].get(portfolio_name) == last_closed_ts:
+        return  # แท่ง M5 ที่ปิดล่าสุดนี้ประเมินไปแล้ว
+    state["last_raw_signal_ts"][portfolio_name] = last_closed_ts
+
+    symbol = _demo_symbol()
+    info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+    if not info or not tick:
+        _save_state(state)
+        return
+    price_digits = int(getattr(info, "digits", 2) or 2)
+    tick_size = float(getattr(info, "trade_tick_size", 0.0) or getattr(info, "point", 0.01) or 0.01)
+    cfg = INDI1.core_cfg(rr=config.INDI1_RR, sl_buffer_ticks=config.INDI1_SL_BUFFER_TICKS,
+                         tick_size=tick_size, point=float(getattr(info, "point", 0.0) or 0.0))
+    try:
+        res = INDI1.detect_indi1(m5, h1, cfg, allow_buy=config.INDI1_ALLOW_BUY,
+                                 allow_sell=config.INDI1_ALLOW_SELL)
+    except Exception as e:
+        log_error("DEMO_PORTFOLIO", f"{portfolio_name} detect error: {type(e).__name__}: {e}")
+        _save_state(state)
+        return
+    if res.get("signal") not in ("BUY", "SELL"):
+        _save_state(state)
+        return
+
+    sig = res["signal"]
+    state["last_signal_ts"][portfolio_name] = last_closed_ts
+
+    # โควตาไม้ต่อสัญญาณ H1 (0 = ไม่จำกัด)
+    max_per_h1 = int(config.INDI1_MAX_ENTRIES_PER_H1)
+    if max_per_h1 > 0:
+        used = sum(1 for t in state["trades"]
+                   if t.get("leg") == INDI1.INDI1_LEG and t.get("success") and t.get("signal") == sig
+                   and int(t.get("entry_bar_ts", 0)) >= int(res["episode_start_ts"]))
+        if used >= max_per_h1:
+            _save_state(state)
+            log_event("DEMO_PORTFOLIO_SKIP", f"{portfolio_name} {sig} skipped — H1 quota {used}/{max_per_h1}")
+            return
+
+    # เพดานฉุกเฉินจำนวนไม้เปิดพร้อมกัน
+    positions = mt5.positions_get(symbol=symbol) or []
+    open_count = sum(1 for p in positions if p.magic == magic)
+    max_open = int(config.INDI1_MAX_OPEN_POSITIONS)
+    if max_open > 0 and open_count >= max_open:
+        _save_state(state)
+        log_event("DEMO_PORTFOLIO_SKIP", f"{portfolio_name} {sig} skipped — {open_count} positions open (cap={max_open})")
+        return
+
+    price = float(tick.ask if sig == "BUY" else tick.bid)
+    buf = float(config.INDI1_SL_BUFFER_TICKS) * tick_size
+    sl = res["swing"] - buf if sig == "BUY" else res["swing"] + buf
+    dist = abs(price - sl)
+    stops = float(getattr(info, "trade_stops_level", 0.0) or 0.0) * float(getattr(info, "point", 0.0) or 0.0)
+    if (sig == "BUY" and sl >= price) or (sig == "SELL" and sl <= price) or dist <= 0 or dist < stops:
+        _save_state(state)
+        log_event("DEMO_PORTFOLIO_SKIP", f"{portfolio_name} {sig} skipped — bad SL sl={sl} price={price}")
+        return
+    tp = price + config.INDI1_RR * dist if sig == "BUY" else price - config.INDI1_RR * dist
+
+    # lot จาก Risk % ของ balance ตามระยะ SL (ปัดลง; ต่ำกว่า volume_min = ไม่เข้า ไม่ฝืนเสี่ยงเกิน)
+    account = mt5.account_info()
+    balance = float(getattr(account, "balance", 0.0) or 0.0) if account else 0.0
+    tick_value = float(getattr(info, "trade_tick_value_loss", 0.0) or getattr(info, "trade_tick_value", 0.0) or 0.0)
+    if balance <= 0 or tick_value <= 0 or tick_size <= 0:
+        _save_state(state)
+        log_error("DEMO_PORTFOLIO", f"{portfolio_name}: balance/tick_value invalid ({balance}/{tick_value})")
+        return
+    loss_per_lot = dist / tick_size * tick_value
+    vol_min = float(getattr(info, "volume_min", 0.01) or 0.01)
+    vol_max = float(getattr(info, "volume_max", 100.0) or 100.0)
+    vol_step = float(getattr(info, "volume_step", 0.01) or 0.01)
+    raw_lot = balance * float(config.INDI1_RISK_PCT) / 100.0 / loss_per_lot
+    volume = int(raw_lot / vol_step + 1e-9) * vol_step
+    max_lot = float(config.INDI1_MAX_LOT)
+    if max_lot > 0:
+        volume = min(volume, max_lot)
+    volume = round(min(volume, vol_max), 2)
+    if volume < vol_min - 1e-9:
+        _save_state(state)
+        log_event("DEMO_PORTFOLIO_SKIP", f"{portfolio_name} {sig} skipped — lot {raw_lot:.4f} < min {vol_min}")
+        return
+
+    comment = _demo_comment(portfolio_name, INDI1.INDI1_LTF)
+    result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, anchor_sl_tp=True)
+    sl = result.get("sl", sl)
+    tp = result.get("tp", tp)
+
+    if result.get("success") and result.get("ticket"):
+        try:
+            from trailing import position_sid
+            position_sid[result["ticket"]] = 21
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"register position_sid failed: {type(e).__name__}: {e}")
+
+    state["trades"].append({
+        "ts": _now_bkk().isoformat(),
+        "entry_bar_ts": int(res["entry_bar_ts"]),
+        "leg": INDI1.INDI1_LEG,
+        "label": PORTFOLIO_DISPLAY_NAME.get(portfolio_name, portfolio_name),
+        "signal": sig,
+        "sl": sl,
+        "tp": tp,
+        "success": result.get("success"),
+        "ticket": result.get("ticket"),
+        "error": result.get("error"),
+        "volume": volume,
+        "tf": INDI1.INDI1_LTF,
+        "doc": "Indi1 3-line H1 + M5 trigger",
+    })
+    state["trades"] = state["trades"][-1500:]
+    _save_state(state)
+
+    log_event("DEMO_PORTFOLIO_SIGNAL",
+              f"{portfolio_name} {sig} lot={volume:.2f} sl={sl} tp={tp} open={open_count + 1} "
+              f"success={result.get('success')} ticket={result.get('ticket')} err={result.get('error')}")
+
+    if app is not None:
+        try:
+            if result.get("success"):
+                msg = (f"📈 *{PORTFOLIO_DISPLAY_NAME.get(portfolio_name, portfolio_name)}*\n"
+                       f"{'🟢 BUY' if sig == 'BUY' else '🔴 SELL'} @ market lot `{volume:.2f}`\n"
+                       f"SL `{sl:.{price_digits}f}` TP `{tp:.{price_digits}f}`\n"
+                       f"Ticket: `{result.get('ticket')}` | ไม้เปิดอยู่: {open_count + 1}")
+            else:
+                msg = f"⚠️ INDI1 {sig} order failed: {result.get('error')}"
+            await app.bot.send_message(chat_id=config.MY_USER_ID, text=msg, parse_mode="Markdown")
+        except Exception:
+            pass
+
+
+async def _manage_indi1_positions(app):
+    """Fibo breakeven ของ Indi1: ถ้าแท่ง M5 ที่ "ปิดแล้ว" (และปิดหลังเข้าไม้) ปิดเลยระดับ
+    INDI1_BE_FIB (50%) ของ entry->TP -> เลื่อน SL ไป entry +/- INDI1_BE_LOCK_POINTS จุด
+    (ครั้งเดียวต่อไม้) — แตะเฉพาะไม้ที่ magic ตรงและอยู่ใน state["trades"] ของเราเท่านั้น"""
+    if not config.INDI1_BE_ENABLED:
+        return
+    magic = _portfolio_magic(INDI1.INDI1_KEY)
+    symbol = _demo_symbol()
+    positions = [p for p in (mt5.positions_get(symbol=symbol) or []) if p.magic == magic]
+    if not positions:
+        return
+    state = _load_state()
+    by_ticket = {t["ticket"]: t for t in state["trades"] if t.get("success") and t.get("ticket")}
+    bars = _fetch_bars(INDI1.INDI1_LTF, 3)
+    info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+    if bars is None or len(bars) < 3 or not info or not tick:
+        return
+    closed = bars[-2]
+    closed_close = float(closed["close"])
+    closed_end = int(closed["time"]) + _TF_SECS[INDI1.INDI1_LTF]
+    point = float(getattr(info, "point", 0.01) or 0.01)
+    digits = int(getattr(info, "digits", 2) or 2)
+    stops = float(getattr(info, "trade_stops_level", 0.0) or 0.0) * point
+    dirty = False
+
+    for pos in positions:
+        record = by_ticket.get(pos.ticket)
+        if record is None or record.get("be_done"):
+            continue
+        if closed_end <= int(pos.time):
+            continue  # แท่งนี้ปิดก่อนเข้าไม้
+        entry, tp, cur_sl = float(pos.price_open), float(pos.tp), float(pos.sl)
+        if tp <= 0:
+            continue
+        level = entry + (tp - entry) * float(config.INDI1_BE_FIB)
+        lock = float(config.INDI1_BE_LOCK_POINTS) * point
+        is_buy = pos.type == mt5.ORDER_TYPE_BUY
+        if is_buy:
+            new_sl = round(entry + lock, digits)
+            ok = closed_close > level and (cur_sl <= 0 or new_sl > cur_sl) and new_sl < float(tick.bid) - stops
+        else:
+            new_sl = round(entry - lock, digits)
+            ok = closed_close < level and (cur_sl <= 0 or new_sl < cur_sl) and new_sl > float(tick.ask) + stops
+        if not ok:
+            continue
+        try:
+            res = mt5.order_send({"action": mt5.TRADE_ACTION_SLTP, "position": pos.ticket,
+                                  "symbol": symbol, "sl": new_sl, "tp": tp})
+            if res is not None and res.retcode == mt5.TRADE_RETCODE_DONE:
+                record["be_done"] = True
+                dirty = True
+                log_event("DEMO_PORTFOLIO_BE",
+                          f"INDI1 ticket={pos.ticket} SL->{new_sl:.{digits}f} (fibo {config.INDI1_BE_FIB:.0%} lock "
+                          f"{config.INDI1_BE_LOCK_POINTS}pt)")
+            else:
+                log_error("DEMO_PORTFOLIO", f"INDI1 BE modify failed ticket={pos.ticket}: "
+                                            f"{getattr(res, 'retcode', None)} {getattr(res, 'comment', '')}")
+        except Exception as e:
+            log_error("DEMO_PORTFOLIO", f"INDI1 BE error ticket={pos.ticket}: {type(e).__name__}: {e}")
+    if dirty:
+        _save_state(state)
+
+
 def _bar_index_by_ts(bars, ts):
     for idx, bar in enumerate(bars):
         if int(bar["time"]) == int(ts):
@@ -1569,6 +1786,9 @@ async def demo_scan(app, portfolio_name: str):
     if portfolio_name in S20GEN.S20GEN_DEFS:
         await _demo_scan_s20gen(app, portfolio_name)
         return
+    if portfolio_name == INDI1.INDI1_KEY:
+        await _demo_scan_indi1(app)
+        return
 
     state = _load_state()
     keys = PORTFOLIOS[portfolio_name]
@@ -1807,6 +2027,9 @@ async def _manage_open_positions(app, portfolio_name: str):
     ปลอดภัยโดยดีไซน์: แตะเฉพาะ ticket ที่อยู่ใน state["trades"] ของพอร์ตนี้ และ magic ตรงกัน
     ทุกอย่างห่อ try/except — ถ้าพังก็แค่ไม่จัดการไม้ ไม่กระทบการสแกนหาสัญญาณ
     """
+    if portfolio_name == INDI1.INDI1_KEY:
+        await _manage_indi1_positions(app)
+        return
     rules = MANAGED_PORTFOLIOS.get(portfolio_name)
     if not rules:
         return
@@ -2021,7 +2244,8 @@ async def demo_scan_job(app):
     การสแกนแค่ทุก 5 นาทีเท่ากับ TF ของมันเองทำให้ตรวจสัญญาณช้าไปได้เกือบ 1 แท่งเต็ม
     ราคาที่เข้าจริงจะห่างจาก "open แท่งถัดไป" ที่ backtest ใช้มากเกินไป"""
     active_names = [name for name in PORTFOLIO_ORDER
-                     if config.DEMO_PORTFOLIO_ACTIVE.get(name, False) and name not in S20GEN.S20GEN_DEFS]
+                     if config.DEMO_PORTFOLIO_ACTIVE.get(name, False) and name not in S20GEN.S20GEN_DEFS
+                     and name != INDI1.INDI1_KEY]
     if not active_names:
         return
     symbol = _demo_symbol()
@@ -2048,7 +2272,9 @@ async def demo_scan_job_s20gen(app):
     ใน main.py ทุก config.S20GEN_SCAN_INTERVAL_SEC วินาที (ถี่กว่า DEMO_PORTFOLIO_SCAN_INTERVAL
     ปกติที่ 5 นาที) เพื่อให้ leg TF M5/M15 ตรวจสัญญาณได้ใกล้เคียง "open แท่งถัดไป" ที่
     backtest ใช้มากขึ้น — no-op ถ้าไม่มี S20G_* ตัวไหน active เลย"""
-    active_names = [name for name in S20GEN.S20GEN_ENABLED_KEYS if config.DEMO_PORTFOLIO_ACTIVE.get(name, False)]
+    # Indi1 สแกนใน job เดียวกัน (60 วินาที) เพราะเข้าไม้ตอนแท่ง M5 เพิ่งปิด
+    active_names = [name for name in (list(S20GEN.S20GEN_ENABLED_KEYS) + [INDI1.INDI1_KEY])
+                    if config.DEMO_PORTFOLIO_ACTIVE.get(name, False)]
     if not active_names:
         return
     symbol = _demo_symbol()

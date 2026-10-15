@@ -2317,6 +2317,9 @@ DEMO_PORTFOLIO_ACTIVE = {
     "S20G_1265_M15": False,
     "S20G_1463_M30": False,
     "S20G_1427_M5": False,
+    # ── Indi1 (3 เส้น H1 + จังหวะ M5, ไม่จำกัดไม้ต่อสัญญาณ H1) — ดู strategy_indi1_live.py
+    # เปิดด้วย profile.env: DEMO_PORTFOLIO_ACTIVE=INDI1 (หรือปุ่ม Telegram กลุ่ม INDI1)
+    "INDI1": False,
 }
 
 # ── LTS Supervisor (backtest-driven live order, strategy/demo_portfolio/backtest-sim/
@@ -2368,6 +2371,20 @@ if _demo_portfolio_active_env is not None:
 DEMO_PORTFOLIO_SYMBOL = "XAUUSD"                       # P13/P16/AF trade XAU only; ignore runtime BTC switch
 DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"                # Telegram detail tab: XAUUSD or BTCUSD
 DEMO_PORTFOLIO_SCAN_INTERVAL = 5                       # นาที (เท่ากับ SCAN_INTERVAL เดิม)
+# ── Indi1 (strategy_indi1_live.py) — backtest 24 เดือน XAUUSD ทุน 10,000: ไม่จำกัดไม้ + Risk 0.33%
+# = +57.6% PF 1.14 DD 15.9% (Risk 1% ไม่จำกัดไม้ DD 45% ห้ามใช้) — edge บาง ฝั่ง Buy ไม่นิ่ง
+INDI1_RISK_PCT = 0.1               # % ของ balance ต่อไม้ (ตามระยะ SL)
+INDI1_RR = 2.5                     # TP = RR x ระยะ SL
+INDI1_SL_BUFFER_TICKS = 100        # SL = swing ZigZag M5 -/+ buffer (ticks)
+INDI1_MAX_ENTRIES_PER_H1 = 0       # ไม้ต่อสัญญาณ H1 (0 = ไม่จำกัด)
+INDI1_MAX_OPEN_POSITIONS = 10      # ⚠️ เพดานฉุกเฉินไม้เปิดพร้อมกัน (0 = ไม่จำกัดจริง — ไม่แนะนำ:
+                                   # backtest ไม่ได้จำลอง margin/ไม้ซ้อนสูงสุด ดู เหตุการณ์ 3587 2026-08-18)
+INDI1_MAX_LOT = 5.0                # เพดาน lot ต่อไม้ (0 = ไม่จำกัด)
+INDI1_ALLOW_BUY = True
+INDI1_ALLOW_SELL = True
+INDI1_BE_ENABLED = True            # Fibo breakeven: แท่ง M5 ปิดเลย 50% ของ entry->TP
+INDI1_BE_FIB = 0.5
+INDI1_BE_LOCK_POINTS = 50          # SL ไป entry +/- N จุด (point ของ symbol)
 S20GEN_SCAN_INTERVAL_SEC = 60                           # วินาที — กลุ่ม S20-Gen Forward Demo
                                                         # สแกนถี่กว่าปกติ (ไม่ใช้ DEMO_PORTFOLIO_
                                                         # SCAN_INTERVAL 5 นาทีร่วมกับพอร์ตอื่น)
