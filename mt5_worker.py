@@ -66,6 +66,7 @@ _q: "queue.Queue" = queue.Queue()
 _worker_thread: "threading.Thread | None" = None
 _start_lock = threading.Lock()
 _mt5_lock = threading.Lock()   # serialize ทุกการเรียก _mt5.* กัน 2 thread ชน MT5 IPC พร้อมกัน
+_worker_stopping = threading.Event()
 
 # ── สถานะให้ watchdog เช็คว่า worker แข็งค้างอยู่ไหม (อัปเดตโดย worker/subprocess ฝั่งเรียกเอง) ──
 current_call_name: str = ""          # ฟังก์ชันที่ worker กำลังรันอยู่ตอนนี้ (ว่าง = ไม่มี call ค้าง)
@@ -110,6 +111,8 @@ def start_worker() -> None:
     เอง import mt5_worker ตอน module-level)"""
     global _worker_thread, _WORKER_MODE
     with _start_lock:
+        if _worker_stopping.is_set():
+            return
         if _worker_thread is not None or _sub_proc is not None:
             return
         _WORKER_MODE = _resolve_worker_mode()
@@ -121,6 +124,8 @@ def start_worker() -> None:
 
 
 def _call(func, *args, _timeout: float = None, **kwargs):
+    if _worker_stopping.is_set():
+        return None
     if _timeout is None:
         _timeout = CALL_TIMEOUT_DEFAULT   # อ่านค่าปัจจุบันตอนเรียก ไม่ bind ตอน def
     if _worker_thread is None and _sub_proc is None:
@@ -238,6 +243,8 @@ def _build_mt5_init_kwargs() -> dict:
 def _start_subprocess_worker() -> None:
     global _sub_proc, _sub_req_q, _sub_resp_q
     with _sub_start_lock:
+        if _worker_stopping.is_set():
+            return
         if _sub_proc is not None and _sub_proc.is_alive():
             return
         _sub_req_q = _mp.Queue()
@@ -271,12 +278,60 @@ def _restart_subprocess_worker() -> None:
     _start_subprocess_worker()
 
 
+def stop_worker(timeout: float = 3.0) -> bool:
+    """Drain/stop our reader before its parent exits; never stop the terminal.
+
+    This is final shutdown, not a worker recycle. Late reads/trades return None
+    rather than spawning a child while Windows is tearing down pipe handles.
+    A blocked native read is killed only in our owned subprocess, with the
+    parent kept alive until join confirms its exit.
+    """
+    global _sub_proc, _sub_req_q, _sub_resp_q, _worker_thread
+    global current_call_name, current_call_started_ts
+    _worker_stopping.set()
+    if not _sub_start_lock.acquire(timeout=timeout):
+        return False
+    try:
+        child = _sub_proc
+        if child is not None:
+            if child.is_alive():
+                try:
+                    _sub_req_q.put(None)
+                except (OSError, ValueError, AttributeError):
+                    pass
+                child.join(timeout=timeout)
+                if child.is_alive():
+                    child.kill()
+                    child.join(timeout=timeout)
+            if child.is_alive():
+                return False
+            child.close()
+        for channel in (_sub_req_q, _sub_resp_q):
+            if channel is not None:
+                channel.cancel_join_thread()
+                channel.close()
+        _sub_proc = _sub_req_q = _sub_resp_q = None
+    finally:
+        _sub_start_lock.release()
+    if _worker_thread is not None:
+        _q.put(("stop", None, (), {}, None))
+        _worker_thread.join(timeout=timeout)
+        if _worker_thread.is_alive():
+            return False
+        _worker_thread = None
+    current_call_name = ""
+    current_call_started_ts = 0.0
+    return True
+
+
 _sub_req_id = 0
 _sub_req_id_lock = threading.Lock()
 
 
 def _call_subprocess(name: str, args: tuple, kwargs: dict, timeout: float):
     global current_call_name, current_call_started_ts, _sub_req_id
+    if _worker_stopping.is_set():
+        return None
     if _sub_proc is None or not _sub_proc.is_alive():
         _start_subprocess_worker()
     with _sub_call_lock:   # ทีละคำสั่งต่อรอบ (เหมือน thread-worker เดิม — ไม่ pipeline)
@@ -349,7 +404,7 @@ def _call_direct(func, *args, **kwargs):
     แม้ kwargs={} ก็ตาม — MetaTrader5 C extension (อย่างน้อย order_send) ปฏิเสธด้วย
     error (-2, 'Unnamed arguments not allowed') ทันทีที่ calling convention มี
     keyword-dict ติดมาด้วย ต่อให้ว่างเปล่า (ดู root cause ในหัวไฟล์)"""
-    if not _mt5_lock.acquire(timeout=TRADE_LOCK_TIMEOUT):
+    if _worker_stopping.is_set() or not _mt5_lock.acquire(timeout=TRADE_LOCK_TIMEOUT):
         return None
     try:
         return func(*args, **kwargs) if kwargs else func(*args)
@@ -374,6 +429,7 @@ def symbol_select(*a, **kw):        return _call(_mt5.symbol_select, *a, **kw)
 def positions_get(*a, **kw):        return _call(_mt5.positions_get, *a, **kw)
 def orders_get(*a, **kw):           return _call(_mt5.orders_get, *a, **kw)
 def orders_total(*a, **kw):         return _call(_mt5.orders_total, *a, **kw)
+def order_calc_profit(*a, **kw):    return _call(_mt5.order_calc_profit, *a, **kw)
 def copy_rates_from(*a, **kw):      return _call(_mt5.copy_rates_from, *a, **kw)
 def copy_rates_from_pos(*a, **kw):  return _call(_mt5.copy_rates_from_pos, *a, **kw)
 def copy_rates_range(*a, **kw):     return _call(_mt5.copy_rates_range, *a, **kw)

@@ -51,6 +51,7 @@ DEFAULT_CFG.update({
     "COOLDOWN_BARS": 3,
     "HTF_EMA_FAST": 20,
     "HTF_EMA_SLOW": 50,
+    "HTF_EMA_HISTORY_BARS": 200,
 })
 
 
@@ -70,15 +71,20 @@ def make_entry_filter(htf_rates, *, decision_bar_seconds: int, cfg=None):
     htf_seconds = min(deltas) if deltas else decision_bar_seconds * 3
     close_times = [raw_time + htf_seconds for raw_time in times]
     closes = [float(row["close"]) for row in rows]
-    alpha_fast = 2.0 / (fast_period + 1.0)
-    alpha_slow = 2.0 / (slow_period + 1.0)
-    fast_values, slow_values = [], []
-    fast = slow = closes[0]
-    for close in closes:
-        fast += alpha_fast * (close - fast)
-        slow += alpha_slow * (close - slow)
-        fast_values.append(fast)
-        slow_values.append(slow)
+    # Both live and research seed from the same causal, fixed-size window.
+    # Extra older history must not silently change a decision's EMA seed.
+    history = max(slow_period + 5, int(c["HTF_EMA_HISTORY_BARS"]))
+    cache = {}
+
+    def ema_at(idx):
+        if idx not in cache:
+            window = closes[idx - history + 1:idx + 1]
+            fast = slow = window[0]
+            for close in window:
+                fast += (close - fast) * 2.0 / (fast_period + 1.0)
+                slow += (close - slow) * 2.0 / (slow_period + 1.0)
+            cache[idx] = (fast, slow)
+        return cache[idx]
 
     cooldown_seconds = max(0, int(c["COOLDOWN_BARS"])) * int(decision_bar_seconds)
     last_accepted_time = -10**18
@@ -88,11 +94,12 @@ def make_entry_filter(htf_rates, *, decision_bar_seconds: int, cfg=None):
         nonlocal last_accepted_time
         decision_time = int(raw_time) + int(decision_bar_seconds)
         idx = bisect_right(close_times, decision_time) - 1
-        if idx < slow_period + 3:
+        if idx < history - 1:
             return False
+        fast, slow = ema_at(idx)
         trend_ok = (
-            closes[idx] > fast_values[idx] >= slow_values[idx]
-            if buy else closes[idx] < fast_values[idx] <= slow_values[idx]
+            closes[idx] > fast >= slow
+            if buy else closes[idx] < fast <= slow
         )
         if not trend_ok or int(raw_time) - last_accepted_time < cooldown_seconds:
             return False

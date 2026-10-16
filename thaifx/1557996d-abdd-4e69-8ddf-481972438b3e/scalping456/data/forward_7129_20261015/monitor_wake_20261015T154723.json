@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "checked_bkk": "2026-10-15T15:47:23.411+07:00",
+  "automation_id": "scalping456-demo-2459-3",
+  "profile": "demo-exness-434237129",
+  "baseline_bkk": "2026-10-15T14:59:00.611703+07:00",
+  "outcome": "NO_MEANINGFUL_CHANGE",
+  "counts": {
+    "entry": 1,
+    "closed": 1,
+    "open": 0,
+    "verified": 0,
+    "failed": 1,
+    "target": 5
+  },
+  "observed": {
+    "checked_utc": "2026-10-15T08:47:23.411088+00:00",
+    "heartbeat": {
+      "ts": "1792054039",
+      "bkk": "2026-10-15 15:47:19",
+      "mt5_ok": "0",
+      "auto": "1",
+      "last_scan": "1792054036",
+      "pid": "33784"
+    },
+    "state": {
+      "version": 1,
+      "magic": 995456,
+      "login": 434237129,
+      "symbol": "XAUUSDm",
+      "phase": "working",
+      "known_positions": {},
+      "pending_closes": {
+        "4878801646": {
+          "identifier": 4878801646
+        }
+      },
+      "closed_positions": {
+        "4878797096": -1.06
+      },
+      "daily_net": {
+        "2026-10-15": -1.06
+      },
+      "cycles": 2,
+      "last_error": "",
+      "rearm_requested": false,
+      "known_orders": {
+        "4878801646": true,
+        "4878801649": true
+      },
+      "journal_orders_recovered": true
+    },
+    "active_portfolio_env": "INDI1,EA2_1,SCALPING456",
+    "journal": {
+      "checkpoint_before": {
+        "relative_path": "profiles/demo/demo-exness-434237129/logs/scalping456_events.jsonl",
+        "byte_offset": 4164,
+        "prefix_sha256": "0860b2dc1594f9cfca4130f61915262b6eb51dfc384eb8341b364799068eb6ca",
+        "file_length_at_read": 4164,
+        "prefix_last_event_bkk": "2026-10-15T14:59:54.747935+07:00"
+      },
+      "prefix_matched": true,
+      "complete_offset": 4164,
+      "complete_prefix_sha256": "0860b2dc1594f9cfca4130f61915262b6eb51dfc384eb8341b364799068eb6ca",
+      "file_length": 4164,
+      "appended_events": []
+    },
+    "current_code_sha256": {
+      "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+      "demo_portfolio.py": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+      "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    },
+    "initialized": true,
+    "broker_read_performed": true,
+    "processes": {
+      "terminal": [
+        {
+          "parent": 33784,
+          "pid": 6424,
+          "created": "2026-10-15T15:24:03.9875670+07:00",
+          "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+        }
+      ],
+      "supervisor": [
+        {
+          "parent": 13116,
+          "pid": 40952,
+          "created": "2026-10-15T14:48:26.9556840+07:00"
+        }
+      ],
+      "main_chain": [
+        {
+          "parent": 11408,
+          "pid": 33784,
+          "name": "python.exe",
+          "created": "2026-10-15T14:48:40.2256430+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 40952,
+          "pid": 11408,
+          "name": "python.exe",
+          "created": "2026-10-15T14:48:40.1593410+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 13116,
+          "pid": 40952,
+          "name": "powershell.exe",
+          "created": "2026-10-15T14:48:26.9556840+07:00",
+          "main_py": false
+        },
+        {
+          "parent": 12996,
+          "pid": 13116,
+          "name": "cmd.exe",
+          "created": "2026-10-15T14:48:13.7507840+07:00",
+          "main_py": false
+        }
+      ]
+    },
+    "observed_account": {
+      "login": 434237129,
+      "server": "Exness-MT5Trial7",
+      "trade_mode": 0,
+      "margin_mode": 2,
+      "currency": "USD",
+      "trade_allowed": true
+    },
+    "observed_terminal": {
+      "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+      "connected": true,
+      "trade_allowed": true
+    },
+    "identity_verified": true,
+    "own_positions": [],
+    "own_pending": [
+      {
+        "ticket": 4878801649,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951668,
+        "time_done": 0,
+        "time_done_msc": 0,
+        "time_expiration": 0,
+        "type": 5,
+        "type_time": 0,
+        "type_filling": 2,
+        "state": 1,
+        "magic": 995456,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 3,
+        "volume_initial": 0.01,
+        "volume_current": 0.01,
+        "price_open": 4143.522,
+        "sl": 4144.522,
+        "tp": 0,
+        "price_current": 4152.007,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S",
+        "external_id": ""
+      }
+    ],
+    "owned_history_deals": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time": 1792050907,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time": 1792050926,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299032977,
+        "order": 4878801646,
+        "time": 1792051199,
+        "time_msc": 1792051199326,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4299035398,
+        "order": 4878818433,
+        "time": 1792051206,
+        "time_msc": 1792051206831,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4145.362,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.01,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4145.362]",
+        "external_id": ""
+      }
+    ],
+    "magic_collision": false,
+    "first_entry_order_history": [
+      {
+        "ticket": 4878801646,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951000,
+        "time_done": 1792051199,
+        "time_done_msc": 1792051199326,
+        "time_expiration": 0,
+        "type": 4,
+        "type_time": 0,
+        "type_filling": 0,
+        "state": 4,
+        "magic": 0,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4146.362,
+        "sl": 0,
+        "tp": 0,
+        "price_current": 0,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "",
+        "external_id": ""
+      }
+    ]
+  },
+  "current_code_matches_baseline": true,
+  "latest_relevant_log_events": [
+    {
+      "at_bkk": "2026-10-15 15:38:40",
+      "event": "BOT_ERROR",
+      "message": "run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected"
+    },
+    {
+      "at_bkk": "2026-10-15 15:43:41",
+      "event": "BOT_ERROR",
+      "message": "run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected"
+    }
+  ],
+  "read_only": true,
+  "production_writes": false,
+  "notification_suppressed": true,
+  "monitor_stop_condition_met": false
+}

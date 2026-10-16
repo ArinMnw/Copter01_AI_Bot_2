@@ -36,6 +36,26 @@ $HeartbeatFile = Join-Path $RuntimeDir "bot_heartbeat.txt"
 
 $label = if ($Profile) { $Profile } else { "root/main" }
 
+# Never terminate this stop command or the shells that launched it.
+function Get-StopProtectedProcessIds([int]$StartPid = $PID) {
+    $protected = [Collections.Generic.HashSet[int]]::new()
+    $byId = @{}
+    try {
+        foreach ($process in Get-CimInstance Win32_Process -ErrorAction Stop) {
+            $byId[[int]$process.ProcessId] = $process
+        }
+    } catch {}
+    $ancestorPid = $StartPid
+    while ($ancestorPid -gt 0 -and $protected.Add($ancestorPid)) {
+        $ancestor = $byId[$ancestorPid]
+        if (-not $ancestor) { break }
+        $ancestorPid = [int]$ancestor.ParentProcessId
+    }
+    return ,$protected
+}
+
+$StopProtectedProcessIds = Get-StopProtectedProcessIds
+
 if (-not $OnlyCloseWindow) {
     Write-Host "กำลังปิด $label ..."
 
@@ -65,39 +85,91 @@ function Stop-Mt5Terminal([string]$ExePath) {
     }
 }
 
-function Stop-ProcessTreeLocal([int]$RootPid) {
-    if (-not $RootPid) { return }
+function Stop-ProcessTreeLocal(
+    [int]$RootPid,
+    [datetime]$ExpectedCreated = [datetime]::MinValue,
+    [Collections.Generic.HashSet[int]]$Visited = $null
+) {
+    if ($RootPid -le 0 -or $StopProtectedProcessIds.Contains($RootPid)) { return }
+    if ($null -eq $Visited) { $Visited = [Collections.Generic.HashSet[int]]::new() }
+    if (-not $Visited.Add($RootPid)) { return }
     try {
-        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction SilentlyContinue)
-        foreach ($c in $children) { Stop-ProcessTreeLocal ([int]$c.ProcessId) }
-    } catch {}
-    try {
-        $p = Get-Process -Id $RootPid -ErrorAction SilentlyContinue
-        if ($p) {
-            $pname = $p.ProcessName
+        $root = Get-CimInstance Win32_Process -Filter "ProcessId=$RootPid" -ErrorAction Stop
+        if (-not $root -or -not $root.CreationDate) { return }
+        $created = [datetime]$root.CreationDate
+        if ($ExpectedCreated -ne [datetime]::MinValue -and $created -ne $ExpectedCreated) { return }
+
+        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
+        foreach ($child in $children) {
+            # ParentProcessId survives its original parent. A reused PID can make
+            # an older, unrelated explorer.exe look like a bot's child.
+            if (-not $child.CreationDate -or $child.CreationDate -lt $created) { continue }
+            Stop-ProcessTreeLocal ([int]$child.ProcessId) ([datetime]$child.CreationDate) $Visited
+        }
+
+        # Recheck identity after visiting children, in case the PID was reused.
+        $current = Get-CimInstance Win32_Process -Filter "ProcessId=$RootPid" -ErrorAction Stop
+        if ($current -and $current.CreationDate -eq $created) {
             Stop-Process -Id $RootPid -Force -ErrorAction SilentlyContinue
-            Write-Host "ปิด pid=$RootPid ($pname)"
+            Write-Host "ปิด pid=$RootPid ($($root.Name))"
         }
     } catch {}
 }
 
+function Stop-RecordedProcessTree([int]$RecordedPid, [datetime]$RecordedAt) {
+    $recorded = Get-CimInstance Win32_Process -Filter "ProcessId=$RecordedPid" -ErrorAction SilentlyContinue
+    if (-not $recorded -or -not $recorded.CreationDate) { return }
+    if ($recorded.CreationDate -gt $RecordedAt) {
+        Write-Host "WARN: stale PID $RecordedPid in state file; skipping reused process"
+        return
+    }
+    Stop-ProcessTreeLocal $RecordedPid ([datetime]$recorded.CreationDate)
+}
+
+function Stop-LtsSupervisorForProfile([string]$ProfileName, [string]$RepoRoot = $PSScriptRoot) {
+    $portfolios = @{
+        'demo-exness-416273786' = 'LTS_AUS3'
+        'demo-exness-414252716' = 'LTS_AHR3'
+    }
+    $portfolio = $portfolios[$ProfileName]
+    if (-not $portfolio) { return }
+    $wrapperPath = [regex]::Escape((Join-Path $RepoRoot 'run_supervised_lts.ps1'))
+    $workerPath = [regex]::Escape((Join-Path $RepoRoot 'strategy\demo_portfolio\backtest-sim\supervisor_lts_avengers.py'))
+    $portfolioPattern = '(?:^|\s)--?portfolio\s+"?' + [regex]::Escape($portfolio) + '(?=["\s]|$)'
+    $ltsProcesses = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe' OR Name='python.exe' OR Name='pythonw.exe'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            ($_.CommandLine -match $wrapperPath -or $_.CommandLine -match $workerPath) -and
+            $_.CommandLine -match $portfolioPattern
+        } | Sort-Object @{ Expression = { $_.CommandLine -match $workerPath } })
+    foreach ($ltsProcess in $ltsProcesses) {
+        if ($ltsProcess.CreationDate) {
+            Stop-ProcessTreeLocal ([int]$ltsProcess.ProcessId) ([datetime]$ltsProcess.CreationDate)
+        }
+    }
+}
+
 if (-not $OnlyCloseWindow) {
+    # These profiles launch an additional wrapper and worker outside supervisor.lock.
+    Stop-LtsSupervisorForProfile $Profile
+
     # ปิด supervisor (ถ้ายังรันอยู่)
     if (Test-Path $LockFile) {
         try {
+            $lockRecordedAt = (Get-Item -LiteralPath $LockFile -ErrorAction Stop).LastWriteTime
             $lockPid = [int](Get-Content $LockFile -TotalCount 1 -ErrorAction Stop)
-            Stop-ProcessTreeLocal $lockPid
+            Stop-RecordedProcessTree $lockPid $lockRecordedAt
         } catch {}
     }
 
     # ปิด main.py แยกต่างหาก เผื่อกลายเป็น orphan ไปแล้ว (ไม่มี supervisor คุม)
     if (Test-Path $HeartbeatFile) {
         try {
+            $hbRecordedAt = (Get-Item -LiteralPath $HeartbeatFile -ErrorAction Stop).LastWriteTime
             $hbPid = $null
             foreach ($line in Get-Content $HeartbeatFile -ErrorAction Stop) {
                 if ($line -match '^pid=(\d+)') { $hbPid = [int]$Matches[1]; break }
             }
-            if ($hbPid) { Stop-ProcessTreeLocal $hbPid }
+            if ($hbPid) { Stop-RecordedProcessTree $hbPid $hbRecordedAt }
         } catch {}
     }
 
@@ -130,7 +202,10 @@ if (-not $SkipWindowClose) {
     try {
         $escapedBat = [regex]::Escape($batPathForThis)
         $staleShells = @(Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -match $escapedBat })
+            Where-Object {
+                $_.CommandLine -match $escapedBat -and
+                -not $StopProtectedProcessIds.Contains([int]$_.ProcessId)
+            })
         foreach ($shell in $staleShells) {
             Stop-Process -Id ([int]$shell.ProcessId) -Force -ErrorAction SilentlyContinue
             Write-Host "ปิดหน้าต่างที่ค้าง: pid=$($shell.ProcessId)"

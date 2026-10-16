@@ -627,18 +627,21 @@ EA2_1_ONLY_MODE = _env_bool("EA2_1_ONLY_MODE", False)
 EA2_1_LIVE_TF = os.getenv("EA2_1_LIVE_TF", "M5").strip().upper() or "M5"
 EA2_1_HTF = os.getenv("EA2_1_HTF", "M15").strip().upper() or "M15"
 EA2_1_MAGIC_NUMBER = 550021
-EA2_1_RISK_PERCENT = 1.0
-EA2_1_SL_POINTS = 1200
-EA2_1_TP_POINTS = 5000
+EA2_1_RISK_PERCENT = float(os.getenv("EA2_1_RISK_PERCENT", "1.0"))
+EA2_1_MIN_LOT_FALLBACK = os.getenv("EA2_1_MIN_LOT_FALLBACK", "false").lower() == "true"
+EA2_1_SL_POINTS = float(os.getenv("EA2_1_SL_POINTS", "1200"))
+EA2_1_TP_POINTS = float(os.getenv("EA2_1_TP_POINTS", "5000"))
 EA2_1_MAX_POSITIONS = 1
-EA2_1_MAX_SPREAD_POINTS = 25.0
+EA2_1_MAX_SPREAD_POINTS = float(os.getenv("EA2_1_MAX_SPREAD_POINTS", "25"))
 EA2_1_SESSION_START_HOUR = 0
 EA2_1_SESSION_END_HOUR = 24
-EA2_1_BREAKEVEN_TRIGGER_POINTS = 75
-EA2_1_BREAKEVEN_LOCK_POINTS = 25
-EA2_1_TRAIL_TRIGGER_POINTS = 100
-EA2_1_TRAIL_DISTANCE_POINTS = 75
-EA2_1_TRAIL_STEP_POINTS = 5
+EA2_1_BREAKEVEN_TRIGGER_POINTS = float(os.getenv("EA2_1_BREAKEVEN_TRIGGER_POINTS", "75"))
+EA2_1_BREAKEVEN_LOCK_POINTS = float(os.getenv("EA2_1_BREAKEVEN_LOCK_POINTS", "25"))
+EA2_1_TRAIL_TRIGGER_POINTS = float(os.getenv("EA2_1_TRAIL_TRIGGER_POINTS", "100"))
+EA2_1_TRAIL_DISTANCE_POINTS = float(os.getenv("EA2_1_TRAIL_DISTANCE_POINTS", "75"))
+EA2_1_TRAIL_STEP_POINTS = float(os.getenv("EA2_1_TRAIL_STEP_POINTS", "5"))
+EA2_1_MIN_LEG_POINTS = float(os.getenv("EA2_1_MIN_LEG_POINTS", "200"))
+EA2_1_OB_PREFER_DEEPER_MAX_POINTS = float(os.getenv("EA2_1_OB_PREFER_DEEPER_MAX_POINTS", "300"))
 EA2_1_OB_MAX_BARS_VALID = 100
 EA2_1_COOLDOWN_BARS = 3
 EA2_1_TRAIL_INTERVAL_SEC = 1
@@ -2214,6 +2217,7 @@ C_TP    = "\033[38;5;46m"    # เขียว  — TP
 # default หลัก = ปิดทั้งหมด; profile.env แยกแต่ละ profile สามารถ override ได้ด้วย
 # DEMO_PORTFOLIO_ACTIVE=NONE / P13,P16 / AF22,AF34,AF47 / ALL
 DEMO_PORTFOLIO_ACTIVE = {
+    "EA2_1": False,
     "P13": False,
     "P16": False,
     "AF22": False,   # tested target balance ~$1000
@@ -2320,6 +2324,8 @@ DEMO_PORTFOLIO_ACTIVE = {
     # ── Indi1 (3 เส้น H1 + จังหวะ M5, ไม่จำกัดไม้ต่อสัญญาณ H1) — ดู strategy_indi1_live.py
     # เปิดด้วย profile.env: DEMO_PORTFOLIO_ACTIVE=INDI1 (หรือปุ่ม Telegram กลุ่ม INDI1)
     "INDI1": False,
+    # Tick-driven, demo-2459-only adapter; disabled on every profile by default.
+    "SCALPING456": False,
 }
 
 # ── LTS Supervisor (backtest-driven live order, strategy/demo_portfolio/backtest-sim/
@@ -2371,11 +2377,16 @@ if _demo_portfolio_active_env is not None:
 DEMO_PORTFOLIO_SYMBOL = "XAUUSD"                       # P13/P16/AF trade XAU only; ignore runtime BTC switch
 DEMO_PORTFOLIO_DETAIL_SYMBOL = "XAUUSD"                # Telegram detail tab: XAUUSD or BTCUSD
 DEMO_PORTFOLIO_SCAN_INTERVAL = 5                       # นาที (เท่ากับ SCAN_INTERVAL เดิม)
+SCALPING456_SCAN_INTERVAL_SEC = 0.25                  # native broker pending/SL; observed latency is logged
 # ── Indi1 (strategy_indi1_live.py) — backtest 24 เดือน XAUUSD ทุน 10,000: ไม่จำกัดไม้ + Risk 0.33%
 # = +57.6% PF 1.14 DD 15.9% (Risk 1% ไม่จำกัดไม้ DD 45% ห้ามใช้) — edge บาง ฝั่ง Buy ไม่นิ่ง
-INDI1_RISK_PCT = 0.1               # % ของ balance ต่อไม้ (ตามระยะ SL)
+INDI1_RISK_PCT = 1.0               # % ของ balance ต่อไม้ (ตามระยะ SL)
 INDI1_RR = 2.5                     # TP = RR x ระยะ SL
-INDI1_SL_BUFFER_TICKS = 100        # SL = swing ZigZag M5 -/+ buffer (ticks)
+INDI1_SL_BUFFER_PRICE = 1.0        # SL = swing ZigZag M5 -/+ buffer (หน่วยราคา USD — เท่ากับ 100 ticks ของ IUX
+                                   # tick 0.01; ใช้หน่วยราคาตรงๆ เพราะ Exness XAUUSDm tick=0.001 ทำให้ 100 ticks เหลือ 0.10)
+INDI1_MIN_LOT_FALLBACK = True      # lot ที่คำนวณจาก Risk % ต่ำกว่า volume_min -> เปิดที่ volume_min แทนการข้ามสัญญาณ
+                                   # (ความเสี่ยงจริงอาจเกิน Risk % เมื่อ SL ไกลมาก; False = ข้ามเหมือนเดิม)
+INDI1_CONFIRM_BARS = 1             # 1 = กฎ 1 แท่ง (H1 แท่งปิดล่าสุด / M5 แท่ง trigger ที่เพิ่งปิด) | 2 = กฎ 2 แท่งเดิม (backtest เดิมทั้งหมดใช้ 2)
 INDI1_MAX_ENTRIES_PER_H1 = 0       # ไม้ต่อสัญญาณ H1 (0 = ไม่จำกัด)
 INDI1_MAX_OPEN_POSITIONS = 10      # ⚠️ เพดานฉุกเฉินไม้เปิดพร้อมกัน (0 = ไม่จำกัดจริง — ไม่แนะนำ:
                                    # backtest ไม่ได้จำลอง margin/ไม้ซ้อนสูงสุด ดู เหตุการณ์ 3587 2026-08-18)
@@ -2384,7 +2395,7 @@ INDI1_ALLOW_BUY = True
 INDI1_ALLOW_SELL = True
 INDI1_BE_ENABLED = True            # Fibo breakeven: แท่ง M5 ปิดเลย 50% ของ entry->TP
 INDI1_BE_FIB = 0.5
-INDI1_BE_LOCK_POINTS = 50          # SL ไป entry +/- N จุด (point ของ symbol)
+INDI1_BE_LOCK_PRICE = 0.5          # SL ไป entry +/- N (หน่วยราคา USD — เท่ากับ 50 จุดของ IUX point 0.01)
 S20GEN_SCAN_INTERVAL_SEC = 60                           # วินาที — กลุ่ม S20-Gen Forward Demo
                                                         # สแกนถี่กว่าปกติ (ไม่ใช้ DEMO_PORTFOLIO_
                                                         # SCAN_INTERVAL 5 นาทีร่วมกับพอร์ตอื่น)

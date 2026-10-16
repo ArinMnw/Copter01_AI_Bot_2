@@ -6,7 +6,9 @@
 //|  (Follow Line MA) + Line 2 (Kernel) เป็นสีเขียวพร้อมกัน            |
 //|  ฝั่ง Sell = แดงทั้ง 3 เส้น                                        |
 //|                                                                   |
-//|  กฎเข้า (Buy; Sell สลับด้าน):                                      |
+//|  กฎเข้า (Buy; Sell สลับด้าน) — InpConfirmBars=1 (ค่าปัจจุบัน):       |
+//|   H1: แท่งปิดล่าสุดเขียว 3 เส้น | M5: แท่งที่เพิ่งปิดเพิ่งครบ 3 เส้น/มี Smart |
+//|   (InpConfirmBars=2 = กฎเดิม: H1 2 แท่ง + M5 รอแท่ง T+1 ยืนยัน) รายละเอียดเดิม: |
 //|   1) HTF (H1): แท่งที่ปิดล่าสุด 2 แท่งติดกัน 3 เส้นเขียวทั้งคู่       |
 //|   2) LTF (M5): แท่ง T = "เกิด" 3 เส้นเขียวพร้อมกัน (แท่งก่อนหน้า     |
 //|      ยังไม่ครบ) หรือเกิด Smart Buy                                 |
@@ -33,6 +35,9 @@ input group "=== Timeframes ==="
 input ENUM_TIMEFRAMES InpHTF         = PERIOD_H1;   // TF ใหญ่ (กรองทิศ)
 input ENUM_TIMEFRAMES InpLTF         = PERIOD_M5;   // TF เล็ก (จังหวะเข้า)
 
+input group "=== Entry rule ==="
+input int             InpConfirmBars = 1;          // 1 = กฎ 1 แท่ง (H1 แท่งปิดล่าสุด / M5 แท่ง trigger ที่เพิ่งปิด) | 2 = กฎ 2 แท่งเดิม
+
 input group "=== Direction ==="
 input bool            InpAllowBuy    = true;        // เปิดฝั่ง Buy
 input bool            InpAllowSell   = true;        // เปิดฝั่ง Sell
@@ -43,6 +48,7 @@ input int             InpMaxSpread   = 0;           // Spread สูงสุด
 input group "=== Risk (ทุนเริ่ม 10000, Risk 1%, R:R 2.5) ==="
 input double          InpRiskPct     = 1.0;         // Risk % ต่อไม้ (ของ Balance)
 input double          InpRR          = 2.5;         // R:R (TP = RR x ระยะ SL)
+input bool            InpMinLotFallback = true;     // lot คำนวณได้ต่ำกว่าขั้นต่ำ -> เปิดที่ขั้นต่ำแทนการข้าม
 input int             InpSLBufTicks  = 100;         // buffer SL จาก swing (ticks)
 input int             InpMinSLPoints = 0;           // ระยะ SL ขั้นต่ำ (points, 0 = ไม่จำกัด)
 
@@ -151,7 +157,7 @@ double CalcLot(const double slDist)
    double risk = AccountInfoDouble(ACCOUNT_BALANCE) * InpRiskPct / 100.0;
    double lot = risk / (slDist / tickSize * tickVal);
    lot = MathFloor(lot / vstep) * vstep;
-   if(lot < vmin) return 0;           // ไม่พอขั้นต่ำ = ไม่เข้า (ไม่ฝืนเกิน risk)
+   if(lot < vmin) return InpMinLotFallback ? vmin : 0;   // ต่ำกว่าขั้นต่ำ: ใช้ขั้นต่ำ (ความเสี่ยงจริงอาจเกินเป้า) หรือข้าม
    return MathMin(lot, vmax);
 }
 
@@ -229,8 +235,9 @@ void ManageBreakeven(const ulong ticket)
 void OnNewBar()
 {
    // สัญญาณ HTF (2 แท่งล่าสุดครบ 3 เส้น) หายเมื่อไหร่ = รีเซ็ตโควตาไม้ของฝั่งนั้น
-   bool htfBuy  = All3(g_hH, 1, true)  && All3(g_hH, 2, true);
-   bool htfSell = All3(g_hH, 1, false) && All3(g_hH, 2, false);
+   bool two = (InpConfirmBars >= 2);
+   bool htfBuy  = All3(g_hH, 1, true)  && (!two || All3(g_hH, 2, true));
+   bool htfSell = All3(g_hH, 1, false) && (!two || All3(g_hH, 2, false));
    if(!htfBuy)  g_cntBuy = 0;
    if(!htfSell) g_cntSell = 0;
 
@@ -256,15 +263,22 @@ void OnNewBar()
       int used = buy ? g_cntBuy : g_cntSell;
       if(InpMaxEntriesPerH1 > 0 && used >= InpMaxEntriesPerH1) continue;
 
-      // 2) LTF แท่ง T = shift 2: เพิ่งครบ 3 เส้นพร้อมกัน หรือเกิด Smart signal
-      bool smartT = SmartSig(2, buy);
-      bool newAll3 = All3(g_hL, 2, buy) && !All3(g_hL, 3, buy);
-      if(!(newAll3 || smartT)) continue;
-
-      // 3) แท่ง T+1 = shift 1 ปิดแล้วยังอยู่
-      bool stillAll3 = All3(g_hL, 1, buy);
-      bool stillSmart = smartT && LineIs(g_hL, BUF_FL2, BUF_FL2C, 1, buy);
-      if(!(stillAll3 || stillSmart)) continue;
+      if(!two)
+      {
+         // กฎ 1 แท่ง: แท่ง LTF ที่เพิ่งปิด (shift 1) คือแท่ง trigger — เพิ่งครบ 3 เส้นพร้อมกัน หรือเกิด Smart signal
+         bool newAll3 = All3(g_hL, 1, buy) && !All3(g_hL, 2, buy);
+         if(!(newAll3 || SmartSig(1, buy))) continue;
+      }
+      else
+      {
+         // กฎ 2 แท่งเดิม: trigger ที่แท่ง T = shift 2 แล้วรอแท่ง T+1 (shift 1) ปิดยืนยัน
+         bool smartT = SmartSig(2, buy);
+         bool newAll3 = All3(g_hL, 2, buy) && !All3(g_hL, 3, buy);
+         if(!(newAll3 || smartT)) continue;
+         bool stillAll3 = All3(g_hL, 1, buy);
+         bool stillSmart = smartT && LineIs(g_hL, BUF_FL2, BUF_FL2C, 1, buy);
+         if(!(stillAll3 || stillSmart)) continue;
+      }
 
       if(OpenTrade(buy))
       {

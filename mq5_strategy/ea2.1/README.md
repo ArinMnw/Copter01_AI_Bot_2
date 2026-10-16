@@ -26,6 +26,16 @@ EA2.1 ถูกตั้ง `active_strategies["ea2.1"] = False` เป็นค
 ทดสอบ EA2.1 เพียงตัวเดียว ให้ตั้ง environment `EA2_1_ONLY_MODE=1` แล้ว restart profile นั้น
 หลังตรวจ demo/forward test แล้ว
 
+### Demo portfolio deployment (2026-10-15)
+
+Profile `demo-iux-2101182459` enables `EA2_1` alongside its existing `LTS_AHR2` and `INDI1`.
+`EA2_1_RISK_PERCENT=0.1` is scoped to that profile; other profiles retain their defaults.
+The demo bridge checks account login and demo mode before trading. It scans every 5 seconds,
+manages BE/trailing every second, and uses the original `ea2.1` SID and magic `550021`.
+Sizing rounds down to the broker lot step and skips entries if the minimum lot exceeds the
+requested SL-risk budget. Historical signals missed during downtime are not replayed.
+Use the EA group in Demo Portfolio to view or toggle this deployment.
+
 ## Final 365-day backtest
 
 ช่วง `2025-10-06 21:57:03` ถึง `2026-10-06 21:57:03` (Bangkok), spread `0.20`, lot `0.01`

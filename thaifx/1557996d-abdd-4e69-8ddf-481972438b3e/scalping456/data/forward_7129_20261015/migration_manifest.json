@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "recorded_bkk": "2026-10-15T14:43:13.830335+07:00",
+  "profiles": {
+    "demo-iux-2101182459": {
+      "active_portfolios": [
+        "LTS_AHR2"
+      ],
+      "heartbeat": {
+        "ts": "1792049358",
+        "bkk": "2026-10-15 14:29:23",
+        "mt5_ok": "1",
+        "auto": "1",
+        "last_scan": "1792049337",
+        "pid": "38576"
+      },
+      "own_state_exists": true,
+      "env_sha256": "fd4eb081593cb956a6abf9989ec486633027ee9dc0af3dcdee2deaa8cdfcad8c"
+    },
+    "demo-exness-434237129": {
+      "active_portfolios": [
+        "INDI1",
+        "EA2_1",
+        "SCALPING456"
+      ],
+      "heartbeat": {
+        "ts": "1792050185",
+        "bkk": "2026-10-15 14:43:05",
+        "mt5_ok": "1",
+        "auto": "1",
+        "last_scan": "1792050182",
+        "pid": "41428"
+      },
+      "own_state_exists": false,
+      "env_sha256": "6b0d5180b15d9a4ad226dade6e6f2f92aaff54a71dc32049ffce383a941bf09b"
+    }
+  },
+  "monitor": {
+    "id": "scalping456-demo-2459-3",
+    "status": "PAUSED",
+    "target_thread_id": "01a119a9-0064-7333-9fe0-61618b65cbc7"
+  },
+  "code_sha256": {
+    "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+    "demo_portfolio.py": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+    "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+    "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee",
+    "test_demo_scalping456.py": "90f6a0eda74308f640f334754759f3d46e085f6c66eb5f80b71b6d3a6c566fa7",
+    "test_demo_restart_control.py": "7b380bad9349b48807c8e9c0bb8b3521b0d7ced2fec7b17e56fe918981d41f2a"
+  },
+  "status": "PREPARED_AWAITING_FULL_7129_SUPERVISOR_RESTART",
+  "authorization": "User requested stop monitor and move Scalping456 from profile 2459 to 7129",
+  "source_profile": "demo-iux-2101182459",
+  "destination_profile": "demo-exness-434237129",
+  "source_mode": "drain_only_no_new_entries",
+  "destination_identity": {
+    "login": 434237129,
+    "server": "Exness-MT5Trial7",
+    "symbol": "XAUUSDm",
+    "demo": true,
+    "hedging": true,
+    "currency": "USD"
+  },
+  "strategy": {
+    "key": "SCALPING456",
+    "magic": 995456,
+    "fixed_lot": 0.01,
+    "entry_distance": 1.3,
+    "initial_stop": 1,
+    "tp": 0,
+    "trail_activation_strictly_above": 0.2,
+    "trail_distance": 0.2,
+    "trail_improvement_strictly_above": 0.01,
+    "first_seen_delay_s": 0.9,
+    "modify_interval_s": 0.27,
+    "max_own_positions_plus_pending": 3,
+    "new_entry_daily_net_loss_gate_usd": -20
+  },
+  "native_read_only_preflight": {
+    "result": "PASS",
+    "exact_running_terminal_checked_before_initialize": true,
+    "account_server_demo_hedging_path_checked": true,
+    "symbol_visible": true,
+    "price_quantum": 0.001,
+    "minimum_stop_distance": 0,
+    "freeze_distance": 0,
+    "contract_size": 100,
+    "volume_min": 0.01,
+    "volume_step": 0.01,
+    "latest_positions_total": 0,
+    "latest_pending_total": 8,
+    "own_positions": 0,
+    "own_pending": 0,
+    "magic_collision": false
+  },
+  "activation_evidence": {
+    "target_running_main_pid": 41428,
+    "target_supervisor_pid": 36444,
+    "supervisor_created_bkk": "2026-10-15T14:37:14.752434+07:00",
+    "latest_persisted_runtime_flags_observed_bkk": "2026-10-15T14:43:45.2698966+07:00",
+    "runtime_flags": {
+      "INDI1": true,
+      "EA2_1": true,
+      "SCALPING456": false
+    },
+    "scalping456_target_state_exists": false,
+    "live_execution_verified": false,
+    "required_action": "Stop and start destination profile run/run_supervised.bat to reload supervisor environment and code; do not use a child-only restart."
+  },
+  "verification": {
+    "mock_unittest_count": 52,
+    "mock_unittest_result": "PASS",
+    "legacy_demo_manager_cases": 10,
+    "legacy_demo_manager_result": "PASS",
+    "python_compile": "PASS",
+    "scoped_utf8_lf_mojibake_files": 9,
+    "scoped_utf8_lf_mojibake": "PASS",
+    "git_diff_check": "PASS",
+    "verify_repo": "Not completed: repository-wide checker exceeded bounded 45s; only its two orphan checker processes were stopped, no trading process touched."
+  },
+  "safety": {
+    "trading_process_restarted_by_this_task": false,
+    "broker_orders_sent_by_this_task": false,
+    "foreign_orders_modified": false,
+    "state_copied_between_accounts": false,
+    "new_monitor_created": false,
+    "other_automations_modified": false
+  },
+  "historical_monitor_ledger": "data/forward_2459_20261015/monitor_3_orders_state.json",
+  "note": "Experimental adapter only. Not a verified original EA clone or profitability certification."
+}

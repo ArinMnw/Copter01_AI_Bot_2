@@ -1,0 +1,432 @@
+"""Experimental demo-only broker adapter; no historical regimes or feed offsets.
+
+Owns only MAGIC + SYMBOL. Native pending stops and protective SL stay at the
+broker; actual fills/latency are observed, never synthesized from the simulator.
+"""
+
+import json
+import math
+import os
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
+from pathlib import Path
+
+
+KEY = "SCALPING456"
+MAGIC = 995456
+PROFILE = "demo-iux-2101182459"
+LOGIN = 2101182459
+SERVER = "IUXMarkets-Demo"
+SYMBOL = "XAUUSD.iux"
+ENTRY_PROFILE = "demo-exness-434237129"
+BKK = timezone(timedelta(hours=7))
+
+
+@dataclass(frozen=True)
+class Target:
+    login: int
+    server: str
+    symbol: str
+
+
+# The old profile remains supported for draining only. Never copy its state.
+TARGETS = {
+    PROFILE: Target(LOGIN, SERVER, SYMBOL),
+    ENTRY_PROFILE: Target(434237129, "Exness-MT5Trial7", "XAUUSDm"),
+}
+
+
+def target_for(profile_dir):
+    target = TARGETS.get(Path(profile_dir).name)
+    if target is None:
+        raise RuntimeError("Scalping456 profile is not allowlisted")
+    return target
+
+
+@dataclass(frozen=True)
+class Params:
+    lot: float = .01
+    entry_distance: float = 1.30  # latest decoded E4 candidate, not an account-wide lot regime
+    initial_stop: float = 1.0
+    trail_activation: float = .20
+    trail_distance: float = .20
+    trail_step: float = .01
+    reaction_seconds: float = 0.0  # E4: re-arm on the first observed close, no synthetic latency
+    modify_interval: float = .270
+    first_trail_delay: float = .900
+    max_exposure_slots: int = 3  # own positions + potentially filled pending
+    daily_net_loss_limit: float = 20.0  # new-entry gate, not forced liquidation
+
+    def __post_init__(self):
+        values = (self.lot, self.entry_distance, self.initial_stop, self.trail_activation,
+                  self.trail_distance, self.trail_step,
+                  self.modify_interval, self.first_trail_delay, self.daily_net_loss_limit)
+        if (any(not math.isfinite(v) or v <= 0 for v in values) or self.max_exposure_slots < 2
+                or not math.isfinite(self.reaction_seconds) or self.reaction_seconds < 0):
+            raise ValueError("Invalid forward risk/execution parameters")
+
+
+def preflight(broker, profile_dir, params=Params()):
+    """Read-only identity/spec/book checks; never initialize/login/select/send."""
+    profile_dir = Path(profile_dir).resolve()
+    target = target_for(profile_dir)
+    account, terminal = broker.account_info(), broker.terminal_info()
+    if (account is None or terminal is None
+            or account.login != target.login or account.server != target.server
+            or account.trade_mode != broker.ACCOUNT_TRADE_MODE_DEMO
+            or account.margin_mode != broker.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING
+            or Path(terminal.path).resolve() != (profile_dir / "mt5").resolve()
+            or not terminal.connected):
+        raise RuntimeError("Scalping456 demo account/server/hedging/path guard rejected")
+    info = broker.symbol_info(target.symbol)
+    if info is None or not info.visible:
+        raise RuntimeError("Scalping456 configured gold symbol unavailable/hidden")
+    quantum = float(info.trade_tick_size or info.point)
+    minimum = float(info.trade_stops_level) * float(info.point)
+    freeze = float(info.trade_freeze_level) * float(info.point)
+    if (quantum <= 0 or params.lot < info.volume_min - 1e-9 or params.lot > info.volume_max + 1e-9
+            or abs(params.lot / info.volume_step - round(params.lot / info.volume_step)) > 1e-7
+            or minimum > min(params.entry_distance, params.initial_stop, params.trail_distance) + 1e-9):
+        raise RuntimeError("Scalping456 fixed parameters incompatible with broker specs")
+    return account, terminal, info, quantum, max(minimum, freeze)
+
+
+class ForwardScalper:
+    def __init__(self, broker, profile_dir, params=Params(), clock=time.monotonic):
+        self.broker, self.directory, self.params, self.clock = broker, Path(profile_dir), params, clock
+        self.target = target_for(self.directory)
+        self.symbol = self.target.symbol
+        self.path = self.directory / "scalping456_state.json"
+        self.journal = self.directory / "logs/scalping456_events.jsonl"
+        self.state = {"version": 1, "magic": MAGIC, "login": self.target.login, "symbol": self.symbol,
+                      "phase": "idle", "known_positions": {}, "pending_closes": {},
+                      "closed_positions": {}, "daily_net": {}, "cycles": 0, "last_error": "", "rearm_requested": True}
+        if self.path.exists():
+            self.state = json.loads(self.path.read_text(encoding="utf-8"))
+            if (self.state.get("version") != 1 or self.state.get("magic") != MAGIC
+                    or self.state.get("login") != self.target.login or self.state.get("symbol") != self.symbol):
+                raise RuntimeError("Scalping456 state identity mismatch")
+            if self.state["phase"] in ("submitting", "arming"):
+                self.state.update(phase="halted", last_error="Restart after unacknowledged trade intent; review journal")
+        self.last_tick = None
+        self.tick_changed_at = self.clock()
+        self.live_tick_seen = False
+        self.due = self.clock() + params.reaction_seconds
+        self.first_seen, self.last_modify = {}, {}
+        self._lock = None
+        self.state.setdefault("known_orders", {})
+        if not self.state.get("journal_orders_recovered"):
+            # One-time migration also catches native fills/exits missed between polls.
+            last_request = {}
+            if self.journal.exists():
+                for line in self.journal.read_text(encoding="utf-8").splitlines():
+                    event = json.loads(line)
+                    if event.get("event") == "request":
+                        last_request = event.get("request", {})
+                    elif (event.get("event") == "response" and event.get("order")
+                          and last_request.get("action") == broker.TRADE_ACTION_PENDING
+                          and event.get("retcode") in (broker.TRADE_RETCODE_DONE, broker.TRADE_RETCODE_PLACED)):
+                        self.state["known_orders"][str(event["order"])] = True
+            self.state["journal_orders_recovered"] = True
+
+    def _acquire(self):
+        if self._lock is not None:
+            return
+        lock = (self.directory / "scalping456.lock").open("a+b")
+        if os.name == "nt":
+            import msvcrt
+            try:
+                # Do not read the already locked byte: Windows denies that read.
+                if os.fstat(lock.fileno()).st_size == 0:
+                    lock.write(b"0"); lock.flush()
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                lock.close()
+                raise RuntimeError("Another Scalping456 runner owns this profile")
+        else:
+            import fcntl
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                lock.close()
+                raise RuntimeError("Another Scalping456 runner owns this profile")
+        self._lock = lock
+
+    def close(self):
+        if self._lock is not None:
+            self._lock.close()
+            self._lock = None
+
+    def _save(self):
+        tmp = self.path.with_suffix(f".json.{os.getpid()}.tmp")
+        with tmp.open("w", encoding="utf-8", newline="\n") as handle:
+            json.dump(self.state, handle, ensure_ascii=False, allow_nan=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, self.path)
+
+    def _event(self, event, **fields):
+        self.journal.parent.mkdir(parents=True, exist_ok=True)
+        with self.journal.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps({"bkk": datetime.now(BKK).isoformat(), "event": event, "magic": MAGIC,
+                                    "last_observed_quote": getattr(self, "latest_quote", None), **fields},
+                                    ensure_ascii=False, allow_nan=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    def _book(self):
+        positions, orders = self.broker.positions_get(), self.broker.orders_get()
+        if positions is None or orders is None:
+            raise RuntimeError("Scalping456 broker snapshot unavailable; no new orders")
+        if any(p.magic == MAGIC and p.symbol != self.symbol for p in (*positions, *orders)):
+            raise RuntimeError("Scalping456 magic collision on another symbol")
+        return ([p for p in positions if p.magic == MAGIC and p.symbol == self.symbol],
+                [o for o in orders if o.magic == MAGIC and o.symbol == self.symbol], len(orders))
+
+    def _send(self, request, creates_order=False):
+        account, terminal, _, _, _ = preflight(self.broker, self.directory, self.params)
+        if not account.trade_allowed or not terminal.trade_allowed:
+            return False
+        b = self.broker
+        if request.get("magic") != MAGIC or request.get("symbol") != self.symbol:
+            raise RuntimeError("Refuse foreign trade request")
+        if request["action"] not in (b.TRADE_ACTION_PENDING, b.TRADE_ACTION_REMOVE, b.TRADE_ACTION_SLTP):
+            raise RuntimeError("Market open/close is not authorized in this adapter")
+        creates_order = request["action"] == b.TRADE_ACTION_PENDING
+        if request["action"] in (b.TRADE_ACTION_REMOVE, b.TRADE_ACTION_SLTP):
+            positions, orders, _ = self._book()
+            target = request.get("order") if request["action"] == b.TRADE_ACTION_REMOVE else request.get("position")
+            if target not in {p.ticket for p in (orders if request["action"] == b.TRADE_ACTION_REMOVE else positions)}:
+                return False
+        if creates_order:
+            if (request.get("type") not in (b.ORDER_TYPE_BUY_STOP, b.ORDER_TYPE_SELL_STOP)
+                    or request.get("volume") != self.params.lot or not request.get("sl")):
+                raise RuntimeError("Invalid protected fixed-lot pending intent")
+            self.state["phase"] = "submitting"
+            self._save()  # durable intent BEFORE side effect; restart cannot blindly resubmit
+        self._event("request", request=request)
+        try:
+            sent_at = self.clock()
+            result = b.order_send(request)
+        except Exception as exc:
+            self.state.update(phase="halted", last_error=f"Uncertain order_send: {type(exc).__name__}")
+            self._save()
+            self._event("uncertain", action=request["action"])
+            return False
+        if result is None:
+            self.state.update(phase="halted", last_error="Uncertain empty broker acknowledgement; manual review required")
+            self._save()
+            self._event("uncertain", action=request["action"])
+            return False
+        ok = result.retcode in (b.TRADE_RETCODE_DONE, b.TRADE_RETCODE_PLACED, b.TRADE_RETCODE_NO_CHANGES)
+        if creates_order and ok and not getattr(result, "order", 0):
+            self.state.update(phase="halted", last_error="Successful pending response without ticket")
+            self._save()
+            return False
+        self._event("response", retcode=result.retcode, order=getattr(result, "order", 0),
+                    elapsed_ms=(self.clock() - sent_at) * 1000, comment=str(getattr(result, "comment", "")))
+        if creates_order:
+            if ok:
+                self.state["known_orders"][str(result.order)] = True
+            self.state.update(phase="arming" if ok else "cooldown", last_error="" if ok else f"Pending rejected {result.retcode}")
+            self._save()
+        return ok
+
+    def _cancel(self, orders):
+        ok = True
+        for o in orders:
+            ok = self._send({"action": self.broker.TRADE_ACTION_REMOVE, "order": o.ticket, "symbol": self.symbol, "magic": MAGIC}) and ok
+        return ok
+
+    def _resolve_closes(self):
+        b = self.broker
+        confirmed_new_close = False
+        for ticket, saved in list(self.state["pending_closes"].items()):
+            deals = b.history_deals_get(position=saved["identifier"])
+            if deals is None:
+                continue
+            # Broker/manual closing deals may carry magic=0. The position identifier
+            # was captured only from an owned position; never attribute by symbol alone.
+            own = [d for d in deals if d.symbol == self.symbol and d.position_id == saved["identifier"]]
+            if not any(d.entry in (b.DEAL_ENTRY_OUT, b.DEAL_ENTRY_OUT_BY) for d in own):
+                continue
+            net = sum(float(d.profit) + float(d.commission) + float(d.swap) + float(getattr(d, "fee", 0)) for d in own)
+            if ticket not in self.state["closed_positions"]:
+                day = datetime.now(BKK).date().isoformat()
+                self.state["daily_net"][day] = self.state["daily_net"].get(day, 0) + net
+                self.state["closed_positions"][ticket] = net
+                confirmed_new_close = True
+                self._event("closed", ticket=int(ticket), net_including_costs=net)
+            del self.state["pending_closes"][ticket]
+            self._save()
+        return confirmed_new_close
+
+    def _resolve_orders(self, positions, orders):
+        """Native pending can fill and stop before positions_get ever sees it."""
+        b = self.broker
+        live_orders = {str(o.ticket) for o in orders}
+        live_positions = {int(getattr(p, "identifier", p.ticket)) for p in positions}
+        changed = False
+        for ticket in live_orders:
+            if ticket not in self.state["known_orders"]:
+                self.state["known_orders"][ticket] = True
+                changed = True
+        for ticket in list(self.state["known_orders"]):
+            if ticket in live_orders:
+                continue
+            history = b.history_orders_get(ticket=int(ticket))
+            if history is None or not history:
+                continue  # unknown is not a cancelled order; do not re-submit
+            order = next((o for o in history if o.ticket == int(ticket) and o.magic == MAGIC and o.symbol == self.symbol), None)
+            if order is None:
+                raise RuntimeError("Scalping456 order history identity mismatch")
+            if order.state == b.ORDER_STATE_FILLED:
+                identity = int(order.position_id or order.ticket)
+                if identity not in live_positions:
+                    self.state["pending_closes"].setdefault(str(identity), {"identifier": identity})
+                self._event("pending_fill_history", order=int(ticket), position_identifier=identity)
+            elif order.state not in (b.ORDER_STATE_CANCELED, b.ORDER_STATE_EXPIRED, b.ORDER_STATE_REJECTED):
+                continue
+            del self.state["known_orders"][ticket]
+            changed = True
+        if changed:
+            self._save()
+
+    @staticmethod
+    def _price(value, quantum, up=False):
+        d, q = Decimal(str(value)), Decimal(str(quantum))
+        return float((d / q).to_integral_value(rounding=ROUND_CEILING if up else ROUND_FLOOR) * q)
+
+    def step(self, active):
+        self._acquire()
+        if self.state["phase"] in ("submitting", "arming"):
+            self.state.update(phase="halted", last_error="Incomplete pair/acknowledgement; review journal")
+            self._save()
+        account, terminal, info, quantum, stop_guard = preflight(self.broker, self.directory, self.params)
+        positions, orders, total_orders = self._book()
+        now, b, p = self.clock(), self.broker, self.params
+        current = {str(v.ticket): {"identifier": int(getattr(v, "identifier", v.ticket))} for v in positions}
+        live_identifiers = {v["identifier"] for v in current.values()}
+        for ticket, value in list(self.state["pending_closes"].items()):
+            if value["identifier"] in live_identifiers:
+                del self.state["pending_closes"][ticket]
+        known = self.state["known_positions"]
+        vanished = set(known) - set(current)
+        for ticket in vanished:
+            self.state["pending_closes"][ticket] = known[ticket]
+            self.first_seen.pop(ticket, None)
+            self.last_modify.pop(ticket, None)
+        for ticket in current:
+            self.state["pending_closes"].pop(ticket, None)
+            if ticket not in known:
+                self.first_seen[ticket] = now
+                live = next(v for v in positions if str(v.ticket) == ticket)
+                self._event("fill_seen", ticket=int(ticket), side=int(live.type), volume=float(live.volume),
+                            price=float(live.price_open), sl=float(live.sl), tp=float(live.tp),
+                            broker_open_time_msc=int(getattr(live, "time_msc", 0)))
+        if known != current:
+            self.state["known_positions"] = current
+            self._save()
+        self._resolve_orders(positions, orders)
+        history_closed = self._resolve_closes()
+        if vanished or history_closed:
+            self._cancel(orders)
+            self.due = now + p.reaction_seconds
+            self.state["rearm_requested"] = True
+            self._save()
+            positions, orders, total_orders = self._book()
+        day = datetime.now(BKK).date().isoformat()
+        loss_paused = self.state["daily_net"].get(day, 0) <= -p.daily_net_loss_limit
+        if not active or self.state["phase"] == "halted" or loss_paused:
+            self._cancel(orders)
+            orders = []
+        tick = b.symbol_info_tick(self.symbol)
+        if tick is None or not all(math.isfinite(v) and v > 0 for v in (tick.bid, tick.ask)) or tick.ask < tick.bid:
+            return
+        tick_ms = int(tick.time_msc)
+        self.latest_quote = {"broker_time_msc": tick_ms, "bid": float(tick.bid), "ask": float(tick.ask)}
+        if self.last_tick is not None and tick_ms > self.last_tick:
+            self.live_tick_seen = True
+            self.tick_changed_at = now
+        elif self.last_tick is not None and tick_ms < self.last_tick:
+            self.live_tick_seen = False
+        self.last_tick = tick_ms
+        fresh = self.live_tick_seen and now - self.tick_changed_at <= 3
+        if not fresh:
+            return  # observed live updates, not an assumed broker UTC offset
+        # Keep protection for owned positions even when opening new cycles is OFF.
+        for pos in positions:
+            ticket = str(pos.ticket)
+            first_seen = self.first_seen.setdefault(ticket, now)
+            if now - first_seen < p.first_trail_delay or now - self.last_modify.get(ticket, -1000) < p.modify_interval:
+                continue
+            buy = pos.type == b.ORDER_TYPE_BUY
+            quote = tick.bid if buy else tick.ask
+            if pos.sl <= 0:
+                candidate = pos.price_open - p.initial_stop if buy else pos.price_open + p.initial_stop
+            elif (quote - pos.price_open if buy else pos.price_open - quote) > p.trail_activation:
+                candidate = quote - p.trail_distance if buy else quote + p.trail_distance
+            else:
+                continue
+            candidate = self._price(candidate, quantum, up=not buy)
+            valid = candidate <= tick.bid - max(stop_guard, quantum) + 1e-9 if buy else candidate >= tick.ask + max(stop_guard, quantum) - 1e-9
+            improves = pos.sl <= 0 or (candidate > pos.sl + p.trail_step + 1e-9 if buy else candidate < pos.sl - p.trail_step - 1e-9)
+            if valid and improves:
+                self.last_modify[ticket] = now
+                self._send({"action": b.TRADE_ACTION_SLTP, "position": pos.ticket, "symbol": self.symbol, "magic": MAGIC,
+                            "sl": candidate, "tp": float(pos.tp)})
+            elif pos.sl <= 0:
+                self.state.update(phase="halted", last_error=f"Owned position {pos.ticket} lacks a placeable protective SL; review required")
+                self._save()
+                self._event("unprotected_position", ticket=pos.ticket)
+        if (not active or self.state["phase"] == "halted" or self.state["pending_closes"]
+                or self.state["daily_net"].get(day, 0) <= -p.daily_net_loss_limit or now < self.due):
+            return
+        # Re-read before placing a pair; cancellations can race with native fills.
+        positions, orders, total_orders = self._book()
+        if orders or self.state["known_orders"] or len(positions) + 2 > p.max_exposure_slots:
+            return
+        # No close => do not continuously add pairs beside the remaining position.
+        if positions and not self.state.get("rearm_requested", False):
+            return
+        if (not account.trade_allowed or not terminal.trade_allowed or info.trade_mode != b.SYMBOL_TRADE_MODE_FULL
+                or (account.limit_orders and total_orders + 2 > account.limit_orders - 1)):
+            return
+        if self.state["phase"] == "cooldown" and now < self.due:
+            return
+        buy_level = self._price(tick.ask + p.entry_distance, quantum, up=True)
+        sell_level = self._price(tick.bid - p.entry_distance, quantum)
+        for is_buy, level in ((True, buy_level), (False, sell_level)):
+            stop = self._price(level - p.initial_stop if is_buy else level + p.initial_stop, quantum, up=not is_buy)
+            request = {"action": b.TRADE_ACTION_PENDING, "symbol": self.symbol, "magic": MAGIC, "volume": p.lot,
+                       "type": b.ORDER_TYPE_BUY_STOP if is_buy else b.ORDER_TYPE_SELL_STOP,
+                       "price": level, "sl": stop, "tp": 0.0, "type_time": b.ORDER_TIME_GTC,
+                       "type_filling": b.ORDER_FILLING_RETURN, "comment": "M1_S21_S456_B" if is_buy else "M1_S21_S456_S"}
+            if not self._send(request, creates_order=True):
+                _, remaining, _ = self._book()
+                self._cancel(remaining)
+                self.due = now + 30
+                return
+        self.state["cycles"] += 1
+        self.state["rearm_requested"] = False
+        self.state["phase"] = "working"
+        self._save()
+
+
+def status_text(profile_dir, active):
+    if Path(profile_dir).name not in TARGETS:
+        return "Scalping456: unavailable on this profile (demo allowlist only)"
+    target = target_for(profile_dir)
+    active = bool(active and Path(profile_dir).name == ENTRY_PROFILE)
+    path = Path(profile_dir) / "scalping456_state.json"
+    state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    return (f"Scalping456 experimental demo\nสถานะ: {'🟢 ON' if active else '🔴 OFF'}\n"
+            f"{target.symbol} | Magic {MAGIC} | fixed lot 0.01\nEntry 1.30 / SL 1.00 / trail 0.20 | max own exposure 3\n"
+            f"Entry pause at daily net loss $20; existing positions remain protected\n"
+            f"Cycles: {state.get('cycles', 0)} | phase: {state.get('phase', 'not started')}\n"
+            f"Error: {state.get('last_error') or '-'}\nNot a verified 100% clone; no Vantage quote offsets")
+

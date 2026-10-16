@@ -11,6 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from config import *
 import config
+from demo_scalping456 import TARGETS as SCALPING456_TARGETS
 from config import wrap_bot
 from scanner import auto_scan
 from trailing import (check_entry_candle_quality, check_engulf_trail_sl, check_ea2_trail, check_ea2_1_trail,
@@ -192,6 +193,10 @@ def main():
     app.add_error_handler(_handle_app_error)
 
     scheduler = AsyncIOScheduler()
+    if getattr(config, "BOT_PROFILE", "") in SCALPING456_TARGETS:
+        from demo_restart_control import install_restart_control
+        install_restart_control(app, scheduler, mt5, config.PROFILE_DIR,
+                                config.BOT_PROFILE, config.save_runtime_state, log_event)
 
     async def run_scan():
         try:
@@ -264,6 +269,24 @@ def main():
             config.last_scan_ts = _time.time()
         except Exception as e:
             await _tg_error(app, "run_demo_portfolio_scan", e)
+
+    async def run_scalping456_tick():
+        try:
+            import demo_portfolio
+            await demo_portfolio.demo_scalping456_tick_job(app)
+        except Exception as e:
+            await _tg_error(app, "run_scalping456_tick", e)
+
+    async def run_ea2_1_demo_scan():
+        if not config.DEMO_PORTFOLIO_ACTIVE.get("EA2_1", False):
+            return
+        try:
+            from mt5_utils import connect_mt5
+            if connect_mt5():
+                import demo_portfolio
+                await demo_portfolio.demo_scan(app, "EA2_1")
+        except Exception as e:
+            log_error("EA2_1_DEMO", f"{type(e).__name__}: {e}", sid=config.EA2_1_SID)
 
     async def run_s20gen_fast_scan():
         """กลุ่ม S20-Gen Forward Demo (64 ตัว, ดู strategy_s20gen_live.py) — สแกนถี่กว่า
@@ -527,13 +550,21 @@ def main():
 
     async def run_ea2_1_trail():
         """Fast EA2.1 manager, isolated by SID and magic number."""
-        if not config.auto_active or not config.active_strategies.get(config.EA2_1_SID, False):
+        demo_enabled = config.DEMO_PORTFOLIO_ACTIVE.get("EA2_1", False)
+        if not config.auto_active or not (demo_enabled or config.active_strategies.get(config.EA2_1_SID, False)):
             return
         from mt5_utils import connect_mt5
         if not connect_mt5():
             return
         try:
-            await check_ea2_1_trail(app)
+            if demo_enabled:
+                from demo_ea2_1 import demo_account_allowed
+                from demo_portfolio import _demo_symbol
+                if not demo_account_allowed(mt5.account_info()):
+                    return
+                await check_ea2_1_trail(app, symbol=_demo_symbol(), enabled=True)
+            else:
+                await check_ea2_1_trail(app)
         except Exception as e:
             log_error("EA2_1_TRAIL", f"{type(e).__name__}: {e}", sid=config.EA2_1_SID)
 
@@ -760,6 +791,15 @@ def main():
         next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(max(1, config.DEMO_PORTFOLIO_SCAN_INTERVAL * 60)))
     )
 
+    if getattr(config, "BOT_PROFILE", "") in SCALPING456_TARGETS:
+        scheduler.add_job(
+            run_scalping456_tick, 'interval',
+            seconds=config.SCALPING456_SCAN_INTERVAL_SEC,
+            id="scalping456_tick_job", max_instances=1, coalesce=True,
+            misfire_grace_time=1,
+            next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=5),
+        )
+
     # S20-Gen Forward Demo (64 ตัว) — scan job แยกที่ไวกว่า (ดู run_s20gen_fast_scan()
     # ด้านบน) no-op เองถ้าไม่มี S20G_* ตัวไหน active (ดู demo_scan_job_s20gen)
     scheduler.add_job(
@@ -771,6 +811,12 @@ def main():
         coalesce=True,
         misfire_grace_time=10,
         next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=_stagger_seconds(config.S20GEN_SCAN_INTERVAL_SEC))
+    )
+    scheduler.add_job(
+        run_ea2_1_demo_scan, 'interval', seconds=5,
+        id="ea2_1_demo_scan_job", max_instances=1, coalesce=True,
+        misfire_grace_time=5,
+        next_run_time=datetime.now(_tz2.utc) + timedelta(seconds=3),
     )
 
     scheduler.add_job(
@@ -915,7 +961,9 @@ def main():
 
         import news_filter
         import asyncio
-        asyncio.create_task(news_filter.fetch_news_loop(application))
+        news_task = asyncio.create_task(news_filter.fetch_news_loop(application))
+        if getattr(config, "BOT_PROFILE", "") in SCALPING456_TARGETS:
+            application.bot_data["news_fetch_task"] = news_task
 
         # แจ้ง MT5 connection status ตอน start
         from mt5_utils import connect_mt5
@@ -1036,4 +1084,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        if getattr(config, "BOT_PROFILE", "") in SCALPING456_TARGETS:
+            mt5.stop_worker()

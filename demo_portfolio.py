@@ -29,6 +29,7 @@ save/restore ผ่าน bot_state.json อยู่แล้ว (ของเ�
 
 import asyncio
 import json
+import math
 import os
 import threading
 import time
@@ -91,6 +92,7 @@ AF_MAGIC_BASE = 991000  # AF22=991022, AF34=991034, AF47=991047
 LTS_MAGIC_BASE = 992000  # LTS44=992044, LTS890=992890, LTS999=992999
 S20GEN_MAGIC_BASE = 993000  # S20G_<sid>_<tf> -> 993000 + idx คงที่ (ดู strategy_s20gen_live.py)
 INDI1_MAGIC = 994001  # Indi1 (3 เส้น H1 + M5, ดู strategy_indi1_live.py) — ไม่ชน base อื่นข้างบน
+SCALPING456_MAGIC = 995456
 # LTS_AVENGERS_* ใช้ชื่อไม่ใช่เลข — เลี่ยง int() parse fail ใน _portfolio_magic()
 # ตั้ง magic ต่ำกว่า LTS44 (992044) เพื่อไม่ชนกับ LTS ตัวเลขใดๆ ที่มีอยู่/จะมีในอนาคต
 _LTS_NAMED_MAGIC = {
@@ -329,6 +331,7 @@ S420_KEYS = ["J_M1", "J_M5", "J_M15", "J_M30", "J_H1"]
 S421_KEYS = ["O_M1", "O_M5", "O_M15", "O_M30", "O_H1"]
 
 PORTFOLIOS = {
+    "EA2_1": ["M5_M15"],
     "P13": P13_KEYS, "P16": P16_KEYS, "P18": P18_KEYS,
     "S101": ["T"], "S102": ["U"], "S105": ["V"], "S106": ["W"], "S111": ["X"],
     "S420": S420_KEYS, "S421": S421_KEYS, "S422": ["Y"],
@@ -338,8 +341,10 @@ PORTFOLIOS = {
     "S434": ["S434_H1", "S434_H4", "S434_H12", "S434_D1"],
     **AF_PORTFOLIO_LEGS, **LTS_PORTFOLIO_LEGS,
     "INDI1": [INDI1.INDI1_LEG],
+    "SCALPING456": ["TICK"],
 }
 PORTFOLIO_DISPLAY_NAME = {
+    "EA2_1": "EA2.1 M5/M15",
     "P13": "🏆 Champion (P13)",
     "P16": "💰 Max-Yield (P16)",
     "P18": "👑 18-Way Hybrid",
@@ -374,11 +379,13 @@ PORTFOLIO_DISPLAY_NAME = {
     "LTS_EVOLUTION9": "🧬 LTS_EVOLUTION9",
     "LTS_SCREEN13": "📐 LTS_SCREEN13",
     "INDI1": "📈 INDI1 3-Line H1+M5",
+    "SCALPING456": "🧪 Scalping456 Gold Tick (demo)",
     **{leg["key"]: (f'🧪 S20.{leg["sid"]} {leg["name"][:28]} ({leg["tf"]})' if leg["cat"] == "WINNER"
                     else f'🧫 S20.{leg["sid"]} {leg["name"][:28]} ({leg["tf"]})')
        for leg in S20GEN.S20GEN_DEFS.values() if leg["enabled"]},
 }
 PORTFOLIO_ORDER = (
+    "EA2_1",
     "P13", "P16", "P18",
     "AF22", "AF34", "AF47",
     "LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34",
@@ -391,9 +398,11 @@ PORTFOLIO_ORDER = (
     # ถูกสแกน/เทรดจริงเลยสักครั้งตั้งแต่สร้างมา (ไม่มีใครกดเปิดจน 2026-08-10 ถึงเจอ)
     "LTS_EVOLUTION9", "LTS_SCREEN13",
     "INDI1",
+    "SCALPING456",
 ) + tuple(S20GEN.S20GEN_ENABLED_KEYS)
 
 DEMO_GROUPS = {
+    "EA": {"title": "EA Strategies", "keys": ["EA2_1"]},
     "AF": {"title": "🎯 AF Auto-Ladder", "keys": ["AF22", "AF34", "AF47"]},
     "P": {"title": "🏆 P Lean Blend", "keys": ["P13", "P16", "P18"]},
     "LTS": {"title": "🧠 LTS Avengers", "keys": ["LTS44", "LTS890", "LTS999", "LTS_AVENGERS_BASE", "LTS_AVENGERS_P34", "LTS_AVENGERS_HIGH_RISK", "LTS_AHR2", "LTS_AHR3", "LTS_AVENGERS_ULTRA_SAFE", "LTS_AUS2", "LTS_AUS3", "LTS_AVENGERS_HIGH_FREQ", "LTS_EVOLUTION9", "LTS_SCREEN13"]},
@@ -404,6 +413,7 @@ DEMO_GROUPS = {
     "434": {"title": "📊 S434 Breakout Probability", "keys": ["S434"]},
     "S20G": {"title": "🧪 S20-Gen Forward Demo (64)", "keys": list(S20GEN.S20GEN_ENABLED_KEYS)},
     "INDI1": {"title": "📈 INDI1 3-Line H1+M5", "keys": ["INDI1"]},
+    "SCALPING456": {"title": "🧪 Scalping456 Forward", "keys": ["SCALPING456"]},
 }
 
 
@@ -412,6 +422,8 @@ def _now_bkk():
 
 
 def _portfolio_magic(portfolio_name: str) -> int:
+    if portfolio_name == "EA2_1":
+        return config.EA2_1_MAGIC_NUMBER
     if portfolio_name in _LTS_NAMED_MAGIC:
         return _LTS_NAMED_MAGIC[portfolio_name]
     if portfolio_name.startswith("LTS"):
@@ -420,6 +432,8 @@ def _portfolio_magic(portfolio_name: str) -> int:
         return AF_MAGIC_BASE + int(portfolio_name[2:])
     if portfolio_name == "INDI1":
         return INDI1_MAGIC
+    if portfolio_name == "SCALPING456":
+        return SCALPING456_MAGIC
     if portfolio_name.startswith("S20G_"):
         return S20GEN_MAGIC_BASE + S20GEN.S20GEN_DEFS[portfolio_name]["idx"]
     return MAGIC_BASE + int(portfolio_name[1:])
@@ -659,7 +673,8 @@ def _af_order_volume(af_def, portfolio_name, tf=None, signal=None):
     return volume, {"weighted": True, "weight": weight, "scale": scale, "raw_volume": raw_volume}
 
 
-def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original_entry=0.0, anchor_sl_tp=False):
+def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original_entry=0.0, anchor_sl_tp=False,
+                        max_spread_points=None):
     """วางออเดอร์ตรงๆ ผ่าน mt5.order_send() — ไม่ผ่าน mt5_utils.open_order_market() เพื่อเลี่ยง
     ML_SCORING_ENABLED / SCALE_OUT_ENABLED ที่เป็น global toggle ของบอทเดิม (ดู docstring บนไฟล์)"""
     symbol = _demo_symbol()
@@ -698,6 +713,25 @@ def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original
             return {"success": False, "error": f"margin not enough: need {float(margin):.2f}, free {free_margin:.2f}", "sl": sl, "tp": tp}
     except Exception:
         pass
+    if max_spread_points is not None:
+        # Opt-in for EA2.1 only: use a fresh quote at the actual send boundary.
+        fresh = mt5.symbol_info_tick(symbol)
+        point = float(getattr(info, "point", 0) or 0)
+        if (fresh is None or not math.isfinite(point) or point <= 0
+                or not math.isfinite(float(fresh.ask)) or not math.isfinite(float(fresh.bid))
+                or fresh.ask < fresh.bid or fresh.bid <= 0):
+            return {"success": False, "error": "execution quote unavailable"}
+        spread = (float(fresh.ask) - float(fresh.bid)) / point
+        if float(max_spread_points) > 0 and spread > float(max_spread_points) + 1e-8:
+            return {"success": False, "error": "execution spread exceeds cap", "spread_points": spread}
+        fresh_price = float(fresh.ask if signal == "BUY" else fresh.bid)
+        if not anchor_sl_tp:
+            sl += fresh_price - price
+            if tp > 0:
+                tp += fresh_price - price
+        price = fresh_price
+        sl = round(sl, int(info.digits))
+        tp = round(tp, int(info.digits))
     result = mt5.order_send({
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
@@ -713,10 +747,11 @@ def _place_market_order(signal, sl, tp, comment, magic, volume=MIN_LOT, original
         "type_filling": mt5.ORDER_FILLING_FOK,
     })
     if result is None:
-        return {"success": False, "error": f"order_send returned None — {mt5.last_error()}", "sl": sl, "tp": tp}
+        return {"success": False, "uncertain": True, "error": f"order_send returned None — {mt5.last_error()}", "sl": sl, "tp": tp}
     if result.retcode == mt5.TRADE_RETCODE_DONE:
         return {"success": True, "ticket": result.order, "price": price, "sl": sl, "tp": tp}
-    return {"success": False, "error": f"{result.retcode} — {result.comment}", "sl": sl, "tp": tp}
+    return {"success": False, "uncertain": result.retcode in (10008, 10010, 10012),
+            "error": f"{result.retcode} — {result.comment}", "sl": sl, "tp": tp}
 
 
 def _place_limit_order(signal, entry_level, sl, tp, comment, magic, volume=MIN_LOT):
@@ -1054,8 +1089,9 @@ async def _demo_scan_indi1(app):
         return
     price_digits = int(getattr(info, "digits", 2) or 2)
     tick_size = float(getattr(info, "trade_tick_size", 0.0) or getattr(info, "point", 0.01) or 0.01)
-    cfg = INDI1.core_cfg(rr=config.INDI1_RR, sl_buffer_ticks=config.INDI1_SL_BUFFER_TICKS,
-                         tick_size=tick_size, point=float(getattr(info, "point", 0.0) or 0.0))
+    cfg = INDI1.core_cfg(rr=config.INDI1_RR, tick_size=tick_size,
+                         point=float(getattr(info, "point", 0.0) or 0.0),
+                         confirm_bars=config.INDI1_CONFIRM_BARS)
     try:
         res = INDI1.detect_indi1(m5, h1, cfg, allow_buy=config.INDI1_ALLOW_BUY,
                                  allow_sell=config.INDI1_ALLOW_SELL)
@@ -1091,7 +1127,7 @@ async def _demo_scan_indi1(app):
         return
 
     price = float(tick.ask if sig == "BUY" else tick.bid)
-    buf = float(config.INDI1_SL_BUFFER_TICKS) * tick_size
+    buf = float(config.INDI1_SL_BUFFER_PRICE)
     sl = res["swing"] - buf if sig == "BUY" else res["swing"] + buf
     dist = abs(price - sl)
     stops = float(getattr(info, "trade_stops_level", 0.0) or 0.0) * float(getattr(info, "point", 0.0) or 0.0)
@@ -1120,9 +1156,15 @@ async def _demo_scan_indi1(app):
         volume = min(volume, max_lot)
     volume = round(min(volume, vol_max), 2)
     if volume < vol_min - 1e-9:
-        _save_state(state)
-        log_event("DEMO_PORTFOLIO_SKIP", f"{portfolio_name} {sig} skipped — lot {raw_lot:.4f} < min {vol_min}")
-        return
+        if config.INDI1_MIN_LOT_FALLBACK:
+            log_event("DEMO_PORTFOLIO_MINLOT",
+                      f"{portfolio_name} {sig} lot {raw_lot:.4f} < min {vol_min} -> ใช้ min lot "
+                      f"(เสี่ยงจริง ~{dist / tick_size * tick_value * vol_min / balance * 100:.2f}% เทียบเป้า {config.INDI1_RISK_PCT}%)")
+            volume = round(vol_min, 2)
+        else:
+            _save_state(state)
+            log_event("DEMO_PORTFOLIO_SKIP", f"{portfolio_name} {sig} skipped — lot {raw_lot:.4f} < min {vol_min}")
+            return
 
     comment = _demo_comment(portfolio_name, INDI1.INDI1_LTF)
     result = _place_market_order(sig, sl, tp, comment, magic, volume=volume, anchor_sl_tp=True)
@@ -1174,7 +1216,7 @@ async def _demo_scan_indi1(app):
 
 async def _manage_indi1_positions(app):
     """Fibo breakeven ของ Indi1: ถ้าแท่ง M5 ที่ "ปิดแล้ว" (และปิดหลังเข้าไม้) ปิดเลยระดับ
-    INDI1_BE_FIB (50%) ของ entry->TP -> เลื่อน SL ไป entry +/- INDI1_BE_LOCK_POINTS จุด
+    INDI1_BE_FIB (50%) ของ entry->TP -> เลื่อน SL ไป entry +/- INDI1_BE_LOCK_PRICE (หน่วยราคา)
     (ครั้งเดียวต่อไม้) — แตะเฉพาะไม้ที่ magic ตรงและอยู่ใน state["trades"] ของเราเท่านั้น"""
     if not config.INDI1_BE_ENABLED:
         return
@@ -1208,7 +1250,7 @@ async def _manage_indi1_positions(app):
         if tp <= 0:
             continue
         level = entry + (tp - entry) * float(config.INDI1_BE_FIB)
-        lock = float(config.INDI1_BE_LOCK_POINTS) * point
+        lock = float(config.INDI1_BE_LOCK_PRICE)
         is_buy = pos.type == mt5.ORDER_TYPE_BUY
         if is_buy:
             new_sl = round(entry + lock, digits)
@@ -1226,7 +1268,7 @@ async def _manage_indi1_positions(app):
                 dirty = True
                 log_event("DEMO_PORTFOLIO_BE",
                           f"INDI1 ticket={pos.ticket} SL->{new_sl:.{digits}f} (fibo {config.INDI1_BE_FIB:.0%} lock "
-                          f"{config.INDI1_BE_LOCK_POINTS}pt)")
+                          f"{config.INDI1_BE_LOCK_PRICE})")
             else:
                 log_error("DEMO_PORTFOLIO", f"INDI1 BE modify failed ticket={pos.ticket}: "
                                             f"{getattr(res, 'retcode', None)} {getattr(res, 'comment', '')}")
@@ -1780,6 +1822,13 @@ async def demo_scan(app, portfolio_name: str):
     ด้วยข้อมูล live ล่าสุด ถ้ามี signal ใหม่ (และไม่ติด cooldown) วางออเดอร์ตลาดทันที"""
     if not config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False):
         return
+    if portfolio_name == "SCALPING456":
+        # Never send through the bar-based scanner; a dedicated single job owns this state.
+        return
+    if portfolio_name == "EA2_1":
+        from demo_ea2_1 import scan_ea2_1
+        await scan_ea2_1(app)
+        return
     if portfolio_name in AF_PORTFOLIO_LEGS or portfolio_name.startswith("LTS"):
         await _demo_scan_af_ladder(app, portfolio_name)
         return
@@ -2245,7 +2294,7 @@ async def demo_scan_job(app):
     ราคาที่เข้าจริงจะห่างจาก "open แท่งถัดไป" ที่ backtest ใช้มากเกินไป"""
     active_names = [name for name in PORTFOLIO_ORDER
                      if config.DEMO_PORTFOLIO_ACTIVE.get(name, False) and name not in S20GEN.S20GEN_DEFS
-                     and name != INDI1.INDI1_KEY]
+                     and name not in (INDI1.INDI1_KEY, "EA2_1", "SCALPING456")]
     if not active_names:
         return
     symbol = _demo_symbol()
@@ -2290,6 +2339,32 @@ async def demo_scan_job_s20gen(app):
             await demo_scan(app, name)
         except Exception as e:
             log_error("DEMO_PORTFOLIO", f"{name} scan error: {type(e).__name__}: {e}")
+
+
+_scalping456_runner = None
+
+
+async def demo_scalping456_tick_job(app=None):
+    """7129 opens new cycles; 2459 is drain-only and still protects owned fills."""
+    global _scalping456_runner
+    from pathlib import Path
+    from demo_scalping456 import ForwardScalper, TARGETS, ENTRY_PROFILE, KEY
+    profile = getattr(config, "BOT_PROFILE", "")
+    if profile not in TARGETS:
+        return
+    active = bool(config.DEMO_PORTFOLIO_ACTIVE.get(KEY, False) and profile == ENTRY_PROFILE)
+    directory = Path(config.PROFILE_DIR)
+    if directory.name != profile:
+        raise RuntimeError("Scalping456 runtime profile/directory mismatch")
+    if _scalping456_runner is None:
+        if not active and not (directory / "scalping456_state.json").exists():
+            return
+        _scalping456_runner = ForwardScalper(mt5, directory)
+    _scalping456_runner.step(active)
+    # Compatibility metadata only. Generic managers also exclude magic >= 990000.
+    from trailing import position_sid
+    for ticket in _scalping456_runner.state.get("known_positions", {}):
+        position_sid[int(ticket)] = 21
 
 
 def _fetch_leg_pnl(portfolio_name: str):
@@ -2386,6 +2461,9 @@ def get_symbol_exposure_text(symbol_root: str) -> str:
 
 def get_status_text(portfolio_name: str) -> str:
     """สรุปสถานะสำหรับ Telegram status view — รวมกำไรเฉลี่ยต่อวัน/เดือน/กำไรรวม แยกราย leg"""
+    if portfolio_name == "SCALPING456":
+        from demo_scalping456 import status_text
+        return status_text(config.PROFILE_DIR, config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False))
     state = _load_state()
     is_active = config.DEMO_PORTFOLIO_ACTIVE.get(portfolio_name, False)
     keys = PORTFOLIOS[portfolio_name]
@@ -2404,6 +2482,13 @@ def get_status_text(portfolio_name: str) -> str:
         f"Magic: {magic}",
         f"ออเดอร์วันนี้: {n_success} ไม้",
     ]
+    if portfolio_name == "EA2_1":
+        lines.extend([
+            "Entry M5 / confirmation M15 | SID ea2.1",
+            f"Risk: {config.EA2_1_RISK_PERCENT:g}% balance per trade",
+            f"Maximum positions: {config.EA2_1_MAX_POSITIONS}",
+            f"Spread cap: {config.EA2_1_MAX_SPREAD_POINTS:g} points",
+        ])
     if portfolio_name in AF_PORTFOLIO_LEGS or portfolio_name.startswith("LTS"):
         weights = [float(AF_DEFS[k].get("weight", 1.0)) for k in keys if k in AF_DEFS]
         scale = float(getattr(config, "DEMO_PORTFOLIO_WEIGHT_SCALE", {}).get(portfolio_name, 1.0))

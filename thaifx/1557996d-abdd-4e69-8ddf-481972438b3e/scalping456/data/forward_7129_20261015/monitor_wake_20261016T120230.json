@@ -1,0 +1,530 @@
+{
+  "read_only": true,
+  "profile": "demo-exness-434237129",
+  "heartbeat": {
+    "ts": "1792126945",
+    "bkk": "2026-10-16 12:02:26",
+    "mt5_ok": "1",
+    "auto": "1",
+    "last_scan": "1792126943",
+    "pid": "32328"
+  },
+  "heartbeat_age_seconds": 5.252,
+  "strategy_state": {
+    "version": 1,
+    "magic": 995456,
+    "login": 434237129,
+    "symbol": "XAUUSDm",
+    "phase": "working",
+    "known_positions": {},
+    "pending_closes": {
+      "4878801646": {
+        "identifier": 4878801646
+      },
+      "4878801649": {
+        "identifier": 4878801649
+      }
+    },
+    "closed_positions": {
+      "4878797096": -1.06
+    },
+    "daily_net": {
+      "2026-10-15": -1.06
+    },
+    "cycles": 2,
+    "last_error": "",
+    "rearm_requested": false,
+    "known_orders": {
+      "4878801646": true,
+      "4878801649": true
+    },
+    "journal_orders_recovered": true
+  },
+  "runtime_flags": {
+    "scalping456_active": true
+  },
+  "journal": {
+    "prefix_valid": true,
+    "previous_offset": 4410,
+    "complete_offset": 4410,
+    "file_length": 4410,
+    "prefix_sha256": "cacd4374182536430dbe4c7a8fd3b948cc173132889ab5eb61b7c702db54d4fd",
+    "new_events": []
+  },
+  "code_sha256": {
+    "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+    "demo_portfolio.py": "9a1d5f4f7692087e2f75e5a66b576606613f0d87e67637c6271e060832c76d69",
+    "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+    "config.py": "e4930715443fafe8ce4a1e5015ec1c08c1af6f54fa0e116314f0477d3d58ec71",
+    "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+    "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+  },
+  "code_hashes_match_baseline": false,
+  "processes": {
+    "terminal": [
+      {
+        "parent": 31708,
+        "pid": 36536,
+        "created": "2026-10-16T09:36:54.3098990+07:00",
+        "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+      }
+    ],
+    "supervisor": [
+      {
+        "parent": 31060,
+        "pid": 32312,
+        "created": "2026-10-16T09:36:33.2864680+07:00"
+      }
+    ],
+    "supervisor_log_tail": [
+      "[2026-10-16 09:36:34] WARN: lock file ค้างจาก pid=44428 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ",
+      "[2026-10-16 09:36:37] Supervisor started (profile='demo-exness-434237129', stale=180 s, check=30 s, grace=90 s, python='C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe')",
+      "[2026-10-16 09:36:37] Launching: C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe main.py",
+      "[2026-10-16 09:36:37] main.py running (pid=33260)"
+    ],
+    "relevant_log_events": [
+      "[2026-10-16 11:57:49] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+    ],
+    "main_chain": [
+      {
+        "parent": 33260,
+        "pid": 32328,
+        "name": "python.exe",
+        "created": "2026-10-16T09:36:37.3256040+07:00",
+        "main_py": true
+      },
+      {
+        "parent": 32312,
+        "pid": 33260,
+        "name": "python.exe",
+        "created": "2026-10-16T09:36:37.2854220+07:00",
+        "main_py": true
+      },
+      {
+        "parent": 31060,
+        "pid": 32312,
+        "name": "powershell.exe",
+        "created": "2026-10-16T09:36:33.2864680+07:00",
+        "main_py": false
+      },
+      {
+        "parent": 30656,
+        "pid": 31060,
+        "name": "cmd.exe",
+        "created": "2026-10-16T09:36:30.1674090+07:00",
+        "main_py": false
+      }
+    ]
+  },
+  "initialize_existing_terminal": true,
+  "account": {
+    "login": 434237129,
+    "server": "Exness-MT5Trial7",
+    "trade_mode": 0,
+    "margin_mode": 2,
+    "currency": "USD",
+    "trade_allowed": true,
+    "limit_orders": 1024
+  },
+  "terminal": {
+    "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+    "connected": true,
+    "trade_allowed": true
+  },
+  "native_identity_verified": true,
+  "own_positions": [],
+  "own_pending": [],
+  "owned_history_deals": [
+    {
+      "ticket": 4299017056,
+      "order": 4878797096,
+      "time": 1792050907,
+      "time_msc": 1792050907965,
+      "type": 0,
+      "entry": 0,
+      "magic": 995456,
+      "position_id": 4878797096,
+      "reason": 3,
+      "volume": 0.01,
+      "price": 4145.403,
+      "commission": 0,
+      "swap": 0,
+      "profit": 0,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "M1_S21_S456_B",
+      "external_id": ""
+    },
+    {
+      "ticket": 4299018839,
+      "order": 4878800453,
+      "time": 1792050926,
+      "time_msc": 1792050926694,
+      "type": 1,
+      "entry": 1,
+      "magic": 995456,
+      "position_id": 4878797096,
+      "reason": 4,
+      "volume": 0.01,
+      "price": 4144.335,
+      "commission": 0,
+      "swap": 0,
+      "profit": -1.06,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "[sl 4144.335]",
+      "external_id": ""
+    },
+    {
+      "ticket": 4299032977,
+      "order": 4878801646,
+      "time": 1792051199,
+      "time_msc": 1792051199326,
+      "type": 0,
+      "entry": 0,
+      "magic": 995456,
+      "position_id": 4878801646,
+      "reason": 0,
+      "volume": 0.01,
+      "price": 4146.372,
+      "commission": 0,
+      "swap": 0,
+      "profit": 0,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "M1_S21_S456_B",
+      "external_id": "proactive"
+    },
+    {
+      "ticket": 4299035398,
+      "order": 4878818433,
+      "time": 1792051206,
+      "time_msc": 1792051206831,
+      "type": 1,
+      "entry": 1,
+      "magic": 995456,
+      "position_id": 4878801646,
+      "reason": 4,
+      "volume": 0.01,
+      "price": 4145.362,
+      "commission": 0,
+      "swap": 0,
+      "profit": -1.01,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "[sl 4145.362]",
+      "external_id": ""
+    },
+    {
+      "ticket": 4300230026,
+      "order": 4878801649,
+      "time": 1792067401,
+      "time_msc": 1792067401700,
+      "type": 1,
+      "entry": 0,
+      "magic": 995456,
+      "position_id": 4878801649,
+      "reason": 0,
+      "volume": 0.01,
+      "price": 4143.522,
+      "commission": 0,
+      "swap": 0,
+      "profit": 0,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "M1_S21_S456_S",
+      "external_id": "proactive"
+    },
+    {
+      "ticket": 4300232789,
+      "order": 0,
+      "time": 1792067402,
+      "time_msc": 1792067402228,
+      "type": 0,
+      "entry": 1,
+      "magic": 995456,
+      "position_id": 4878801649,
+      "reason": 4,
+      "volume": 0.01,
+      "price": 4144.522,
+      "commission": 0,
+      "swap": 0,
+      "profit": -1,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "[sl 4144.52200]",
+      "external_id": "proactive"
+    }
+  ],
+  "position_history": {
+    "4878797096": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time": 1792050907,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time": 1792050926,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]",
+        "external_id": ""
+      }
+    ],
+    "4878801646": [
+      {
+        "ticket": 4299032977,
+        "order": 4878801646,
+        "time": 1792051199,
+        "time_msc": 1792051199326,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4299035398,
+        "order": 4878818433,
+        "time": 1792051206,
+        "time_msc": 1792051206831,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4145.362,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.01,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4145.362]",
+        "external_id": ""
+      }
+    ],
+    "4878801649": [
+      {
+        "ticket": 4300230026,
+        "order": 4878801649,
+        "time": 1792067401,
+        "time_msc": 1792067401700,
+        "type": 1,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4143.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4300232789,
+        "order": 0,
+        "time": 1792067402,
+        "time_msc": 1792067402228,
+        "type": 0,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.52200]",
+        "external_id": "proactive"
+      }
+    ]
+  },
+  "historical_orders": {
+    "4878801646": [
+      {
+        "ticket": 4878801646,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951000,
+        "time_done": 1792051199,
+        "time_done_msc": 1792051199326,
+        "time_expiration": 0,
+        "type": 4,
+        "type_time": 0,
+        "type_filling": 0,
+        "state": 4,
+        "magic": 0,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4146.362,
+        "sl": 0,
+        "tp": 0,
+        "price_current": 0,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "",
+        "external_id": ""
+      }
+    ],
+    "4878801649": [
+      {
+        "ticket": 4878801649,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951000,
+        "time_done": 1792067401,
+        "time_done_msc": 1792067401700,
+        "time_expiration": 0,
+        "type": 5,
+        "type_time": 0,
+        "type_filling": 0,
+        "state": 4,
+        "magic": 0,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4143.522,
+        "sl": 0,
+        "tp": 0,
+        "price_current": 0,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "",
+        "external_id": ""
+      }
+    ]
+  },
+  "symbol_specs": {
+    "name": "XAUUSDm",
+    "visible": true,
+    "digits": 3,
+    "point": 0.001,
+    "trade_tick_size": 0.001,
+    "trade_stops_level": 0,
+    "trade_freeze_level": 0,
+    "volume_min": 0.01,
+    "volume_max": 200,
+    "volume_step": 0.01,
+    "trade_contract_size": 100,
+    "trade_mode": 4
+  },
+  "book_counts": {
+    "all_positions": 10,
+    "all_pending": 50,
+    "own_positions": 0,
+    "own_pending": 0
+  },
+  "checked_utc": "2026-10-16T05:02:30.608860+00:00",
+  "scoped_log_events": [
+    "120586:[2026-10-16 11:22:48] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "120980:[2026-10-16 11:27:50] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "121389:[2026-10-16 11:32:49] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "121785:[2026-10-16 11:37:49] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "122180:[2026-10-16 11:42:49] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "122578:[2026-10-16 11:47:50] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "122973:[2026-10-16 11:52:49] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+    "123367:[2026-10-16 11:57:49] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+  ],
+  "assessment": {
+    "first_identifiers": [
+      4878801646,
+      4878801649
+    ],
+    "position_volume_net": [
+      {
+        "id": 4878801646,
+        "in_volume": 0.01,
+        "out_volume": 0.01,
+        "net": -1.01
+      },
+      {
+        "id": 4878801649,
+        "in_volume": 0.01,
+        "out_volume": 0.01,
+        "net": -1
+      }
+    ],
+    "code_changed_since_previous_check": [],
+    "journal_unchanged": true,
+    "identity_verified": true,
+    "counts_unchanged": true,
+    "decision": "DONT_NOTIFY",
+    "counts": {
+      "target": 5,
+      "entry": 2,
+      "closed": 2,
+      "open": 0,
+      "verified": 0,
+      "failed": 2
+    },
+    "known_failure": "Historical order metadata magic0/position_id0 still triggers production guard before close reconciliation; both closed cohort positions remain missing from state.",
+    "accounting_day": "2026-10-15",
+    "broker_confirmed_cohort_net": -2.01,
+    "expected_strategy_daily_net_including_baseline": -3.07,
+    "observed_strategy_daily_net": -1.06,
+    "current_bkk_day": "2026-10-16",
+    "current_day_native_confirmed_net": 0,
+    "current_day_observed_strategy_net": 0,
+    "clock_note": "Raw broker epochs remain separate from BKK journal/receipt wall time; no offset or new tick-path proof assumed.",
+    "original_baseline_and_failed_cohort_preserved": true,
+    "known_frozen_shared_source_drift_unresolved": true,
+    "process_identity_unchanged_since_previous_check": true,
+    "fix_authorized": false,
+    "fixes_performed": false,
+    "trading_order_or_process_actions": false,
+    "automation_changed": false,
+    "monitor_interval_minutes": 120,
+    "automation_status": "ACTIVE",
+    "stop_criteria_met": false,
+    "notification_suppressed": true
+  },
+  "checked_bkk": "2026-10-16T12:02:30.608+07:00"
+}

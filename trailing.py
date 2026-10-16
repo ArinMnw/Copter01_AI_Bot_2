@@ -2887,7 +2887,7 @@ def _modify_sl(pos, new_sl):
     """Modify SL for an open position."""
     r = mt5.order_send({
         "action":   mt5.TRADE_ACTION_SLTP,
-        "symbol":   SYMBOL,
+        "symbol":   getattr(pos, "symbol", SYMBOL),
         "position": pos.ticket,
         "sl":       new_sl,
         "tp":       pos.tp,
@@ -6040,17 +6040,18 @@ async def check_ea2_trail(app):
             )
 
 
-async def check_ea2_1_trail(app):
+async def check_ea2_1_trail(app, *, symbol=None, enabled=None):
     """Restart-safe fixed-point breakeven/trailing for EA2.1 positions."""
     sid_target = config.EA2_1_SID
-    if not active_strategies.get(sid_target, False):
+    if not (active_strategies.get(sid_target, False) if enabled is None else enabled):
         return
-    positions = mt5.positions_get(symbol=SYMBOL)
+    target_symbol = symbol or SYMBOL
+    positions = mt5.positions_get(symbol=target_symbol)
     if positions is None:
         log_error("EA2_1_TRAIL", "positions_get returned None", sid=sid_target)
         return
-    info = mt5.symbol_info(SYMBOL)
-    tick = mt5.symbol_info_tick(SYMBOL)
+    info = mt5.symbol_info(target_symbol)
+    tick = mt5.symbol_info_tick(target_symbol)
     if info is None or tick is None:
         return
     point = float(getattr(info, "point", 0.01) or 0.01)

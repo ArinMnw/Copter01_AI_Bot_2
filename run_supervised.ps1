@@ -137,33 +137,33 @@ function Write-Log($msg) {
     try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 } catch {}
 }
 
-function Get-ChildProcessIds([int]$ParentPid) {
+function Stop-ProcessTree(
+    [int]$RootPid,
+    [datetime]$ExpectedCreated = [datetime]::MinValue,
+    [Collections.Generic.HashSet[int]]$Visited = $null
+) {
+    if ($RootPid -le 0 -or $RootPid -eq $PID) { return }
+    if ($null -eq $Visited) { $Visited = [Collections.Generic.HashSet[int]]::new() }
+    if (-not $Visited.Add($RootPid)) { return }
     try {
-        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ParentPid" -ErrorAction SilentlyContinue)
+        $root = Get-CimInstance Win32_Process -Filter "ProcessId=$RootPid" -ErrorAction Stop
+        if (-not $root -or -not $root.CreationDate) { return }
+        $created = [datetime]$root.CreationDate
+        if ($ExpectedCreated -ne [datetime]::MinValue -and $created -ne $ExpectedCreated) { return }
+        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootPid" -ErrorAction Stop)
         foreach ($child in $children) {
-            $childPid = [int]$child.ProcessId
-            Get-ChildProcessIds $childPid
-            $childPid
+            # A stale ParentProcessId can point to a PID Windows has reused.
+            if (-not $child.CreationDate -or $child.CreationDate -lt $created) { continue }
+            Stop-ProcessTree ([int]$child.ProcessId) ([datetime]$child.CreationDate) $Visited
         }
-    } catch {}
-}
 
-function Stop-ProcessTree([int]$RootPid) {
-    $ids = @()
-    $ids += Get-ChildProcessIds $RootPid
-    $ids += $RootPid
-    $ids = @($ids | Where-Object { $_ } | Select-Object -Unique)
-
-    foreach ($id in $ids) {
-        try {
-            $p = Get-Process -Id $id -ErrorAction SilentlyContinue
-            if ($p) {
-                Stop-Process -Id $id -Force -ErrorAction Stop
-                Write-Log "killed pid=$id ($($p.ProcessName))"
-            }
-        } catch {
-            Write-Log "kill error pid=${id}: $_"
+        $current = Get-CimInstance Win32_Process -Filter "ProcessId=$RootPid" -ErrorAction Stop
+        if ($current -and $current.CreationDate -eq $created) {
+            Stop-Process -Id $RootPid -Force -ErrorAction Stop
+            Write-Log "killed pid=$RootPid ($($root.Name))"
         }
+    } catch {
+        Write-Log "kill error pid=${RootPid}: $_"
     }
 }
 

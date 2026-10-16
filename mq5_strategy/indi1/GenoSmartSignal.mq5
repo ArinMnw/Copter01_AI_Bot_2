@@ -9,7 +9,10 @@
 //|  + ตาราง) / Orderblocks (Fractal + FVG)                            |
 //|                                                                   |
 //|  ข้อแตกต่างจาก Pine ต้นฉบับ:                                        |
-//|  1) ไม่ repaint — ประมวลผลเฉพาะแท่งที่ปิดสนิทแล้ว แท่งที่กำลังวิ่ง     |
+//|  1) ลูกศรสัญญาณ/ZigZag/OB/Lot ประมวลผลเฉพาะแท่งที่ปิดแล้ว (ไม่ repaint) |
+//|     ส่วน "เส้น" (Trail/BB/MA/Kernel) คำนวณถึงแท่งที่กำลังวิ่งเหมือน Pine |
+//|     (เส้นแท่งสุดท้ายขยับตาม tick) — EA/บอทใช้แท่งปิด shift>=1 เท่านั้น |
+//|  (เดิม:) ประมวลผลเฉพาะแท่งที่ปิดสนิทแล้ว แท่งที่กำลังวิ่ง     |
 //|     จะไม่มีสัญญาณ/เส้น (Pine จะ repaint ตามราคาสด)                  |
 //|  2) Follow Line MA-type รองรับเฉพาะ "Use Current Chart Resolution" |
 //|     (ไม่มี request.security ข้าม TF)                                |
@@ -703,7 +706,7 @@ void ResetState()
 //+------------------------------------------------------------------+
 //| one closed bar                                                    |
 //+------------------------------------------------------------------+
-void Step(const int k)
+void Step(const int k, const bool live = false)
 {
    int i = g_base + k;
 
@@ -755,9 +758,12 @@ void Step(const int k)
    }
 
    //=== ZigZag (+ lastSwing)
-   ZigStep(k);
-   bSwL[i] = B(g_lsl);
-   bSwH[i] = B(g_lsh);
+   if(!live)   // แท่งที่กำลังวิ่ง (live) ไม่แตะ state ของ ZigZag/OB/Lot — คำนวณเฉพาะเส้น
+   {
+      ZigStep(k);
+      bSwL[i] = B(g_lsl);
+      bSwH[i] = B(g_lsh);
+   }
 
    //=== Follow Line #1 (BB + ATR)
    {
@@ -777,9 +783,9 @@ void Step(const int k)
       bool sell1 = (k > 0 && it1_[k - 1] == 1 && it == -1);
       bFl1[i]  = B(tl);
       bFl1C[i] = (it > 0) ? 0 : 1;
-      bBuy1[i]  = (buy1 && !InpHide1 && V(atr8_[k]))  ? tl - atr8_[k] : EMPTY_VALUE;
-      bSell1[i] = (sell1 && !InpHide1 && V(atr8_[k])) ? tl + atr8_[k] : EMPTY_VALUE;
-      if(g_live && InpAlerts && k == g_N - 1 && (buy1 || sell1))
+      bBuy1[i]  = (!live && buy1 && !InpHide1 && V(atr8_[k]))  ? tl - atr8_[k] : EMPTY_VALUE;
+      bSell1[i] = (!live && sell1 && !InpHide1 && V(atr8_[k])) ? tl + atr8_[k] : EMPTY_VALUE;
+      if(!live && g_live && InpAlerts && k == g_N - 1 && (buy1 || sell1))
          Alert(_Symbol, " ", EnumToString(Period()), (buy1 ? " buy1" : " sell1"));
    }
 
@@ -804,9 +810,9 @@ void Step(const int k)
       sell2 = (k > 0 && it2_[k - 1] == 1 && it == -1);
       bFl2[i]  = B(tl);
       bFl2C[i] = (it > 0) ? 0 : 1;
-      bBuy2[i]  = (buy2 && !InpHide2 && V(v))  ? tl - v : EMPTY_VALUE;
-      bSell2[i] = (sell2 && !InpHide2 && V(v)) ? tl + v : EMPTY_VALUE;
-      if(g_live && InpAlerts && k == g_N - 1 && (buy2 || sell2))
+      bBuy2[i]  = (!live && buy2 && !InpHide2 && V(v))  ? tl - v : EMPTY_VALUE;
+      bSell2[i] = (!live && sell2 && !InpHide2 && V(v)) ? tl + v : EMPTY_VALUE;
+      if(!live && g_live && InpAlerts && k == g_N - 1 && (buy2 || sell2))
          Alert(_Symbol, " ", EnumToString(Period()), (buy2 ? " Smart Buy" : " Smart Sell"));
    }
 
@@ -816,6 +822,8 @@ void Step(const int k)
    bKerC[i] = (k > 0 && V(ks_[k]) && V(ks_[k - 1]) && ks_[k] > ks_[k - 1]) ? 0 : 1;
 
    //=== Auto lot calculator (entry/SL จาก Smart Buy/Sell + swing ล่าสุด)
+   if(live) return;   // แท่งที่กำลังวิ่ง: จบตรงนี้ (ไม่แตะ lot calc / orderblock)
+
    double slBuf = InpSLBufTicks * SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
    if(buy2 && V(g_lsl))  { g_p1 = c_[k]; g_p2 = g_lsl - slBuf; g_entryK = k; }
    if(sell2 && V(g_lsh)) { g_p1 = c_[k]; g_p2 = g_lsh + slBuf; g_entryK = k; }
@@ -941,10 +949,10 @@ int OnCalculate(const int rates_total, const int prev_calculated,
    g_live = (prev_calculated > 0);
 
    int n = rates_total - 1 - g_base;       // จำนวนแท่งที่ปิดแล้ว
-   if(n != g_N || ArraySize(c_) != n)
+   if(n != g_N || ArraySize(c_) != n + 1)
    {
       g_N = n;
-      ResizeAll(n);
+      ResizeAll(n + 1);       // +1 = ช่องสำหรับแท่งที่กำลังวิ่ง
    }
    g_drawFrom = MathMax(0, n - InpDrawBars);
 
@@ -958,11 +966,13 @@ int OnCalculate(const int rates_total, const int prev_calculated,
    }
    g_done = n;
 
-   // แท่งที่กำลังวิ่ง = ไม่แสดงสัญญาณ (non-repaint)
+   // แท่งที่กำลังวิ่ง: คำนวณ "เส้น" ให้ถึงแท่งล่าสุดเหมือน Pine (อัปเดตทุก tick) แต่ไม่แสดงลูกศรสัญญาณ/ไม่แตะ state
+   // (EA/บอทอ่านแท่งที่ปิดแล้ว shift>=1 เท่านั้น จึงไม่ถูกกระทบ)
    int f = rates_total - 1;
-   bFillLA[f] = EMPTY_VALUE; bFillLB[f] = EMPTY_VALUE; bFillSA[f] = EMPTY_VALUE; bFillSB[f] = EMPTY_VALUE;
-   bTrail[f] = EMPTY_VALUE; bFl1[f] = EMPTY_VALUE; bBuy1[f] = EMPTY_VALUE; bSell1[f] = EMPTY_VALUE;
-   bFl2[f] = EMPTY_VALUE; bBuy2[f] = EMPTY_VALUE; bSell2[f] = EMPTY_VALUE; bKer[f] = EMPTY_VALUE;
+   o_[n] = open[f]; h_[n] = high[f]; l_[n] = low[f]; c_[n] = close[f];
+   v_[n] = (double)tick_volume[f]; tm_[n] = time[f];
+   Step(n, true);
+   bBuy1[f] = EMPTY_VALUE; bSell1[f] = EMPTY_VALUE; bBuy2[f] = EMPTY_VALUE; bSell2[f] = EMPTY_VALUE;
    bEntry[f] = EMPTY_VALUE; bSL[f] = EMPTY_VALUE; bSwL[f] = EMPTY_VALUE; bSwH[f] = EMPTY_VALUE;
 
    if(advanced || prev_calculated == 0)

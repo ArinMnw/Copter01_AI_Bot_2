@@ -1,0 +1,1078 @@
+{
+  "schema_version": 1,
+  "monitor_name": "Scalping456 Demo 7129 first five post-baseline positions",
+  "automation_id": "scalping456-demo-2459-3",
+  "automation_reused_from": "Completed 2459 monitor; old ledger preserved without resetting it",
+  "automation_status": "DELETED",
+  "status": "one_shot_completed_awaiting_user_direction",
+  "profile": "demo-exness-434237129",
+  "login": 434237129,
+  "server": "Exness-MT5Trial7",
+  "symbol": "XAUUSDm",
+  "magic": 995456,
+  "target_unique_positions": 5,
+  "baseline": {
+    "capture_started_utc": "2026-10-15T07:58:58.449381+00:00",
+    "baseline_utc": "2026-10-15T07:59:00.611703+00:00",
+    "baseline_bkk": "2026-10-15T14:59:00.611703+07:00",
+    "stable_native_identifier_set": true,
+    "first_snapshot_identifiers": [
+      4878797096
+    ],
+    "exclude_existing_identifiers": [
+      4878797096
+    ],
+    "own_positions": [],
+    "own_pending": [
+      {
+        "ticket": 4878801646,
+        "time_setup_msc": 1792050951606,
+        "type": 4,
+        "state": 1,
+        "magic": 995456,
+        "position_id": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0.01,
+        "price_open": 4146.362,
+        "sl": 4145.362,
+        "tp": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B"
+      },
+      {
+        "ticket": 4878801649,
+        "time_setup_msc": 1792050951668,
+        "type": 5,
+        "state": 1,
+        "magic": 995456,
+        "position_id": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0.01,
+        "price_open": 4143.522,
+        "sl": 4144.522,
+        "tp": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S"
+      }
+    ],
+    "owned_history_deals": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B"
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]"
+      }
+    ],
+    "pending_history_orders": {
+      "4878801646": null,
+      "4878801649": null
+    },
+    "total_positions": 0,
+    "total_pending": 12,
+    "tick_raw": {
+      "time": 1792051144,
+      "time_msc": 1792051144714,
+      "bid": 4145.166,
+      "ask": 4145.406,
+      "last": 0,
+      "volume": 0,
+      "flags": 6,
+      "volume_real": 0
+    },
+    "tick_receipt_wall_epoch_ms": 1792051140612,
+    "observed_tick_epoch_minus_wall_ms": 4102,
+    "clock_note": "Observed raw quote is 4102ms ahead of local receipt wall time, not proof of a fixed broker offset. Do not apply IUX chart UTC+6 conversion to this Exness feed. Use native entry chronology, excluded identifiers, journal receipt timestamps and boundary evidence.",
+    "heartbeat": {
+      "ts": "1792051138",
+      "bkk": "2026-10-15 14:58:58",
+      "mt5_ok": "1",
+      "auto": "1",
+      "last_scan": "1792051138",
+      "pid": "33784"
+    },
+    "processes": {
+      "terminal": {
+        "pid": 13196,
+        "parent": 11980,
+        "created_bkk": "2026-10-15T14:52:30.4936210+07:00",
+        "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+      },
+      "supervisor": {
+        "pid": 40952,
+        "parent": 13116,
+        "created_bkk": "2026-10-15T14:48:26.9556840+07:00"
+      },
+      "main_chain": [
+        {
+          "pid": 33784,
+          "parent": 11408,
+          "created_bkk": "2026-10-15T14:48:40.2256430+07:00",
+          "main_py": true
+        },
+        {
+          "pid": 11408,
+          "parent": 40952,
+          "created_bkk": "2026-10-15T14:48:40.1593410+07:00",
+          "main_py": true
+        },
+        {
+          "pid": 40952,
+          "parent": 13116,
+          "main_py": false
+        }
+      ]
+    },
+    "account": {
+      "login": 434237129,
+      "server": "Exness-MT5Trial7",
+      "trade_mode": 0,
+      "margin_mode": 2,
+      "currency": "USD",
+      "trade_allowed": true,
+      "limit_orders": 1024
+    },
+    "terminal": {
+      "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+      "connected": true,
+      "trade_allowed": true
+    },
+    "symbol_specs": {
+      "name": "XAUUSDm",
+      "digits": 3,
+      "point": 0.001,
+      "trade_tick_size": 0.001,
+      "trade_stops_level": 0,
+      "trade_freeze_level": 0,
+      "volume_min": 0.01,
+      "volume_max": 200,
+      "volume_step": 0.01,
+      "trade_contract_size": 100
+    },
+    "params": {
+      "lot": 0.01,
+      "entry_distance": 1.3,
+      "initial_stop": 1,
+      "trail_activation": 0.2,
+      "trail_distance": 0.2,
+      "trail_step": 0.01,
+      "reaction_seconds": 0,
+      "modify_interval": 0.27,
+      "first_trail_delay": 0.9,
+      "max_exposure_slots": 3,
+      "daily_net_loss_limit": 20
+    },
+    "strategy_state_snapshot": {
+      "version": 1,
+      "magic": 995456,
+      "login": 434237129,
+      "symbol": "XAUUSDm",
+      "phase": "working",
+      "known_positions": {},
+      "pending_closes": {},
+      "closed_positions": {
+        "4878797096": -1.06
+      },
+      "daily_net": {
+        "2026-10-15": -1.06
+      },
+      "cycles": 2,
+      "last_error": "",
+      "rearm_requested": false,
+      "known_orders": {
+        "4878801646": true,
+        "4878801649": true
+      },
+      "journal_orders_recovered": true
+    },
+    "journal": {
+      "relative_path": "profiles/demo/demo-exness-434237129/logs/scalping456_events.jsonl",
+      "byte_offset": 3854,
+      "prefix_sha256": "813a2b87e489e47f1b3c16744a0736960fb9738d412cd9a26f8dd89613d8d943",
+      "file_length_at_read": 3854,
+      "prefix_last_event_bkk": "2026-10-15T14:55:46.907765+07:00"
+    },
+    "code_sha256": {
+      "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+      "demo_portfolio.py": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+      "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    }
+  },
+  "counting_rule": "First five unique owned position identifiers newly opened after native baseline snapshot, sorted by broker entry time_msc then first entry deal ticket. Existing pending orders count only after fill. Excluded prior identifiers never count. Preserve first-five cohort even if a failure occurs; no cherry-picking winners.",
+  "cohort": [
+    {
+      "ordinal": 1,
+      "position_identifier": 4878801646,
+      "entry_order_ticket": 4878801646,
+      "side": "BUY",
+      "volume": 0.01,
+      "entry_deal_ticket": 4299032977,
+      "broker_entry_time_msc": 1792051199326,
+      "entry_seen_journal_bkk": "2026-10-15T14:59:54.747935+07:00",
+      "submitted_entry": 4146.362,
+      "actual_fill": 4146.372,
+      "adverse_fill_slippage": 0.01,
+      "initial_sl": 4145.362,
+      "tp": 0,
+      "exit_deal_ticket": 4299035398,
+      "exit_order_ticket": 4878818433,
+      "broker_exit_time_msc": 1792051206831,
+      "actual_exit": 4145.362,
+      "exit_reason": "native SL",
+      "net_including_costs": -1.01,
+      "lifecycle_closed_at_broker": true,
+      "verified": false,
+      "result": "FAIL",
+      "checks": {
+        "ownership": "PASS: baseline native pending and entry deal prove exact magic/symbol/identifier",
+        "fixed_lot": "PASS",
+        "pending_entry_and_native_initial_sl": "PASS at baseline and native fill snapshot",
+        "native_exit_and_net": "PASS independently observed; -1.01, no commission/swap/fee",
+        "trailing": "NOT_TRIGGERED (independent native tick audit): maximum BUY-side Bid 4146.507 versus fill 4146.372 gives gain 0.135, below strict >0.20 activation. Entry quote matches fill Ask at raw tick epoch; no quote offset applied. Does not prove SLTP modification path.",
+        "order_history_reconciliation": "FAIL: history order ticket matches but broker returns magic=0, position_id=0, sl=0; production raises identity mismatch",
+        "closed_accounting": "FAIL: broker exit missing from adapter closed_positions and daily_net",
+        "post_close_cancel_rearm": "FAIL: opposite pending remains and cycle stalls after guard exception"
+      },
+      "evidence": [
+        "baseline native pending 4878801646",
+        "journal fill_seen after byte3854",
+        "monitor_first_position_audit_20261015.json",
+        "target logs/bot.log BOT_ERROR at 2026-10-15 15:09:58 BKK",
+        "monitor_wake_20261015T153349.json"
+      ],
+      "trailing_audit": {
+        "result": "NOT_TRIGGERED",
+        "tick_window_brackets_entry_and_exit": true,
+        "entry_quote": {
+          "time_msc": 1792051199214,
+          "bid": 4146.132,
+          "ask": 4146.372,
+          "flags": 134
+        },
+        "max_bid_during_lifetime": 4146.507,
+        "max_gain": 0.135,
+        "strict_activation_threshold": 0.2,
+        "no_journal_sltp_request": true
+      }
+    },
+    {
+      "ordinal": 2,
+      "position_identifier": 4878801649,
+      "entry_order_ticket": 4878801649,
+      "side": "SELL",
+      "volume": 0.01,
+      "entry_deal_ticket": 4300230026,
+      "broker_entry_time_msc": 1792067401700,
+      "entry_seen_journal_bkk": "2026-10-15T19:29:56.953338+07:00",
+      "submitted_entry": 4143.522,
+      "actual_fill": 4143.522,
+      "adverse_fill_slippage": 0,
+      "initial_sl": 4144.522,
+      "tp": 0,
+      "exit_deal_ticket": 4300232789,
+      "exit_order_ticket": 0,
+      "broker_exit_time_msc": 1792067402228,
+      "actual_exit": 4144.522,
+      "exit_reason": "native SL (DEAL_REASON_SL=4)",
+      "net_including_costs": -1,
+      "lifecycle_closed_at_broker": true,
+      "verified": false,
+      "result": "FAIL",
+      "broker_lifetime_ms": 528,
+      "checks": {
+        "ownership": "PASS: baseline native pending, journal request/ack/fill_seen and native entry/exit deals prove exact magic/symbol/identifier",
+        "fixed_lot": "PASS: submitted, entry and complete exit all0.01; one identifier counted once",
+        "pending_entry_and_native_initial_sl": "PASS: journal Bid4144.822 minus1.30 =4143.522, initial SL4144.522 and TP0; baseline native pending plus fill_seen confirm protection",
+        "native_exit_and_net": "PASS for observed native deal records: SL reason4, price4144.522, net-1.00, no commission/swap/fee. Broker exit order field is0; do not invent an exit-order ticket or query ticket0 as ownership proof.",
+        "trailing": "NOT_ELIGIBLE / modification path NOT_PROVEN: raw ticks show SELL gain>0.20 (maximum4.761), but broker-reported lifetime528ms is shorter than first-seen delay900ms. Production history exception also precedes trailing and journal has no SLTP request. Do not call activation absent or claim successful modification; monotonic first-seen timing is not independently instrumented.",
+        "order_history_reconciliation": "FAIL: native historical entry order4878801649 returns magic0/position_id0/sl0; original4878801646 mismatch remains and production still raises before close resolution",
+        "closed_accounting": "FAIL: closed_positions contains only excluded4878797096; both post-baseline exits are absent, daily net-1.06 vs expected-3.07",
+        "post_close_cancel_rearm": "FAIL: state retains both known_orders and pending_closes, cycles2/rearm_requestedfalse, no new pair. This was the original opposite pending left behind after first close, not a fresh re-arm.",
+        "exposure": "PASS for available original-pair/journal/broker evidence: only two original owned exposure slots; no new submission events or extra owned identifiers, current own positions0/pending0",
+        "daily_net_loss_gate": "NOT_TRIGGERED: broker-confirmed daily-3.07 is above-20 entry gate. Missing accounting is separately FAIL; no proof of the gate-at-threshold path.",
+        "opposite_pending_after_fill": "NOT_APPLICABLE to second fill: counterpart BUY had already closed. First fill retention is historical; failure to cancel it after first close remains FAIL."
+      },
+      "evidence": [
+        "monitor_wake_20261015T193716.json",
+        "baseline native pending4878801649",
+        "journal request/ack at14:55:46 and fill_seen at19:29:56 after prior byte4164",
+        "native history_deals_get(position=4878801649)",
+        "native history_orders_get(ticket=4878801649)"
+      ],
+      "trailing_audit": {
+        "result": "DELAY_GATED_NOT_PROVEN",
+        "tick_window_brackets_entry_and_exit": true,
+        "first_trail_delay_ms": 900,
+        "broker_lifetime_ms": 528,
+        "strict_activation_threshold": 0.2,
+        "min_ask_during_lifetime": 4138.761,
+        "max_sell_gain": 4.761,
+        "no_journal_sltp_request": true,
+        "clock_note": "Raw tick/deal epochs compared directly; journal BKK is receipt wall time. No quote/time offset assumed. Broker duration is not a monotonic timer trace."
+      }
+    },
+    {
+      "ordinal": 3,
+      "position_identifier": 4886149696,
+      "entry_order_ticket": 4886149696,
+      "side": "SELL",
+      "volume": 1.03,
+      "entry_deal_ticket": 4305705796,
+      "broker_entry_time_msc": 1792147980844,
+      "entry_seen_journal_bkk": "2026-10-16T17:52:59.370146+07:00",
+      "submitted_entry": 4177.071,
+      "actual_fill": 4177.047,
+      "adverse_fill_slippage": 0.024,
+      "initial_sl": 4178.071,
+      "tp": 0,
+      "exit_deal_ticket": 4305706301,
+      "exit_order_ticket": 0,
+      "broker_exit_time_msc": 1792147987473,
+      "actual_exit": 4178.071,
+      "exit_reason": "native SL (DEAL_REASON_SL=4)",
+      "net_including_costs": -105.47,
+      "lifecycle_closed_at_broker": true,
+      "verified": false,
+      "result": "INCONCLUSIVE_POST_CLOSE_TRACKING",
+      "broker_lifetime_ms": 6629,
+      "revision_note": "Risk now1% equity per NEW order; original fixed0.01 baseline is historical. Entry/trailing/identity/risk guards unchanged by latest ticket-filter repair.",
+      "checks": {
+        "ownership": "PASS: native own position, native entry/exit deals, journal request/ack/fill_seen; exact magic995456/XAUUSDm/identifier",
+        "sizing": "PASS submitted model: equity10320.07, budget103.2007USD; broker SL-loss calculation103USD for1.03lot =0.998055%; floor lot step. Not a cap on fill loss.",
+        "entry_and_initial_sl": "PASS: journal quoteAsk4178.611/Bid4178.371; BUY_STOP4179.911/SL4178.911, SELL_STOP4177.071/SL4178.071, bothTP0; native pending/position confirms actual protected orders.",
+        "fill_slippage": "SELL fill4177.047 is0.024 below submitted4177.071; initial-SL distance becomes1.024. Realized105.47 exceeds submitted103 price-loss model due to adverse fill, not lot-rounding above budget.",
+        "opposite_pending_retention": "PASS observed native snapshot after SELL fill: BUY_STOP4886149691 remained active, own exposure1position+1pending.",
+        "trailing": "NOT_TRIGGERED_IN_RETURNED_TICKS:15 raw lifetime ticks allAsk>fill; minAsk4177.338, max favorable gain negative. No SLTP request; not proof of modification path. Raw tick/deal epochs compared directly, no chart offset.",
+        "close_and_accounting": "PASS observed native complete1.03 entry/exit; SL4178.071; costs0/net-105.47 once; Oct15 historical-3.07 unchanged and Oct16-105.47 booked.",
+        "close_cancel": "PASS: journal close confirmed before REMOVE request/ack and native BUY order historyCANCELED; current own0/0.",
+        "daily_gate": "ACTIVE: confirmed Oct16 net-105.47 <=-20USD new-entry threshold. No further own submission; not forced liquidation or hard realized-loss cap.",
+        "post_close_tracking": "INCONCLUSIVE: known_orders contains4886153546 absent from journal requests and current book. Native ticket historyNone/-2; per-position history[] and raw interval do not resolve it. Do not clear blindly, infer provenance, or certify next cycle."
+      },
+      "evidence": [
+        "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json"
+      ]
+    }
+  ],
+  "entry_count": 3,
+  "open_lifecycle_count": 0,
+  "verified_count": 0,
+  "failed_count": 2,
+  "inconclusive_count": 1,
+  "journal_checkpoint": {
+    "relative_path": "profiles/demo/demo-exness-434237129/logs/scalping456_events.jsonl",
+    "byte_offset": 8205,
+    "prefix_sha256": "921d16e29e24c8d3968e777f23e82748def682354c7039adeb2d2ff3a02724d2",
+    "file_length_at_read": 8205,
+    "prefix_last_event_bkk": "2026-10-16T17:53:05.943946+07:00"
+  },
+  "last_check_bkk": "2026-10-16T18:01:32.237+07:00",
+  "alerts": [
+    {
+      "id": "exness_history_metadata_mismatch",
+      "severity": "error",
+      "status": "unresolved",
+      "position_identifier": 4878801646,
+      "details": "Native ticket filter still errors-2; source repair validates both exact-order entry proofs via native bounded raw-epoch history with position fallback.78tests and saved-history replay PASS; both native order_check previews return0Done, not sends. Running main79252 still pre-repair; alert unresolved until user restart and live execution verification. Failed original cohort unchanged.",
+      "fix_authorized": true,
+      "last_observed_bkk": "2026-10-16T17:46:04.969+07:00",
+      "affected_position_identifiers": [
+        4878801646,
+        4878801649
+      ],
+      "implementation_status": "ORIGINAL_TICKETS_RESOLVED_NEW_POST_CLOSE_TRACKING_ISSUE_SEPARATE",
+      "fix_report": "FIX_TICKET_FILTER_7129_20261016.md",
+      "latest_live_verification_bkk": "2026-10-16T17:54:21.843+07:00",
+      "latest_live_evidence": "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json",
+      "original_ticket_recovery_verified": true
+    },
+    {
+      "id": "monitor_schedule_update_unresponsive",
+      "severity": "error",
+      "status": "resolved",
+      "details": "Two automation_update attempts and a view call did not respond and were canceled. Saved actual automation remains old 2459 scope and PAUSED as last read. No active 7129 recurring monitor can be claimed. Do not manually edit automation.toml or make a substitute scheduler. Recheck tool availability and actual state before retrying; late completion is possible.",
+      "fix_authorized": false,
+      "resolution": "Saved automation independently observed ACTIVE with 7129 three-position scope on subsequent user turn; earlier update completed late. Now extending same ID to five."
+    },
+    {
+      "id": "production_mt5_identity_read_failure",
+      "severity": "error",
+      "status": "resolved",
+      "fix_authorized": false,
+      "first_log_bkk": "2026-10-15T15:23:44+07:00",
+      "last_observed_bkk": "2026-10-15T18:17:42.836+07:00",
+      "details": "Production tick guard reports account/server/hedging/path rejected and watchdog logged MT5_DOWN at15:23:58; fresh heartbeat mt5_ok=0 persists. Exact target terminal PID changed from13196 to6424 at15:24:03 under the same main PID. Independent diagnostic API connection verifies correct434237129/Exness-MT5Trial7/demo/hedging/path and terminal connected. Cause of production-versus-native divergence unconfirmed; no restart/login/switch/select or trading fix authorized/performed.",
+      "resolved_bkk": "2026-10-15T18:17:42.836+07:00",
+      "resolution": "A new main/supervisor/terminal is observed, started outside this read-only audit. Fresh production heartbeat MT5=1 plus repeated order-history mismatch (after preflight) and independent native demo identity/connectivity success confirm current account/connectivity guard recovery, not a fix to the separate historical-order metadata failure.",
+      "recovery_processes": {
+        "main_pid": 31148,
+        "main_created_bkk": "2026-10-15T16:12:11.7473330+07:00",
+        "supervisor_pid": 30548,
+        "supervisor_created_bkk": "2026-10-15T16:12:05.7703780+07:00",
+        "terminal_pid": 7220,
+        "terminal_created_bkk": "2026-10-15T16:13:56.6549680+07:00"
+      }
+    },
+    {
+      "id": "frozen_shared_source_hash_drift",
+      "severity": "warning",
+      "status": "unresolved",
+      "first_observed_bkk": "2026-10-15T23:53:32.006+07:00",
+      "last_observed_bkk": "2026-10-16T14:45:33.446+07:00",
+      "fix_authorized": false,
+      "changed_files": [
+        {
+          "file": "demo_portfolio.py",
+          "baseline_sha256": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+          "current_sha256": "9a1d5f4f7692087e2f75e5a66b576606613f0d87e67637c6271e060832c76d69"
+        },
+        {
+          "file": "config.py",
+          "baseline_sha256": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+          "current_sha256": "e4930715443fafe8ce4a1e5015ec1c08c1af6f54fa0e116314f0477d3d58ec71"
+        }
+      ],
+      "details": "PARTIAL: original frozen six-file snapshot is no longer matched; adapter Params preserved but config/portfolio exact baseline revision differences remain unconfirmed. No new position is certified. Restarted main/supervisor/terminal observed at22:14 BKK, not launched by this audit. Existing history guard and closed-PnL failure still persist. Baseline/cohort must not be reset or original failed trades replaced."
+    },
+    {
+      "id": "order_ticket_deals_filter_unavailable",
+      "severity": "error",
+      "status": "resolved",
+      "first_observed_bkk": "2026-10-16T15:56:49.706+07:00",
+      "last_observed_bkk": "2026-10-16T17:46:04.969+07:00",
+      "affected_order_tickets": [
+        4878801646,
+        4878801649
+      ],
+      "details": "Native ticket filter still errors-2; source repair validates both exact-order entry proofs via native bounded raw-epoch history with position fallback.78tests and saved-history replay PASS; both native order_check previews return0Done, not sends. Running main79252 still pre-repair; alert unresolved until user restart and live execution verification. Failed original cohort unchanged.",
+      "fix_authorized": true,
+      "native_error": [
+        -2,
+        "Terminal: Invalid params"
+      ],
+      "diagnosis_report": "STRATEGY_DIAGNOSIS_7129_20261016.md",
+      "implementation_status": "ORIGINAL_TICKETS_RESOLVED_NEW_POST_CLOSE_TRACKING_ISSUE_SEPARATE",
+      "fix_report": "FIX_TICKET_FILTER_7129_20261016.md",
+      "latest_live_verification_bkk": "2026-10-16T17:54:21.843+07:00",
+      "latest_live_evidence": "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json",
+      "original_ticket_recovery_verified": true,
+      "resolved_bkk": "2026-10-16T17:54:21.843+07:00",
+      "resolution": "Native ticket filter itself still errors, but repaired fallback independently proved in production: both old known_orders removed and native pair/SELL fill/SL close accounted. New tracked ticket4886153546 is a separate unresolved alert; not all lifecycle checks PASS."
+    },
+    {
+      "id": "post_close_unresolved_known_order_4886153546",
+      "severity": "error",
+      "status": "unresolved",
+      "first_observed_bkk": "2026-10-16T17:53:41.622+07:00",
+      "last_observed_bkk": "2026-10-16T18:01:32.237+07:00",
+      "order_ticket": 4886153546,
+      "fix_authorized": false,
+      "details": "After first post-repair SELL SL close/cancel, state retains a new ticket not in journal requests/current broker book. Native history_orders_get(ticket=4886153546) returnsNone/-2; position filter for4886149696 returns[]; relevant raw interval contains cancelled original BUY only. Origin/lifecycle not proven. Current daily-loss gate already blocks; nonempty known_orders would also block future rearm. User requested check, no extra fix/state reset performed.",
+      "audit_file": "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json",
+      "latest_evidence": "data/forward_7129_20261015/one_shot_1800_20261016T180132.json"
+    }
+  ],
+  "history": [
+    {
+      "at_bkk": "2026-10-15T14:59:00.611703+07:00",
+      "event": "baseline",
+      "detail": "Native demo/hedging/path identity and supervisor chain verified; no own live positions; two protected own pending orders; pre-baseline closed position excluded."
+    },
+    {
+      "at_bkk": "2026-10-15T15:08:12.993293+07:00",
+      "event": "native_cohort_1_audit",
+      "detail": "First new position closed by native SL, net -1.01. Broker historical-order metadata incompatible with strict guard; no PASS."
+    },
+    {
+      "at_bkk": "2026-10-15T15:10:23+07:00",
+      "event": "attention_required",
+      "detail": "Production BOT_ERROR confirms order history identity mismatch; monitor automation still PAUSED after unresponsive app calls. Read-only audit only; no bot/order/config changes."
+    },
+    {
+      "at_bkk": "2026-10-15T15:19:56.000+07:00",
+      "event": "user_extended_target",
+      "detail": "User requested continue monitoring until five positions. Preserve original baseline, failed first member and all existing counts; do not interpret this as authorization to change trading code/orders."
+    },
+    {
+      "at_bkk": "2026-10-15T15:19:56.000+07:00",
+      "event": "late_automation_activation_confirmed",
+      "detail": "Full saved task read: same actual ID, name Demo7129 three positions, ACTIVE, every15min, same chat. Scheduling failure alert resolved; five-position extension update pending."
+    },
+    {
+      "at_epoch_ms": 1792052449030,
+      "event": "five_position_schedule_confirmed",
+      "detail": "App tool returned success; full saved name/status/prompt/cadence/thread independently verified. Same automation updated to five positions, no duplicate created."
+    },
+    {
+      "at_bkk": "2026-10-15T15:33:49.032+07:00",
+      "event": "scheduled_read_only_check",
+      "detail": "Five-position cohort unchanged: entry1, brokerclosed1, verified0, failed1. Native history still returns first entry order magic0/position_id0 and strategy close accounting remains stuck. New production MT5 guard/connectivity failure despite direct native identity success. Independent raw ticks show trailing not triggered (max gain0.135). Journal checkpoint advanced without baseline reset; automation remains active."
+    },
+    {
+      "at_bkk": "2026-10-15T15:47:23.411+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "No new owned position identifier or journal event. Cohort1/5, brokerclosed1, verified0, failed1 unchanged. Same main/supervisor/terminal. Heartbeat MT5=0 and production identity guard errors persist while native target identity/connectivity passes. Same history-order metadata and missing close accounting. No notification for unchanged previously reported problems; continue scheduled monitor."
+    },
+    {
+      "at_bkk": "2026-10-15T18:17:42.836+07:00",
+      "event": "scheduled_check_connectivity_recovered",
+      "detail": "New main31148/supervisor30548/terminal7220 observed after external restart; fresh MT5 heartbeat1 and native identity valid. No own new identifiers/journal events; cohort1/5, brokerclosed1, verified0, failed1. History-order metadata failure and missing -1.01 close accounting persist. Full history reconciled across durable observation gap without resetting baseline or inventing intervening checks. No trading/process/config modifications by this monitor."
+    },
+    {
+      "at_bkk": "2026-10-15T18:32:40.809+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Same recovered MT5 connectivity and same31148/30548/7220 process chain. Own cohort entry1, closed1, open0, verified0, failed1. No new native identifier, journal event or code change. Original history metadata/close accounting failure persists; opposite protected pending4878801649 unchanged. No repeated user notification; keep monitoring active."
+    },
+    {
+      "at_bkk": "2026-10-15T18:47:31.652+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Same31148/30548/7220 process chain and recovered MT5=1. No new owned identifiers or journal events; entry1/5, brokerclosed1, verified0, failed1. History guard/close-accounting failure persists and protected opposite pending4878801649 remains. All baseline code hashes/broker specs unchanged. Suppress repeated notification; continue monitor."
+    },
+    {
+      "at_bkk": "2026-10-15T19:02:33.325+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "No new owned entry/journal event or code change. Cohort1/5, closed1, open0, verified0, failed1. Same target main31148/supervisor30548/terminal7220, MT5=1; history identity failure and missing-1.01 accounting remain. Protected pending4878801649 still native. Keep active; suppress repeated notification; no trading changes."
+    },
+    {
+      "at_bkk": "2026-10-15T19:17:30.197+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Native/history/journal and same process chain remain unchanged. Entry1/5, brokerclosed1, open0, verified0, failed1; original history identity failure and missing-1.01 accounting persist with native opposite pending4878801649 protected. MT5=1/auto=1, all baseline hashes/specs unchanged. No repeated notification and no production writes; keep scheduled monitor active."
+    },
+    {
+      "at_bkk": "2026-10-15T19:37:16.716+07:00",
+      "event": "second_cohort_position_closed_failed",
+      "detail": "Second original pending4878801649 filled SELL0.01 at4143.522 and native SL exited4144.522 after528ms, net-1.00; entry2/5, closed2, open0, verified0, failed2. Journal append246bytes/prefix valid; raw ticks show price activation but lifetime below900ms first delay and no SLTP request. Both historical order metadata stubs magic0/position_id0 and unreconciled closes persist; state daily-1.06 vs native-3.07. No new pair, ownpending0. Same healthy target process/identity, baseline hashes/specs unchanged. Notify new trade plus failed lifecycle; keep active without baseline reset or any trading fix."
+    },
+    {
+      "at_bkk": "2026-10-15T19:46:57.873+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Same two first-cohort positions closed; entry2/5, brokerclosed2, open0, verified0, failed2. No own pending or new native identifiers/journal events. Original history-metadata exception repeats at19:44:44; both close nets remain absent from state (daily-1.06 vs broker-3.07). Same healthy main31148/supervisor30548/terminal7220, MT5=1/auto=1, runtime flag ON; identity/hash/spec/prefix4410 valid. Keep monitor active, preserve failed cohort, no repeated notification or unauthorized trading fix."
+    },
+    {
+      "at_bkk": "2026-10-15T20:01:53.104+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2; same first two identifiers, no new owned deals/journal events or exposure. Both historical metadata stubs magic0/position_id0 and missing state close accounting persist (daily-1.06 vs native-3.07). Same history error19:49:43/19:54:43/19:59:45 found by scoped rg after log-tail misses. Same healthy target main31148/supervisor30548/terminal7220, MT5=1/auto=1/runtimeON; all hashes/specs/prefix4410 valid. Preserve cohort/baseline, keep active, suppress repeated notification; no fixes authorized/performed."
+    },
+    {
+      "at_bkk": "2026-10-15T20:16:56.153+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Same two first-cohort closed positions: entry2/5, closed2, open0, verified0, failed2. No new own native entry/journal event/exposure. History metadata magic0/position_id0 remains; same production error20:04:45/20:09:44/20:14:45 and missing both closes from state (daily-1.06 vs native-3.07). Same main31148/supervisor30548/terminal7220, fresh MT5=1/auto=1/runtimeON; exact native identity/hashes/specs/prefix4410 valid. Keep ACTIVE, preserve baseline/cohort, suppress repeated notification; no trading fixes or automation changes."
+    },
+    {
+      "at_bkk": "2026-10-15T20:31:55.617+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. No new owned native identifiers, exposure or journal events. Same history-order metadata magic0/position_id0, repeated error20:19:45/20:24:44/20:29:44 and both post-baseline closes missing from state (daily-1.06 vs native-3.07). Exact native identity verified on already-running terminal7220, same main31148/supervisor30548; fresh MT5=1/auto=1/runtimeON, hashes/specs/prefix4410 unchanged. Keep ACTIVE with frozen baseline/cohort/failures, suppress repeated notification, no trading fix or automation change."
+    },
+    {
+      "at_bkk": "2026-10-15T20:46:55.035+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2; no new native owned identifiers/exposure/journal events. Both historical metadata stubs magic0/position_id0 remain, same error20:34:45/20:39:46/20:44:46, both closes still missing from state (daily-1.06 vs native-3.07). Exact native identity healthy on already-running terminal7220, same main31148/supervisor30548; MT5=1/auto=1/runtimeON and hashes/specs/prefix4410 unchanged. Keep ACTIVE, frozen baseline/cohort/failures, no repeated notification or unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-15T21:01:54.928+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. No new owned identifier, position/pending or journal event. Native historical stubs still magic0/position_id0; same error20:49:46/20:54:46/20:59:45, both closes absent from state (daily-1.06 vs broker-3.07). Exact native identity on already-running terminal7220, same main31148/supervisor30548, fresh MT5=1/auto=1/runtimeON, six hashes/specs/prefix4410 unchanged. Keep ACTIVE and baseline/cohort/failures intact; suppress repeated notification, no unauthorized fix or automation change."
+    },
+    {
+      "at_bkk": "2026-10-15T21:16:55.921+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. Same two native identifiers, no owned exposure/new entry/journal event. Historical metadata magic0/position_id0 persists, same error21:04:45/21:09:46/21:14:47 and both closes missing from state (daily-1.06 vs native-3.07). Same main31148/supervisor30548/already-running terminal7220, exact native identity healthy, fresh MT5=1/auto=1/runtimeON; six hashes/specs/prefix4410 unchanged. Keep ACTIVE, immutable baseline/cohort/failures, suppress repeated notification; no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-15T21:31:55.617+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. No new owned native identifier/exposure/journal event; same two complete entry/exit histories. Metadata magic0/position_id0, same error21:19:45/21:24:46/21:29:46 via scoped rg and missing both closes from state persist (daily-1.06 vs broker-3.07). Exact native identity on already-running terminal7220, same main31148/supervisor30548, fresh MT5=1/auto=1/runtimeON; six frozen hashes/specs/prefix4410 unchanged. Keep ACTIVE and original baseline/cohort/failures; no repeated notification or unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-15T21:46:57.198+07:00",
+      "event": "scheduled_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. No new native owned identifier/exposure/journal event; same complete per-position exits. Historical stubs magic0/position_id0 remain, error21:34:47/21:39:46/21:44:47 and both closes absent from state persist (daily-1.06 vs broker-3.07). Same main31148/supervisor30548/already-running terminal7220; exact native demo identity healthy, fresh MT5=1/auto=1/runtimeON; frozen six hashes/specs/prefix4410 unchanged. Keep ACTIVE with original baseline/cohort/failures, suppress repeated notification; no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-15T21:56:06.639+07:00",
+      "event": "user_requested_monitor_cadence_two_hours",
+      "detail": "User requested monitoring every2hours instead of15minutes. Same actual heartbeat automation updated through app tool; saved ACTIVE status, two-hour interval and updated prompt independently verified. Name, kind, target chat and all other saved fields preserved. Original target5/baseline/cohort/failures and last actual runtime check unchanged. No trading fix, state/order/process or other automation changes authorized/performed."
+    },
+    {
+      "at_bkk": "2026-10-15T23:53:32.006+07:00",
+      "event": "external_restart_and_shared_code_drift_observed",
+      "detail": "New main9312/wrapper34488/supervisor44428/terminal16548 created22:14 BKK, observed only; exact demo identity/connection healthy, MT5=1/auto=1/runtimeON. config.py and demo_portfolio.py hashes differ from frozen baseline; adapter/main/worker/restart-control unchanged. Dedicated Scalping456 dispatch/Params reviewed; exact shared baseline diff unconfirmed, no certification. Entry2/5, closed2, open0, verified0, failed2; same broker history, journal4410 valid/no append, no own exposure. Error23:50:37 and missing both state closes remain (daily-1.06 vs native-3.07). Keep120-minute monitor ACTIVE, baseline/cohort/failures unchanged; no fix or process changes performed."
+    },
+    {
+      "at_bkk": "2026-10-16T01:57:09.504+07:00",
+      "event": "scheduled_two_hour_read_only_check_unchanged",
+      "detail": "Oct16 entry2/5, brokerclosed2, open0, verified0, failed2; same first-two native histories, no own exposure/new identifier/journal event. Same main9312/supervisor44428/terminal16548 and exact healthy native identity, MT5=1/auto=1/runtimeON. Existing two shared-file hash drifts unchanged from23:53; original baseline preserved. Same metadata magic0/position_id0 and error01:45:45/01:50:46/01:55:46. Oct15 state remains-1.06 vs broker-3.07; Oct16 no new own deals/default daily0 is not repair or baseline reset. Journal4410 valid. Keep120-minute monitor ACTIVE; suppress repeated notification, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T04:01:09.788+07:00",
+      "event": "scheduled_two_hour_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2; same native histories and no new own exposure/identifier/journal event. Same main9312/supervisor44428/terminal16548, exact healthy native demo identity, fresh MT5=1/auto=1/runtimeON. Current hashes match prior reviewed revision, not original six-file baseline (known two shared-file drifts unchanged). Metadata magic0/position_id0 and same error03:50:44/03:55:45/04:00:46 persist. HistoricalOct15 daily state-1.06 vs broker-3.07, currentOct16 no new own deals/default0. Journal4410 valid. Keep120-minute monitor ACTIVE, preserve baseline/cohort/failures; suppress repeated notification, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T06:00:39.467+07:00",
+      "event": "scheduled_two_hour_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2; same native identifiers/full exits, no new own exposure/deal/journal event. Same main9312/supervisor44428/terminal16548 and exact healthy demo identity, fresh MT5=1/auto=1/runtimeON. Prior reviewed code revision unchanged, known shared-source drift from original baseline persists. Metadata magic0/position_id0 and error05:50:48/05:55:48, missing bothOct15 closes persist (state-1.06 vs broker-3.07). Oct16 no new owned deals/default net0. Journal4410 valid. Keep120-minute monitor ACTIVE with original baseline/cohort/failures; suppress repeated notification, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T07:58:16.865+07:00",
+      "event": "scheduled_two_hour_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. Same first-two native histories/full exits, no own exposure/new deal/journal event. Same main9312/supervisor44428/terminal16548, exact healthy native demo identity, fresh MT5=1/auto=1/runtimeON. Source revision unchanged from prior review; known two shared-file drift versus original baseline remains. Same metadata magic0/position_id0, error07:45:52/07:50:52/07:55:51 and missing bothOct15 state closes (daily-1.06 vs broker-3.07). No currentOct16 own deals/default daily0. Journal4410 valid. Keep120-minute monitor ACTIVE with original baseline/cohort/failures; suppress repeated notification, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T10:04:21.857+07:00",
+      "event": "scheduled_two_hour_restart_reconciled_no_execution_progress",
+      "detail": "Observed external supervisor32312/wrapper33260/main32328/terminal36536 created09:36 BKK, not launched by audit. Brief guard error09:24:50 is recovered: production preflight passed by09:37:45 plus fresh MT5=1 and correct native demo identity. Same code revision/known source drift and lifecycle failure, error10:02:46. Entry2/5, closed2, open0, verified0, failed2, no own pending/new broker deals/journal append. Restart continuity preserved without duplicate IDs or PnL; Oct15 state-1.06 vs broker-3.07, Oct16 default0/no new own deals. Keep120-minute monitor ACTIVE with original baseline/cohort; suppress non-actionable repeat, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T12:02:30.608+07:00",
+      "event": "scheduled_two_hour_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. Same native first-two histories/full exits and no new owned entry/exposure/journal event. Same main32328/supervisor32312/already-running terminal36536; exact healthy native demo identity, fresh MT5=1/auto=1/runtimeON. Current code revision unchanged; known two shared-file baseline drifts remain unresolved. Same historical order magic0/position_id0 and error11:47:50/11:52:49/11:57:49. BothOct15 closes still absent from state (historical daily-1.06 vs broker-3.07, cohort-2.01); currentOct16 no new own deals/default net0 is not repair or reset. Journal4410/prefix valid. Keep120-minute monitor ACTIVE with original baseline/cohort/failures; suppress repeated notification, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T14:00:08.282+07:00",
+      "event": "scheduled_two_hour_read_only_check_unchanged",
+      "detail": "Entry2/5, brokerclosed2, open0, verified0, failed2. Same first-two native identifiers/full exits; no new own broker deal/exposure/journal event. Same main32328/supervisor32312/already-running terminal36536; exact healthy native demo identity, fresh MT5=1/auto=1/runtimeON. Current source revision/specs unchanged, known two shared-file baseline drifts remain. Same metadata magic0/position_id0 and history error13:47:53/13:52:54/13:57:54; bothOct15 closes still absent from state (historical daily-1.06 vs broker-3.07, cohort-2.01). CurrentOct16 no new own deals/default net0 is not repair or reset. Journal4410/prefix valid; keep120-minute monitor ACTIVE with original baseline/cohort/failures, suppress repeated notification, no unauthorized fix."
+    },
+    {
+      "at_bkk": "2026-10-16T14:45:33.446+07:00",
+      "event": "user_stopped_monitor_and_requested_no_orders_diagnosis",
+      "detail": "Same actual heartbeat PAUSED through app tool and saved fields independently verified; only status/update timestamp changed. Broker ownpositions0/ownpending0, same two post-baseline closed positions/net-2.01 and known metadata mismatch. Exact already-running terminal/native account identity and MT5=1/auto=1/runtimeON verified. Production error14:42:55 and code284-286/334-335 confirm _resolve_orders exception precedes _resolve_closes, accounting and rearm; state retains both pending_closes/known_orders. Original baseline/cohort/failures preserved. No trading code/config/risk/state/order/process/Telegram change; no fix authorized or performed."
+    },
+    {
+      "at_bkk": "2026-10-16T15:41:56.150533+07:00",
+      "event": "authorized_order_rearm_fix_implemented_pending_user_restart",
+      "detail": "User authorized fixing the block on new orders and explicitly chose to restart7129 personally. Implemented Exness zero-magic history fallback backed by exact order/owned entry deals, cancellation fallback backed by original request/ack, complete-close volume/cost accounting on final-close BKK day, and durable cancel/rearm intent. 47 tests/compile/scoped text checks and offline replay of saved real broker records PASS; old frozen adapter reproduces the identity mismatch. No live API/order/state/process/Telegram action, no restart, no monitor resumption. Original baseline/cohort/counts/failures and last real runtime observation unchanged."
+    },
+    {
+      "at_bkk": "2026-10-16T15:50:25.342958+07:00",
+      "event": "user_requested_one_percent_risk_implemented_pending_restart",
+      "detail": "Changed default new-entry sizing from fixed0.01 to1% current equity per Scalping456 order, using broker account-currency SL-loss calculation, downward volume-step rounding and pre-send budget checks. Both legs sized before either send; missing data/minimum lot above budget fails closed. Legacy0.01 history still reconciles.62 offline tests/compile/scoped text checks and saved native-history replay with synthetic1000equity PASS (new fake pair0.1/0.1, modeled10loss each). Added timeout-protected order_calc_profit worker wrapper while preserving unrelated worker edits. Nominal pair2%, up to3exposure slots; fees/slippage/gaps excluded; original20USD daily entry gate unchanged. No real broker orders/state/process/Telegram action. User restarts personally; monitor remainsPAUSED and original baseline/cohort/failures preserved."
+    },
+    {
+      "at_bkk": "2026-10-16T15:56:49.706+07:00",
+      "event": "manual_user_restart_check_partial_recovery_new_silent_block",
+      "detail": "User restarted7129; observed main79252/supervisor44688/terminal56028 created15:55. Exact native demo identity and fresh MT5=1/auto=1/runtimeON verified. Authorized adapter/worker hashes match; two new closed events15:55:20 advance journal4410→4873 and old-day accounting recovers-3.07 without reset/double PnL. No own position/pending/new native deals or sizing events. known_orders retains4878801646/4878801649: independent raw API ticket-filter deals returnsNone for both, per-position queries succeed. New entry remains blocked; no live1% request verified. Report and request authorization for this additional fix; no code/config/live-state/order/process/Telegram/automation modification. Monitor remainsPAUSED; original cohort/failures/counts preserved."
+    },
+    {
+      "at_bkk": "2026-10-16T16:02:16.057+07:00",
+      "event": "user_requested_single_1800_bkk_follow_up",
+      "detail": "User requested waiting and checking again at18:00todayOct16. Updated the same existing heartbeat through app tool to one scheduled run, not2-hour monitoring or five-position continuation. Saved name/status/prompt/rule/count1/thread/kind independently verified. Existing fields unrelated to requested schedule/scope preserved; no other automation or trading code/config/state/order/process changed. Keep original baseline/cohort/failures and latest actual runtime check untouched. At18:00 read-only check and report even if still no orders, then stop this one-shot schedule."
+    },
+    {
+      "at_bkk": "2026-10-16T17:25:59.454+07:00",
+      "event": "manual_order_check_before_1800_unchanged",
+      "detail": "User-requested read-only native check: correct Exness demo7129 identity/path/hedging/connection, same main79252/supervisor44688/terminal56028 and authorized source revision. Fresh MT5=1/auto=1/ScalpingON; own positions0/pending0, no new entry/deals or journal event. Old accounting-3.07 remains correct; pending_closes empty but known_orders4878801646/4878801649 still block new pair. Current ticket-filter API was not queried again; prior independent None proof remains in15:56 audit.16:18 guard rejection is historical; current native identity/heartbeat pass. One-shot18:00 schedule unchanged, no trading/code/config/live-state/order/process/Telegram actions."
+    },
+    {
+      "at_bkk": "2026-10-16T17:31:13.152+07:00",
+      "event": "strategy_diagnosis_invalid_ticket_filter_proven",
+      "detail": "User asked to check strategy. Read-only current native identity/heartbeat/state/journal and code show native BUY_STOP Ask+1.30/SELL_STOP Bid-1.30 straddle, no RSI/candle/trend wait. Both ticket-filter queries returnNone/-2 Invalidparams; per-position returnsSuccess. Same2known_orders block before sizing. Native read-only1% preview on equity10474.27 gives1.04lot/104USD SL loss each (not submitted). Faithful offline failure-shape replay0fake sends; temporary in-memory counterfactual after ownership proof2fake sends. Actual tick samples0.45s apart identical, so no bot tick-freshness/path claim; freshfake ticks explicitly simulated. Code/live-state/orders/process/schedule unchanged; request authorization for lookup repair, original cohort/failures and18:00check retained."
+    },
+    {
+      "at_bkk": "2026-10-16T17:46:04.969+07:00",
+      "event": "authorized_ticket_filter_repair_source_ready",
+      "outcome": "AWAITING_USER_RESTART",
+      "audit_file": "data/forward_7129_20261015/repair_ticket_filter_native_20261016T174604.json",
+      "report": "FIX_TICKET_FILTER_7129_20261016.md",
+      "baseline_and_failed_cohort_preserved": true,
+      "live_state_reset": false,
+      "restart_performed": false,
+      "live_order_sends": 0,
+      "tests_passed": 78
+    },
+    {
+      "at_bkk": "2026-10-16T17:54:21.843+07:00",
+      "event": "post_user_restart_real_pair_fill_and_exit_verified",
+      "audit_file": "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json",
+      "summary": "New pair1.03lot each accepted; SELL4886149696 filled4177.047/SL4178.071, net-105.47; BUY4886149691 canceled after confirmed close. Old tickets/accounting recovered. Current daily-20 gate active and new unknown state ticket4886153546 unresolved. No agent order/trading-code/state/process mutation.",
+      "recurring_monitor_resumed": false
+    },
+    {
+      "at_bkk": "2026-10-16T18:01:32.237+07:00",
+      "event": "one_shot_1800_completed_and_automation_deleted",
+      "audit_file": "data/forward_7129_20261015/one_shot_1800_20261016T180132.json",
+      "notification_explicitly_requested": true,
+      "summary": "Exact native demo identity/fresh health confirmed; unchanged own0/0 and tracked4886153546, journal8205 no append, Oct16-105.47 daily gate active. Prior real1.03lot pair/SELL close and1% submission model independently rechecked. No bot/code/config/state/order/process/Telegram mutation; same one-off deleted through app tool, no periodic resumption.",
+      "original_baseline_cohort_failures_preserved": true
+    }
+  ],
+  "completion_criteria": "All first five post-baseline positions closed, broker/journal/state evidence complete for applicable checks, and all five PASS with no unresolved execution contradiction. Do not replace a failed first-five member with a later trade. Untouched trigger paths are not triggered, not proved. Profit is not a correctness criterion.",
+  "read_only": true,
+  "requested_extension": {
+    "requested_bkk": "2026-10-15T15:19:56.000+07:00",
+    "old_target": 3,
+    "new_target": 5,
+    "baseline_reset": false,
+    "existing_cohort_retained": true,
+    "trading_fix_authorized": false
+  },
+  "automation_extension_status": "CONFIRMED_FIVE_POSITIONS",
+  "automation_verified": {
+    "id": "scalping456-demo-2459-3",
+    "name": "ตรวจ Scalping456 7129 เวลา 18:00 วันนี้",
+    "status": "ACTIVE",
+    "rrule": "FREQ=DAILY;BYHOUR=18;BYMINUTE=0;BYSECOND=0;COUNT=1",
+    "target_thread_id": "01a119a9-0064-7333-9fe0-61618b65cbc7",
+    "updated_at": 1792141336057
+  },
+  "closed_lifecycle_count": 3,
+  "latest_runtime_check": {
+    "at_bkk": "2026-10-16T18:01:32.237+07:00",
+    "runtime_snapshot_utc": "2026-10-16T11:01:32.237187+00:00",
+    "heartbeat_bkk": "2026-10-16 18:01:22",
+    "heartbeat_age_seconds": 10.043,
+    "heartbeat_mt5_ok": 1,
+    "heartbeat_fresh": true,
+    "main_pid": 51280,
+    "supervisor_pid": 59772,
+    "terminal_pid": 65192,
+    "terminal_created_bkk": "2026-10-16T17:51:45.3363380+07:00",
+    "exact_target_terminal_running_before_diagnostic_initialize": true,
+    "native_identity_verified": true,
+    "native_terminal_connected": true,
+    "production_identity_guard_rejects": false,
+    "historical_guard_log_note": "17:51:27 belongs to old process, before observed restart17:51:42; not a current account outage.",
+    "code_hashes_match_baseline": false,
+    "current_code_sha256": {
+      "demo_scalping456.py": "e1852f77a006b9169229675dbb53d997f81bcbd41aaeda3d8ed654a4d1e61ea9",
+      "demo_portfolio.py": "127476c1b5b7344823cb05dc40996f2c9cb79dac7e48b374d3f9b3530c4f7c59",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "ab594e2d38e6ac42275b3425d537391dc7e5404a5de40b20f296c17b266c0927",
+      "mt5_worker.py": "3a23d57c4c291eb28075f997d2ab7ad094cfda976f9c5e65bb8247041feb3379",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    },
+    "journal_prefix_valid": true,
+    "new_journal_events": 0,
+    "own_open_positions": 0,
+    "own_pending_orders": [],
+    "known_orders": {
+      "4886153546": true
+    },
+    "observed_strategy_daily_net": {
+      "2026-10-15": -3.0700000000000003,
+      "2026-10-16": -105.47
+    },
+    "source_repair_loaded": true,
+    "native_pair_submitted": true,
+    "native_sell_filled_and_closed": true,
+    "accounting_exactly_once_observed": true,
+    "daily_loss_gate_active": true,
+    "daily_net_loss_gate_usd": 20,
+    "unresolved_tracking_ticket": 4886153546,
+    "full_lifecycle_certified": false,
+    "outcome": "ONE_SHOT_1800_COMPLETED_NO_NEW_ENTRY_DAILY_GATE_AND_TRACKED_TICKET_UNRESOLVED",
+    "fixes_performed": false,
+    "live_orders_sent_by_this_check": 0,
+    "notification_suppressed": false,
+    "audit_file": "data/forward_7129_20261015/one_shot_1800_20261016T180132.json",
+    "code_hashes_match_last_reviewed_revision": true,
+    "notification_reason": "User explicitly requested18:00 result even if unchanged. Native identity/health good; no new own entry; prior1% submission independently rechecked; unresolved known_order remains. One-off deleted, await direction."
+  },
+  "observation_gaps": [
+    {
+      "last_durable_check_bkk": "2026-10-15T15:47:23.411+07:00",
+      "current_check_bkk": "2026-10-15T18:17:42.836+07:00",
+      "elapsed_minutes": 150.324,
+      "note": "Intervening heartbeat messages do not establish completed audits. An earlier16:05 partial observation was not committed. No intermediate successful checks are fabricated. Current audit reconciled the complete owned broker history from07:45UTC plus unchanged journal checkpoint4164; no additional owned entry identifiers were found."
+    }
+  ],
+  "monitor_interval_minutes": null,
+  "automation_schedule_updated_bkk": "2026-10-16T16:02:16.057+07:00",
+  "code_revision_observations": [
+    {
+      "at_bkk": "2026-10-15T23:53:32.006+07:00",
+      "files": [
+        {
+          "file": "demo_portfolio.py",
+          "baseline_sha256": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+          "current_sha256": "9a1d5f4f7692087e2f75e5a66b576606613f0d87e67637c6271e060832c76d69"
+        },
+        {
+          "file": "config.py",
+          "baseline_sha256": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+          "current_sha256": "e4930715443fafe8ce4a1e5015ec1c08c1af6f54fa0e116314f0477d3d58ec71"
+        }
+      ],
+      "review_status": "PARTIAL: original frozen six-file snapshot is no longer matched; adapter Params preserved but config/portfolio exact baseline revision differences remain unconfirmed. No new position is certified.",
+      "audit_file": "monitor_wake_20261015T235332.json"
+    },
+    {
+      "at_bkk": "2026-10-16T15:41:56.150533+07:00",
+      "files": [
+        {
+          "file": "demo_scalping456.py",
+          "baseline_sha256": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+          "current_sha256": "8f8b7984758c5cdf6f31be9d98fbc2b0eb8f36f0251938888728de397c786624"
+        }
+      ],
+      "review_status": "Authorized adapter ownership/reconciliation/rearm fix; 47 offline tests and actual saved native-history replay PASS. Params/targets/preflight unchanged. Production still needs user restart; no live execution PASS claimed.",
+      "audit_file": "data/forward_7129_20261015/fix_offline_replay_20261016.json"
+    },
+    {
+      "at_bkk": "2026-10-16T15:50:25.342958+07:00",
+      "files": [
+        {
+          "file": "demo_scalping456.py",
+          "previous_reviewed_sha256": "8f8b7984758c5cdf6f31be9d98fbc2b0eb8f36f0251938888728de397c786624",
+          "current_sha256": "2cabf54eb4a7b9ea59d98c63d4c53d76437ecd2414a683c6673e23ca9933a859"
+        },
+        {
+          "file": "mt5_worker.py",
+          "previous_reviewed_sha256": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+          "current_sha256": "3a23d57c4c291eb28075f997d2ab7ad094cfda976f9c5e65bb8247041feb3379"
+        }
+      ],
+      "review_status": "Authorized1% equity per-new-order sizing and timeout-protected profit-read wrapper.62 offline tests PASS; frozen lot0.01 is historical only. Pending user restart; no live post-change execution certification.",
+      "audit_file": "data/forward_7129_20261015/risk_1pct_offline_replay_20261016.json"
+    },
+    {
+      "at_bkk": "2026-10-16T15:56:49.706+07:00",
+      "files": [
+        {
+          "file": "demo_scalping456.py",
+          "previous_observed_sha256": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+          "current_sha256": "2cabf54eb4a7b9ea59d98c63d4c53d76437ecd2414a683c6673e23ca9933a859"
+        },
+        {
+          "file": "demo_portfolio.py",
+          "previous_observed_sha256": "9a1d5f4f7692087e2f75e5a66b576606613f0d87e67637c6271e060832c76d69",
+          "current_sha256": "0eeaa7f682ab0f3f3503cc7b3f01ab6a98e466e68e883800b9cd9c16136eddcb"
+        },
+        {
+          "file": "config.py",
+          "previous_observed_sha256": "e4930715443fafe8ce4a1e5015ec1c08c1af6f54fa0e116314f0477d3d58ec71",
+          "current_sha256": "ab594e2d38e6ac42275b3425d537391dc7e5404a5de40b20f296c17b266c0927"
+        },
+        {
+          "file": "mt5_worker.py",
+          "previous_observed_sha256": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+          "current_sha256": "3a23d57c4c291eb28075f997d2ab7ad094cfda976f9c5e65bb8247041feb3379"
+        }
+      ],
+      "review_status": "Authorized adapter/worker revision loaded after user restart. config/demo_portfolio also changed externally since prior runtime audit; dedicated Scalping456 wrapper inspected and unchanged in behavior, broader changes not assessed. No all-files frozen-baseline assertion.",
+      "audit_file": "post_restart_check_20261016T155649.json"
+    },
+    {
+      "at_bkk": "2026-10-16T17:46:04.969+07:00",
+      "files": [
+        {
+          "file": "demo_scalping456.py",
+          "previous_reviewed_sha256": "2cabf54eb4a7b9ea59d98c63d4c53d76437ecd2414a683c6673e23ca9933a859",
+          "current_sha256": "e1852f77a006b9169229675dbb53d997f81bcbd41aaeda3d8ed654a4d1e61ea9"
+        }
+      ],
+      "review_status": "Authorized ticket history fallback and canonical identifier accounting only; unchanged entry/risk/trailing/preflight/send AST;78offline tests/native ownership+order_check PASS. Awaiting user restart/live sends. Shared demo_portfolio hash changed externally; dedicated wrapper inspected, broader changes not assessed.",
+      "audit_file": "data/forward_7129_20261015/repair_ticket_filter_native_20261016T174604.json"
+    }
+  ],
+  "process_restart_observations": [
+    {
+      "at_bkk": "2026-10-16T10:04:21.857+07:00",
+      "observed_only": true,
+      "previous_main_pid": 9312,
+      "previous_supervisor_pid": 44428,
+      "previous_terminal_pid": 16548,
+      "current_main_pid": 32328,
+      "current_supervisor_pid": 32312,
+      "current_terminal_pid": 36536,
+      "processes": {
+        "terminal": [
+          {
+            "parent": 31708,
+            "pid": 36536,
+            "created": "2026-10-16T09:36:54.3098990+07:00",
+            "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+          }
+        ],
+        "supervisor": [
+          {
+            "parent": 31060,
+            "pid": 32312,
+            "created": "2026-10-16T09:36:33.2864680+07:00"
+          }
+        ],
+        "supervisor_log_tail": [
+          "[2026-10-16 09:36:34] WARN: lock file ค้างจาก pid=44428 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ",
+          "[2026-10-16 09:36:37] Supervisor started (profile='demo-exness-434237129', stale=180 s, check=30 s, grace=90 s, python='C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe')",
+          "[2026-10-16 09:36:37] Launching: C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe main.py",
+          "[2026-10-16 09:36:37] main.py running (pid=33260)"
+        ],
+        "relevant_log_events": [
+          "[2026-10-16 10:02:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+        ],
+        "main_chain": [
+          {
+            "parent": 33260,
+            "pid": 32328,
+            "name": "python.exe",
+            "created": "2026-10-16T09:36:37.3256040+07:00",
+            "main_py": true
+          },
+          {
+            "parent": 32312,
+            "pid": 33260,
+            "name": "python.exe",
+            "created": "2026-10-16T09:36:37.2854220+07:00",
+            "main_py": true
+          },
+          {
+            "parent": 31060,
+            "pid": 32312,
+            "name": "powershell.exe",
+            "created": "2026-10-16T09:36:33.2864680+07:00",
+            "main_py": false
+          },
+          {
+            "parent": 30656,
+            "pid": 31060,
+            "name": "cmd.exe",
+            "created": "2026-10-16T09:36:30.1674090+07:00",
+            "main_py": false
+          }
+        ],
+        "scoped_rg_log_events": [
+          "108422:[2026-10-16 09:20:55] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+          "108884:[2026-10-16 09:24:50] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected",
+          "108896:[2026-10-16 09:37:45] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+          "109459:[2026-10-16 09:42:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+          "110161:[2026-10-16 09:47:45] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+          "110803:[2026-10-16 09:52:47] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+          "111381:[2026-10-16 09:57:47] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+          "111923:[2026-10-16 10:02:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+        ]
+      },
+      "transient_guard_log_bkk": "2026-10-16T09:24:50+07:00",
+      "guard_currently_recovered": true,
+      "guard_recovery_evidence": "After new processes at09:36, production history mismatch resumes09:37:45 through10:02:46 after preflight; fresh MT5=1 and independent correct native account/demo/hedging/path/connection pass.",
+      "restart_continuity": "Same two identifiers, known_orders, pending_closes, closed_positions/daily state, cycles2/rearmfalse and journal4410/prefix; no duplicate fill/close or new broker entry.",
+      "restart_performed_by_this_audit": false
+    }
+  ],
+  "monitor_stop": {
+    "reason": "Explicit user request: หยุด monitor แล้วเช็คหน่อยทำไมไม่มี order เลย",
+    "recorded_bkk": "2026-10-16T14:45:33.446+07:00",
+    "completion_criteria_met": false,
+    "failed_cohort_preserved": true,
+    "trading_bot_stopped": false
+  },
+  "pending_code_fix": {
+    "recorded_bkk": "2026-10-16T17:46:04.969+07:00",
+    "status": "LOADED_NEW_PAIR_AND_FILL_VERIFIED_NEW_POST_CLOSE_TICKET_UNRESOLVED",
+    "user_authorized_code_fix": true,
+    "user_will_restart_7129": true,
+    "agent_restart_authorized": false,
+    "production_loaded_new_code_verified": true,
+    "live_orders_after_fix_verified": true,
+    "source_sha256": {
+      "demo_scalping456.py": "e1852f77a006b9169229675dbb53d997f81bcbd41aaeda3d8ed654a4d1e61ea9",
+      "test_demo_scalping456.py": "c5795d887215380f8f9ef261901b2c7ccbef31137b1437c842047a2591b79371",
+      "mt5_worker.py": "3a23d57c4c291eb28075f997d2ab7ad094cfda976f9c5e65bb8247041feb3379"
+    },
+    "tests": {
+      "unit_tests": 78,
+      "result": "PASS",
+      "py_compile": "PASS",
+      "scoped_utf8_lf_mojibake": "PASS",
+      "params_entry_risk_trailing_preflight_send_ast_unchanged": true,
+      "changed_methods_only": [
+        "_order_deals",
+        "_stub_position_identifier",
+        "_resolve_closes"
+      ],
+      "old_invalid_filter_block_reproduced": true,
+      "captured_state_offline_replay": "PASS",
+      "native_read_only_ownership_proof": "PASS_BOTH_ORDERS",
+      "native_order_check": "PASS_BOTH_RET0_DONE_NOT_SENT"
+    },
+    "report": "FIX_TICKET_FILTER_7129_20261016.md",
+    "offline_replay": "data/forward_7129_20261015/repair_ticket_filter_replay_20261016.json",
+    "live_bot_state_manually_modified": false,
+    "monitor_status": "STOPPED_ONE_SHOT_COMPLETED_AUTOMATION_DELETED",
+    "risk_change": {
+      "requested_percent": 1,
+      "basis": "current account equity",
+      "scope": "per new Scalping456 order",
+      "broker_currency_sl_calculation": "order_calc_profit",
+      "lot_rounding": "down to volume_step; max broker volume cap; below min skip",
+      "actual_loss_cap_guaranteed": false,
+      "costs_slippage_gap_excluded": true,
+      "pair_nominal_percent": 2,
+      "max_own_exposure_slots": 3,
+      "original_daily_usd_entry_gate": 20,
+      "existing_position_lots_unchanged": true,
+      "production_applied_verified": true,
+      "user_will_restart_7129": true,
+      "report": "RISK_1PCT_7129_20261016.md",
+      "offline_replay": "data/forward_7129_20261015/risk_1pct_offline_replay_20261016.json",
+      "production_evidence": {
+        "audit_file": "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json",
+        "submitted_equity": 10320.07,
+        "volume_each": 1.03,
+        "modeled_loss_each": 103,
+        "budget_each": 103.2007,
+        "actual_loss_cap_guaranteed": false
+      }
+    },
+    "loaded_revision_evidence": "New main51280 created17:51:42 after repaired source; journal resolves both old tickets17:51:56 and accepts pair17:51:57; broker native pair/SELL fill/SL exit/cancel prove execution. No duplicate old PnL.",
+    "unresolved_entry_block": "Original known_orders resolved; new unresolved tracked ticket4886153546 now remains after SL exit. Current new-entry daily gate also active at-105.47 <=-20. Future rearm not certified.",
+    "previous_loaded_revision": {
+      "status": "LOADED_PARTIAL_RECOVERY_ENTRY_STILL_BLOCKED",
+      "source_sha256": {
+        "demo_scalping456.py": "2cabf54eb4a7b9ea59d98c63d4c53d76437ecd2414a683c6673e23ca9933a859",
+        "test_demo_scalping456.py": "bc79ac210c136aef472d470fd2d9e9aa51d582f06739216dedd38cee0d76a008",
+        "mt5_worker.py": "3a23d57c4c291eb28075f997d2ab7ad094cfda976f9c5e65bb8247041feb3379"
+      },
+      "loaded_revision_evidence": "Restarted main15:55 after source change; source adapter/worker hashes match authorized revision; production closed events contain new close-day accounting fields."
+    },
+    "native_read_only_audit": "data/forward_7129_20261015/repair_ticket_filter_native_20261016T174604.json",
+    "latest_post_restart_audit": "data/forward_7129_20261015/post_ticket_repair_restart_20261016T175421.json"
+  },
+  "original_monitor_interval_minutes": 120,
+  "active_schedule": {
+    "mode": "completed_one_shot",
+    "scheduled_bkk": "2026-10-16T18:00:00+07:00",
+    "scheduled_utc": "2026-10-16T11:00:00+00:00",
+    "original_periodic_monitor_stopped": true,
+    "recurring_five_position_goal_resumed": false,
+    "read_only": true,
+    "no_additional_fix_authorized": true,
+    "stop_after_single_check": true,
+    "notify_single_requested_result_even_if_unchanged": true,
+    "completed_bkk": "2026-10-16T18:01:32.237+07:00",
+    "automation_deleted": true,
+    "automation_deleted_bkk": "2026-10-16T18:02:09.920+07:00",
+    "no_further_checks_scheduled": true,
+    "full_execution_pass": false
+  }
+}

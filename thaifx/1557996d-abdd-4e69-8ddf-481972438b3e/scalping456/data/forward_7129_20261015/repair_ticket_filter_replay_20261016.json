@@ -1,0 +1,63 @@
+{
+  "result": "PASS_OFFLINE",
+  "live_order_sends": 0,
+  "simulated_quote_progression": true,
+  "fake_requests": [
+    {
+      "action": 5,
+      "symbol": "XAUUSDm",
+      "magic": 995456,
+      "volume": 1.04,
+      "type": 4,
+      "price": 4182.683,
+      "sl": 4181.683,
+      "tp": 0,
+      "type_time": 0,
+      "type_filling": 2,
+      "comment": "M1_S21_S456_B"
+    },
+    {
+      "action": 5,
+      "symbol": "XAUUSDm",
+      "magic": 995456,
+      "volume": 1.04,
+      "type": 5,
+      "price": 4179.843,
+      "sl": 4180.843,
+      "tp": 0,
+      "type_time": 0,
+      "type_filling": 2,
+      "comment": "M1_S21_S456_S"
+    }
+  ],
+  "state_after_fake_pair": {
+    "version": 1,
+    "magic": 995456,
+    "login": 434237129,
+    "symbol": "XAUUSDm",
+    "phase": "working",
+    "known_positions": {},
+    "pending_closes": {},
+    "closed_positions": {
+      "4878797096": -1.06,
+      "4878801646": -1.01,
+      "4878801649": -1
+    },
+    "daily_net": {
+      "2026-10-15": -3.0700000000000003
+    },
+    "cycles": 3,
+    "last_error": "",
+    "rearm_requested": false,
+    "known_orders": {
+      "101": true,
+      "102": true
+    },
+    "journal_orders_recovered": true,
+    "close_rearm_pending": false
+  },
+  "restart_duplicate_requests": 0,
+  "closed_pnl_unchanged": true,
+  "risk_note": "1% per NEW order, not portfolio-wide; fees/gaps excluded",
+  "native_capture_utc": "2026-10-16T10:46:04.969640+00:00"
+}

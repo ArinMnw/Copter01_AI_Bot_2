@@ -1,0 +1,716 @@
+{
+  "read_only": true,
+  "profile": "demo-exness-434237129",
+  "heartbeat": {
+    "ts": "1792146659",
+    "bkk": "2026-10-16 17:31:00",
+    "mt5_ok": "1",
+    "auto": "1",
+    "last_scan": "1792146656",
+    "pid": "79252"
+  },
+  "heartbeat_age_seconds": 13.401,
+  "strategy_state": {
+    "version": 1,
+    "magic": 995456,
+    "login": 434237129,
+    "symbol": "XAUUSDm",
+    "phase": "working",
+    "known_positions": {},
+    "pending_closes": {},
+    "closed_positions": {
+      "4878797096": -1.06,
+      "4878801646": -1.01,
+      "4878801649": -1
+    },
+    "daily_net": {
+      "2026-10-15": -3.0700000000000003
+    },
+    "cycles": 2,
+    "last_error": "",
+    "rearm_requested": true,
+    "known_orders": {
+      "4878801646": true,
+      "4878801649": true
+    },
+    "journal_orders_recovered": true,
+    "close_rearm_pending": false
+  },
+  "runtime_flags": {
+    "scalping456_active": true
+  },
+  "journal": {
+    "prefix_valid": true,
+    "previous_offset": 4873,
+    "complete_offset": 4873,
+    "file_length": 4873,
+    "prefix_sha256": "22e5c09bb62e3be73537c60d0d027b53d80875c04946c9af97b27ba861d9c15e",
+    "new_events": []
+  },
+  "code_sha256": {
+    "demo_scalping456.py": "2cabf54eb4a7b9ea59d98c63d4c53d76437ecd2414a683c6673e23ca9933a859",
+    "demo_portfolio.py": "0eeaa7f682ab0f3f3503cc7b3f01ab6a98e466e68e883800b9cd9c16136eddcb",
+    "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+    "config.py": "ab594e2d38e6ac42275b3425d537391dc7e5404a5de40b20f296c17b266c0927",
+    "mt5_worker.py": "3a23d57c4c291eb28075f997d2ab7ad094cfda976f9c5e65bb8247041feb3379",
+    "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+  },
+  "code_hashes_match_baseline": false,
+  "processes": {
+    "terminal": [
+      {
+        "parent": 19272,
+        "pid": 56028,
+        "created": "2026-10-16T15:55:06.9614660+07:00",
+        "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+      }
+    ],
+    "supervisor": [
+      {
+        "parent": 48268,
+        "pid": 44688,
+        "created": "2026-10-16T15:55:01.7774980+07:00"
+      }
+    ],
+    "supervisor_log_tail": [
+      "[2026-10-16 15:55:02] WARN: lock file ค้างจาก pid=32312 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ",
+      "[2026-10-16 15:55:03] Supervisor started (profile='demo-exness-434237129', stale=180 s, check=30 s, grace=90 s, python='C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe')",
+      "[2026-10-16 15:55:03] Launching: C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe main.py",
+      "[2026-10-16 15:55:03] main.py running (pid=59940)"
+    ],
+    "relevant_log_events": [],
+    "main_chain": [
+      {
+        "parent": 59940,
+        "pid": 79252,
+        "name": "python.exe",
+        "created": "2026-10-16T15:55:03.6358070+07:00",
+        "main_py": true
+      },
+      {
+        "parent": 44688,
+        "pid": 59940,
+        "name": "python.exe",
+        "created": "2026-10-16T15:55:03.6220040+07:00",
+        "main_py": true
+      },
+      {
+        "parent": 48268,
+        "pid": 44688,
+        "name": "powershell.exe",
+        "created": "2026-10-16T15:55:01.7774980+07:00",
+        "main_py": false
+      },
+      {
+        "parent": 54720,
+        "pid": 48268,
+        "name": "cmd.exe",
+        "created": "2026-10-16T15:54:58.9805780+07:00",
+        "main_py": false
+      }
+    ]
+  },
+  "initialize_existing_terminal": true,
+  "account": {
+    "login": 434237129,
+    "server": "Exness-MT5Trial7",
+    "trade_mode": 0,
+    "margin_mode": 2,
+    "currency": "USD",
+    "trade_allowed": true,
+    "limit_orders": 1024,
+    "equity": 10474.27,
+    "balance": 9822.51,
+    "margin_free": 10411.84
+  },
+  "terminal": {
+    "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+    "connected": true,
+    "trade_allowed": true
+  },
+  "native_identity_verified": true,
+  "own_positions": [],
+  "own_pending": [],
+  "owned_history_deals": [
+    {
+      "ticket": 4299017056,
+      "order": 4878797096,
+      "time": 1792050907,
+      "time_msc": 1792050907965,
+      "type": 0,
+      "entry": 0,
+      "magic": 995456,
+      "position_id": 4878797096,
+      "reason": 3,
+      "volume": 0.01,
+      "price": 4145.403,
+      "commission": 0,
+      "swap": 0,
+      "profit": 0,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "M1_S21_S456_B",
+      "external_id": ""
+    },
+    {
+      "ticket": 4299018839,
+      "order": 4878800453,
+      "time": 1792050926,
+      "time_msc": 1792050926694,
+      "type": 1,
+      "entry": 1,
+      "magic": 995456,
+      "position_id": 4878797096,
+      "reason": 4,
+      "volume": 0.01,
+      "price": 4144.335,
+      "commission": 0,
+      "swap": 0,
+      "profit": -1.06,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "[sl 4144.335]",
+      "external_id": ""
+    },
+    {
+      "ticket": 4299032977,
+      "order": 4878801646,
+      "time": 1792051199,
+      "time_msc": 1792051199326,
+      "type": 0,
+      "entry": 0,
+      "magic": 995456,
+      "position_id": 4878801646,
+      "reason": 0,
+      "volume": 0.01,
+      "price": 4146.372,
+      "commission": 0,
+      "swap": 0,
+      "profit": 0,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "M1_S21_S456_B",
+      "external_id": "proactive"
+    },
+    {
+      "ticket": 4299035398,
+      "order": 4878818433,
+      "time": 1792051206,
+      "time_msc": 1792051206831,
+      "type": 1,
+      "entry": 1,
+      "magic": 995456,
+      "position_id": 4878801646,
+      "reason": 4,
+      "volume": 0.01,
+      "price": 4145.362,
+      "commission": 0,
+      "swap": 0,
+      "profit": -1.01,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "[sl 4145.362]",
+      "external_id": ""
+    },
+    {
+      "ticket": 4300230026,
+      "order": 4878801649,
+      "time": 1792067401,
+      "time_msc": 1792067401700,
+      "type": 1,
+      "entry": 0,
+      "magic": 995456,
+      "position_id": 4878801649,
+      "reason": 0,
+      "volume": 0.01,
+      "price": 4143.522,
+      "commission": 0,
+      "swap": 0,
+      "profit": 0,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "M1_S21_S456_S",
+      "external_id": "proactive"
+    },
+    {
+      "ticket": 4300232789,
+      "order": 0,
+      "time": 1792067402,
+      "time_msc": 1792067402228,
+      "type": 0,
+      "entry": 1,
+      "magic": 995456,
+      "position_id": 4878801649,
+      "reason": 4,
+      "volume": 0.01,
+      "price": 4144.522,
+      "commission": 0,
+      "swap": 0,
+      "profit": -1,
+      "fee": 0,
+      "symbol": "XAUUSDm",
+      "comment": "[sl 4144.52200]",
+      "external_id": "proactive"
+    }
+  ],
+  "position_history": {
+    "4878797096": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time": 1792050907,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time": 1792050926,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]",
+        "external_id": ""
+      }
+    ],
+    "4878801646": [
+      {
+        "ticket": 4299032977,
+        "order": 4878801646,
+        "time": 1792051199,
+        "time_msc": 1792051199326,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4299035398,
+        "order": 4878818433,
+        "time": 1792051206,
+        "time_msc": 1792051206831,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4145.362,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.01,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4145.362]",
+        "external_id": ""
+      }
+    ],
+    "4878801649": [
+      {
+        "ticket": 4300230026,
+        "order": 4878801649,
+        "time": 1792067401,
+        "time_msc": 1792067401700,
+        "type": 1,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4143.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4300232789,
+        "order": 0,
+        "time": 1792067402,
+        "time_msc": 1792067402228,
+        "type": 0,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.52200]",
+        "external_id": "proactive"
+      }
+    ]
+  },
+  "historical_orders": {
+    "4878797096": [
+      {
+        "ticket": 4878797096,
+        "time_setup": 1792050888,
+        "time_setup_msc": 1792050888046,
+        "time_done": 1792050907,
+        "time_done_msc": 1792050907965,
+        "time_expiration": 0,
+        "type": 4,
+        "type_time": 0,
+        "type_filling": 2,
+        "state": 4,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "position_by_id": 0,
+        "reason": 3,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4145.335,
+        "sl": 4144.335,
+        "tp": 0,
+        "price_current": 4145.403,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      }
+    ],
+    "4878801646": [
+      {
+        "ticket": 4878801646,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951000,
+        "time_done": 1792051199,
+        "time_done_msc": 1792051199326,
+        "time_expiration": 0,
+        "type": 4,
+        "type_time": 0,
+        "type_filling": 0,
+        "state": 4,
+        "magic": 0,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4146.362,
+        "sl": 0,
+        "tp": 0,
+        "price_current": 0,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "",
+        "external_id": ""
+      }
+    ],
+    "4878801649": [
+      {
+        "ticket": 4878801649,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951000,
+        "time_done": 1792067401,
+        "time_done_msc": 1792067401700,
+        "time_expiration": 0,
+        "type": 5,
+        "type_time": 0,
+        "type_filling": 0,
+        "state": 4,
+        "magic": 0,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4143.522,
+        "sl": 0,
+        "tp": 0,
+        "price_current": 0,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "",
+        "external_id": ""
+      }
+    ]
+  },
+  "symbol_specs": {
+    "name": "XAUUSDm",
+    "visible": true,
+    "digits": 3,
+    "point": 0.001,
+    "trade_tick_size": 0.001,
+    "trade_stops_level": 0,
+    "trade_freeze_level": 0,
+    "volume_min": 0.01,
+    "volume_max": 200,
+    "volume_step": 0.01,
+    "trade_contract_size": 100,
+    "trade_mode": 4
+  },
+  "ticket_deal_filter_probe": {
+    "4878801646": {
+      "by_ticket": null,
+      "ticket_error": [
+        -2,
+        "Terminal: Invalid params"
+      ],
+      "by_position": [
+        {
+          "ticket": 4299032977,
+          "order": 4878801646,
+          "time": 1792051199,
+          "time_msc": 1792051199326,
+          "type": 0,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878801646,
+          "reason": 0,
+          "volume": 0.01,
+          "price": 4146.372,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_B",
+          "external_id": "proactive"
+        },
+        {
+          "ticket": 4299035398,
+          "order": 4878818433,
+          "time": 1792051206,
+          "time_msc": 1792051206831,
+          "type": 1,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878801646,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4145.362,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1.01,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4145.362]",
+          "external_id": ""
+        }
+      ],
+      "position_error": [
+        1,
+        "Success"
+      ]
+    },
+    "4878801649": {
+      "by_ticket": null,
+      "ticket_error": [
+        -2,
+        "Terminal: Invalid params"
+      ],
+      "by_position": [
+        {
+          "ticket": 4300230026,
+          "order": 4878801649,
+          "time": 1792067401,
+          "time_msc": 1792067401700,
+          "type": 1,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878801649,
+          "reason": 0,
+          "volume": 0.01,
+          "price": 4143.522,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_S",
+          "external_id": "proactive"
+        },
+        {
+          "ticket": 4300232789,
+          "order": 0,
+          "time": 1792067402,
+          "time_msc": 1792067402228,
+          "type": 0,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878801649,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4144.522,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4144.52200]",
+          "external_id": "proactive"
+        }
+      ],
+      "position_error": [
+        1,
+        "Success"
+      ]
+    }
+  },
+  "native_tick_samples": [
+    {
+      "time": 1792146673,
+      "bid": 4183.507,
+      "ask": 4183.747,
+      "last": 0,
+      "volume": 0,
+      "time_msc": 1792146673835,
+      "flags": 6,
+      "volume_real": 0
+    },
+    {
+      "time": 1792146673,
+      "bid": 4183.507,
+      "ask": 4183.747,
+      "last": 0,
+      "volume": 0,
+      "time_msc": 1792146673835,
+      "flags": 6,
+      "volume_real": 0
+    }
+  ],
+  "read_only_strategy_entry_preview": [
+    {
+      "side": "BUY_STOP",
+      "entry": 4185.048,
+      "sl": 4184.048,
+      "volume": 1.04,
+      "modeled_sl_loss": 104,
+      "equity_snapshot": 10474.27,
+      "risk_budget": 104.74270000000001,
+      "percent_equity": 0.992909291053219,
+      "orders_submitted": false
+    },
+    {
+      "side": "SELL_STOP",
+      "entry": 4182.206,
+      "sl": 4183.206,
+      "volume": 1.04,
+      "modeled_sl_loss": 104,
+      "equity_snapshot": 10474.27,
+      "risk_budget": 104.74270000000001,
+      "percent_equity": 0.992909291053219,
+      "orders_submitted": false
+    }
+  ],
+  "pending_initial_sl_risk": [],
+  "book_counts": {
+    "all_positions": 30,
+    "all_pending": 0,
+    "own_positions": 0,
+    "own_pending": 0
+  },
+  "checked_utc": "2026-10-16T10:31:13.152322+00:00",
+  "checked_bkk": "2026-10-16T17:31:13.152+07:00",
+  "offline_causal_probe": {
+    "offline_only": true,
+    "real_broker_connected": false,
+    "live_state_changed": false,
+    "temporary_fake_state_counterfactual": true,
+    "fake_ticks_advanced": true,
+    "with_real_failure_shape": {
+      "fake_sends": 0,
+      "known_orders": [
+        "4878801646",
+        "4878801649"
+      ]
+    },
+    "ownership_proven_from_saved_entry_deals": {
+      "4878801646": 4878801646,
+      "4878801649": 4878801649
+    },
+    "counterfactual_after_removing_only_proven_stale_tracking_in_memory": {
+      "fake_sends": 2,
+      "fake_requests": [
+        {
+          "action": 5,
+          "symbol": "XAUUSDm",
+          "magic": 995456,
+          "volume": 1.04,
+          "type": 4,
+          "price": 4185.048,
+          "sl": 4184.048,
+          "tp": 0,
+          "type_time": 0,
+          "type_filling": 2,
+          "comment": "M1_S21_S456_B"
+        },
+        {
+          "action": 5,
+          "symbol": "XAUUSDm",
+          "magic": 995456,
+          "volume": 1.04,
+          "type": 5,
+          "price": 4182.206,
+          "sl": 4183.206,
+          "tp": 0,
+          "type_time": 0,
+          "type_filling": 2,
+          "comment": "M1_S21_S456_S"
+        }
+      ]
+    },
+    "interpretation": "known_orders is a sufficient blocker even with active strategy, allowed account/specs, fresh fake quotes and valid1% sizing. Counterfactual is diagnostic, not a deployed or proposed blind state reset."
+  },
+  "assessment": {
+    "strategy": "native stop straddle; no candle/RSI/trend entry predicate in dedicated adapter",
+    "sufficient_entry_blocker": "nonempty known_orders checked before sizing and submission",
+    "root_terminal_error": [
+      -2,
+      "Terminal: Invalid params"
+    ],
+    "ticket_query_interpretation": "rejected parameters in this terminal/API combination; exact lower-level cause unproven",
+    "original_reconciliation_fix_incomplete": true,
+    "old_pnl_accounting_recovered": true,
+    "one_percent_calculation_successful_read_only": true,
+    "new_real_order_count": 0,
+    "actual_tick_samples_changed": false,
+    "tick_freshness_note": "Two actual snapshots450ms apart identical; no production monotonic tick-freshness proof. Offline experiment advances fake tick epochs explicitly.",
+    "hypothetical_prices_and_lots_not_orders": true,
+    "schedule_1800_unchanged": true,
+    "no_new_fix_authorized": true,
+    "no_trading_mutations": true
+  }
+}

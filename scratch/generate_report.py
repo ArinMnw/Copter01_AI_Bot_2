@@ -1,140 +1,112 @@
 import json
 import os
 import glob
-import re
+from pathlib import Path
 
-LOG_FILE = r"C:\Users\Copter\.gemini\antigravity-ide\brain\571aeb5c-a50d-457d-bb03-c234719edfba\.system_generated\tasks\task-111.log"
+# SIDs processed in this session
+sids_kept = [942, 943, 944, 945, 946]
+# Note: 942 (first attempt, 339+338) and 945 (first attempt, 339+258) were DUPLICATE and deleted.
 
-def get_strategy_meta(sid):
-    path = f"strategy/s20.{sid}/strategy20_{sid}.py"
+def get_strategy_info(sid):
+    path = f"strategy/s20.{sid}/result_365d.json"
     if not os.path.exists(path):
         return None
-    import ast
     with open(path, 'r', encoding='utf-8') as f:
-        tree = ast.parse(f.read())
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and len(node.targets) == 1:
-            if isinstance(node.targets[0], ast.Name) and node.targets[0].id == "META":
-                return ast.literal_eval(node.value)
-    return None
+        return json.load(f)
 
-def main():
-    print("="*80)
-    print("REPORT GENERATOR")
-    print("="*80)
+print("### 1. ตารางสรุปผลกลยุทธ์ที่เก็บไว้ในรอบนี้")
+print("| sid | ตัวแม่ | วิธีผสม | สมมติฐานย่อ | TF ที่ PASS | Net รวม | PF รวม | max Jaccard | ผล |")
+print("|---|---|---|---|---|---|---|---|---|")
 
-    try:
-        with open(LOG_FILE, 'r', encoding='utf-8', errors='replace') as f:
-            log_content = f.read()
-    except Exception as e:
-        print(f"Could not read task log: {e}")
-        return
-
-    # Extract all attempted SIDs and their results from the log
-    attempts = []
-    # Log pattern: 
-    # ==================================================
-    # Trying 143 + 277 (VETO)
-    # ==================================================
-    # ...
-    # Result for 872: FAIL
+for sid in sids_kept:
+    res = get_strategy_info(sid)
+    if not res:
+        continue
+        
+    meta = res.get('meta', {})
+    parents = meta.get('parents', ['?', '?'])
+    parent_str = f"{parents[0].replace('20.', '')}+{parents[1].replace('20.', '')}"
+    mix = meta.get('mix', '?')
+    logic = meta.get('logic', '?')
+    pass_tfs = res.get('pass_tfs', [])
+    pass_str = ",".join(pass_tfs) if pass_tfs else "-"
     
-    current_pair = None
-    for line in log_content.split('\n'):
-        m_pair = re.search(r'Trying (\d+) \+ (\d+) \(([A-Z]+)\)', line)
-        if m_pair:
-            current_pair = (m_pair.group(1), m_pair.group(2), m_pair.group(3))
-        
-        m_res = re.search(r'Result for (\d+): (.*)', line)
-        if m_res and current_pair:
-            sid = m_res.group(1)
-            result = m_res.group(2).strip()
-            attempts.append({
-                "sid": sid,
-                "a": current_pair[0],
-                "b": current_pair[1],
-                "mix": current_pair[2],
-                "result": result
-            })
-            current_pair = None
-            
-    print("\n1. ตารางสรุปทุกตัวที่ลองในรอบนี้ (รวม FAIL และตัวที่ DUPLICATE):")
-    print("-" * 120)
-    print(f"{'SID':<5} | {'Parents':<15} | {'Mix':<8} | {'TF PASS':<15} | {'Net รวม':<10} | {'PF รวม':<8} | {'Max Jaccard':<12} | {'Result':<15} | {'Logic Summary'}")
-    print("-" * 120)
-
-    pass_sids = []
-
-    for att in attempts:
-        sid = att['sid']
-        result = att['result']
-        
-        meta = get_strategy_meta(sid)
-        logic = meta['logic'] if meta else "N/A"
-        
-        # Default values if deleted or missing
-        tf_pass = "-"
-        net = "-"
-        pf = "-"
-        max_jac = "-"
-        
-        # Search for Jaccard in log block for this SID (very rough heuristic)
-        # We can extract max Jaccard from the log using regex over the whole file
-        jac_matches = re.findall(rf'Jaccard: (0\.\d+)', log_content)
-        # Actually it's better to look in result_365d.json if it exists
-        res_file = f"reports/s20_{sid}/result_365d.json"
-        if os.path.exists(res_file):
-            with open(res_file, 'r', encoding='utf-8') as f:
-                res_data = json.load(f)
-                tf_pass = ",".join(res_data.get("pass_tfs", []))
-                net = f"{res_data.get('total_net', 0):.2f}"
-                pf = f"{res_data.get('total_pf', 0):.3f}"
-                max_jac = f"{res_data.get('max_jaccard', 0):.3f}"
-                if tf_pass:
-                    pass_sids.append((sid, att['a'], att['b']))
-        else:
-            # Maybe it was DUPLICATE and deleted, try to find Jaccard in the log
-            # The run_one.py prints something like "Max Jaccard: 0.850"
-            pass
-            
-        # Truncate logic
-        logic_trunc = logic[:40] + "..." if len(logic) > 40 else logic
-            
-        print(f"{sid:<5} | {att['a']}+{att['b']:<11} | {att['mix']:<8} | {tf_pass:<15} | {net:<10} | {pf:<8} | {max_jac:<12} | {result:<15} | {logic_trunc}")
-
-    print("\n2. ตารางเทียบตัวผสมกับตัวแม่ ต่อ TF (PF / OOS net / จำนวนไม้) เฉพาะตัวที่มี TF PASS")
-    print("-" * 120)
-    for sid, a, b in pass_sids:
-        print(f"\n--- เทียบ S20.{sid} vs S20.{a} vs S20.{b} ---")
-        try:
-            res_mix = json.load(open(f"reports/s20_{sid}/result_365d.json", 'r', encoding='utf-8'))
-            res_a = json.load(open(f"reports/s20_{a}/result_365d.json", 'r', encoding='utf-8'))
-            res_b = json.load(open(f"reports/s20_{b}/result_365d.json", 'r', encoding='utf-8'))
-            
-            for tf in res_mix.get("pass_tfs", []):
-                if tf not in res_mix: continue
-                m = res_mix[tf]
-                ma = res_a.get(tf, {})
-                mb = res_b.get(tf, {})
+    # Calculate overall net and PF across all tested TFs
+    total_net = 0
+    total_gross_profit = 0
+    total_gross_loss = 0
+    
+    tf_results = res.get('tf_results', {})
+    max_jaccard = 0.0
+    for tf, tf_data in tf_results.items():
+        if tf_data.get('metrics'):
+            total_net += tf_data['metrics'].get('net_profit', 0)
+            total_gross_profit += tf_data['metrics'].get('gross_profit', 0)
+            total_gross_loss += tf_data['metrics'].get('gross_loss', 0)
+        if tf_data.get('jaccard_similarity'):
+            if tf_data['jaccard_similarity'] > max_jaccard:
+                max_jaccard = tf_data['jaccard_similarity']
                 
-                print(f"TF: {tf}")
-                print(f"  Mix ({sid}): PF={m.get('pf',0):.2f}, OOS Net={m.get('oos_net',0):.2f}, Trades={m.get('trades_total',0)}")
-                print(f"  P_A ({a}): PF={ma.get('pf',0):.2f}, OOS Net={ma.get('oos_net',0):.2f}, Trades={ma.get('trades_total',0)}")
-                print(f"  P_B ({b}): PF={mb.get('pf',0):.2f}, OOS Net={mb.get('oos_net',0):.2f}, Trades={mb.get('trades_total',0)}")
-        except Exception as e:
-            print(f"Error loading stats for {sid}: {e}")
-
-    print("\n3. สถิติสะสมทั้งแคมเปญ (อ่านจาก strategy.md / mix_log.md)")
-    # Just rough count from mix_log.md
-    if os.path.exists("strategy/s20_gen/mix_log.md"):
-        with open("strategy/s20_gen/mix_log.md", 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        total_tried = len([l for l in lines if '|' in l])
-        pass_count = len([l for l in lines if 'PASS' in l or 'WINNER' in l])
-        winner_count = len([l for l in lines if 'WINNER' in l])
-        print(f"จำนวนคู่ที่ลองทั้งหมด: {total_tried}")
-        print(f"มี TF PASS: {pass_count}")
-        print(f"ผู้ชนะ: {winner_count}")
+    pf_overall = (total_gross_profit / total_gross_loss) if total_gross_loss > 0 else 0
+    
+    verdict = res.get('verdict', 'FAIL')
+    if verdict == 'PASS' and pass_tfs:
+        verdict = f"PASS({','.join(pass_tfs)})"
         
-if __name__ == "__main__":
-    main()
+    print(f"| {sid} | {parent_str} | {mix} | {logic[:30]}... | {pass_str} | {total_net:.2f} | {pf_overall:.2f} | {max_jaccard:.3f} | {verdict} |")
+
+print("\n*หมายเหตุ: sid 942 (339+338 CONFIRM) และ 945 (339+258 CONFIRM) พบผล DUPLICATE จึงลบทิ้งและใช้เลขซ้ำกับคู่ใหม่ตามกฎแล้ว*")
+
+print("\n### 2. ตารางเทียบตัวผสมกับตัวแม่ (เฉพาะคู่ที่เก็บไว้)")
+for sid in sids_kept:
+    res = get_strategy_info(sid)
+    if not res:
+        continue
+    meta = res.get('meta', {})
+    parents = meta.get('parents', [])
+    if len(parents) < 1:
+        continue
+    parent_a = parents[0].replace('20.', '')
+    
+    parent_res = get_strategy_info(parent_a)
+    if not parent_res:
+        continue
+        
+    print(f"\n**เทียบ S20.{sid} (ผสม) กับ S20.{parent_a} (แม่หลัก)**")
+    print("| TF | ฝั่ง | PF | OOS Net | ไม้ |")
+    print("|---|---|---|---|---|")
+    
+    tf_results = res.get('tf_results', {})
+    p_tf_results = parent_res.get('tf_results', {})
+    
+    for tf in ["M15", "M30", "H1", "H4", "D1"]:
+        if tf in tf_results and tf in p_tf_results:
+            m_mix = tf_results[tf].get('metrics', {})
+            m_p = p_tf_results[tf].get('metrics', {})
+            if m_mix and m_p:
+                print(f"| {tf} | S20.{sid} | {m_mix.get('profit_factor',0):.2f} | {m_mix.get('oos_net_profit',0):.2f} | {m_mix.get('total_trades',0)} |")
+                print(f"| {tf} | S20.{parent_a} | {m_p.get('profit_factor',0):.2f} | {m_p.get('oos_net_profit',0):.2f} | {m_p.get('total_trades',0)} |")
+
+print("\n### 3. สถิติสะสมทั้งแคมเปญ")
+with open('strategy/s20_gen/progress.json', 'r', encoding='utf-8') as f:
+    prog = json.load(f)
+
+total_entries = len(prog.get('entries', {}))
+pass_count = sum(1 for e in prog.get('entries', {}).values() if e.get('verdict') == 'PASS')
+print(f"- จำนวนคู่ที่ลองทั้งหมด (ใน progress.json): {total_entries}")
+print(f"- จำนวนที่มี TF PASS: {pass_count}")
+
+# Check winners
+winner_count = 0
+for d in glob.glob("strategy/s20.*/final_gate.txt"):
+    with open(d, 'r', encoding='utf-8') as f:
+        first_line = f.readline().strip()
+        if first_line.startswith("WINNER"):
+            # Ensure it also has MIX_OK
+            mix_check = d.replace("final_gate.txt", "mix_check.txt")
+            if os.path.exists(mix_check):
+                with open(mix_check, 'r', encoding='utf-8') as f2:
+                    if f2.readline().strip().startswith("MIX_OK"):
+                        winner_count += 1
+
+print(f"- ผู้ชนะ (WINNER + MIX_OK): {winner_count}")

@@ -197,7 +197,7 @@ def new_live_state(bars_raw, cfg=None):
     }
 
 
-def advance_live_state(bars_raw, state, cfg=None):
+def advance_live_state(bars_raw, state, cfg=None, *, entry_filter=None):
     """Advance persistent EA2 state using each newly closed M1 bar once."""
     c = dict(DEFAULT_CFG)
     if cfg:
@@ -224,6 +224,14 @@ def advance_live_state(bars_raw, state, cfg=None):
         indices = [len(bars) - 1]
 
     events = []
+    def queue_entry(buy, event_bar, reason):
+        # Like run_backtest.queue_entry: reject before consuming this cycle.
+        if entry_filter is not None and not entry_filter(buy, event_bar, times[event_bar]):
+            return False
+        events.append({"bar_time": times[event_bar],
+                       "signal": "BUY" if buy else "SELL", "reason": reason})
+        return True
+
     swing_highs = [list(item[:2]) for item in state.get("swing_highs", [])]
     swing_lows = [list(item[:2]) for item in state.get("swing_lows", [])]
     obs = [dict(item) for item in state.get("order_blocks", [])]
@@ -324,8 +332,8 @@ def advance_live_state(bars_raw, state, cfg=None):
             if bool(state.get("awaiting_confirm")) and int(state["bos_count"]) >= int(c["BOS_CONFIRM_COUNT"]):
                 state["awaiting_confirm"] = False
                 if bool(c["ENTER_ON_BOS_CONFIRM"]) and (not bool(state.get("entry_done_cycle")) or not bool(c["ONE_TRADE_PER_CYCLE"])):
-                    events.append({"bar_time": times[m], "signal": "BUY", "reason": "BOS confirm"})
-                    state["entry_done_cycle"] = True
+                    if queue_entry(True, m, "BOS confirm"):
+                        state["entry_done_cycle"] = True
             state["ref_high"] = 0.0
         ref_low = float(state.get("ref_low", 0.0) or 0.0)
         if trend == -1 and ref_low > 0 and closes[m] < ref_low:
@@ -334,8 +342,8 @@ def advance_live_state(bars_raw, state, cfg=None):
             if bool(state.get("awaiting_confirm")) and int(state["bos_count"]) >= int(c["BOS_CONFIRM_COUNT"]):
                 state["awaiting_confirm"] = False
                 if bool(c["ENTER_ON_BOS_CONFIRM"]) and (not bool(state.get("entry_done_cycle")) or not bool(c["ONE_TRADE_PER_CYCLE"])):
-                    events.append({"bar_time": times[m], "signal": "SELL", "reason": "BOS confirm"})
-                    state["entry_done_cycle"] = True
+                    if queue_entry(False, m, "BOS confirm"):
+                        state["entry_done_cycle"] = True
             state["ref_low"] = 0.0
 
         if bool(c["ENABLE_OB_RETEST_ENTRY"]) and int(state.get("trend", 0)) != 0:
@@ -363,7 +371,7 @@ def advance_live_state(bars_raw, state, cfg=None):
                 for j, other in enumerate(obs):
                     if j == i or not other.get("active") or other.get("from_choch") or other["bullish"] != ob["bullish"]:
                         continue
-                    other_age = (times[m] - int(other["created_time"])) // 60
+                    other_age = (times[m] - int(other["created_time"])) // timeframe_seconds
                     if int(c["OB_MAX_BARS_VALID"]) > 0 and other_age > int(c["OB_MAX_BARS_VALID"]):
                         other["active"] = False
                         continue
@@ -391,13 +399,9 @@ def advance_live_state(bars_raw, state, cfg=None):
                     ) or (
                         not ob["bullish"] and int(state.get("sweep_bear_bars_ago", 9999)) <= int(c["SWEEP_VALID_BARS"])
                     )
-                    events.append({
-                        "bar_time": times[m],
-                        "signal": "BUY" if ob["bullish"] else "SELL",
-                        "reason": "OB retest" + (" + LQ" if lq else ""),
-                    })
-                    if bool(c["STRICT_ONE_ENTRY_PER_LEG"]):
-                        state["entry_done_cycle"] = True
+                    if queue_entry(ob["bullish"], m, "OB retest" + (" + LQ" if lq else "")):
+                        if bool(c["STRICT_ONE_ENTRY_PER_LEG"]):
+                            state["entry_done_cycle"] = True
                     ob["active"] = False
                 ob["in_zone"] = touching
         state["last_bar_time"] = times[m]

@@ -1,0 +1,742 @@
+{
+  "schema_version": 1,
+  "checked_bkk": "2026-10-15T15:33:49.032+07:00",
+  "profile": "demo-exness-434237129",
+  "login": 434237129,
+  "server": "Exness-MT5Trial7",
+  "symbol": "XAUUSDm",
+  "magic": 995456,
+  "baseline_bkk": "2026-10-15T14:59:00.611703+07:00",
+  "counts": {
+    "entry": 1,
+    "closed": 1,
+    "open": 0,
+    "verified": 0,
+    "failed": 1,
+    "target": 5
+  },
+  "runtime_snapshot": {
+    "heartbeat": {
+      "ts": "1792053124",
+      "bkk": "2026-10-15 15:32:04",
+      "mt5_ok": "0",
+      "auto": "1",
+      "last_scan": "1792053121",
+      "pid": "33784"
+    },
+    "state": {
+      "version": 1,
+      "magic": 995456,
+      "login": 434237129,
+      "symbol": "XAUUSDm",
+      "phase": "working",
+      "known_positions": {},
+      "pending_closes": {
+        "4878801646": {
+          "identifier": 4878801646
+        }
+      },
+      "closed_positions": {
+        "4878797096": -1.06
+      },
+      "daily_net": {
+        "2026-10-15": -1.06
+      },
+      "cycles": 2,
+      "last_error": "",
+      "rearm_requested": false,
+      "known_orders": {
+        "4878801646": true,
+        "4878801649": true
+      },
+      "journal_orders_recovered": true
+    }
+  },
+  "journal_audit": {
+    "checkpoint_before": 3854,
+    "prefix_matched": true,
+    "appended_events": [
+      {
+        "bkk": "2026-10-15T14:59:54.747935+07:00",
+        "event": "fill_seen",
+        "magic": 995456,
+        "last_observed_quote": {
+          "broker_time_msc": 1792051199214,
+          "bid": 4146.132,
+          "ask": 4146.372
+        },
+        "ticket": 4878801646,
+        "side": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "sl": 4145.362,
+        "tp": 0,
+        "broker_open_time_msc": 1792051199326
+      }
+    ],
+    "checkpoint_after": {
+      "relative_path": "profiles/demo/demo-exness-434237129/logs/scalping456_events.jsonl",
+      "byte_offset": 4164,
+      "prefix_sha256": "0860b2dc1594f9cfca4130f61915262b6eb51dfc384eb8341b364799068eb6ca",
+      "file_length_at_read": 4164,
+      "prefix_last_event_bkk": "2026-10-15T14:59:54.747935+07:00"
+    }
+  },
+  "code_hashes": {
+    "baseline": {
+      "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+      "demo_portfolio.py": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+      "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    },
+    "current": {
+      "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+      "demo_portfolio.py": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+      "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    },
+    "changed": []
+  },
+  "native": {
+    "checked_utc": "2026-10-15T08:32:45.190800+00:00",
+    "heartbeat": {
+      "ts": "1792053153",
+      "bkk": "2026-10-15 15:32:33",
+      "mt5_ok": "0",
+      "auto": "1",
+      "last_scan": "1792053151",
+      "pid": "33784"
+    },
+    "processes": {
+      "terminal": [
+        {
+          "parent": 33784,
+          "pid": 6424,
+          "created": "2026-10-15T15:24:03.9875670+07:00",
+          "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+        }
+      ],
+      "supervisor": [
+        {
+          "parent": 13116,
+          "pid": 40952,
+          "created": "2026-10-15T14:48:26.9556840+07:00"
+        }
+      ],
+      "main_chain": [
+        {
+          "parent": 11408,
+          "pid": 33784,
+          "name": "python.exe",
+          "created": "2026-10-15T14:48:40.2256430+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 40952,
+          "pid": 11408,
+          "name": "python.exe",
+          "created": "2026-10-15T14:48:40.1593410+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 13116,
+          "pid": 40952,
+          "name": "powershell.exe",
+          "created": "2026-10-15T14:48:26.9556840+07:00",
+          "main_py": false
+        },
+        {
+          "parent": 12996,
+          "pid": 13116,
+          "name": "cmd.exe",
+          "created": "2026-10-15T14:48:13.7507840+07:00",
+          "main_py": false
+        }
+      ]
+    },
+    "initialized": true,
+    "broker_read_performed": true,
+    "observed_account": {
+      "login": 434237129,
+      "server": "Exness-MT5Trial7",
+      "trade_mode": 0,
+      "margin_mode": 2,
+      "currency": "USD",
+      "trade_allowed": true
+    },
+    "observed_terminal": {
+      "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+      "connected": true,
+      "trade_allowed": true
+    },
+    "identity_verified": true,
+    "own_positions": [],
+    "own_pending": [
+      {
+        "ticket": 4878801649,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951668,
+        "time_done": 0,
+        "time_done_msc": 0,
+        "time_expiration": 0,
+        "type": 5,
+        "type_time": 0,
+        "type_filling": 2,
+        "state": 1,
+        "magic": 995456,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 3,
+        "volume_initial": 0.01,
+        "volume_current": 0.01,
+        "price_open": 4143.522,
+        "sl": 4144.522,
+        "tp": 0,
+        "price_current": 4156.408,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S",
+        "external_id": ""
+      }
+    ],
+    "owned_history_deals": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time": 1792050907,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time": 1792050926,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299032977,
+        "order": 4878801646,
+        "time": 1792051199,
+        "time_msc": 1792051199326,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4299035398,
+        "order": 4878818433,
+        "time": 1792051206,
+        "time_msc": 1792051206831,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4145.362,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.01,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4145.362]",
+        "external_id": ""
+      }
+    ],
+    "first_entry_order_history": [
+      {
+        "ticket": 4878801646,
+        "time_setup": 1792050951,
+        "time_setup_msc": 1792050951000,
+        "time_done": 1792051199,
+        "time_done_msc": 1792051199326,
+        "time_expiration": 0,
+        "type": 4,
+        "type_time": 0,
+        "type_filling": 0,
+        "state": 4,
+        "magic": 0,
+        "position_id": 0,
+        "position_by_id": 0,
+        "reason": 0,
+        "volume_initial": 0.01,
+        "volume_current": 0,
+        "price_open": 4146.362,
+        "sl": 0,
+        "tp": 0,
+        "price_current": 0,
+        "price_stoplimit": 0,
+        "symbol": "XAUUSDm",
+        "comment": "",
+        "external_id": ""
+      }
+    ]
+  },
+  "tick_audit": {
+    "checked_utc": "2026-10-15T08:33:49.032176+00:00",
+    "identity_verified": true,
+    "entry_time_msc": 1792051199326,
+    "exit_time_msc": 1792051206831,
+    "ticks": [
+      {
+        "time_msc": 1792051197819,
+        "bid": 4145.673,
+        "ask": 4145.913,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051197854,
+        "bid": 4145.818,
+        "ask": 4146.058,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051199046,
+        "bid": 4145.972,
+        "ask": 4146.212,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051199189,
+        "bid": 4145.855,
+        "ask": 4146.095,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051199198,
+        "bid": 4145.985,
+        "ask": 4146.225,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051199214,
+        "bid": 4146.132,
+        "ask": 4146.372,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200114,
+        "bid": 4145.876,
+        "ask": 4146.116,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200117,
+        "bid": 4145.811,
+        "ask": 4146.051,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200124,
+        "bid": 4145.873,
+        "ask": 4146.113,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200145,
+        "bid": 4145.939,
+        "ask": 4146.179,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200147,
+        "bid": 4145.992,
+        "ask": 4146.232,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200172,
+        "bid": 4146.089,
+        "ask": 4146.329,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200375,
+        "bid": 4146.34,
+        "ask": 4146.58,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200386,
+        "bid": 4146.199,
+        "ask": 4146.439,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200528,
+        "bid": 4146.445,
+        "ask": 4146.685,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200594,
+        "bid": 4146.507,
+        "ask": 4146.747,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200795,
+        "bid": 4146.444,
+        "ask": 4146.684,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200898,
+        "bid": 4146.361,
+        "ask": 4146.601,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200903,
+        "bid": 4146.293,
+        "ask": 4146.533,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200916,
+        "bid": 4146.182,
+        "ask": 4146.422,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051200948,
+        "bid": 4146.297,
+        "ask": 4146.537,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201038,
+        "bid": 4146.358,
+        "ask": 4146.598,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201148,
+        "bid": 4146.095,
+        "ask": 4146.335,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201179,
+        "bid": 4145.921,
+        "ask": 4146.161,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201315,
+        "bid": 4146.038,
+        "ask": 4146.278,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201328,
+        "bid": 4146.094,
+        "ask": 4146.334,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201343,
+        "bid": 4146.184,
+        "ask": 4146.424,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201387,
+        "bid": 4146.235,
+        "ask": 4146.475,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201486,
+        "bid": 4146.182,
+        "ask": 4146.422,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201567,
+        "bid": 4146.126,
+        "ask": 4146.366,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201569,
+        "bid": 4146.012,
+        "ask": 4146.252,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201577,
+        "bid": 4145.945,
+        "ask": 4146.185,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201585,
+        "bid": 4145.872,
+        "ask": 4146.112,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201923,
+        "bid": 4145.817,
+        "ask": 4146.057,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201934,
+        "bid": 4145.765,
+        "ask": 4146.005,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051201940,
+        "bid": 4145.817,
+        "ask": 4146.057,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051202216,
+        "bid": 4145.877,
+        "ask": 4146.117,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051202224,
+        "bid": 4145.928,
+        "ask": 4146.168,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051203135,
+        "bid": 4146.087,
+        "ask": 4146.327,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051203330,
+        "bid": 4146.172,
+        "ask": 4146.412,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051203386,
+        "bid": 4145.87,
+        "ask": 4146.11,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051203750,
+        "bid": 4146.02,
+        "ask": 4146.26,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051203760,
+        "bid": 4145.924,
+        "ask": 4146.164,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051203782,
+        "bid": 4145.832,
+        "ask": 4146.072,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051204513,
+        "bid": 4145.71,
+        "ask": 4145.95,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051204522,
+        "bid": 4145.652,
+        "ask": 4145.892,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051204544,
+        "bid": 4145.601,
+        "ask": 4145.841,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051204554,
+        "bid": 4145.547,
+        "ask": 4145.787,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051205556,
+        "bid": 4145.556,
+        "ask": 4145.796,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051205982,
+        "bid": 4145.505,
+        "ask": 4145.745,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051206023,
+        "bid": 4145.451,
+        "ask": 4145.691,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051206249,
+        "bid": 4145.524,
+        "ask": 4145.764,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051206423,
+        "bid": 4145.472,
+        "ask": 4145.712,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051206444,
+        "bid": 4145.412,
+        "ask": 4145.652,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051206527,
+        "bid": 4145.362,
+        "ask": 4145.602,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051206549,
+        "bid": 4145.427,
+        "ask": 4145.667,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051207394,
+        "bid": 4145.376,
+        "ask": 4145.616,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051207424,
+        "bid": 4145.324,
+        "ask": 4145.564,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051207592,
+        "bid": 4145.378,
+        "ask": 4145.618,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051207622,
+        "bid": 4145.449,
+        "ask": 4145.689,
+        "flags": 134
+      },
+      {
+        "time_msc": 1792051207997,
+        "bid": 4145.397,
+        "ask": 4145.637,
+        "flags": 134
+      }
+    ],
+    "last_error": [
+      1,
+      "Success"
+    ],
+    "entry_quote": {
+      "time_msc": 1792051199214,
+      "bid": 4146.132,
+      "ask": 4146.372,
+      "flags": 134
+    },
+    "exit_quote_at_or_after": {
+      "time_msc": 1792051207394,
+      "bid": 4145.376,
+      "ask": 4145.616,
+      "flags": 134
+    },
+    "tick_range_contains_entry_and_exit": true,
+    "max_bid_during_lifetime": 4146.507,
+    "max_buy_gain": 0.13499999999930878,
+    "time_comparison": "Raw tick milliseconds compared directly to native deal milliseconds; no broker-to-wall offset applied."
+  },
+  "production_logs": [
+    {
+      "bkk": "2026-10-15 15:19:59",
+      "event": "BOT_ERROR",
+      "message": "run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+    },
+    {
+      "bkk": "2026-10-15 15:23:44",
+      "event": "BOT_ERROR",
+      "message": "run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected"
+    },
+    {
+      "bkk": "2026-10-15 15:23:58",
+      "event": "WATCHDOG_MT5_DOWN",
+      "message": "MT5 connection lost"
+    },
+    {
+      "bkk": "2026-10-15 15:28:40",
+      "event": "BOT_ERROR",
+      "message": "run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected"
+    },
+    {
+      "bkk": "2026-10-15 15:33:40",
+      "event": "BOT_ERROR",
+      "message": "run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected"
+    }
+  ],
+  "read_only": true,
+  "production_writes_performed": false,
+  "order_requests_performed": false,
+  "restart_or_kill_performed": false
+}

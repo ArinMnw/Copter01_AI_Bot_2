@@ -36,6 +36,7 @@ def run_case(name, price, expect_be, expect_pyr, rules, positions, trades):
         TRADE_ACTION_SLTP=TRADE_ACTION_SLTP, TRADE_RETCODE_DONE=TRADE_RETCODE_DONE,
         positions_get=lambda **k: positions,
         symbol_info_tick=lambda s: Tick(price, price),
+        symbol_info=lambda s: types.SimpleNamespace(digits=2, point=0.01, trade_tick_size=0.01),
         order_send=lambda req: (sent.append(req),
                                 types.SimpleNamespace(retcode=TRADE_RETCODE_DONE))[1],
     )

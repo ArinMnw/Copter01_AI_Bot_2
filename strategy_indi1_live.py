@@ -8,9 +8,10 @@ Indi1_strategy.py} (ตรรกะสัญญาณใช้ฟังก์ช
 ใช้คู่กับ demo_portfolio.py (ระบบ standalone แยกจาก scanner.py) เหมือน strategy_s20gen_live.py
 
 กฎ (Buy; Sell สลับด้านเป็นแดง):
-  1) H1: แท่งที่ปิดแล้ว 2 แท่งล่าสุด Trend Line BB + Trend Line MA + Line 2 (Kernel) เขียวพร้อมกัน
-  2) M5 แท่ง T: เพิ่งครบ 3 เส้นพร้อมกัน หรือเกิด Smart Buy
-  3) M5 แท่ง T+1 ปิดแล้ว 3 เส้นยังเขียว (หรือ Smart Buy ของ T ยังอยู่) -> เข้า market ทันที
+  กฎ 1 แท่ง (INDI1_CONFIRM_BARS=1, ค่าปัจจุบัน — เปลี่ยนจากกฎ 2 แท่งเดิมเมื่อ 2026-10-15 ตามพี่):
+  1) H1: แท่งที่ปิดแล้วล่าสุด Trend Line BB + Trend Line MA + Line 2 (Kernel) เขียวพร้อมกัน
+  2) M5: แท่งที่เพิ่งปิดเพิ่งครบ 3 เส้นพร้อมกัน (แท่งก่อนหน้ายังไม่ครบ) หรือเกิด Smart Buy -> เข้า market ทันที
+  กฎ 2 แท่งเดิม (INDI1_CONFIRM_BARS=2): H1 2 แท่งติดกัน, M5 trigger ที่ T แล้วรอ T+1 ปิดยืนยันก่อนเข้า
   SL = swing ZigZag ล่าสุดของ M5 -/+ buffer, TP = RR x ระยะ SL, lot จาก Risk % ของ balance
   Fibo breakeven: แท่ง M5 ปิดเลย 50% ของ entry->TP -> SL ไป entry +/- 50 จุด (ดู
   _manage_indi1_positions ใน demo_portfolio.py)
@@ -46,7 +47,7 @@ def _load_core():
     return _core
 
 
-def core_cfg(rr=None, sl_buffer_ticks=None, tick_size=None, point=None):
+def core_cfg(rr=None, sl_buffer_ticks=None, tick_size=None, point=None, confirm_bars=None):
     core = _load_core()
     cfg = dict(core.DEFAULT_CFG)
     if rr is not None:
@@ -57,6 +58,8 @@ def core_cfg(rr=None, sl_buffer_ticks=None, tick_size=None, point=None):
         cfg["TICK_SIZE"] = float(tick_size)
     if point:
         cfg["POINT"] = float(point)
+    if confirm_bars is not None:
+        cfg["CONFIRM_BARS"] = int(confirm_bars)
     return cfg
 
 
@@ -86,13 +89,14 @@ def detect_indi1(m5_rates, h1_rates, cfg, allow_buy=True, allow_sell=True):
             continue
         if not buy and not allow_sell:
             continue
-        if not (core._all3(htf, j, buy) and core._all3(htf, j - 1, buy)):
+        need = int(cfg.get("CONFIRM_BARS", 1))
+        if not core.htf_ok(htf, j, buy, need):
             continue
-        if not core.entry_signal(ltf, True, i, buy):
+        if not core.entry_signal(ltf, True, i, buy, need):
             continue
-        # หาจุดเริ่มของสัญญาณ H1 รอบนี้ (ถอยหลังจนกว่าคู่แท่งจะไม่ครบ 3 เส้น)
+        # หาจุดเริ่มของสัญญาณ H1 รอบนี้ (ถอยหลังจนกว่าสัญญาณ HTF จะไม่ผ่าน)
         js = j
-        while js - 1 >= 1 and core._all3(htf, js - 1, buy) and core._all3(htf, js - 2, buy) and (j - js) < 500:
+        while js - 1 >= 1 and core.htf_ok(htf, js - 1, buy, need) and (j - js) < 500:
             js -= 1
         episode_start_ts = int(h1[js]["time"]) + int(cfg["HTF_SECONDS"])
         swing = ltf["swing_low" if buy else "swing_high"][i]

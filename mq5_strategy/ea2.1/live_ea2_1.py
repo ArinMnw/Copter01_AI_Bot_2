@@ -7,6 +7,7 @@ from strategy_ids import ea_comment_meta
 import json
 import math
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,8 @@ def _engine_cfg(cfg, point: float) -> dict:
         "TRAIL_TRIGGER_POINTS": "EA2_1_TRAIL_TRIGGER_POINTS",
         "TRAIL_DISTANCE_POINTS": "EA2_1_TRAIL_DISTANCE_POINTS",
         "TRAIL_STEP_POINTS": "EA2_1_TRAIL_STEP_POINTS",
+        "MIN_LEG_POINTS": "EA2_1_MIN_LEG_POINTS",
+        "OB_PREFER_DEEPER_MAX_POINTS": "EA2_1_OB_PREFER_DEEPER_MAX_POINTS",
         "OB_MAX_BARS_VALID": "EA2_1_OB_MAX_BARS_VALID",
         "COOLDOWN_BARS": "EA2_1_COOLDOWN_BARS",
     }
@@ -113,13 +116,43 @@ def _in_session(now: datetime, start_hour: int, end_hour: int) -> bool:
     return start_hour <= hour < end_hour if start_hour <= end_hour else hour >= start_hour or hour < end_hour
 
 
-def detect_ea2_1(rates, *, tf: str, mt5, cfg, symbol: str, htf_rates=None) -> dict:
+def execution_intent(cfg, symbol):
+    return (_load_state(_state_path(cfg), symbol) or {}).get("ea21_execution_intent")
+
+
+def mark_execution_attempt(cfg, symbol, token, *, volume, broker_time):
+    """Persist before sending: an interrupted/ambiguous send must not be retried blindly."""
+    state = _load_state(_state_path(cfg), symbol)
+    intent = (state or {}).get("ea21_execution_intent")
+    if not intent or intent["token"] != token or intent["status"] != "ready":
+        raise RuntimeError("EA2.1 execution intent is not ready")
+    intent.update(status="inflight", volume=float(volume), broker_time=int(broker_time))
+    _atomic_save(_state_path(cfg), state)
+
+
+def acknowledge_execution(cfg, symbol, token, *, success, uncertain=False, ticket=None):
+    state = _load_state(_state_path(cfg), symbol)
+    intent = (state or {}).get("ea21_execution_intent")
+    if not intent or intent["token"] != token:
+        raise RuntimeError("EA2.1 execution acknowledgement does not match intent")
+    if success:
+        state["entry_done_cycle"] = True
+        state["ea21_last_accepted_time"] = int(intent["event"]["bar_time"])
+        state["ea21_last_execution_ticket"] = ticket
+        state.pop("ea21_execution_intent", None)
+    else:
+        intent.update(status="unknown" if uncertain else "ready", next_retry=time.time() + 15)
+    _atomic_save(_state_path(cfg), state)
+
+
+def detect_ea2_1(rates, *, tf: str, mt5, cfg, symbol: str, htf_rates=None,
+                 defer_execution=False) -> dict:
     live_tf = str(getattr(cfg, "EA2_1_LIVE_TF", "M5")).upper()
     if tf != live_tf:
         return {"signal": "WAIT", "reason": f"EA2.1 ใช้เฉพาะ {live_tf}"}
     if rates is None or len(rates) < 510:
         return {"signal": "WAIT", "reason": "EA2.1 warm-up ไม่พอ"}
-    if htf_rates is None or len(htf_rates) < 55:
+    if htf_rates is None or len(htf_rates) < int(DEFAULT_CFG["HTF_EMA_HISTORY_BARS"]):
         return {"signal": "WAIT", "reason": "EA2.1 M15 confirmation ไม่พร้อม"}
 
     tick = mt5.symbol_info_tick(symbol)
@@ -137,25 +170,59 @@ def detect_ea2_1(rates, *, tf: str, mt5, cfg, symbol: str, htf_rates=None) -> di
     bars = [_bar_dict(row) for row in rates]
     state_path = _state_path(cfg)
     state = _load_state(state_path, symbol)
-    state, new_events = advance_live_state(bars, state, engine_cfg)
-
+    intent = (state or {}).get("ea21_execution_intent") if defer_execution else None
+    if intent and intent["status"] in ("inflight", "unknown"):
+        return {"signal": "WAIT", "reason": "EA2.1 awaiting broker reconciliation"}
+    if intent and int(intent["event"]["bar_time"]) != int(bars[-1]["time"]):
+        state.pop("ea21_execution_intent", None)  # Expire unsent setups, never chase old bars.
+        intent = None
+    if intent and time.time() < float(intent.get("next_retry", 0)):
+        return {"signal": "WAIT", "reason": "EA2.1 execution retry cooldown"}
     trend_filter = make_entry_filter(htf_rates, decision_bar_seconds=300, cfg=engine_cfg)
     cooldown_seconds = int(engine_cfg["COOLDOWN_BARS"]) * 300
-    last_accepted = int(state.get("ea21_last_accepted_time", 0) or 0)
-    accepted = []
-    for event in new_events:
-        raw_time = int(event["bar_time"])
-        buy = str(event["signal"]) == "BUY"
+    last_accepted = int((state or {}).get("ea21_last_accepted_time", 0) or 0)
+    rejection_reason = "EA2.1 ไม่มี setup ใหม่"
+
+    def accept_entry(buy, event_bar, raw_time):
+        nonlocal last_accepted, rejection_reason
+        if intent:
+            return False
+        if raw_time != int(bars[-1]["time"]):
+            return False  # Never submit stale catch-up signals after a restart.
+        allowed, reason = _portfolio_guard(mt5, cfg, symbol)
+        if not allowed:
+            rejection_reason = reason
+            return False
+        if not _in_session(datetime.now(BKK), int(getattr(cfg, "EA2_1_SESSION_START_HOUR", 0)),
+                           int(getattr(cfg, "EA2_1_SESSION_END_HOUR", 24))):
+            rejection_reason = "EA2.1 อยู่นอก session"
+            return False
         if raw_time - last_accepted < cooldown_seconds:
-            continue
-        if trend_filter(buy, 0, raw_time):
-            accepted.append(event)
-            last_accepted = raw_time
+            rejection_reason = "EA2.1 cooldown"
+            return False
+        if not trend_filter(buy, event_bar, raw_time):
+            rejection_reason = "EA2.1 สัญญาณไม่ผ่าน M15"
+            return False
+        last_accepted = raw_time
+        return True
+
+    state, accepted = advance_live_state(bars, state, engine_cfg, entry_filter=accept_entry)
+    previous_accepted = int(state.get("ea21_last_accepted_time", 0) or 0)
     state["ea21_last_accepted_time"] = last_accepted
-    pending = list(state.get("ea21_pending_events", []))
+    pending = [event for event in state.get("ea21_pending_events", [])
+               if int(event.get("bar_time", 0)) == int(bars[-1]["time"])]
     pending.extend(accepted)
     event = pending.pop(0) if pending else None
     state["ea21_pending_events"] = pending
+    if defer_execution:
+        if intent:
+            event = intent["event"]
+        elif event:
+            token = f"{symbol}:{event['bar_time']}:{event['signal']}"
+            intent = {"token": token, "event": event, "status": "ready"}
+            state["ea21_execution_intent"] = intent
+            state["entry_done_cycle"] = False
+            state["ea21_last_accepted_time"] = previous_accepted
     state.update({
         "symbol": symbol, "tf": tf, "saved_at": datetime.now(BKK).isoformat(),
         "spread_points": round(spread_points, 2),
@@ -165,7 +232,7 @@ def detect_ea2_1(rates, *, tf: str, mt5, cfg, symbol: str, htf_rates=None) -> di
     except OSError:
         return {"signal": "WAIT", "reason": "EA2.1 บันทึก state ไม่สำเร็จ"}
     if event is None:
-        return {"signal": "WAIT", "reason": "EA2.1 ไม่มี setup ที่ผ่าน M15"}
+        return {"signal": "WAIT", "reason": rejection_reason}
 
     now = datetime.now(BKK)
     start_hour = int(getattr(cfg, "EA2_1_SESSION_START_HOUR", 0))
@@ -186,6 +253,7 @@ def detect_ea2_1(rates, *, tf: str, mt5, cfg, symbol: str, htf_rates=None) -> di
     lot = _calc_lot(cfg, info, account)
     return {
         "signal": signal,
+        "execution_token": intent["token"] if defer_execution and intent else None,
         "entry": round(entry, digits), "sl": round(sl, digits), "tp": round(tp, digits),
         "volume": lot, "order_mode": "market", "pattern": "EA2_1_M5_M15",
         "entry_label": "Market ที่",

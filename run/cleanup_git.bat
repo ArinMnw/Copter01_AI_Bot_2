@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 REM ============================================================
 REM  run\cleanup_git.bat — Manual cleanup สำหรับ .git folder
 REM  ใช้เมื่อ .git บวมเกินที่ auto-gc จัดการได้

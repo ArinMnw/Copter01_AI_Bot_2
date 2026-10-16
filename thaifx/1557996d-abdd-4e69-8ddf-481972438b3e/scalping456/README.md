@@ -6,6 +6,7 @@
 
 ## เริ่มอ่านจากตรงไหน
 
+- [`FORWARD_TEST_7129.md`](FORWARD_TEST_7129.md) — ย้าย experimental forward จาก IUX 2459 ไป Exness Demo 7129 วันที่ 15 ต.ค.; monitor เดิมหยุดแล้ว ไม่ย้าย order/state/PnL ข้ามบัญชี
 - [`DECODED_MECHANICS_RESULTS.md`](DECODED_MECHANICS_RESULTS.md) — **ล่าสุด 9 ต.ค.**: ถอดกฎทอง/FixedVol20 ได้จริง (feed offset, stop-level entry, trailing 0.20, grid) continuous replay ตรง 6,213/35,462 (17.52%), กลไก stops-level/tick-driven, เพดานจากความสุ่มของ EA และ blocker; §13 forward holdout (ทอง 26.2% เท่าเดิม, 134/527 รวม), §14 oracle ceiling, §15 `XAUUSD+` จริงจาก Raw ECN demo (feed เท่า demo+offset, replay ไม่ดีขึ้น)
 - [`SUMMARY.md`](SUMMARY.md) — บทสรุปสำคัญและคำตอบว่าเทคนิคทำงานอย่างไร
 - [`PROFILE_SNAPSHOT.md`](PROFILE_SNAPSHOT.md) — ตัวเลขที่หน้าเว็บแสดงและข้อควรระวังเรื่อง snapshot

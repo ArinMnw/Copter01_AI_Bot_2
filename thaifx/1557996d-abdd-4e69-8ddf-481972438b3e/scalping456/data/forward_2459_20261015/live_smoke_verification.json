@@ -1,0 +1,65 @@
+{
+  "created_bkk": "2026-10-15T11:36:40.955801+07:00",
+  "demo_identity_preflight_verified": true,
+  "magic": 995456,
+  "fixed_lot": 0.01,
+  "first_pair_broker_accepted": [
+    601630595,
+    601630597
+  ],
+  "verified_completed_position": 601630597,
+  "first_net_including_costs": -1.04,
+  "verified_rearmed_native_orders": [
+    601631172,
+    601631174
+  ],
+  "native_pending_snapshot": [
+    {
+      "ticket": 601631172,
+      "type": "BUY_STOP",
+      "volume": 0.01,
+      "entry": 4147.91,
+      "sl": 4146.91
+    },
+    {
+      "ticket": 601631174,
+      "type": "SELL_STOP",
+      "volume": 0.01,
+      "entry": 4145.17,
+      "sl": 4146.17
+    }
+  ],
+  "state_at_manifest_read": {
+    "version": 1,
+    "magic": 995456,
+    "login": 2101182459,
+    "symbol": "XAUUSD.iux",
+    "phase": "working",
+    "known_positions": {},
+    "pending_closes": {},
+    "closed_positions": {
+      "601630597": -1.04,
+      "601631172": -1.0
+    },
+    "daily_net": {
+      "2026-10-15": -2.04
+    },
+    "cycles": 3,
+    "last_error": "",
+    "rearm_requested": false,
+    "known_orders": {
+      "601632211": true,
+      "601632212": true
+    },
+    "journal_orders_recovered": true
+  },
+  "active_portfolios": [
+    "EA2_1",
+    "LTS_AHR2",
+    "INDI1",
+    "SCALPING456"
+  ],
+  "foreign_orders_modified_by_adapter": false,
+  "scope_of_evidence": "functional smoke only; broker observations not atomic with later state snapshot",
+  "profitable_strategy_or_100_percent_clone_verified": false
+}

@@ -1,0 +1,213 @@
+{
+  "checked_utc": "2026-10-16T07:45:33.446031+00:00",
+  "checked_bkk": "2026-10-16T14:45:33.446+07:00",
+  "read_only": true,
+  "profile": "demo-exness-434237129",
+  "login": 434237129,
+  "server": "Exness-MT5Trial7",
+  "symbol": "XAUUSDm",
+  "magic": 995456,
+  "heartbeat": {
+    "ts": "1792136710",
+    "bkk": "2026-10-16 14:45:11",
+    "mt5_ok": "1",
+    "auto": "1",
+    "last_scan": "1792136706",
+    "pid": "32328"
+  },
+  "heartbeat_age_seconds": 7.294,
+  "native_identity_verified": true,
+  "account": {
+    "login": 434237129,
+    "server": "Exness-MT5Trial7",
+    "trade_mode": 0,
+    "margin_mode": 2,
+    "currency": "USD",
+    "trade_allowed": true,
+    "limit_orders": 1024
+  },
+  "terminal": {
+    "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+    "connected": true,
+    "trade_allowed": true,
+    "pid": 36536
+  },
+  "native_book_counts": {
+    "all_positions": 30,
+    "all_pending": 32,
+    "own_positions": 0,
+    "own_pending": 0
+  },
+  "runtime_scalping456_active": true,
+  "journal": {
+    "prefix_valid": true,
+    "complete_offset": 4410,
+    "file_length": 4410,
+    "prefix_sha256": "cacd4374182536430dbe4c7a8fd3b948cc173132889ab5eb61b7c702db54d4fd",
+    "new_events": []
+  },
+  "broker_cohort": [
+    {
+      "identifier": 4878801646,
+      "entry_deal": 4299032977,
+      "exit_deal": 4299035398,
+      "entry_volume": 0.01,
+      "exit_volume": 0.01,
+      "net": -1.01,
+      "entry_magic": 995456,
+      "exit_magic": 995456,
+      "history_entry_order": {
+        "ticket": 4878801646,
+        "magic": 0,
+        "position_id": 0,
+        "sl": 0,
+        "state": 4,
+        "symbol": "XAUUSDm"
+      }
+    },
+    {
+      "identifier": 4878801649,
+      "entry_deal": 4300230026,
+      "exit_deal": 4300232789,
+      "exit_order": 0,
+      "entry_volume": 0.01,
+      "exit_volume": 0.01,
+      "net": -1,
+      "entry_magic": 995456,
+      "exit_magic": 995456,
+      "history_entry_order": {
+        "ticket": 4878801649,
+        "magic": 0,
+        "position_id": 0,
+        "sl": 0,
+        "state": 4,
+        "symbol": "XAUUSDm"
+      }
+    }
+  ],
+  "strategy_state": {
+    "version": 1,
+    "magic": 995456,
+    "login": 434237129,
+    "symbol": "XAUUSDm",
+    "phase": "working",
+    "known_positions": {},
+    "pending_closes": {
+      "4878801646": {
+        "identifier": 4878801646
+      },
+      "4878801649": {
+        "identifier": 4878801649
+      }
+    },
+    "closed_positions": {
+      "4878797096": -1.06
+    },
+    "daily_net": {
+      "2026-10-15": -1.06
+    },
+    "cycles": 2,
+    "last_error": "",
+    "rearm_requested": false,
+    "known_orders": {
+      "4878801646": true,
+      "4878801649": true
+    },
+    "journal_orders_recovered": true
+  },
+  "current_code_sha256": {
+    "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+    "demo_portfolio.py": "9a1d5f4f7692087e2f75e5a66b576606613f0d87e67637c6271e060832c76d69",
+    "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+    "config.py": "e4930715443fafe8ce4a1e5015ec1c08c1af6f54fa0e116314f0477d3d58ec71",
+    "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+    "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+  },
+  "current_source_revision_unchanged": true,
+  "all_six_match_original_baseline": false,
+  "latest_production_error": "[2026-10-16 14:42:55] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+  "process_inventory": {
+    "checked_bkk": "2026-10-16T14:44:50.4275249+07:00",
+    "exact_terminal": [
+      {
+        "pid": 36536,
+        "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe",
+        "created": "2026-10-16T09:36:54.3098998+07:00"
+      }
+    ],
+    "main": [
+      {
+        "pid": 32328,
+        "name": "python",
+        "created": "2026-10-16T09:36:37.3256043+07:00"
+      }
+    ],
+    "supervisor": [
+      {
+        "pid": 32312,
+        "name": "powershell",
+        "created": "2026-10-16T09:36:33.2864686+07:00"
+      }
+    ]
+  },
+  "diagnostic_limitation": "Initial full CIM inventory timed out before MT5 initialize. Successful retry used Get-Process to prove exact already-running terminal; same prior-verified main/supervisor PIDs and creation times were observed, not a fresh full parent-chain inventory.",
+  "native_capture_note": "Compact transcription of the successful read-only diagnostic output in this chat, not a new raw JSON dump. Complete/per-position deals and baseline historical-order queries retained only the same excluded baseline identifier and original two cohort identifiers; no new owned deals. Prior full matching native records are in monitor_wake_20261016T140008.json.",
+  "accounting": {
+    "day": "2026-10-15",
+    "cohort_net": -2.01,
+    "expected_net_including_excluded_baseline": -3.07,
+    "observed_state_net": -1.06,
+    "current_bkk_day": "2026-10-16",
+    "current_day_own_deals": 0
+  },
+  "diagnosis": {
+    "root_cause": "Adapter history-order ownership filter requires magic995456, but broker historical entry-order stubs return magic0/position_id0 despite independently proven ownership. RuntimeError aborts step before close reconciliation, cancel/rearm and trailing.",
+    "primary_source": {
+      "file": "demo_scalping456.py",
+      "history_filter_line": 284,
+      "raise_line": 286,
+      "resolve_orders_line": 334,
+      "resolve_closes_line": 335,
+      "rearm_line": 339,
+      "pending_closes_gate_line": 386,
+      "known_orders_gate_line": 391
+    },
+    "dispatch": {
+      "file": "demo_portfolio.py",
+      "runner_step_line": 2335
+    },
+    "consequences": [
+      "Both broker-closed positions remain in pending_closes and known_orders.",
+      "No confirmed close is consumed, PnL remains missing and no new cycle is armed.",
+      "Source state phase working/empty last_error and healthy heartbeat do not imply successful execution."
+    ],
+    "not_primary_cause": [
+      "Scalping456 runtime toggle is ON and native account/server/demo/hedging/path/connectivity verified.",
+      "Daily -20 USD entry gate is not reached.",
+      "Native total pending32 versus limit1024; current broker order cap is not the stopping branch."
+    ],
+    "repair_scope_for_later_authorization": [
+      "Prove ownership by original submitted ticket plus exact symbol/account and native entry-deal identifier/magic; do not broadly accept any magic0 record.",
+      "Reconcile closed lifecycles exactly once and date realized net by actual close day, not polling/recovery day.",
+      "Verify flash fill/exit, partial volume, restart recovery, cancel/rearm and trailing ordering with tests before any requested restart."
+    ]
+  },
+  "automation": {
+    "id": "scalping456-demo-2459-3",
+    "status": "PAUSED",
+    "kind": "heartbeat",
+    "name": "ตรวจ Scalping456 Demo 7129 ให้ผ่าน 5 ไม้",
+    "target_thread_id": "01a119a9-0064-7333-9fe0-61618b65cbc7",
+    "rrule": "FREQ=HOURLY;INTERVAL=2",
+    "updated_at": 1792136610107,
+    "only_status_and_update_timestamp_changed": true
+  },
+  "actions": {
+    "monitor_paused_by_explicit_user_request": true,
+    "bot_stopped": false,
+    "code_config_risk_or_bot_state_modified": false,
+    "orders_sent_modified_cancelled_or_closed": false,
+    "processes_restarted_or_killed": false,
+    "telegram_sent": false
+  }
+}

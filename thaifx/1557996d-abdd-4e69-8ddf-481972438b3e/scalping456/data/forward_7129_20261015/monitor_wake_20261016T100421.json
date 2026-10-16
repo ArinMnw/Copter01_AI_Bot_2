@@ -1,0 +1,595 @@
+{
+  "schema_version": 1,
+  "automation_id": "scalping456-demo-2459-3",
+  "at_bkk": "2026-10-16T10:04:21.857+07:00",
+  "read_only": true,
+  "baseline_utc": "2026-10-15T07:59:00.611703+00:00",
+  "target_unique_positions": 5,
+  "monitor_interval_minutes": 120,
+  "counts": {
+    "entry": 2,
+    "broker_closed": 2,
+    "open": 0,
+    "verified": 0,
+    "failed": 2,
+    "inconclusive": 0
+  },
+  "observations": {
+    "read_only": true,
+    "profile": "demo-exness-434237129",
+    "heartbeat": {
+      "ts": "1792119850",
+      "bkk": "2026-10-16 10:04:12",
+      "mt5_ok": "1",
+      "auto": "1",
+      "last_scan": "1792119847",
+      "pid": "32328"
+    },
+    "heartbeat_age_seconds": 11.548,
+    "strategy_state": {
+      "version": 1,
+      "magic": 995456,
+      "login": 434237129,
+      "symbol": "XAUUSDm",
+      "phase": "working",
+      "known_positions": {},
+      "pending_closes": {
+        "4878801646": {
+          "identifier": 4878801646
+        },
+        "4878801649": {
+          "identifier": 4878801649
+        }
+      },
+      "closed_positions": {
+        "4878797096": -1.06
+      },
+      "daily_net": {
+        "2026-10-15": -1.06
+      },
+      "cycles": 2,
+      "last_error": "",
+      "rearm_requested": false,
+      "known_orders": {
+        "4878801646": true,
+        "4878801649": true
+      },
+      "journal_orders_recovered": true
+    },
+    "runtime_flags": {
+      "scalping456_active": true
+    },
+    "journal": {
+      "prefix_valid": true,
+      "previous_offset": 4410,
+      "complete_offset": 4410,
+      "file_length": 4410,
+      "prefix_sha256": "cacd4374182536430dbe4c7a8fd3b948cc173132889ab5eb61b7c702db54d4fd",
+      "new_events": []
+    },
+    "code_sha256": {
+      "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+      "demo_portfolio.py": "9a1d5f4f7692087e2f75e5a66b576606613f0d87e67637c6271e060832c76d69",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "e4930715443fafe8ce4a1e5015ec1c08c1af6f54fa0e116314f0477d3d58ec71",
+      "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    },
+    "code_hashes_match_baseline": false,
+    "processes": {
+      "terminal": [
+        {
+          "parent": 31708,
+          "pid": 36536,
+          "created": "2026-10-16T09:36:54.3098990+07:00",
+          "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+        }
+      ],
+      "supervisor": [
+        {
+          "parent": 31060,
+          "pid": 32312,
+          "created": "2026-10-16T09:36:33.2864680+07:00"
+        }
+      ],
+      "supervisor_log_tail": [
+        "[2026-10-16 09:36:34] WARN: lock file ค้างจาก pid=44428 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ",
+        "[2026-10-16 09:36:37] Supervisor started (profile='demo-exness-434237129', stale=180 s, check=30 s, grace=90 s, python='C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe')",
+        "[2026-10-16 09:36:37] Launching: C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe main.py",
+        "[2026-10-16 09:36:37] main.py running (pid=33260)"
+      ],
+      "relevant_log_events": [
+        "[2026-10-16 10:02:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+      ],
+      "main_chain": [
+        {
+          "parent": 33260,
+          "pid": 32328,
+          "name": "python.exe",
+          "created": "2026-10-16T09:36:37.3256040+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 32312,
+          "pid": 33260,
+          "name": "python.exe",
+          "created": "2026-10-16T09:36:37.2854220+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 31060,
+          "pid": 32312,
+          "name": "powershell.exe",
+          "created": "2026-10-16T09:36:33.2864680+07:00",
+          "main_py": false
+        },
+        {
+          "parent": 30656,
+          "pid": 31060,
+          "name": "cmd.exe",
+          "created": "2026-10-16T09:36:30.1674090+07:00",
+          "main_py": false
+        }
+      ],
+      "scoped_rg_log_events": [
+        "108422:[2026-10-16 09:20:55] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "108884:[2026-10-16 09:24:50] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected",
+        "108896:[2026-10-16 09:37:45] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "109459:[2026-10-16 09:42:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "110161:[2026-10-16 09:47:45] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "110803:[2026-10-16 09:52:47] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "111381:[2026-10-16 09:57:47] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "111923:[2026-10-16 10:02:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+      ]
+    },
+    "initialize_existing_terminal": true,
+    "account": {
+      "login": 434237129,
+      "server": "Exness-MT5Trial7",
+      "trade_mode": 0,
+      "margin_mode": 2,
+      "currency": "USD",
+      "trade_allowed": true,
+      "limit_orders": 1024
+    },
+    "terminal": {
+      "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+      "connected": true,
+      "trade_allowed": true
+    },
+    "native_identity_verified": true,
+    "own_positions": [],
+    "own_pending": [],
+    "owned_history_deals": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time": 1792050907,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time": 1792050926,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299032977,
+        "order": 4878801646,
+        "time": 1792051199,
+        "time_msc": 1792051199326,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4299035398,
+        "order": 4878818433,
+        "time": 1792051206,
+        "time_msc": 1792051206831,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4145.362,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.01,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4145.362]",
+        "external_id": ""
+      },
+      {
+        "ticket": 4300230026,
+        "order": 4878801649,
+        "time": 1792067401,
+        "time_msc": 1792067401700,
+        "type": 1,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4143.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4300232789,
+        "order": 0,
+        "time": 1792067402,
+        "time_msc": 1792067402228,
+        "type": 0,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.52200]",
+        "external_id": "proactive"
+      }
+    ],
+    "position_history": {
+      "4878797096": [
+        {
+          "ticket": 4299017056,
+          "order": 4878797096,
+          "time": 1792050907,
+          "time_msc": 1792050907965,
+          "type": 0,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878797096,
+          "reason": 3,
+          "volume": 0.01,
+          "price": 4145.403,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_B",
+          "external_id": ""
+        },
+        {
+          "ticket": 4299018839,
+          "order": 4878800453,
+          "time": 1792050926,
+          "time_msc": 1792050926694,
+          "type": 1,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878797096,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4144.335,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1.06,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4144.335]",
+          "external_id": ""
+        }
+      ],
+      "4878801646": [
+        {
+          "ticket": 4299032977,
+          "order": 4878801646,
+          "time": 1792051199,
+          "time_msc": 1792051199326,
+          "type": 0,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878801646,
+          "reason": 0,
+          "volume": 0.01,
+          "price": 4146.372,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_B",
+          "external_id": "proactive"
+        },
+        {
+          "ticket": 4299035398,
+          "order": 4878818433,
+          "time": 1792051206,
+          "time_msc": 1792051206831,
+          "type": 1,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878801646,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4145.362,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1.01,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4145.362]",
+          "external_id": ""
+        }
+      ],
+      "4878801649": [
+        {
+          "ticket": 4300230026,
+          "order": 4878801649,
+          "time": 1792067401,
+          "time_msc": 1792067401700,
+          "type": 1,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878801649,
+          "reason": 0,
+          "volume": 0.01,
+          "price": 4143.522,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_S",
+          "external_id": "proactive"
+        },
+        {
+          "ticket": 4300232789,
+          "order": 0,
+          "time": 1792067402,
+          "time_msc": 1792067402228,
+          "type": 0,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878801649,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4144.522,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4144.52200]",
+          "external_id": "proactive"
+        }
+      ]
+    },
+    "historical_orders": {
+      "4878801646": [
+        {
+          "ticket": 4878801646,
+          "time_setup": 1792050951,
+          "time_setup_msc": 1792050951000,
+          "time_done": 1792051199,
+          "time_done_msc": 1792051199326,
+          "time_expiration": 0,
+          "type": 4,
+          "type_time": 0,
+          "type_filling": 0,
+          "state": 4,
+          "magic": 0,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 0,
+          "volume_initial": 0.01,
+          "volume_current": 0,
+          "price_open": 4146.362,
+          "sl": 0,
+          "tp": 0,
+          "price_current": 0,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSDm",
+          "comment": "",
+          "external_id": ""
+        }
+      ],
+      "4878801649": [
+        {
+          "ticket": 4878801649,
+          "time_setup": 1792050951,
+          "time_setup_msc": 1792050951000,
+          "time_done": 1792067401,
+          "time_done_msc": 1792067401700,
+          "time_expiration": 0,
+          "type": 5,
+          "type_time": 0,
+          "type_filling": 0,
+          "state": 4,
+          "magic": 0,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 0,
+          "volume_initial": 0.01,
+          "volume_current": 0,
+          "price_open": 4143.522,
+          "sl": 0,
+          "tp": 0,
+          "price_current": 0,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSDm",
+          "comment": "",
+          "external_id": ""
+        }
+      ]
+    },
+    "symbol_specs": {
+      "name": "XAUUSDm",
+      "visible": true,
+      "digits": 3,
+      "point": 0.001,
+      "trade_tick_size": 0.001,
+      "trade_stops_level": 0,
+      "trade_freeze_level": 0,
+      "volume_min": 0.01,
+      "volume_max": 200,
+      "volume_step": 0.01,
+      "trade_contract_size": 100,
+      "trade_mode": 4
+    },
+    "book_counts": {
+      "all_positions": 10,
+      "all_pending": 35,
+      "own_positions": 0,
+      "own_pending": 0
+    },
+    "checked_utc": "2026-10-16T03:04:21.857544+00:00"
+  },
+  "restart_observation": {
+    "at_bkk": "2026-10-16T10:04:21.857+07:00",
+    "observed_only": true,
+    "previous_main_pid": 9312,
+    "previous_supervisor_pid": 44428,
+    "previous_terminal_pid": 16548,
+    "current_main_pid": 32328,
+    "current_supervisor_pid": 32312,
+    "current_terminal_pid": 36536,
+    "processes": {
+      "terminal": [
+        {
+          "parent": 31708,
+          "pid": 36536,
+          "created": "2026-10-16T09:36:54.3098990+07:00",
+          "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+        }
+      ],
+      "supervisor": [
+        {
+          "parent": 31060,
+          "pid": 32312,
+          "created": "2026-10-16T09:36:33.2864680+07:00"
+        }
+      ],
+      "supervisor_log_tail": [
+        "[2026-10-16 09:36:34] WARN: lock file ค้างจาก pid=44428 (ตายไปแล้ว) — เคลียร์แล้วรันต่อ",
+        "[2026-10-16 09:36:37] Supervisor started (profile='demo-exness-434237129', stale=180 s, check=30 s, grace=90 s, python='C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe')",
+        "[2026-10-16 09:36:37] Launching: C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe main.py",
+        "[2026-10-16 09:36:37] main.py running (pid=33260)"
+      ],
+      "relevant_log_events": [
+        "[2026-10-16 10:02:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+      ],
+      "main_chain": [
+        {
+          "parent": 33260,
+          "pid": 32328,
+          "name": "python.exe",
+          "created": "2026-10-16T09:36:37.3256040+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 32312,
+          "pid": 33260,
+          "name": "python.exe",
+          "created": "2026-10-16T09:36:37.2854220+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 31060,
+          "pid": 32312,
+          "name": "powershell.exe",
+          "created": "2026-10-16T09:36:33.2864680+07:00",
+          "main_py": false
+        },
+        {
+          "parent": 30656,
+          "pid": 31060,
+          "name": "cmd.exe",
+          "created": "2026-10-16T09:36:30.1674090+07:00",
+          "main_py": false
+        }
+      ],
+      "scoped_rg_log_events": [
+        "108422:[2026-10-16 09:20:55] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "108884:[2026-10-16 09:24:50] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 demo account/server/hedging/path guard rejected",
+        "108896:[2026-10-16 09:37:45] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "109459:[2026-10-16 09:42:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "110161:[2026-10-16 09:47:45] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "110803:[2026-10-16 09:52:47] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "111381:[2026-10-16 09:57:47] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "111923:[2026-10-16 10:02:46] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+      ]
+    },
+    "transient_guard_log_bkk": "2026-10-16T09:24:50+07:00",
+    "guard_currently_recovered": true,
+    "guard_recovery_evidence": "After new processes at09:36, production history mismatch resumes09:37:45 through10:02:46 after preflight; fresh MT5=1 and independent correct native account/demo/hedging/path/connection pass.",
+    "restart_continuity": "Same two identifiers, known_orders, pending_closes, closed_positions/daily state, cycles2/rearmfalse and journal4410/prefix; no duplicate fill/close or new broker entry.",
+    "restart_performed_by_this_audit": false
+  },
+  "assessment": {
+    "outcome": "EXTERNAL_RESTART_OBSERVED_NO_EXECUTION_PROGRESS",
+    "code_hashes_match_baseline": false,
+    "code_hashes_unchanged_since_last_review": true,
+    "unchanged_code_drift_reference": "monitor_wake_20261015T235332.json",
+    "symbol_specs_match_baseline": true,
+    "cohort_net": -2.01,
+    "historical_accounting_day": "2026-10-15",
+    "expected_historical_daily_net_including_baseline": -3.07,
+    "observed_historical_daily_net": -1.06,
+    "missing_postbaseline_net": -2.01,
+    "current_bkk_day": "2026-10-16",
+    "current_day_native_confirmed_net": 0,
+    "current_day_state_net_default0": 0,
+    "stop_condition_met": false,
+    "trading_fix_authorized": false,
+    "notification_suppressed": true,
+    "notification_reason": "Current healthy correct-account restart with unchanged source/state/execution failure; transient guard issue already recovered, no new own trade or required user action.",
+    "automation_kept_active": true,
+    "actions_performed": "Read-only exact-target process/account/book/history/log/state/hash checks. Diagnostic command reconstructed only in transient tool memory after previous transient key expired; first orchestration parse failed before any shell executed, corrected read-only retry succeeded. Only research monitor MD/ledger/audit writes; no trading code/config/risk/bot-state/order/restart/kill/login/account-switch/symbol-selection/Telegram/automation changes."
+  }
+}

@@ -1,0 +1,317 @@
+{
+  "audited_bkk": "2026-10-15T14:08:43.168947+07:00",
+  "cohort": [
+    {
+      "ticket": 601687989,
+      "side": "BUY",
+      "volume": 0.01,
+      "entry_journal_bkk": "2026-10-15T13:47:11.286636+07:00",
+      "closed_journal_bkk": "2026-10-15T13:47:33.529037+07:00",
+      "entry_broker_time_msc": 1792050435886,
+      "exit_broker_time_msc": 1792050458039,
+      "submitted_entry": 4136.04,
+      "actual_entry": 4136.08,
+      "initial_sl": 4135.04,
+      "final_sl": 4136.2,
+      "exit_price": 4136.2,
+      "net": 0.12,
+      "entry_adverse_slippage_price": 0.04,
+      "maximum_favorable_gain": 0.32,
+      "native_tick_count": 89,
+      "trailing": [
+        {
+          "bkk": "2026-10-15T13:47:31.602523+07:00",
+          "sl": 4136.2,
+          "gain": 0.32,
+          "first_seen_delay_sec": 20.315887,
+          "modify_interval_sec": null,
+          "checks": {
+            "price_matches": true,
+            "gain_above_activation": true,
+            "tightens_more_than_step": true,
+            "first_delay_pass": true,
+            "interval_pass": true,
+            "broker_ack_done": true,
+            "native_tick_quote_matches": true
+          },
+          "all_pass": true
+        }
+      ],
+      "trailing_status": "triggered_verified",
+      "cancelled_opposite": 601687990,
+      "opposite_history": [
+        {
+          "ticket": 601687990,
+          "time_setup": 1792050192,
+          "time_setup_msc": 1792050192120,
+          "time_done": 1792050458,
+          "time_done_msc": 1792050458307,
+          "time_expiration": 0,
+          "type": 5,
+          "type_time": 0,
+          "type_filling": 2,
+          "state": 2,
+          "magic": 995456,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 3,
+          "volume_initial": 0.01,
+          "volume_current": 0.01,
+          "price_open": 4133.3,
+          "sl": 4134.3,
+          "tp": 0,
+          "price_current": 4135.91,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSD.iux",
+          "comment": "M1_S21_S456_S",
+          "external_id": ""
+        }
+      ],
+      "rearmed_pair": [
+        601689253,
+        601689254
+      ],
+      "checks": {
+        "native_identity_and_symbol": true,
+        "unique_native_entry_and_full_exit": true,
+        "submitted_entry_formula_and_native_order": true,
+        "initial_SL_one_price_unit_and_no_TP": true,
+        "fill_matches_native_and_has_SL": true,
+        "trailing_modifications_when_triggered": true,
+        "no_unhandled_trailing_trigger": true,
+        "native_SL_exit_and_price": true,
+        "net_once_matches_state_and_journal": true,
+        "opposite_retained_until_native_exit_then_cancelled": true,
+        "new_pair_after_close_and_cancel_ack": true,
+        "not_baseline_old_position": true,
+        "entry_ack_done": true
+      },
+      "all_pass": true
+    },
+    {
+      "ticket": 601689254,
+      "side": "SELL",
+      "volume": 0.01,
+      "entry_journal_bkk": "2026-10-15T13:51:05.778952+07:00",
+      "closed_journal_bkk": "2026-10-15T13:51:24.284820+07:00",
+      "entry_broker_time_msc": 1792050670407,
+      "exit_broker_time_msc": 1792050688946,
+      "submitted_entry": 4134.63,
+      "actual_entry": 4134.62,
+      "initial_sl": 4135.63,
+      "final_sl": 4135.63,
+      "exit_price": 4135.63,
+      "net": -1.01,
+      "entry_adverse_slippage_price": 0.01,
+      "maximum_favorable_gain": 0.01,
+      "native_tick_count": 66,
+      "trailing": [],
+      "trailing_status": "not_triggered_verified_from_ticks",
+      "cancelled_opposite": 601689253,
+      "opposite_history": [
+        {
+          "ticket": 601689253,
+          "time_setup": 1792050458,
+          "time_setup_msc": 1792050458558,
+          "time_done": 1792050689,
+          "time_done_msc": 1792050689066,
+          "time_expiration": 0,
+          "type": 4,
+          "type_time": 0,
+          "type_filling": 2,
+          "state": 2,
+          "magic": 995456,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 3,
+          "volume_initial": 0.01,
+          "volume_current": 0.01,
+          "price_open": 4137.37,
+          "sl": 4136.37,
+          "tp": 0,
+          "price_current": 4135.65,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSD.iux",
+          "comment": "M1_S21_S456_B",
+          "external_id": ""
+        }
+      ],
+      "rearmed_pair": [
+        601691097,
+        601691098
+      ],
+      "checks": {
+        "native_identity_and_symbol": true,
+        "unique_native_entry_and_full_exit": true,
+        "submitted_entry_formula_and_native_order": true,
+        "initial_SL_one_price_unit_and_no_TP": true,
+        "fill_matches_native_and_has_SL": true,
+        "trailing_modifications_when_triggered": true,
+        "no_unhandled_trailing_trigger": true,
+        "native_SL_exit_and_price": true,
+        "net_once_matches_state_and_journal": true,
+        "opposite_retained_until_native_exit_then_cancelled": true,
+        "new_pair_after_close_and_cancel_ack": true,
+        "not_baseline_old_position": true,
+        "entry_ack_done": true
+      },
+      "all_pass": true
+    },
+    {
+      "ticket": 601691098,
+      "side": "SELL",
+      "volume": 0.01,
+      "entry_journal_bkk": "2026-10-15T13:51:46.273821+07:00",
+      "closed_journal_bkk": "2026-10-15T13:53:37.533188+07:00",
+      "entry_broker_time_msc": 1792050710937,
+      "exit_broker_time_msc": 1792050822140,
+      "submitted_entry": 4134.22,
+      "actual_entry": 4134.22,
+      "initial_sl": 4135.22,
+      "final_sl": 4134.1,
+      "exit_price": 4134.1,
+      "net": 0.12,
+      "entry_adverse_slippage_price": 0,
+      "maximum_favorable_gain": 0.33,
+      "native_tick_count": 395,
+      "trailing": [
+        {
+          "bkk": "2026-10-15T13:53:31.790679+07:00",
+          "sl": 4134.18,
+          "gain": 0.24,
+          "first_seen_delay_sec": 105.516858,
+          "modify_interval_sec": null,
+          "checks": {
+            "price_matches": true,
+            "gain_above_activation": true,
+            "tightens_more_than_step": true,
+            "first_delay_pass": true,
+            "interval_pass": true,
+            "broker_ack_done": true,
+            "native_tick_quote_matches": true
+          },
+          "all_pass": true
+        },
+        {
+          "bkk": "2026-10-15T13:53:33.777834+07:00",
+          "sl": 4134.15,
+          "gain": 0.27,
+          "first_seen_delay_sec": 107.504013,
+          "modify_interval_sec": 1.987155,
+          "checks": {
+            "price_matches": true,
+            "gain_above_activation": true,
+            "tightens_more_than_step": true,
+            "first_delay_pass": true,
+            "interval_pass": true,
+            "broker_ack_done": true,
+            "native_tick_quote_matches": true
+          },
+          "all_pass": true
+        },
+        {
+          "bkk": "2026-10-15T13:53:34.548042+07:00",
+          "sl": 4134.1,
+          "gain": 0.32,
+          "first_seen_delay_sec": 108.274221,
+          "modify_interval_sec": 0.770208,
+          "checks": {
+            "price_matches": true,
+            "gain_above_activation": true,
+            "tightens_more_than_step": true,
+            "first_delay_pass": true,
+            "interval_pass": true,
+            "broker_ack_done": true,
+            "native_tick_quote_matches": true
+          },
+          "all_pass": true
+        }
+      ],
+      "trailing_status": "triggered_verified",
+      "cancelled_opposite": 601691097,
+      "opposite_history": [
+        {
+          "ticket": 601691097,
+          "time_setup": 1792050689,
+          "time_setup_msc": 1792050689302,
+          "time_done": 1792050822,
+          "time_done_msc": 1792050822315,
+          "time_expiration": 0,
+          "type": 4,
+          "type_time": 0,
+          "type_filling": 2,
+          "state": 2,
+          "magic": 995456,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 3,
+          "volume_initial": 0.01,
+          "volume_current": 0.01,
+          "price_open": 4136.95,
+          "sl": 4135.95,
+          "tp": 0,
+          "price_current": 4134.26,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSD.iux",
+          "comment": "M1_S21_S456_B",
+          "external_id": ""
+        }
+      ],
+      "rearmed_pair": [
+        601691939,
+        601691941
+      ],
+      "checks": {
+        "native_identity_and_symbol": true,
+        "unique_native_entry_and_full_exit": true,
+        "submitted_entry_formula_and_native_order": true,
+        "initial_SL_one_price_unit_and_no_TP": true,
+        "fill_matches_native_and_has_SL": true,
+        "trailing_modifications_when_triggered": true,
+        "no_unhandled_trailing_trigger": true,
+        "native_SL_exit_and_price": true,
+        "net_once_matches_state_and_journal": true,
+        "opposite_retained_until_native_exit_then_cancelled": true,
+        "new_pair_after_close_and_cancel_ack": true,
+        "not_baseline_old_position": true,
+        "entry_ack_done": true
+      },
+      "all_pass": true
+    }
+  ],
+  "prefix_hash_matches": true,
+  "code_hash_checks": {
+    "demo_scalping456.py": true,
+    "demo_portfolio.py": true,
+    "mt5_worker.py": true,
+    "main.py": true,
+    "config.py": true
+  },
+  "new_close_count": 6,
+  "new_unique_close_count": 6,
+  "all_day_net_matches_baseline_plus_new_closes": true,
+  "all_day_net": -14.819999999999999,
+  "current": {
+    "account_positions": 100,
+    "account_pending": 0,
+    "own_positions": [],
+    "own_pending": [],
+    "phase": "cooldown",
+    "last_error": "Pending rejected 10040"
+  },
+  "rejections": {
+    "10040": 17
+  },
+  "additional_checks": {
+    "creation_quotes_verified_in_native_ticks": {
+      "601687989": true,
+      "601689254": true,
+      "601691098": true
+    },
+    "native_max_exposure_slots_through_third_rearm": 2,
+    "native_end_exposure_slots": 2,
+    "scope_all_requests_match_magic_symbol": true,
+    "daily_loss_gate": "not triggered in this cohort; day net remained above -20; boundary branch not live-tested",
+    "scope_limit": "Execution audit of first three new positions only. Subsequent broker-capacity rejection 10040 is an unresolved separate operational alert, not a failure hidden or replaced inside the cohort."
+  }
+}

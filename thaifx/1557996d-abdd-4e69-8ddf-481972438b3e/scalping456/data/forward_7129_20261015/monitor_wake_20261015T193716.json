@@ -1,0 +1,1276 @@
+{
+  "schema_version": 1,
+  "automation_id": "scalping456-demo-2459-3",
+  "at_bkk": "2026-10-15T19:37:16.716+07:00",
+  "read_only": true,
+  "baseline_utc": "2026-10-15T07:59:00.611703+00:00",
+  "target_unique_positions": 5,
+  "counts": {
+    "entry": 2,
+    "broker_closed": 2,
+    "open": 0,
+    "verified": 0,
+    "failed": 2,
+    "inconclusive": 0
+  },
+  "new_cohort_member": {
+    "ordinal": 2,
+    "position_identifier": 4878801649,
+    "entry_order_ticket": 4878801649,
+    "side": "SELL",
+    "volume": 0.01,
+    "entry_deal_ticket": 4300230026,
+    "broker_entry_time_msc": 1792067401700,
+    "entry_seen_journal_bkk": "2026-10-15T19:29:56.953338+07:00",
+    "submitted_entry": 4143.522,
+    "actual_fill": 4143.522,
+    "adverse_fill_slippage": 0,
+    "initial_sl": 4144.522,
+    "tp": 0,
+    "exit_deal_ticket": 4300232789,
+    "exit_order_ticket": 0,
+    "broker_exit_time_msc": 1792067402228,
+    "actual_exit": 4144.522,
+    "exit_reason": "native SL (DEAL_REASON_SL=4)",
+    "net_including_costs": -1,
+    "lifecycle_closed_at_broker": true,
+    "verified": false,
+    "result": "FAIL",
+    "broker_lifetime_ms": 528,
+    "checks": {
+      "ownership": "PASS: baseline native pending, journal request/ack/fill_seen and native entry/exit deals prove exact magic/symbol/identifier",
+      "fixed_lot": "PASS: submitted, entry and complete exit all0.01; one identifier counted once",
+      "pending_entry_and_native_initial_sl": "PASS: journal Bid4144.822 minus1.30 =4143.522, initial SL4144.522 and TP0; baseline native pending plus fill_seen confirm protection",
+      "native_exit_and_net": "PASS for observed native deal records: SL reason4, price4144.522, net-1.00, no commission/swap/fee. Broker exit order field is0; do not invent an exit-order ticket or query ticket0 as ownership proof.",
+      "trailing": "NOT_ELIGIBLE / modification path NOT_PROVEN: raw ticks show SELL gain>0.20 (maximum4.761), but broker-reported lifetime528ms is shorter than first-seen delay900ms. Production history exception also precedes trailing and journal has no SLTP request. Do not call activation absent or claim successful modification; monotonic first-seen timing is not independently instrumented.",
+      "order_history_reconciliation": "FAIL: native historical entry order4878801649 returns magic0/position_id0/sl0; original4878801646 mismatch remains and production still raises before close resolution",
+      "closed_accounting": "FAIL: closed_positions contains only excluded4878797096; both post-baseline exits are absent, daily net-1.06 vs expected-3.07",
+      "post_close_cancel_rearm": "FAIL: state retains both known_orders and pending_closes, cycles2/rearm_requestedfalse, no new pair. This was the original opposite pending left behind after first close, not a fresh re-arm.",
+      "exposure": "PASS for available original-pair/journal/broker evidence: only two original owned exposure slots; no new submission events or extra owned identifiers, current own positions0/pending0",
+      "daily_net_loss_gate": "NOT_TRIGGERED: broker-confirmed daily-3.07 is above-20 entry gate. Missing accounting is separately FAIL; no proof of the gate-at-threshold path.",
+      "opposite_pending_after_fill": "NOT_APPLICABLE to second fill: counterpart BUY had already closed. First fill retention is historical; failure to cancel it after first close remains FAIL."
+    },
+    "evidence": [
+      "monitor_wake_20261015T193716.json",
+      "baseline native pending4878801649",
+      "journal request/ack at14:55:46 and fill_seen at19:29:56 after prior byte4164",
+      "native history_deals_get(position=4878801649)",
+      "native history_orders_get(ticket=4878801649)"
+    ],
+    "trailing_audit": {
+      "result": "DELAY_GATED_NOT_PROVEN",
+      "tick_window_brackets_entry_and_exit": true,
+      "first_trail_delay_ms": 900,
+      "broker_lifetime_ms": 528,
+      "strict_activation_threshold": 0.2,
+      "min_ask_during_lifetime": 4138.761,
+      "max_sell_gain": 4.761,
+      "no_journal_sltp_request": true,
+      "clock_note": "Raw tick/deal epochs compared directly; journal BKK is receipt wall time. No quote/time offset assumed. Broker duration is not a monotonic timer trace."
+    }
+  },
+  "observations": {
+    "checked_utc": "2026-10-15T12:36:37.989614+00:00",
+    "read_only": true,
+    "profile": "demo-exness-434237129",
+    "heartbeat": {
+      "ts": "1792067787",
+      "bkk": "2026-10-15 19:36:32",
+      "mt5_ok": "1",
+      "auto": "1",
+      "last_scan": "1792067786",
+      "pid": "31148"
+    },
+    "heartbeat_age_seconds": 10.832,
+    "strategy_state": {
+      "version": 1,
+      "magic": 995456,
+      "login": 434237129,
+      "symbol": "XAUUSDm",
+      "phase": "working",
+      "known_positions": {},
+      "pending_closes": {
+        "4878801646": {
+          "identifier": 4878801646
+        },
+        "4878801649": {
+          "identifier": 4878801649
+        }
+      },
+      "closed_positions": {
+        "4878797096": -1.06
+      },
+      "daily_net": {
+        "2026-10-15": -1.06
+      },
+      "cycles": 2,
+      "last_error": "",
+      "rearm_requested": false,
+      "known_orders": {
+        "4878801646": true,
+        "4878801649": true
+      },
+      "journal_orders_recovered": true
+    },
+    "runtime_flags": {
+      "scalping456_active": true
+    },
+    "journal": {
+      "prefix_valid": true,
+      "previous_offset": 4164,
+      "complete_offset": 4410,
+      "file_length": 4410,
+      "prefix_sha256": "cacd4374182536430dbe4c7a8fd3b948cc173132889ab5eb61b7c702db54d4fd",
+      "new_events": [
+        {
+          "bkk": "2026-10-15T19:29:56.953338+07:00",
+          "event": "fill_seen",
+          "magic": 995456,
+          "last_observed_quote": null,
+          "ticket": 4878801649,
+          "side": 1,
+          "volume": 0.01,
+          "price": 4143.522,
+          "sl": 4144.522,
+          "tp": 0,
+          "broker_open_time_msc": 1792067401700
+        }
+      ]
+    },
+    "code_sha256": {
+      "demo_scalping456.py": "eb83faeb0d9b103a0f652ef47f7b6ddf4d8cd8f977cce2e3b9bfdfb3d6abae79",
+      "demo_portfolio.py": "afa81028d73238c743794661997940f90d2f228a42fa1d5965e63f42aba6a280",
+      "main.py": "1bbcf6a10fdf61afa1b2cbc213749e09fe5593ff1b67046f0c02bd5bfacfd400",
+      "config.py": "938cfce66225779fabb75b9e47cd5f17a8cb28581607fddd23927e05d317e2a1",
+      "mt5_worker.py": "8bb664271ce693c120289424e404124ac82502fae97a74741fb8d0bb1bf7f26c",
+      "demo_restart_control.py": "f8534d4507cb88877424e9896476f06ee037702ddac2586fdf57c5764f16b9ee"
+    },
+    "code_hashes_match_baseline": true,
+    "processes": {
+      "terminal": [
+        {
+          "parent": 29320,
+          "pid": 7220,
+          "created": "2026-10-15T16:13:56.6549680+07:00",
+          "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5\\terminal64.exe"
+        }
+      ],
+      "supervisor": [
+        {
+          "parent": 15176,
+          "pid": 30548,
+          "created": "2026-10-15T16:12:05.7703780+07:00"
+        }
+      ],
+      "supervisor_log_tail": [
+        "[2026-10-15 16:12:11] Launching: C:\\Users\\Copter\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe main.py",
+        "[2026-10-15 16:12:11] main.py running (pid=30832)",
+        "[2026-10-15 16:13:41] WARN: heartbeat missing/unreadable (up=90s) — wait next cycle",
+        "[2026-10-15 16:14:11] WARN: heartbeat missing/unreadable (up=120s) — wait next cycle"
+      ],
+      "relevant_log_events": [
+        "[2026-10-15 19:14:43] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "[2026-10-15 19:19:42] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "[2026-10-15 19:24:43] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "[2026-10-15 19:29:43] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch",
+        "[2026-10-15 19:34:44] BOT_ERROR | run_scalping456_tick error: RuntimeError: Scalping456 order history identity mismatch"
+      ],
+      "main_chain": [
+        {
+          "parent": 30832,
+          "pid": 31148,
+          "name": "python.exe",
+          "created": "2026-10-15T16:12:11.7473330+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 30548,
+          "pid": 30832,
+          "name": "python.exe",
+          "created": "2026-10-15T16:12:11.7111410+07:00",
+          "main_py": true
+        },
+        {
+          "parent": 15176,
+          "pid": 30548,
+          "name": "powershell.exe",
+          "created": "2026-10-15T16:12:05.7703780+07:00",
+          "main_py": false
+        },
+        {
+          "parent": 8440,
+          "pid": 15176,
+          "name": "cmd.exe",
+          "created": "2026-10-15T16:11:52.2086960+07:00",
+          "main_py": false
+        }
+      ]
+    },
+    "initialize_existing_terminal": true,
+    "account": {
+      "login": 434237129,
+      "server": "Exness-MT5Trial7",
+      "trade_mode": 0,
+      "margin_mode": 2,
+      "currency": "USD",
+      "trade_allowed": true,
+      "limit_orders": 1024
+    },
+    "terminal": {
+      "path": "D:\\Project\\Copter01_AI_Bot_2\\profiles\\demo\\demo-exness-434237129\\mt5",
+      "connected": true,
+      "trade_allowed": true
+    },
+    "native_identity_verified": true,
+    "own_positions": [],
+    "own_pending": [],
+    "owned_history_deals": [
+      {
+        "ticket": 4299017056,
+        "order": 4878797096,
+        "time": 1792050907,
+        "time_msc": 1792050907965,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 3,
+        "volume": 0.01,
+        "price": 4145.403,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299018839,
+        "order": 4878800453,
+        "time": 1792050926,
+        "time_msc": 1792050926694,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878797096,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.335,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.06,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.335]",
+        "external_id": ""
+      },
+      {
+        "ticket": 4299032977,
+        "order": 4878801646,
+        "time": 1792051199,
+        "time_msc": 1792051199326,
+        "type": 0,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4146.372,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_B",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4299035398,
+        "order": 4878818433,
+        "time": 1792051206,
+        "time_msc": 1792051206831,
+        "type": 1,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801646,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4145.362,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1.01,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4145.362]",
+        "external_id": ""
+      },
+      {
+        "ticket": 4300230026,
+        "order": 4878801649,
+        "time": 1792067401,
+        "time_msc": 1792067401700,
+        "type": 1,
+        "entry": 0,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 0,
+        "volume": 0.01,
+        "price": 4143.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": 0,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "M1_S21_S456_S",
+        "external_id": "proactive"
+      },
+      {
+        "ticket": 4300232789,
+        "order": 0,
+        "time": 1792067402,
+        "time_msc": 1792067402228,
+        "type": 0,
+        "entry": 1,
+        "magic": 995456,
+        "position_id": 4878801649,
+        "reason": 4,
+        "volume": 0.01,
+        "price": 4144.522,
+        "commission": 0,
+        "swap": 0,
+        "profit": -1,
+        "fee": 0,
+        "symbol": "XAUUSDm",
+        "comment": "[sl 4144.52200]",
+        "external_id": "proactive"
+      }
+    ],
+    "position_history": {
+      "4878797096": [
+        {
+          "ticket": 4299017056,
+          "order": 4878797096,
+          "time": 1792050907,
+          "time_msc": 1792050907965,
+          "type": 0,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878797096,
+          "reason": 3,
+          "volume": 0.01,
+          "price": 4145.403,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_B",
+          "external_id": ""
+        },
+        {
+          "ticket": 4299018839,
+          "order": 4878800453,
+          "time": 1792050926,
+          "time_msc": 1792050926694,
+          "type": 1,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878797096,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4144.335,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1.06,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4144.335]",
+          "external_id": ""
+        }
+      ],
+      "4878801646": [
+        {
+          "ticket": 4299032977,
+          "order": 4878801646,
+          "time": 1792051199,
+          "time_msc": 1792051199326,
+          "type": 0,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878801646,
+          "reason": 0,
+          "volume": 0.01,
+          "price": 4146.372,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_B",
+          "external_id": "proactive"
+        },
+        {
+          "ticket": 4299035398,
+          "order": 4878818433,
+          "time": 1792051206,
+          "time_msc": 1792051206831,
+          "type": 1,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878801646,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4145.362,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1.01,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4145.362]",
+          "external_id": ""
+        }
+      ],
+      "4878801649": [
+        {
+          "ticket": 4300230026,
+          "order": 4878801649,
+          "time": 1792067401,
+          "time_msc": 1792067401700,
+          "type": 1,
+          "entry": 0,
+          "magic": 995456,
+          "position_id": 4878801649,
+          "reason": 0,
+          "volume": 0.01,
+          "price": 4143.522,
+          "commission": 0,
+          "swap": 0,
+          "profit": 0,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "M1_S21_S456_S",
+          "external_id": "proactive"
+        },
+        {
+          "ticket": 4300232789,
+          "order": 0,
+          "time": 1792067402,
+          "time_msc": 1792067402228,
+          "type": 0,
+          "entry": 1,
+          "magic": 995456,
+          "position_id": 4878801649,
+          "reason": 4,
+          "volume": 0.01,
+          "price": 4144.522,
+          "commission": 0,
+          "swap": 0,
+          "profit": -1,
+          "fee": 0,
+          "symbol": "XAUUSDm",
+          "comment": "[sl 4144.52200]",
+          "external_id": "proactive"
+        }
+      ]
+    },
+    "historical_orders": {
+      "4878801646": [
+        {
+          "ticket": 4878801646,
+          "time_setup": 1792050951,
+          "time_setup_msc": 1792050951000,
+          "time_done": 1792051199,
+          "time_done_msc": 1792051199326,
+          "time_expiration": 0,
+          "type": 4,
+          "type_time": 0,
+          "type_filling": 0,
+          "state": 4,
+          "magic": 0,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 0,
+          "volume_initial": 0.01,
+          "volume_current": 0,
+          "price_open": 4146.362,
+          "sl": 0,
+          "tp": 0,
+          "price_current": 0,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSDm",
+          "comment": "",
+          "external_id": ""
+        }
+      ],
+      "4878801649": [
+        {
+          "ticket": 4878801649,
+          "time_setup": 1792050951,
+          "time_setup_msc": 1792050951000,
+          "time_done": 1792067401,
+          "time_done_msc": 1792067401700,
+          "time_expiration": 0,
+          "type": 5,
+          "type_time": 0,
+          "type_filling": 0,
+          "state": 4,
+          "magic": 0,
+          "position_id": 0,
+          "position_by_id": 0,
+          "reason": 0,
+          "volume_initial": 0.01,
+          "volume_current": 0,
+          "price_open": 4143.522,
+          "sl": 0,
+          "tp": 0,
+          "price_current": 0,
+          "price_stoplimit": 0,
+          "symbol": "XAUUSDm",
+          "comment": "",
+          "external_id": ""
+        }
+      ]
+    },
+    "symbol_specs": {
+      "name": "XAUUSDm",
+      "visible": true,
+      "digits": 3,
+      "point": 0.001,
+      "trade_tick_size": 0.001,
+      "trade_stops_level": 0,
+      "trade_freeze_level": 0,
+      "volume_min": 0.01,
+      "volume_max": 200,
+      "volume_step": 0.01,
+      "trade_contract_size": 100,
+      "trade_mode": 4
+    },
+    "book_counts": {
+      "all_positions": 0,
+      "all_pending": 17,
+      "own_positions": 0,
+      "own_pending": 0
+    }
+  },
+  "independent_raw_tick_audit": {
+    "checked_utc": "2026-10-15T12:37:16.716130+00:00",
+    "identity_verified": true,
+    "terminal_proven_running": true,
+    "position_identifier": 4878801649,
+    "entry_time_msc": 1792067401700,
+    "exit_time_msc": 1792067402228,
+    "duration_ms": 528,
+    "ticks": [
+      {
+        "time_msc": 1792067398101,
+        "bid": 4153.421,
+        "ask": 4153.681,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067398313,
+        "bid": 4153.711,
+        "ask": 4153.971,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067398475,
+        "bid": 4153.505,
+        "ask": 4153.765,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067399494,
+        "bid": 4153.528,
+        "ask": 4153.788,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067399611,
+        "bid": 4153.455,
+        "ask": 4153.715,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067399694,
+        "bid": 4153.521,
+        "ask": 4153.781,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067399779,
+        "bid": 4153.529,
+        "ask": 4153.789,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067399875,
+        "bid": 4153.467,
+        "ask": 4153.727,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067399896,
+        "bid": 4153.803,
+        "ask": 4154.063,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400040,
+        "bid": 4153.594,
+        "ask": 4153.854,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400129,
+        "bid": 4153.891,
+        "ask": 4154.151,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400165,
+        "bid": 4153.539,
+        "ask": 4153.799,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400244,
+        "bid": 4153.615,
+        "ask": 4153.875,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400430,
+        "bid": 4153.616,
+        "ask": 4153.876,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400504,
+        "bid": 4154.018,
+        "ask": 4154.278,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400634,
+        "bid": 4154.003,
+        "ask": 4154.263,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400653,
+        "bid": 4154.377,
+        "ask": 4154.637,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400763,
+        "bid": 4154.159,
+        "ask": 4154.419,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400838,
+        "bid": 4154.382,
+        "ask": 4154.642,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400858,
+        "bid": 4154.728,
+        "ask": 4154.988,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067400941,
+        "bid": 4154.986,
+        "ask": 4155.246,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401129,
+        "bid": 4155.118,
+        "ask": 4155.378,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401254,
+        "bid": 4154.99,
+        "ask": 4155.25,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401310,
+        "bid": 4152.052,
+        "ask": 4152.392,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401310,
+        "bid": 4154.907,
+        "ask": 4155.247,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401313,
+        "bid": 4152.055,
+        "ask": 4152.395,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401313,
+        "bid": 4154.606,
+        "ask": 4154.946,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401323,
+        "bid": 4152.077,
+        "ask": 4152.557,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401330,
+        "bid": 4154.647,
+        "ask": 4155.127,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401330,
+        "bid": 4154.041,
+        "ask": 4154.521,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401330,
+        "bid": 4153.304,
+        "ask": 4153.784,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401337,
+        "bid": 4152.269,
+        "ask": 4152.849,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401338,
+        "bid": 4153.248,
+        "ask": 4153.828,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401347,
+        "bid": 4151.366,
+        "ask": 4151.946,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401368,
+        "bid": 4150.216,
+        "ask": 4150.796,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401380,
+        "bid": 4148.97,
+        "ask": 4149.55,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401390,
+        "bid": 4149.716,
+        "ask": 4150.296,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401440,
+        "bid": 4148.458,
+        "ask": 4149.038,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401470,
+        "bid": 4146.632,
+        "ask": 4147.212,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401593,
+        "bid": 4147.443,
+        "ask": 4148.023,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401601,
+        "bid": 4146.593,
+        "ask": 4147.173,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401644,
+        "bid": 4145.559,
+        "ask": 4146.139,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401665,
+        "bid": 4144.511,
+        "ask": 4145.091,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401688,
+        "bid": 4142.4,
+        "ask": 4142.98,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401692,
+        "bid": 4143.443,
+        "ask": 4144.023,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401693,
+        "bid": 4144.569,
+        "ask": 4145.149,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401696,
+        "bid": 4143.72,
+        "ask": 4144.3,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401708,
+        "bid": 4142.506,
+        "ask": 4143.086,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401769,
+        "bid": 4144.025,
+        "ask": 4144.605,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401869,
+        "bid": 4143.822,
+        "ask": 4144.402,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401933,
+        "bid": 4144.601,
+        "ask": 4145.181,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067401944,
+        "bid": 4143.15,
+        "ask": 4143.73,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402015,
+        "bid": 4141.699,
+        "ask": 4142.279,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402057,
+        "bid": 4142.73,
+        "ask": 4143.31,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402086,
+        "bid": 4141.847,
+        "ask": 4142.427,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402090,
+        "bid": 4142.578,
+        "ask": 4143.158,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402095,
+        "bid": 4141.316,
+        "ask": 4141.896,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402107,
+        "bid": 4140.484,
+        "ask": 4141.064,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402107,
+        "bid": 4139.662,
+        "ask": 4140.242,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402114,
+        "bid": 4140.597,
+        "ask": 4141.177,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402114,
+        "bid": 4139.805,
+        "ask": 4140.385,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402114,
+        "bid": 4138.695,
+        "ask": 4139.275,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402114,
+        "bid": 4139.801,
+        "ask": 4140.381,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402117,
+        "bid": 4140.591,
+        "ask": 4141.171,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402129,
+        "bid": 4138.782,
+        "ask": 4139.362,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402159,
+        "bid": 4139.664,
+        "ask": 4140.244,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402183,
+        "bid": 4138.914,
+        "ask": 4139.494,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402202,
+        "bid": 4138.181,
+        "ask": 4138.761,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402275,
+        "bid": 4137.289,
+        "ask": 4137.869,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402275,
+        "bid": 4138.053,
+        "ask": 4138.633,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402314,
+        "bid": 4137.091,
+        "ask": 4137.671,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402329,
+        "bid": 4138.022,
+        "ask": 4138.602,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402334,
+        "bid": 4137.03,
+        "ask": 4137.61,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402344,
+        "bid": 4137.967,
+        "ask": 4138.547,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402395,
+        "bid": 4138.982,
+        "ask": 4139.562,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402401,
+        "bid": 4137.953,
+        "ask": 4138.533,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402425,
+        "bid": 4137.088,
+        "ask": 4137.668,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402439,
+        "bid": 4136.007,
+        "ask": 4136.587,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402485,
+        "bid": 4137.05,
+        "ask": 4137.63,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402520,
+        "bid": 4136.224,
+        "ask": 4136.804,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402525,
+        "bid": 4137.973,
+        "ask": 4138.553,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402622,
+        "bid": 4137.568,
+        "ask": 4138.148,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402638,
+        "bid": 4136.675,
+        "ask": 4137.255,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402643,
+        "bid": 4135.866,
+        "ask": 4136.446,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402683,
+        "bid": 4136.832,
+        "ask": 4137.412,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402704,
+        "bid": 4137.805,
+        "ask": 4138.385,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402807,
+        "bid": 4137.594,
+        "ask": 4138.174,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402875,
+        "bid": 4138.382,
+        "ask": 4138.962,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402888,
+        "bid": 4137.227,
+        "ask": 4137.807,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402965,
+        "bid": 4136.463,
+        "ask": 4137.043,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067402975,
+        "bid": 4135.098,
+        "ask": 4135.678,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403073,
+        "bid": 4135.167,
+        "ask": 4135.747,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403090,
+        "bid": 4137.278,
+        "ask": 4137.858,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403220,
+        "bid": 4136.689,
+        "ask": 4137.269,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403371,
+        "bid": 4137.085,
+        "ask": 4137.665,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403383,
+        "bid": 4138.126,
+        "ask": 4138.706,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403462,
+        "bid": 4138.031,
+        "ask": 4138.611,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403600,
+        "bid": 4137.503,
+        "ask": 4138.083,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403692,
+        "bid": 4136.525,
+        "ask": 4137.105,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403750,
+        "bid": 4135.622,
+        "ask": 4136.202,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403757,
+        "bid": 4134.714,
+        "ask": 4135.294,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403862,
+        "bid": 4133.731,
+        "ask": 4134.311,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403881,
+        "bid": 4134.785,
+        "ask": 4135.365,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067403922,
+        "bid": 4133.912,
+        "ask": 4134.492,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404008,
+        "bid": 4133.386,
+        "ask": 4133.966,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404085,
+        "bid": 4133.203,
+        "ask": 4133.783,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404172,
+        "bid": 4133.005,
+        "ask": 4133.585,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404249,
+        "bid": 4133.152,
+        "ask": 4133.732,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404337,
+        "bid": 4133.749,
+        "ask": 4134.329,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404445,
+        "bid": 4133.078,
+        "ask": 4133.658,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404525,
+        "bid": 4133.153,
+        "ask": 4133.733,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404601,
+        "bid": 4133.076,
+        "ask": 4133.656,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404740,
+        "bid": 4132.584,
+        "ask": 4133.164,
+        "flags": 6
+      },
+      {
+        "time_msc": 1792067404792,
+        "bid": 4131.607,
+        "ask": 4132.187,
+        "flags": 6
+      }
+    ],
+    "tick_window_brackets_entry_and_exit": true,
+    "last_quote_at_or_before_entry": {
+      "time_msc": 1792067401696,
+      "bid": 4143.72,
+      "ask": 4144.3,
+      "flags": 6
+    },
+    "min_ask_during_lifetime": 4138.761,
+    "max_sell_gain": 4.7609999999995125,
+    "own_open_positions": [],
+    "own_pending": []
+  },
+  "code_and_symbol_specs_match_baseline": true,
+  "assessment": {
+    "status": "FAIL_RECONCILIATION_NOT_PRICE_LOSS",
+    "cohort_net": -2.01,
+    "expected_daily_net_including_baseline": -3.07,
+    "observed_daily_net": -1.06,
+    "missing_postbaseline_net": -2.01,
+    "close_accounting_exactly_once": false,
+    "stop_condition_met": false,
+    "trading_fix_authorized": false,
+    "actions_performed": "Native process/account/book/history/ticks and local logs/state/hash reads only. No trading code/config/bot-state writes, orders, restart/kill, login/account switch/symbol selection, Telegram, or automation changes.",
+    "notification": "NOTIFY: second first-five member now closed; reconciliation failure persists and no third cycle is armed. Ask user for separate authorization before fixing.",
+    "automation_kept_active": true
+  }
+}

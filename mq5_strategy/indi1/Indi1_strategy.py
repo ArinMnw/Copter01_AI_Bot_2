@@ -51,6 +51,7 @@ DEFAULT_CFG = {
     # Direction / risk
     "ALLOW_BUY": True,
     "ALLOW_SELL": True,
+    "CONFIRM_BARS": 1,                 # 1 = ประเมินที่แท่งปิดของ trigger เลย (H1 1 แท่ง, M5 แท่ง trigger) | 2 = กฎเดิม (H1 2 แท่ง, M5 รอ T+1)
     "MAX_ENTRIES_PER_H1": 3,           # เจอสัญญาณ H1 แล้วเข้าได้กี่ไม้ จนกว่าจะเกิดสัญญาณ H1 ใหม่ (0 = ไม่จำกัด)
     "CONCURRENT": True,                # True = ถือหลายไม้พร้อมกันได้ (ไม้ใหม่ต้องรอสัญญาณ M5 ใหม่)
     "INITIAL_BALANCE": 10000.0,
@@ -60,6 +61,7 @@ DEFAULT_CFG = {
     "MIN_SL_POINTS": 0,
     "MAX_SPREAD_POINTS": 0,
     "MIN_LOT": 0.01,
+    "MIN_LOT_FALLBACK": True,          # lot < MIN_LOT -> ใช้ MIN_LOT แทนการข้ามสัญญาณ
     "LOT_STEP": 0.01,
     "COMMISSION_PER_LOT_USD": 0.0,
     # Fibo breakeven
@@ -309,10 +311,26 @@ def _all3(sig, k: int, buy: bool) -> bool:
            (sig["r1"][k] and sig["r2"][k] and sig["rk"][k])
 
 
-def entry_signal(ltf, htf_all3_pair, i: int, buy: bool) -> bool:
-    """กฎเข้า ณ การปิดแท่ง LTF index i (= shift 1 ใน EA). htf_all3_pair = HTF 2 แท่งล่าสุดครบ 3 เส้น."""
+def htf_ok(htf, j: int, buy: bool, confirm_bars: int = 1) -> bool:
+    """สัญญาณ HTF ที่แท่งปิดล่าสุด j: confirm_bars=1 -> แท่ง j ครบ 3 เส้น | 2 -> แท่ง j และ j-1 ครบ 3 เส้น"""
+    if j < 1:
+        return False
+    if confirm_bars <= 1:
+        return _all3(htf, j, buy)
+    return _all3(htf, j, buy) and _all3(htf, j - 1, buy)
+
+
+def entry_signal(ltf, htf_all3_pair, i: int, buy: bool, confirm_bars: int = 1) -> bool:
+    """กฎเข้า ณ การปิดแท่ง LTF index i (= shift 1 ใน EA). htf_all3_pair = สัญญาณ HTF ผ่านแล้ว (ดู htf_ok).
+
+    confirm_bars=1: แท่ง i ที่เพิ่งปิดคือแท่ง trigger — เพิ่งครบ 3 เส้นพร้อมกัน (แท่งก่อนหน้ายังไม่ครบ) หรือเกิด Smart
+    Buy/Sell ตอนปิดแท่ง -> เข้าทันที (ที่ open แท่งถัดไป)
+    confirm_bars=2: (เดิม) trigger ที่แท่ง i-1 แล้วรอแท่ง i ปิดยืนยันก่อน"""
     if not htf_all3_pair or i < 3:
         return False
+    if confirm_bars <= 1:
+        new_all3 = _all3(ltf, i, buy) and not _all3(ltf, i - 1, buy)
+        return new_all3 or bool(ltf["smart_buy" if buy else "smart_sell"][i])
     t = i - 1
     smart_t = ltf["smart_buy" if buy else "smart_sell"][t]
     new_all3 = _all3(ltf, t, buy) and not _all3(ltf, t - 1, buy)
@@ -362,6 +380,7 @@ def run_backtest(bars_raw, cfg=None, spread=0.20, htf_bars=None, start_bar=None)
     balance = float(c["INITIAL_BALANCE"])
     contract = float(c["CONTRACT_SIZE"])
     max_per = int(c["MAX_ENTRIES_PER_H1"])
+    confirm = int(c["CONFIRM_BARS"])
 
     trades = []
     positions: list = []
@@ -404,6 +423,9 @@ def run_backtest(bars_raw, cfg=None, spread=0.20, htf_bars=None, start_bar=None)
                 else:
                     step = float(c["LOT_STEP"])
                     lot = math.floor(balance * float(c["RISK_PCT"]) / 100.0 / (dist * contract) / step) * step
+                    if lot < float(c["MIN_LOT"]) - 1e-12 and c["MIN_LOT_FALLBACK"]:
+                        lot = float(c["MIN_LOT"])
+                        counts["minlot_fallback"] = counts.get("minlot_fallback", 0) + 1
                     if lot < float(c["MIN_LOT"]) - 1e-12:
                         counts["skipped_small_lot"] += 1
                     else:
@@ -447,7 +469,7 @@ def run_backtest(bars_raw, cfg=None, spread=0.20, htf_bars=None, start_bar=None)
         close_time = t_ltf[i] + ltf_s
         while j + 1 < len(t_htf) and t_htf[j + 1] + htf_s <= close_time:
             j += 1
-        pairs = {b: (j >= 1 and _all3(htf, j, b) and _all3(htf, j - 1, b)) for b in (True, False)}
+        pairs = {b: htf_ok(htf, j, b, confirm) for b in (True, False)}
         for b in (True, False):
             if not pairs[b]:
                 n_used[b] = 0
@@ -461,7 +483,7 @@ def run_backtest(bars_raw, cfg=None, spread=0.20, htf_bars=None, start_bar=None)
                     continue
                 if max_per and n_used[buy] >= max_per:
                     continue
-                if entry_signal(ltf, pairs[buy], i, buy):
+                if entry_signal(ltf, pairs[buy], i, buy, confirm):
                     counts["signals_buy" if buy else "signals_sell"] += 1
                     pending = 1 if buy else -1
                     pending_swing = ltf["swing_low" if buy else "swing_high"][i]

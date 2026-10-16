@@ -1,0 +1,77 @@
+{
+  "recorded_bkk": "2026-10-16T15:41:56.150533+07:00",
+  "status": "IMPLEMENTED_AWAITING_USER_RESTART",
+  "user_authorized_code_fix": true,
+  "user_will_restart_7129": true,
+  "agent_restart_authorized": false,
+  "production_loaded_new_code_verified": false,
+  "live_orders_after_fix_verified": false,
+  "source_sha256": {
+    "demo_scalping456.py": "8f8b7984758c5cdf6f31be9d98fbc2b0eb8f36f0251938888728de397c786624",
+    "test_demo_scalping456.py": "6f0d3e3704c5d1f66474ccd175fd39cf647f82de7afefa05a1b55d82396a5d99"
+  },
+  "tests": {
+    "unit_tests": 47,
+    "result": "PASS",
+    "py_compile": "PASS",
+    "scoped_utf8_lf_mojibake": "PASS",
+    "params_targets_preflight_ast_unchanged": true,
+    "old_baseline_failure_reproduced": true,
+    "real_saved_broker_history_offline_replay": "PASS"
+  },
+  "report": "FIX_NO_NEW_ORDERS_7129_20261016.md",
+  "offline_replay": "data/forward_7129_20261015/fix_offline_replay_20261016.json",
+  "live_bot_state_manually_modified": false,
+  "monitor_status": "PAUSED",
+  "replay": {
+    "offline_replay": true,
+    "source": "thaifx\\1557996d-abdd-4e69-8ddf-481972438b3e\\scalping456\\data\\forward_7129_20261015\\monitor_wake_20261016T140008.json",
+    "real_mt5_imported_or_connected": false,
+    "broker_sends": "fake Broker only",
+    "result": "PASS",
+    "recovered_cohort": [
+      4878801646,
+      4878801649
+    ],
+    "rearmed_pending_count": 2,
+    "cycles": 3,
+    "daily_net": {
+      "2026-10-15": -3.0700000000000003
+    },
+    "pending_closes": {},
+    "requests": [
+      {
+        "action": 5,
+        "symbol": "XAUUSDm",
+        "magic": 995456,
+        "volume": 0.01,
+        "type": 4,
+        "price": 101.43,
+        "sl": 100.43,
+        "tp": 0,
+        "type_time": 0,
+        "type_filling": 2,
+        "comment": "M1_S21_S456_B"
+      },
+      {
+        "action": 5,
+        "symbol": "XAUUSDm",
+        "magic": 995456,
+        "volume": 0.01,
+        "type": 5,
+        "price": 98.7,
+        "sl": 99.7,
+        "tp": 0,
+        "type_time": 0,
+        "type_filling": 2,
+        "comment": "M1_S21_S456_S"
+      }
+    ]
+  },
+  "baseline_regression": {
+    "reproduced": true,
+    "error": "Scalping456 order history identity mismatch",
+    "test": "Migration7129Tests.test_exness_zero_magic_stub_clears_stuck_pair_and_places_new_orders"
+  },
+  "note": "Offline only: actual saved native order/deal/state records replayed against an in-memory fake broker in a TemporaryDirectory, with synthetic quotes. Requests here are fake, not live orders. Original live profile state and broker/terminal/process were not modified."
+}

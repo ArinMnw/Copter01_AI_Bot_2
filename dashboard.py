@@ -451,6 +451,10 @@ section[data-testid="stSidebar"] {
 ACCOUNT_LABELS = {
     "": "🟢 Demo • IUX 4448 — Main Bot (root)",
     "real-vtmarket-26575165": "🔴 Real • VT Markets 26575165 (Main Bot)",
+    "real-interstellar-97124233": "🔴 Real • InterStellar Financial 97124233 (ยังไม่มี TG token)",
+    "real-vantage-36164519": "🔴 Real • Vantage 36164519 — Cent ECN ⚠️ (ยังไม่มี TG token)",
+    "real-exness-160197394": "🔴 Real • Exness 160197394 (ยังไม่มี TG token)",
+    "real-hfm-153235221": "🔴 Real • HFMarkets 153235221 (ยังไม่มี TG token)",
     "demo-iux-2101114448": "🟠 Demo • IUX 4448 (profile dir)",
     "demo-iux-2101182459": "🟢 Demo • IUX 2459 — LTS_AHR2",
     "demo-iux-2101182460": "🟢 Demo • IUX 2460 — LTS_AVENGERS_BASE",
@@ -458,13 +462,15 @@ ACCOUNT_LABELS = {
     "demo-iux-2101183586": "⚪ Demo • IUX 3586 — (Disabled)",
     "demo-iux-2101183587": "🟢 Demo • IUX 3587 — S421/S427/S429",
     "demo-exness-416010472": "🟢 Demo • Exness 472 — LTS_AUS2",
-    "demo-exness-433881786": "🟢 Demo • Exness 786 — P18 + S101/102/105/106/111",
+    "demo-exness-433881786": "🟢 Demo • Exness 786 — P18 + S101/102/105/106/111 + S20-Gen Forward Demo (64)",
     "demo-exness-416273786": "🟢 Demo • Exness 786b — LTS_AUS3",
     "demo-exness-414252716": "🟢 Demo • Exness 716 — LTS_AHR3",
     "demo-exness-434237129": "🟢 Demo • Exness 129 — 48_New_God_S20 (48 Strats)",
     "demo-exness-434238722": "🟢 Demo • Exness 722 — S20.14 24 Group with Round v2",
-    "demo-vantage-26253671": "⚪ Demo • Vantage 671 — (ยังไม่มี Telegram token, ไม่มี strategy)",
+    "demo-vantage-26253671": "⚪ Demo • Vantage 671 — (Disabled, Vantage demo เติมเงินไม่ได้ ต้องสร้างบัญชีใหม่)",
     "demo-vantage-26257644": "⚪ Demo • Vantage 644 — (ยังไม่มี Telegram token, ไม่มี strategy)",
+    "demo-vantage-26278865": "⚪ Demo • Vantage 865 — (ยังไม่มี Telegram token, ไม่มี strategy)",
+    "demo-vantage-26278955": "⚪ Demo • Vantage 955 — (ยังไม่มี Telegram token, ไม่มี strategy)",
 }
 RUN_PS1 = os.path.join(ROOT_DIR, "run_supervised.ps1")
 STOP_PS1 = os.path.join(ROOT_DIR, "stop_supervised.ps1")
@@ -591,10 +597,41 @@ REMOTE_VIEW_ACCOUNTS = {"real-vtmarket-26575165"}
 #   (IUX 4448 "Main" — เจอทั้งหมดนี้ 2026-10-07, เป็นบัญชีทดสอบ EA หลายตัว คนละตัวกับบัญชี live)
 #   77799 ("OVER LOT OK")  = "Over Lot EA" (Vantage 26253671, เจอ 2026-10-09 — ACTIVE_STRATEGIES=NONE
 #                            ในบัญชีนี้ ไม่ใช่บอทเราแน่ๆ)
-#   888205/888215/888230 ("CHXM M5"/"CHXM M15"/"CHXM M30") = "CHXM EA" (Vantage 26257644, เจอ 2026-10-09
-#                            — ตัวเลข 888XXX ไม่ตรง convention เราเลย, XX ท้ายคือ TF)
+#   888205/888215/888230/904588 ("CHXM M5"/"CHXM M15"/"CHXM M30"/"CHXM H4") = "CHXM EA" (Vantage
+#                            26257644, เจอ 2026-10-09/2026-10-16 — ชื่อเต็มจาก MQL5 expert log คือ
+#                            "CHAMILLION-X_SYSTEM" (XAUUSD+,H1), ตัวเลข 888XXX/904XXX ไม่ตรง convention เราเลย
+#   771001 ("MaePlaAI") = "CHXM EA (MaePlaAI)" (Vantage 26257644, เจอ 2026-10-16 — โมดูลย่อยชื่อเฉพาะ
+#                            ของ CHAMILLION-X_SYSTEM ตัวเดียวกับ CHXM ด้านบน แต่ไม่ใช่ TF (H1 cross-check
+#                            H4gate) เลยตั้ง label แยกจาก "CHXM EA" กัน pivot ตาม TF ของตัวอื่นพัง)
+#   1 ("SX9MAS G1 | LINE:Kenz.svk") = "SX9MAS EA" (Exness 416010472 "LTS_AUS2", เจอ 2026-10-12)
+#   168 ("SmartX9 TSO | LINE: Kenz.svk") = "SmartX9 TSO EA" (Exness 434238722 "S20.14 24Group",
+#                            เจอ 2026-10-12 — เซลเลอร์เดียวกับ SX9MAS (LINE Kenz.svk) แต่คนละตัว/คนละ magic)
+#   171135 ("CHAMILLION-X") = "Chamillion-X EA" (IUX 2101182459 "LTS_AHR2", เจอ 2026-10-12)
+#   9995/9996 (comment เดียวกับ 9997-9999 เป๊ะ) = "NP SmartHedge Pro" (Vantage 26278955/26278865,
+#                            เจอ 2026-10-14 — เซลเลอร์เดียวกันไล่ magic ลงมาทีละ 1 ต่อลูกค้าใหม่แต่ละราย
+#                            9999→9998→9997→9996→9995..., บัญชีใหม่ที่เจอ EA นี้ให้เดาว่าน่าจะไล่ magic ต่อจาก 9994 ลงไป)
+#   2299 ("ZB3 M15 Break + M5 Corner SELL") = "ZOMBIE_BREAKOUT4 EA" (Exness 434237129 "48_New_God_S20",
+#                            โหลดขึ้นชาร์ตแล้วเจอตอน 2026-10-12 แต่เพิ่งเข้าไม้ครั้งแรกเจอ 2026-10-14)
+#   2026777/2026778/2026779/2026780 ("Tom-Moowan") = "Tom-Moowan EA" (Exness 433881786 "P18+S101-111",
+#                            เจอ 2026-10-15 — scalper ถี่มาก XAUUSDm ส่วนใหญ่โดน SL ไม้เล็กๆ ดูคล้าย
+#                            grid/martingale (4 magic คู่กัน น่าจะคนละ leg/slot), เลขขึ้นต้น 2026 คล้าย
+#                            mql5 EA เราเอง (20260809 ฯลฯ) แต่สั้นกว่า 1 หลัก (7 หลัก ไม่ใช่ 8) ไม่ใช่ของเรา
+#   9993/9994 = "NP SmartHedge Pro" (Exness 416273786 "LTS_AUS3" 3094 ไม้!, Exness 414252716 "LTS_AHR3"
+#                            412 ไม้) เจอ 2026-10-15 — ไล่ magic ลงมาต่อเนื่องจาก 9995/9996 (ดูบนสุด)
+#                            ยืนยันแพร่ไปแล้วอย่างน้อย 7 บัญชี (9993-9999) + 2 บัญชีใหม่ (9995/9996)
+#   9992 = "NP SmartHedge Pro" (Exness 433881786 "P18+S101-111" 80 ไม้ — บัญชีเดียวกับ Tom-Moowan EA
+#                            ด้วย มี 2 EA แปลกปลอมพร้อมกัน) เจอ 2026-10-16 — ไล่ magic ต่อจาก 9993
+#   33301/33304/33305 ("Moon Nova"/"Moon Pulse"/"Moon Eclipse") = "Moon EA" (real-vtmarket-26575165 — ⚠️
+#                            บัญชีเงินจริง! balance เหลือแค่ $32.12 ตอนเจอ — เจอ 2026-10-15, ตัวเลข
+#                            333XX น่าจะมีโมดูลอื่นในตระกูลเดียวกันที่ยังไม่เข้าไม้ด้วย)
+#   999200 ("LLM") = "LLM EA (ไม่แน่ใจ)" (real-vtmarket-26575165 เดียวกัน, 37 ไม้ — ⚠️ ไม่ยืนยัน 100%
+#                            ว่าเป็น EA แปลกปลอมจริงหรือฟีเจอร์ในตัว MT5 เอง เพราะเจอโฟลเดอร์ "llm-agent"
+#                            เปล่าๆ ในทุก terminal ของบัญชีนี้ (อาจเป็นของ build ใหม่ MetaQuotes เอง) —
+#                            ต้องถามพี่ยืนยันว่าเคยติดตั้งอะไรแบบนี้เองไหมก่อนฟันธง)
 # ⚠️ magic=20260809 (ichimoku_EA.mq5 ของเราเอง InpMagic default) อย่าใส่ตรงนี้ — ไม่ใช่ EA แปลกปลอม
 FOREIGN_EA_MAGIC_LABELS = {
+    9995: "NP SmartHedge Pro",
+    9996: "NP SmartHedge Pro",
     9997: "NP SmartHedge Pro",
     9998: "NP SmartHedge Pro",
     9999: "NP SmartHedge Pro",
@@ -611,17 +648,36 @@ FOREIGN_EA_MAGIC_LABELS = {
     888205: "CHXM EA",
     888215: "CHXM EA",
     888230: "CHXM EA",
+    904588: "CHXM EA",
+    771001: "CHXM EA (MaePlaAI)",
+    1: "SX9MAS EA",
+    168: "SmartX9 TSO EA",
+    171135: "Chamillion-X EA",
+    2299: "ZOMBIE_BREAKOUT4 EA",
+    2026777: "Tom-Moowan EA",
+    2026778: "Tom-Moowan EA",
+    2026779: "Tom-Moowan EA",
+    2026780: "Tom-Moowan EA",
+    9992: "NP SmartHedge Pro",
+    9993: "NP SmartHedge Pro",
+    9994: "NP SmartHedge Pro",
+    33301: "Moon EA",
+    33304: "Moon EA",
+    33305: "Moon EA",
+    999200: "LLM EA (ไม่แน่ใจ)",
 }
 FOREIGN_EA_MAGIC_NUMBERS = set(FOREIGN_EA_MAGIC_LABELS)
 FOREIGN_EA_LABEL = "EA ภายนอก"  # fallback label ใช้ตอนยังไม่รู้ magic ที่แท้จริงของกลุ่ม
 
-# EA บางตัวแยก magic ตาม timeframe (เช่น CHXM: 888205=M5, 888215=M15, 888230=M30) — ถ้า EA
-# ตัวหนึ่ง (label เดียวกัน) ทุก magic มีอยู่ในนี้ครบ ตารางสรุปรายวันจะ pivot โชว์ 1 แถวต่อวัน
-# พร้อมคอลัมน์ PnL แยกตาม TF แทนการแยกแถวต่อ magic (ตามที่พี่ขอสำหรับ CHXM EA)
+# EA บางตัวแยก magic ตาม timeframe (เช่น CHXM: 888205=M5, 888215=M15, 888230=M30, 904588=H4) —
+# ถ้า EA ตัวหนึ่ง (label เดียวกัน) ทุก magic มีอยู่ในนี้ครบ ตารางสรุปรายวันจะ pivot โชว์ 1 แถวต่อวัน
+# พร้อมคอลัมน์ PnL แยกตาม TF แทนการแยกแถวต่อ magic (ตามที่พี่ขอสำหรับ CHXM EA) — MaePlaAI (771001)
+# เป็นโมดูลชื่อเฉพาะ ไม่ใช่ TF จึงตั้ง label แยกจาก "CHXM EA" ไม่งั้น pivot ของ M5/M15/M30/H4 จะพังไปด้วย
 FOREIGN_EA_MAGIC_TF = {
     888205: "M5",
     888215: "M15",
     888230: "M30",
+    904588: "H4",
 }
 
 
@@ -803,6 +859,10 @@ S20X_COMPARE_PROFILE_SCRIPTS = {
 ACCOUNT_BACKTEST_STRATEGIES = {
     "": [],
     "real-vtmarket-26575165": [],
+    "real-interstellar-97124233": [],
+    "real-vantage-36164519": [],
+    "real-exness-160197394": [],
+    "real-hfm-153235221": [],
     "demo-iux-2101114448": [],
     "demo-iux-2101182459": ["LTS_AHR2"],
     "demo-iux-2101182460": ["LTS_AVENGERS_BASE"],
@@ -817,6 +877,8 @@ ACCOUNT_BACKTEST_STRATEGIES = {
     "demo-exness-434238722": ["S20_ALL", "20.141", "20.142", "20.143", "20.144", "20.145", "20.146", "20.147", "20.148", "20.149", "20.1410", "20.1411", "20.1412", "20.1413", "20.1414", "20.1415", "20.1416", "20.1417", "20.1418", "20.1419", "20.1402", "20.1421", "20.1422", "20.1423", "20.1424"],
     "demo-vantage-26253671": [],
     "demo-vantage-26257644": [],
+    "demo-vantage-26278865": [],
+    "demo-vantage-26278955": [],
 }
 
 # รายชื่อกลยุทธ์/พอร์ตทั้งหมดที่มี --compare รองรับแล้ว (ตรวจสอบโค้ดจริงแล้ว 2026-09) — ไม่ผูกกับบัญชีที่เลือก
@@ -2171,6 +2233,22 @@ DEMO_PORTFOLIOS_DATA = [
         "worst_day": "-$2,760,309.79", "test_days": "550 วัน", "status": "🟢 ทำแล้ว (รันที่ IUX 2460)",
         "desc": "คัดเฉพาะ 273 ขาแรกสุดจากยุค S84/S86 ไม่มีขาซ้ำ",
     },
+    {
+        "name": "🧪 S20-Gen Forward Demo (64 ขา)", "alias": "S20GEN", "capital": "lot คงที่ 0.01/ขา",
+        # ตัวเลข avg_day/avg_month/total_pnl เป็นผลรวม 365 วันของ backtest แต่ละขาแบบนำมาบวกตรงๆ
+        # (ไม่ได้ simulate รวมผลกระทบของการถือหลายขาพร้อมกัน/correlated drawdown) — ดู
+        # strategy/backtest-summary/S20_forward_demo_shortlist_62.md สำหรับตัวเลขต่อขา
+        "avg_day": "~$201 (คาดหวังจาก backtest, ผลรวมตรงๆ)", "avg_month": "~$6,029 (ผลรวมตรงๆ)",
+        "total_pnl": "~$73,352 (365 วัน, backtest รายขา)",
+        "worst_day": "ไม่ทราบ — ยังไม่ simulate ผลกระทบรวมของหลายขาพร้อมกัน",
+        "test_days": "ขึ้นกับขา (90-365 วัน, ดูไฟล์ shortlist)",
+        "status": "🟡 Forward Demo (เริ่ม 2026-10-14, รันที่ Exness 433881786)",
+        "desc": "64 กลยุทธ์จากแคมเปญ strategy/s20_gen (S20.140-1519) ที่ผ่าน final_gate WINNER/BORDERLINE "
+                "แล้วแต่ยังไม่เคย forward demo — เดี่ยว 20 ขา + ผสม 44 ขา, lot คงที่เล็กสุดทุกขา, "
+                "SL/TP คำนวณจาก ATR สดแบบเดียวกับ backtest, มี weekend force-close + max_hold "
+                "time-exit ตรงกับ engine.py checklist #5/#17 — ยังไม่มีผล live สะสมที่เชื่อถือได้ "
+                "(เพิ่งเริ่มวันแรก) ห้ามอ้างตัวเลขข้างต้นเป็นผลจริง",
+    },
 ]
 
 
@@ -2345,6 +2423,17 @@ def _deals_to_df(history_deals):
     if history_deals is None or len(history_deals) == 0:
         return pd.DataFrame()
     df = pd.DataFrame(list(history_deals), columns=history_deals[0]._asdict().keys())
+    return _enrich_deals_df(df)
+
+
+def _enrich_deals_df(df):
+    """รับ raw dataframe ของ deals (คอลัมน์ตรงกับ MT5 TradeDeal: time/entry/profit/swap/commission/
+    fee/comment/position_id/price/type/magic/symbol/volume ฯลฯ) มาเติม net/strategy/tf/entry_magic/
+    entry_comment ให้ — แยกออกมาจาก _deals_to_df() เพื่อให้ archive loader (_load_archive_deals_df)
+    เอา raw dataframe จากไฟล์ JSON ที่ export ไว้มาผ่าน pipeline เดียวกันได้ ไม่ต้องพึ่ง MT5 namedtuple สด"""
+    if df.empty:
+        return df
+    df = df.copy()
     df['time'] = pd.to_datetime(df['time'], unit='s', utc=True).dt.tz_convert(BKK).dt.tz_localize(None)
     for col in ('profit', 'swap', 'commission', 'fee'):
         if col not in df.columns:
@@ -2393,6 +2482,34 @@ def _deals_to_df(history_deals):
         fb_tf_memo = dict(zip(unique_fb_tf, extract_timeframe(pd.Series(unique_fb_tf))))
         df.loc[_fallback_tf, 'tf'] = df.loc[_fallback_tf, 'comment'].map(fb_tf_memo)
     return df
+
+
+ARCHIVE_DIR = os.path.join(ROOT_DIR, "history_archive")
+
+
+def _archive_path(acc_key):
+    return os.path.join(ARCHIVE_DIR, f"{acc_key or 'root'}.json")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _load_archive_deals_df(acc_key):
+    """fallback สำหรับบัญชีที่ login ผ่าน MT5 live ไม่ได้แล้ว (terminal ปิดตัวเอง/บัญชีโดนปิดจริง) —
+    อ่านจากไฟล์ archive ที่ export ไว้ล่วงหน้าด้วย export_disabled_account_history.py แทน
+    (ดู history_archive/<account_key>.json) ผ่าน pipeline เสริมข้อมูลเดียวกับข้อมูลสด (_enrich_deals_df)
+    เพื่อให้ strategy/tf/entry_magic/entry_comment ออกมาตรงกันทุกจุดที่ใช้ df_history/df_month"""
+    path = _archive_path(acc_key)
+    if not os.path.exists(path):
+        return pd.DataFrame(), None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        return pd.DataFrame(), None
+    deals = payload.get("deals", [])
+    if not deals:
+        return pd.DataFrame(), payload.get("exported_at")
+    raw_df = pd.DataFrame(deals)
+    return _enrich_deals_df(raw_df), payload.get("exported_at")
 
 
 @st.cache_data(show_spinner=False, ttl=180)
@@ -2455,11 +2572,24 @@ def downsample_for_chart(df_data, max_points=400):
 @st.cache_data(ttl=300)
 def load_mt5_history(acc_key, acc_dir, acc_status_state, mt5_path, days=30):
     if not _mt5_connect(acc_key, acc_dir, mt5_path, acc_status_state):
-        return pd.DataFrame()
+        # live ต่อไม่ติด (เช่น terminal ปิดตัวเอง/บัญชีโดนปิดจริงแล้ว) — fallback ไปใช้ archive
+        # ที่ export ไว้ล่วงหน้า (ดู export_disabled_account_history.py) ถ้ามี
+        df_arc, _exported_at = _load_archive_deals_df(acc_key)
+        if df_arc.empty:
+            return df_arc
+        end_time = datetime.now(BKK).replace(tzinfo=None)
+        start_time = end_time - timedelta(days=days)
+        return df_arc[(df_arc['time'] >= start_time) & (df_arc['time'] <= end_time)].copy()
     end_time = datetime.now(BKK)
     start_time = end_time - timedelta(days=days)
     deals = mt5.history_deals_get(start_time, end_time)
     return _deals_to_df(deals)
+
+
+def _is_archive_backed(acc_key):
+    """เช็คว่าบัญชีนี้มี archive สำรองไว้ไหม (ไม่ได้บอกว่ากำลังใช้ archive อยู่จริงหรือเปล่า —
+    ใช้โชว์ caption เตือนในหน้า UI เฉยๆ ว่าถ้า live ต่อไม่ติด จะมี fallback ให้)"""
+    return os.path.exists(_archive_path(acc_key))
 
 
 @st.cache_data(ttl=120)
@@ -2470,17 +2600,24 @@ def load_month_history(acc_key, acc_dir, acc_status_state, mt5_path, year, month
     "[tp 4320.69]") เป็นชื่อ strategy ผิดๆ (เจอบั๊กจริงจากพี่ที่ profile 3587 — เปิดไม้ 31 ส.ค.
     ปิด 2 ก.ย. หลุดจากช่วง fetch เดือนกันยาที่เริ่มนับ 1 ก.ย. พอดี) — กรองกลับให้เหลือเฉพาะไม้ที่
     "ปิด" ในเดือนนี้เหมือนพฤติกรรมเดิมหลัง map strategy เสร็จแล้ว"""
-    if not _mt5_connect(acc_key, acc_dir, mt5_path, acc_status_state):
-        return pd.DataFrame()
     start = datetime(year, month, 1, tzinfo=BKK)
     end = datetime(year + 1, 1, 1, tzinfo=BKK) if month == 12 else datetime(year, month + 1, 1, tzinfo=BKK)
     end = min(end, datetime.now(BKK) + timedelta(days=1))
+    start_naive = start.replace(tzinfo=None)
+    end_naive = end.replace(tzinfo=None)
+
+    if not _mt5_connect(acc_key, acc_dir, mt5_path, acc_status_state):
+        # live ต่อไม่ติด — fallback ไปใช้ archive ที่ export ไว้ล่วงหน้าถ้ามี (ดูเหตุผนเดียวกับ
+        # load_mt5_history ด้านบน)
+        df_arc, _exported_at = _load_archive_deals_df(acc_key)
+        if df_arc.empty:
+            return df_arc
+        return df_arc[(df_arc['time'] >= start_naive) & (df_arc['time'] < end_naive)].copy()
+
     fetch_start = start - timedelta(days=30)
     df = _deals_to_df(mt5.history_deals_get(fetch_start, end))
     if df.empty:
         return df
-    start_naive = start.replace(tzinfo=None)
-    end_naive = end.replace(tzinfo=None)
     return df[(df['time'] >= start_naive) & (df['time'] < end_naive)].copy()
 
 
@@ -4640,13 +4777,22 @@ if view_mode.startswith("🏦"):
                 df_ea_month = df_month.iloc[0:0].copy() if not df_month.empty else df_month
 
             trade_cnt_txt = f"{len(df_month):,} ไม้" if not df_month.empty else "ไม่มีประวัติเทรด"
+            _maybe_archive = (not df_month.empty or not df_ea_month.empty) and acc_status["state"] not in ("LIVE", "LAGGING") and _is_archive_backed(sel_key)
+            if _maybe_archive:
+                _status_txt = "📦 Archive (MT5 ต่อสดไม่ได้ตอนนี้)"
+                _status_color = "#fbbf24"
+            else:
+                _status_txt = f"🟢 MT5 Synced ({trade_cnt_txt})"
+                _status_color = "#34d399"
             st.markdown(
                 f"<div style='display:flex;justify-content:space-between;align-items:center;margin:6px 0 12px 0;font-size:12.5px;color:#94a3b8;'>"
                 f"<span>📅 มุมมองปฏิทิน: <b style='color:#f8fafc;'>{pycal.month_name[cal_month]} {cal_year}</b></span>"
-                f"<span>สถานะข้อมูล: <b style='color:#34d399;'>🟢 MT5 Synced ({trade_cnt_txt})</b></span>"
+                f"<span>สถานะข้อมูล: <b style='color:{_status_color};'>{_status_txt}</b></span>"
                 f"</div>",
                 unsafe_allow_html=True
             )
+            if _maybe_archive:
+                st.caption("⚠️ ข้อมูลนี้มาจากไฟล์ archive ที่ export ไว้ล่วงหน้า (ไม่ใช่ sync สดจาก MT5 ตอนนี้) อาจไม่ใช่ข้อมูลล่าสุด — รัน export_disabled_account_history.py ใหม่เพื่ออัพเดท")
 
 
             today = datetime.now(BKK)

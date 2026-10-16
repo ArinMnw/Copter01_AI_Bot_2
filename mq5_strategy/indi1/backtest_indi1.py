@@ -116,6 +116,7 @@ def main():
     ap.add_argument("--risk", type=float, default=DEFAULT_CFG["RISK_PCT"])
     ap.add_argument("--rr", type=float, default=DEFAULT_CFG["RR"])
     ap.add_argument("--max-entries", type=int, default=DEFAULT_CFG["MAX_ENTRIES_PER_H1"], help="ไม้ต่อสัญญาณ H1 (0 = ไม่จำกัด)")
+    ap.add_argument("--confirm-bars", type=int, default=DEFAULT_CFG["CONFIRM_BARS"], help="1 = กฎ 1 แท่ง (ใหม่) | 2 = กฎ 2 แท่ง (เดิม)")
     ap.add_argument("--sequential", action="store_true", help="ถือได้ทีละไม้")
     ap.add_argument("--no-be", action="store_true", help="ปิด fibo breakeven")
     ap.add_argument("--out", default=os.path.join(_HERE, "indi1_backtest"))
@@ -124,7 +125,7 @@ def main():
     end = parse_bkk(args.end)
     start = parse_bkk(args.start) if args.start else end - timedelta(days=30 * args.months)
     cfg = {"INITIAL_BALANCE": args.balance, "RISK_PCT": args.risk, "RR": args.rr, "USE_BE": not args.no_be,
-           "MAX_ENTRIES_PER_H1": args.max_entries, "CONCURRENT": not args.sequential}
+           "MAX_ENTRIES_PER_H1": args.max_entries, "CONCURRENT": not args.sequential, "CONFIRM_BARS": args.confirm_bars}
 
     m5, h1 = fetch(start, end)
     start_ts = int(bkk_to_query(start).timestamp())
